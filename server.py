@@ -1,9 +1,24 @@
 # coding=utf-8
-import thread, socket
+import thread, socket, time, sys, traceback
+from urllib import urlopen
 from ClientHandler import ClientHandler
 from DataHandler import root
 from Client import Client
+from NATServer import NATServer
 import ip2country
+
+print 'Detecting local IP:',
+local_addr = socket.gethostbyname(socket.gethostname())
+print local_addr
+
+print 'Detecting online IP:',
+try:
+	web_addr = urlopen('http://www.zjt3.com/ip.php').read()
+	print web_addr
+except:
+	web_addr = local_addr
+	print 'not online'
+print
 
 host = ''
 port = 8200
@@ -14,42 +29,79 @@ server.bind((host,port))
 server.listen(backlog)
 input = [server]
 
-
-curthread = 0
-maxthreads = 10
-clienthandlers = []
-for iter in range(maxthreads):
-        clienthandlers.append( ClientHandler() )
-
 _root = root()
+_root.local_ip = local_addr
+_root.online_ip = web_addr
+
+_root.LAN = True
+
+natport = 8201
+natserver = NATServer(natport)
+thread.start_new_thread(natserver.start,())
+natserver.bind(_root)
+
 session_id = 0
 
-print 'Uberserver BETA starting on port %i'%port
-print 'Using %i client handling threads.'%maxthreads
+curthread = 0
+maxthreads = 25
+for iter in range(maxthreads):
+	_root.clienthandlers.append( ClientHandler(_root, iter) )
+
+print 'uberserver starting on port %i'%port
+print 'Using %i client handling thread(s).'%maxthreads
 
 running = 1
-
 clients = {}
 
 def AddClient(client):
-	global curthread
-        clienthandlers[curthread].AddClient(client)
-        clients[client] = curthread
-        curthread += 1
-        if curthread > len(clienthandlers)-1:
-                curthread = 0
+	# start detection of handler with the least clients
+	curthread = 0
+	lowlen = -1
+	for iter in range(len(_root.clienthandlers)):
+		curtest = _root.clienthandlers[iter].clients_num
+		if curtest < lowlen or lowlen == -1:
+			lowlen = curtest
+			curthread = iter
+			if lowlen == 0:
+				break # end if it's at 0, we won't get much lower :>
+	# end detection -- this code places a new client in the handler with the least clients
+	if not _root.clienthandlers[iter].running:
+		thread.start_new_thread(_root.clienthandlers[iter].Run, ())
+	_root.clienthandlers[curthread].AddClient(client)
+	clients[client] = curthread
 
 def RemoveClient(client):
-        threadnum = clients[client]
-        clienthandlers[threadnum].RemoveClient(client)
+	threadnum = clients[client]
+	_root.clienthandlers[threadnum].RemoveClient(client)
 
-while running:
-        connection, address = server.accept()
-        country_code = ip2country.lookup(address[0]) # actual flag
-        #country_code = ip2country.randomcc() # random flags
-        client = Client(_root, clienthandlers[curthread], connection, address, session_id, country_code)
-        _root.clients[session_id] = client
-        AddClient(client)
-        session_id += 1
+#try:
+#        import Users
+#except:
+#        exit() # replace with a working fallback to lan mode
 
+try:
+	while running:
+		connection, address = server.accept()
+		if address[0].startswith('127.'): # detects if the connection is from this computer
+			if web_addr:
+				address = (web_addr, address[1])
+			elif local_addr:
+				address = (local_addr, address[1])
+		country_code = ip2country.lookup(address[0]) # actual flag
+		#country_code = ip2country.randomcc() # random flags
+		client = Client(_root, connection, address, session_id, country_code)
+		_root.clients[session_id] = client
+		AddClient(client)
+		session_id += 1
+		time.sleep(0.05) # just in case
+except KeyboardInterrupt:
+	print
+	print 'Server killed by keyboard interrupt.'
+except:
+	print '-'*60
+	traceback.print_exc(file=sys.stdout)
+	print '-'*60
+	print 'Deep error, exiting...'
+finally:
+	server.close()
 server.close()

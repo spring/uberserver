@@ -1,72 +1,128 @@
-import socket, thread, select, sys, traceback
+import socket, thread, select, sys, traceback, time, os
+#import cProfile # for profiling
 from Client import Client
+# from Protocol import Protocol
+# from Protocol import Protocol_034 as Protocol # legacy support
 
 class ClientHandler:
-    '''This represents one client handler. Threading is recommended. Multiple copies work.'''
-    def __init__(self):
+	'''This represents one client handler. Threading is recommended. Multiple copies work.'''
+	def __init__(self, root, num):
+		self.num = num
+		self._root = root
+		self._bind()
 
-        self.input = []
-        self.output = []
-        self.running = 0
-	self.socketmap = {}
+		self.input = []
+		self.output = []
+		self.socketmap = {}
+		self.pending_clients = {}
+		self.clients = {}
+		self.clients_num = 0
+		self.running = False
 
-    def MainLoop(self):
-        self.running = 1
-        while self.running:
-            try:
-                if len(self.input) < 1:
-                    self.running = 0
-                    continue
+	def _bind(self):
+		legacy = self._root.legacy
+		if legacy:
+			protocol = __import__('Protocol').Protocol_034
+		else:
+			protocol = __import__('Protocol').Protocol
+		self.protocol = protocol(self._root,self)
 
-                try:
-                    inputready,outputready,exceptready = select.select(self.input,self.output,[],1)   # requires timeout so new sockets will be added to the loop without data from other sockets
-                except:
-                    inputready = []
-                    outputready = []
+	def _rebind(self):
+		del self.protocol
+		self._bind()
+		for client in self.clients:
+			client.Bind(protocol=self.protocol)
 
-                for s in inputready:
-                    try:
-                        data = s.recv(1024)
-                    except socket.error:
-                        s.close()
-                        self.input.remove(s)
-                        if s in self.output:
-                            self.output.remove(s)
-                    if data:
-			if s in self.socketmap:
-				self.socketmap[s].Handle(data)
-                    else:
-                        print 'Client disconnected from %s, session ID was %s'%(s.getpeername()[0], self.socketmap[s].session_id)
-                        self.socketmap[s].Remove()
-                        del self.socketmap[s]
-                        self.input.remove(s)
+	def Run(self):
+		# commented out to remove profiling
+		#if not os.path.isdir('profiling'):
+		#	os.mkdir('profiling')
+		#cProfile.runctx('self.MainLoop()', globals(), locals(), os.path.join('profiling', '%s_%s.log'%(int(time.time()),self.num)))
+		# normal, no profiling
+		self.running = True
+		self.MainLoop()
+	
+	def MainLoop(self):
+		while self.running:
+			while not self.input and not self.pending_clients and self.running:
+				time.sleep(0.1)
+			for client in dict(self.pending_clients):
+				try:
+					if not client in self.clients and client in self.pending_clients:
+						self.clients[client] = ''
+						client.Bind(self, self.protocol)
+					del self.pending_clients[client]
+					break # hax to only handle one each time around :)
+				except:
+					self._root.error(traceback.format_exc())
+			while self.input or self.pending_clients:
+				try:
+					for client in dict(self.pending_clients):
+						try:
+							if not client in self.clients and client in self.pending_clients:
+								self.clients[client] = ''
+								client.Bind(self, self.protocol)
+							del self.pending_clients[client]
+							break # hax to only handle one each time around :)
+						except:
+							self._root.error(traceback.format_exc())
+							self._root.console_write(['-'*60, traceback.format_exc(), '-'*60])
+					if not self.input:
+						continue
+   
+					try:
+						inputready,outputready,exceptready = select.select(self.input,self.output,[], 0.5)
+					except:
+						inputready = []
+						outputready = []
+   
+					for s in inputready:
+						try:
+							data = s.recv(1024)
+						except socket.error:
+							self._remove(s)
+							continue
+						if data:
+							if s in self.socketmap:
+								self.socketmap[s].Handle(data)
+						else:
+							self._remove(s)
+   
+					for s in outputready:
+						try:
+							self.socketmap[s].FlushBuffer()
+						except KeyError:
+							self._remove(s)
+						except socket.error:
+							s.close()
+							self._remove(s)
+				except:
+					self._root.error(traceback.format_exc())
 
-                for s in outputready:
-                    try:
-                        self.socketmap[s].FlushBuffer()
-                    except KeyError:
-                        if s in self.output:
-                            self.output.remove(s)
-                        if s in self.input:
-                            self.input.remove(s)
-                    except socket.error:
-                        s.close()
-                        if s in self.output:
-                            self.output.remove(s)
-                        if s in self.input:
-                            self.input.remove(s)
-                        
-            except:
-               print '-'*60
-               traceback.print_exc(file=sys.stdout)
-               print '-'*60
+	def _remove(self,s):
+		if s in self.input:
+			self.input.remove(s)
+		if s in self.output:
+			self.output.remove(s)
+		if s in self.socketmap: # for some reason gets called twice sometimes, so needs the check
+			client = self.socketmap[s]
+			client.Remove()
+			try: del self.socketmap[s]
+			except: pass
 
-    def AddClient(self, client):
-	self.socketmap[client.conn] = client
-        if not self.running:
-            thread.start_new_thread(self.MainLoop,())
-        self.input.append(client.conn)
+	def AddClient(self, client):
+		self.clients_num += 1
+		self.pending_clients[client] = ''
+		self.socketmap[client.conn] = client
 
-    def RemoveClient(self, client):
-        if client in self.input:
-            self.input.remove(client)
+	def RemoveClient(self, client):
+		self.clients_num -= 1
+		if client.conn in self.input:
+			self.input.remove(client.conn)
+		if client in self.clients:
+			del self.clients[client]
+		self._root.console_write('Client disconnected from %s, session ID was %s'%(client.ip_address, client.session_id))
+		#if client.username in self._root.usernames:
+		#    del self._root.usernames[client.username]
+		client._protocol._remove(client)
+		#del self._root.clients[client.session_id]
