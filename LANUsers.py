@@ -13,5 +13,8 @@ class UsersHandler:
 			User.access = 'admin'
 		return True, User
 
-	def register_user(self, user, password, ip): # need to add better ban checks so it can check if an ip address is banned when registering an account :)
+	def register_user(self, user, password, ip): # need to add better ban checks so it can check if an ip address is banned when registering an account :) << lolwut this is LAN server
 		return True, 'Account was not actually registered - we are in LAN mode ;).'
+
+	def rename_user(self, user, newname):
+		return True, 'Account was not actually renamed - we are in LAN mode ;).'

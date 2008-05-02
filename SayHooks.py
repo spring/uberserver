@@ -1,6 +1,6 @@
 import inspect,sys,os,types,time,string
 
-_permissionlist = ['admin','adminchan','mod','modchan','chanowner','chanadmin','chanpublic','public']
+_permissionlist = ['admin','adminchan','mod','modchan','chanowner','chanadmin','chanpublic','public','battlehost','battlepublic']
 _permissiondocs = {
 					'admin':'Admin Commands',
 					'adminchan':'Admin Commands (channel)',
@@ -10,6 +10,8 @@ _permissiondocs = {
 					'chanadmin':'Channel Admin Commands (channel)',
 					'chanpublic':'Public Commands (channel)',
 					'public':'Public Commands',
+					'battlehost':'Battle Host',
+					'battlepublic':'Battle Public',
 					}
 
 def _erase():
@@ -37,7 +39,46 @@ def _update_lists():
 		line = line.strip()
 		if line and not line in bad_site_list: bad_site_list.append(line)
 	f.close()
+def public_help(self,user,chan,rights,command=None):
+	'show command specific help.'
+	if not command:
+		public_commands(self,user,chan,rights)
+		return
+	exists,usage,description = _help(command,rights)
+	if not exists:
+		_reply(self,chan,"No such command (%s)"%command)
+	else:
+		_reply(self,chan,":::Help on %s:::"%command)
+		_reply(self,chan,"Usage: "+usage)
+		_reply(self,chan,"Description: "+description)
+		if usage.count(' ') > 1: # has arguments
+			_reply(self,chan,'Note:')
+			_reply(self,chan,'"<arg>" means the argument is required')
+			_reply(self,chan,'"[arg]" means the argument is optional')
 
+def public_commands(self,user,chan,rights):
+	'shows all commands available to you'
+	l = filter(lambda x:not x.startswith('_'),globals())
+	_reply(self,chan,'Available commands for level %s:'%rights[0])
+	helparray = {}
+	for command in l:
+		exec 'isfunc = type(%s) == types.FunctionType' % command
+		if isfunc:
+			level,command = command.split('_',1)
+			try:
+				exists,usage,description = _help(command,rights)
+				if exists:
+					try:
+						helparray[level].append('    - %s (%s)'%(command, description))
+					except KeyError:
+						helparray[level] = ['    - %s (%s)'%(command, description)]
+			except KeyError:
+				pass
+	for level in _permissionlist:
+		if level in helparray:
+			_reply(self,chan,'* %s'%_permissiondocs[level])
+			for command in helparray[level]:
+				_reply(self,chan,command)
 def _clear_lists():
 	global bad_word_dict
 	global bad_site_list
@@ -183,6 +224,26 @@ def hook_SAYPRIVATE(self, client, target, msg):
 			client.Send('CHANNELMESSAGE %s %s'%(chan, reason))
 	else: return _site_censor(msg)
 
+def hook_SAYBATTLE(self, client, battle_id, msg):
+	user = client.username
+	if client.hook and msg.startswith(client.hook):
+		access = []
+
+		if 'admin' in client.accesslevels: admin = True
+		else: admin = False
+		if 'mod' in client.accesslevels: mod = True
+		else: mod = False
+
+		#if admin: access.append('admin')
+		#if mod: access.append('mod')
+		if self._root.battles[battle_id]['host'] == user: access.append('battlehost')
+
+		access.append('battlepublic')
+		#access.append('public')
+		good, reason = _do(client, chan, user, msg[len(client.hook):], access)
+		#if not good:
+		#	client.Send('CHANNELMESSAGE %s %s'%(chan, reason))
+
 def _do(client,chan,user,msg,rights):
 	#number of words
 	numspaces = msg.count(' ')
@@ -212,7 +273,7 @@ def _do(client,chan,user,msg,rights):
 	if numspaces < required_args:
 		good, usage, description = _help(command,rights)
 		_reply(client,chan,'invalid usage: %s'%usage)
-		return False,'invalid usage: '+usage
+		return False,''#,'invalid usage: '+usage
 	#bunch the last words together if there are too many of them
 	if numspaces > total_args:
 		arguments = args.split(' ',total_args-1)
@@ -270,6 +331,9 @@ def _help(funcname,rights):
 def _reply(self,chan,msg):
 	self.Send('CHANNELMESSAGE %s %s'%(chan,msg))
 
+def _replyb(self,msg):
+	self.Send('SAIDBATTLEEX %s %s'%(self.username,msg))
+
 def public_rights(self,user,chan,rights):
 	'lists your rights levels'
 	_reply(self,chan,'Your access levels are: %s.'%(', '.join(rights)))
@@ -304,9 +368,9 @@ def public_commands(self,user,chan,rights):
 				exists,usage,description = _help(command,rights)
 				if exists:
 					try:
-						helparray[level].append(' - %s (%s)'%(command, description))
+						helparray[level].append('    - %s (%s)'%(command, description))
 					except KeyError:
-						helparray[level] = [' - %s (%s)'%(command, description)]
+						helparray[level] = ['    - %s (%s)'%(command, description)]
 			except KeyError:
 				pass
 	for level in _permissionlist:
@@ -372,15 +436,59 @@ def chanadmin_topic(self,user,channel,rights,topic):
 		_reply(self,chan,'You have successfully changed the topic.')
 		self._root.broadcast('CHANNELTOPIC %s %s %s %s'%(channel, client.username, topicdict['time'], topic), channel)
 
-def chanadmin_kick(self,user,channel,rights,username,reason=''):
+def chanadmin_kick(self,user,chan,rights,username,reason=''):
 	if reason: reason = '(%s)'%reason
-	users = self._root.channels[channel]['users']
+	users = self._root.channels[chan]['users']
 	if username in users:
-		self._root.clients[self._root.usernames[username]].Send(('FORCELEAVECHANNEL %s %s %s'%(channel,user,reason)).strip())
-		self._root.channels[channel]['users'].remove(username)
+		access = self._root.clients[self._root.usernames[username]].accesslevels
+		if not 'chanfounder' in rights and 'mod' in access or 'chanadmin' in access or 'admin' in access or 'chanfounder' in access:
+			_reply(self,chan,'You are not allowed to kick <%s> from the channel.'%username)
+			return
+		self._root.clients[self._root.usernames[username]].Send(('FORCELEAVECHANNEL %s %s %s'%(chan,user,reason)).strip())
+		self._root.channels[chan]['users'].remove(username)
 		#self._root.broadcast('CHANNELMESSAGE %s %s kicked from channel by <%s>.'%(channel,username,client.username),channel)
 		_reply(self,chan,'You have kicked %s from the channel'%username)
-		self._root.broadcast('LEFT %s %s kicked from channel by <%s>..'%(channel,username,user),channel)
+		self._root.broadcast('LEFT %s %s kicked from channel by <%s>'%(chan,username,user),chan)
+
+def chanadmin_ban(self,user,chan,rights,username,reason=''):
+	if reason: reason = '(%s)'%reason
+	users = self._root.channels[chan]['users']
+	if username in users or username in self._root.usernames:
+		access = self._root.clients[self._root.usernames[username]].accesslevels
+		if not 'chanfounder' in rights:
+			if 'mod' in access or username in self._root.channels[chan]['admins'] or 'admin' in access or 'chanfounder' in access:
+				_reply(self,chan,'You are not allowed to ban <%s> from the channel.'%username)
+				return
+		client = self._root.clients[self._root.usernames[username]]
+		client.Send(('FORCELEAVECHANNEL %s %s %s'%(chan,user,reason)).strip())
+		client.current_channel = None
+		self._root.channels[chan]['ban'][username] = reason
+		self._root.channels[chan]['users'].remove(username)
+		#self._root.broadcast('CHANNELMESSAGE %s %s banned from channel by <%s>.'%(channel,username,client.username),channel)
+		_reply(self,chan,'You have banned %s from the channel'%username)
+		self._root.broadcast(('LEFT %s %s banned from channel by <%s> %s'%(chan,username,user,reason)).strip(),chan)
+	else: _reply(self,chan,'User not found')
+
+def chanadmin_unban(self,user,chan,rights,username):
+	if username in self._root.channels[chan]['ban']:
+		del self._root.channels[chan]['ban'][username]
+		_reply(self,chan,'<%s> has been unbanned'%username)
+	else:
+		_reply(self,chan,'<%s> in not in the banlist'%username)
+
+def chanadmin_allow(self,user,chan,rights,username):
+	if username in self._root.channels[chan]['allow']:
+		_reply(self,chan,'<%s> is already allowed'%username)
+	else:
+		self._root.channels[chan]['allow'].append(username)
+		_reply(self,chan,'<%s> added to the allow list'%username)
+
+def chanadmin_disallow(self,user,chan,rights,username):
+	if username in self._root.channels[chan]['allow']:
+		self._root.channels[chan]['allow'].remove(username)
+		_reply(self,chan,'<%s> removed from the allow list'%username)
+	else:
+		_reply(self,chan,'<%s> is already not allowed'%username)
 
 def chanadmin_chanmsg(self,user,chan,rights,message):
 	self._root.broadcast('CHANNELMESSAGE %s %s'%(chan, message), chan)
@@ -404,28 +512,84 @@ def modchan_unalias(self,user,chan,rights,alias):
 	else:
 		_reply(self,chan,'No such alias (#%s)'%alias)
 
+#def battlehost_ban(self,user,battle_id,rights,username):
+	
+
+#def battlehost_unban(self,user,battle_id,username):
+	
+
+#def battlehost_autospec(self,user,battle_id,username):
+	
+
+#def battlehost_unautospec(self,user,battle_id,username):
+	
+
+#def battlepublic_banlist(self,user,battle_id):
+	
+def battlepublic_help(self,user,rights,command=None):
+	'show command specific help.'
+	if not command:
+		public_commands(self,user,rights)
+		return
+	exists,usage,description = _help(command,rights)
+	if not exists:
+		_replyb(self,"No such command (%s)"%command)
+	else:
+		_replyb(self,":::Help on %s:::"%command)
+		_replyb(self,"Usage: "+usage)
+		_replyb(self,"Description: "+description)
+		if usage.count(' ') > 1: # has arguments
+			_replyb(self,'Note:')
+			_replyb(self,'"<arg>" means the argument is required')
+			_replyb(self,'"[arg]" means the argument is optional')
+
+def battlepublic_commands(self,user,rights):
+	'shows all commands available to you'
+	l = filter(lambda x:not x.startswith('_'),globals())
+	_replyb(self,'Available commands for level %s:'%rights[0])
+	helparray = {}
+	for command in l:
+		exec 'isfunc = type(%s) == types.FunctionType' % command
+		if isfunc:
+			level,command = command.split('_',1)
+			try:
+				exists,usage,description = _help(command,rights)
+				if exists:
+					try:
+						helparray[level].append('    - %s (%s)'%(command, description))
+					except KeyError:
+						helparray[level] = ['    - %s (%s)'%(command, description)]
+			except KeyError:
+				pass
+	for level in _permissionlist:
+		if level in helparray:
+			_replyb(self,'* %s'%_permissiondocs[level])
+			for command in helparray[level]:
+				_replyb(self,command)
+
 def public_aliaslist(self,user,chan,rights):
 	_reply(self,chan,'Channel alias list:')
 	for alias in dict(self._root.chan_alias):
 		_reply(self,chan,alias)
 
-'''def mod_alias
+def public_banlist(self,user,chan,rights):
+	channel = self._root.channels[chan]
+	if channel['ban']:
+		_reply(self,chan,'#%s ban list:'%chan)
+		for ban in dict(channel['ban']):
+			try: _reply(self,chan,'<%s> %s'%(ban, channel['ban'][ban]))
+			except: pass
+	else:
+		_reply(self,chan,'No users banned in #%s'%chan)
 
-	def incoming_ALIAS(self, client, alias, chan):
-		if not chan in self._root.channels:
-			self._root.channels[chan] = self._new_channel(chan)
-			self._root.chan_alias[alias] = chan
-
-	def incoming_UNALIAS(self, client, alias):
-		if not alias in self._root.chan_alias:
-			client.Send('SERVERMSG No existing alias #%s'%alias)
-			return
-		del self._root.chan_alias[alias]
-	
-	def incoming_ALIASLIST(self, client):
-		aliases = dict(self._root.chan_alias)
-		for entry in aliases:
-			client.Send('SERVERMSG #%s is aliased to #%s'%(entry, aliases[entry]))'''
+def public_allowlist(self,user,chan,rights):
+	channel = self._root.channels[chan]
+	if channel['allow']:
+		_reply(self,chan,'#%s allow list:'%chan)
+		for allow in list(channel['allow']):
+			_reply(self,chan,'<%s>'%allow)
+	else:
+		_reply(self,chan,'No users on the allowlist in #%s'%chan)
 
 def admin_reload(self,user,chan,rights):
 	'reload everything'

@@ -3,7 +3,7 @@ import md5, base64, binascii
 import traceback, sys
 
 restricted = {
-				'TOKENIZE':'everyone', 'TELNET':'everyone', 'HASH':'everyone', 'EXIT':'everyone', # everyone
+				'TOKENIZE':'everyone', 'TELNET':'everyone', 'HASH':'everyone', 'EXIT':'everyone', 'PING':'everyone', # everyone
 				'LOGIN':'fresh', 'REGISTER':'fresh', # freshly connected client
 				'ADDBOT':'user', 'ADDSTARTRECT':'user', 'CHANNELS':'user', 'DISABLEUNITS':'user', # user
 				'ENABLEALLUNITS':'user', 'ENABLEUNITS':'user', 'FORCEALLYNO':'user', # user
@@ -77,6 +77,7 @@ class Protocol:
 							del self._root.battles[battle_id]['bots'][bot]
 							self._root.broadcast_battle('REMOVEBOT %s %s'%(battle_id, bot), battle_id)
 						self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, user))
+				self.incoming_MYSTATUS(client,'0')
 			self._root.broadcast('REMOVEUSER %s'%user)
 
 	def _handle(self,client,msg):
@@ -163,16 +164,19 @@ class Protocol:
 	def _udp_packet(self, username, ip, udpport):
 		if username in self._root.usernames:
 			client = self._root.clients[self._root.usernames[username]]
-			client.Send('UDPSOURCEPORT %i'%udpport)
-			battle_id = client.current_battle
-			if battle_id:
-				client.udpport = udpport
-				client.hostport = udpport
-				host = self._root.battles[battle_id]['host']
-				if not host == username:
-					self._root.clients[self._root.usernames[host]].Send('CLIENTIPPORT %s %s %s'%(username, ip, udpport))
+			if ip == client.local_ip or ip == client.ip_address:
+				client.Send('UDPSOURCEPORT %i'%udpport)
+				battle_id = client.current_battle
+				if battle_id:
+					client.udpport = udpport
+					client.hostport = udpport
+					host = self._root.battles[battle_id]['host']
+					if not host == username:
+						self._root.clients[self._root.usernames[host]].Send('CLIENTIPPORT %s %s %s'%(username, ip, udpport))
+				else:
+					client.udpport = udpport
 			else:
-				client.udpport = udpport
+				self._root.admin_broadcast('NAT spoof from %s pretending to be <%s>'%(ip,username))
 
 	def _calc_access(self, client):
 		if not client.access:
@@ -228,7 +232,7 @@ class Protocol:
 	
 	def _new_channel(self, chan):
 		# probably make a SQL query here
-		return {'users':[], 'blindusers':[], 'admins':[], 'owner':'', 'mutelist':{}, 'antispam':{'enabled':True, 'quiet':False, 'timeout':3, 'bonus':2, 'unique':4, 'bonuslength':100, 'duration':900}, 'censor':False, 'antishock':False, 'topic':None, 'key':None}
+		return {'users':[], 'blindusers':[], 'admins':[], 'ban':{}, 'allow':[], 'autokick':'ban', 'owner':'', 'mutelist':{}, 'antispam':{'enabled':True, 'quiet':False, 'timeout':3, 'bonus':2, 'unique':4, 'bonuslength':100, 'duration':900}, 'censor':False, 'antishock':False, 'topic':None, 'key':None}
 
 	def _time_remaining(seconds):
 		if mutelist[mute] < 1:
@@ -483,10 +487,18 @@ class Protocol:
 		if not chan: return
 		if not chan in self._root.channels:
 			self._root.channels[chan] = self._new_channel(chan)
-		if not user in self._root.channels[chan]['users']:
-			if not self._root.channels[chan]['key'] == key and self._root.channels[chan]['key'] and not nolock:
-				client.Send('SERVERMSG Cannot join channel: invalid key')
-				return
+		channel = self._root.channels[chan]
+		if not user in channel['users']:
+			if not user == channel['owner'] and not 'mod' in client.accesslevels and not 'admin' in client.accesslevels:
+				if not channel['key'] == key and channel['key'] and not nolock:
+					client.Send('SERVERMSG Cannot join #%s: invalid key'%chan)
+					return
+				elif user in channel['ban'] and channel['autokick'] == 'ban':
+					client.Send('SERVERMSG Cannot join #%s: you are banned from the channel %s'%(chan,channel['ban'][user]))
+					return
+				elif not user in channel['allow'] and channel['autokick'] == 'allow':
+					client.Send('SERVERMSG Cannot join #%s: you are not allowed'%channel['ban']['user'])
+					return
 			if not chan in client.channels:
 				client.channels.append(chan)
 			client.Send('JOIN %s'%chan)
@@ -497,7 +509,7 @@ class Protocol:
 			else:
 				self._root.channels[chan]['users'].append(user)
 				self._root.channels[chan]['blindusers'].append(user)
-		topic = self._root.channels[chan]['topic']
+		topic = channel['topic']
 		if topic and user in self._root.channels[chan]['users']: # putting this outside of the check means a user can rejoin a channel to get the topic while in it
 			client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topic['time'], topic['text']))
 
@@ -556,18 +568,33 @@ class Protocol:
 		client.Send('REQUESTBATTLESTATUS')
 
 	def incoming_SAYBATTLE(self, client, msg):
-		if not client.current_battle == None:
-				self._root.broadcast_battle('SAIDBATTLE %s %s' % (client.username,msg),client.current_battle)
+		if not msg: return
+		if client.current_battle:
+			battle_id = client.current_battle
+			if not battle_id in self._root.battles: return
+			user = client.username
+			msg = self.SayHooks.hook_SAYBATTLE(self,client,battle_id,msg)
+			if not msg: return
+			self._root.broadcast_battle('SAIDBATTLE %s %s' % (user,msg),battle_id)
 
 	def incoming_SAYBATTLEEX(self, client, msg):
-		if not client.current_battle == None:
-				self._root.broadcast_battle('SAIDBATTLEEX %s %s' % (client.username,msg),client.current_battle)
+		if client.current_battle:
+			self._root.broadcast_battle('SAIDBATTLEEX %s %s' % (client.username,msg),client.current_battle)
 
-	def incoming_JOINBATTLE(self, client, battle_id):
+	def incoming_JOINBATTLE(self, client, battle_id, password=None):
 		username = client.username
+		if client.current_battle:
+			client.Send('JOINBATTLEFAILED You are already in a battle.')
+			return
 		if battle_id in self._root.battles:
-			if not username in self._root.battles[battle_id]['users']:
-				battle = self._root.battles[battle_id]
+			battle = self._root.battles
+			if battle['password'] and not battle['password'] == 'password':
+				client.Send('JOINBATTLEFAILED Incorrect password.')
+				return
+			if not username in battle['users']:
+				if username in client.battle_bans:
+					client.Send('JOINBATTLEFAILED <%s> has banned you from his/her battles.'%battle['host'])
+					return
 				client.Send('JOINBATTLE %s %s'%(battle_id, battle['hashcode']))
 				scripttags = []
 				battle_script_tags = battle['script_tags']
@@ -578,7 +605,7 @@ class Protocol:
 				if battle['natType'] > 0:
 					host = self._root.battles[battle_id]['host']
 					if host == username:
-						raise '%s is having an identity crisis'%(host)
+						raise NameError,'%s is having an identity crisis'%(host)
 					if client.udpport:
 						self._root.clients[self._root.usernames[host]].Send('CLIENTIPPORT %s %s %s'%(username, client.ip_address, client.udpport))
 				battle_users = self._root.battles[battle_id]['users']
@@ -596,6 +623,8 @@ class Protocol:
 				client.current_battle = battle_id
 				self._root.battles[battle_id]['users'][username] = ''
 				client.Send('REQUESTBATTLESTATUS')
+				return
+		client.Send('JOINBATTLEFAILED Unable to join battle.')
 
 	def incoming_SETSCRIPTTAGS(self, client, scripttags): # need to add checking if the client is in a battle and the host
 		battle_id = client.current_battle
@@ -673,30 +702,28 @@ class Protocol:
 				self._root.broadcast('UPDATEBATTLEINFO %s %s %s %s %s' %(client.current_battle,updated['SpectatorCount'], updated['locked'], updated['maphash'], updated['mapname']), client.current_battle)
 
 	def incoming_MYSTATUS(self, client, status):
-		try:
-			was_ingame = client.ingame
-			client.status = self._calc_status(client, status)
-			if client.ingame and not was_ingame:
-				battle_id = client.current_battle
-				if battle_id:
-					host = self._root.battles[battle_id]['host']
-					if len(self._root.battles[battle_id]['users']) > 1:
-						client.went_ingame = time.time()
-					if client.username == host:
-						if not client.hostport == 8542:
-							self._root.broadcast_battle('HOSTPORT %i'%client.hostport, battle_id, host)
-						if self._root.battles[battle_id]['replay']:
-							self._root.broadcast_battle('SCRIPTSTART', battle_id, client.username)
-							for line in self._root.battles[battle_id]['replay_script']:
-								self._root.broadcast_battle('SCRIPT %s'%line, battle_id, client.username)
-							self._root.broadcast_battle('SCRIPTEND', battle_id, client.username)
-			elif was_ingame and not client.ingame:
-				ingame_time = float(time.time() - client.went_ingame) / 60
-				if ingame_time >= 1:
-					client.ingame_time += int(ingame_time)
-			self._root.broadcast('CLIENTSTATUS %s %s'%(client.username, client.status))
-		except:
-			self._root.error(traceback.format_exc())
+		was_ingame = client.ingame
+		client.status = self._calc_status(client, status)
+		if client.ingame and not was_ingame:
+			battle_id = client.current_battle
+			if battle_id:
+				host = self._root.battles[battle_id]['host']
+				if len(self._root.battles[battle_id]['users']) > 1:
+					client.went_ingame = time.time()
+				if client.username == host:
+					if not client.hostport == 8542:
+						self._root.broadcast_battle('HOSTPORT %i'%client.hostport, battle_id, host)
+					if self._root.battles[battle_id]['replay']:
+						self._root.broadcast_battle('SCRIPTSTART', battle_id, client.username)
+						for line in self._root.battles[battle_id]['replay_script']:
+							self._root.broadcast_battle('SCRIPT %s'%line, battle_id, client.username)
+						self._root.broadcast_battle('SCRIPTEND', battle_id, client.username)
+		elif was_ingame and not client.ingame:
+			ingame_time = float(time.time() - client.went_ingame) / 60
+			if ingame_time >= 1:
+				client.ingame_time += int(ingame_time)
+		if not client.username in self._root.usernames: return
+		self._root.broadcast('CLIENTSTATUS %s %s'%(client.username, client.status))
 
 	def incoming_CHANNELS(self, client):
 		for channel in self._root.channels:

@@ -25,6 +25,7 @@ class Client:
 		self.channels = []
 		self.battle_bots = {}
 		self.current_battle = None
+		self.battle_bans = []
 		self.username = ''
 		self.password = ''
 		self.hostport = 8542

@@ -13,6 +13,7 @@ class root:
 		self.usernames = {}
 		self.clients = {}
 		self.battles = {}
+		self.mapgrades = {}
 		self.nextbattle = 0
 		self.clienthandlers = []
 		self.console_buffer = []
@@ -80,3 +81,9 @@ class root:
 						try:
 							self.clients[self.usernames[user]].Send(msg)
 						except KeyError: pass # user was removed
+
+	def admin_broadcast(self, msg):
+		for client in dict(self.usernames):
+			client = self.clients[client]
+			if 'admin' in client.accesslevels:
+				client.Send('SERVERMSG Admin broadcast: %s'%msg)
