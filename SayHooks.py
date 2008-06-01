@@ -39,6 +39,7 @@ def _update_lists():
 		line = line.strip()
 		if line and not line in bad_site_list: bad_site_list.append(line)
 	f.close()
+
 def public_help(self,user,chan,rights,command=None):
 	'show command specific help.'
 	if not command:
@@ -240,9 +241,10 @@ def hook_SAYBATTLE(self, client, battle_id, msg):
 
 		access.append('battlepublic')
 		#access.append('public')
-		good, reason = _do(client, chan, user, msg[len(client.hook):], access)
+		good, reason = _do(client, battle_id, user, msg[len(client.hook):], access)
 		#if not good:
 		#	client.Send('CHANNELMESSAGE %s %s'%(chan, reason))
+	else: return msg
 
 def _do(client,chan,user,msg,rights):
 	#number of words
@@ -329,10 +331,12 @@ def _help(funcname,rights):
 	return True,usage,description
 
 def _reply(self,chan,msg):
-	self.Send('CHANNELMESSAGE %s %s'%(chan,msg))
+	for msg in msg.split('\n'):
+		self.Send('CHANNELMESSAGE %s %s'%(chan,msg))
 
 def _replyb(self,msg):
-	self.Send('SAIDBATTLEEX %s %s'%(self.username,msg))
+	for msg in msg.split('\n'):
+		self.Send('SAIDBATTLEEX %s %s'%(self.username,msg))
 
 def public_rights(self,user,chan,rights):
 	'lists your rights levels'
@@ -429,12 +433,12 @@ def chanowner_deop(self,user,chan,rights,users):
 			_reply(self,chan,'%s removed from this channels admin list.')
 
 def chanadmin_topic(self,user,channel,rights,topic):
-	if client.username in self._root.channels[channel]['users']:
-		topicdict = {'user':client.username, 'text':topic, 'time':'%s'%(int(time.time())*1000)}
+	if user in self._root.channels[channel]['users']:
+		topicdict = {'user':user, 'text':topic, 'time':'%s'%(int(time.time())*1000)}
 		self._root.channels[channel]['topic'] = topicdict
 		self._root.broadcast('CHANNELMESSAGE %s Topic changed.'%channel, channel, user)
 		_reply(self,chan,'You have successfully changed the topic.')
-		self._root.broadcast('CHANNELTOPIC %s %s %s %s'%(channel, client.username, topicdict['time'], topic), channel)
+		self._root.broadcast('CHANNELTOPIC %s %s %s %s'%(channel, user, topicdict['time'], topic), channel)
 
 def chanadmin_kick(self,user,chan,rights,username,reason=''):
 	if reason: reason = '(%s)'%reason
@@ -493,8 +497,8 @@ def chanadmin_disallow(self,user,chan,rights,username):
 def chanadmin_chanmsg(self,user,chan,rights,message):
 	self._root.broadcast('CHANNELMESSAGE %s %s'%(chan, message), chan)
 
-def modchan_alias(self,user,chan,rights,alias,arg1=None,arg2=None):
-	args = (arg1.lower(), arg2.lower())
+def modchan_alias(self,user,chan,rights,alias,blind=None,nokey=None):
+	args = (blind.lower(), nokey.lower())
 	if 'blind' in args: blind = True
 	else: blind = False
 	if 'nokey' in args: nokey = True
@@ -512,21 +516,33 @@ def modchan_unalias(self,user,chan,rights,alias):
 	else:
 		_reply(self,chan,'No such alias (#%s)'%alias)
 
-#def battlehost_ban(self,user,battle_id,rights,username):
-	
+def battlehost_ban(self,user,battle_id,rights,username):
+	if not username in self.battle_ban:
+		self.battle_ban.append(username)
+		_replyb(self,'You have banned <%s> from your battles.'%username)
+	else:
+		_replyb(self,'You have already banned <%s> from your battles.'%username)
+	if username in self._root.battles[battle_id]['users']:
+		self._protool.incoming_KICKFROMBATTLE(self, username)
 
-#def battlehost_unban(self,user,battle_id,username):
-	
+def battlehost_unban(self,user,battle_id,rights,username):
+	if not username in self.battle_ban:
+		self.battle_ban.append(username)
+		_replyb(self,'You have unbanned <%s> from your battles.'%username)
+	else:
+		_replyb(self,'<%s> is already not banned from your battles.'%username)
 
-#def battlehost_autospec(self,user,battle_id,username):
-	
+#def battlehost_autospec(self,user,battle_id,rights,username):
 
-#def battlehost_unautospec(self,user,battle_id,username):
-	
+#def battlehost_unautospec(self,user,battle_id,rights,username):
 
-#def battlepublic_banlist(self,user,battle_id):
+def battlepublic_banlist(self,user,battle_id,rights):
+	battle_id = user.current_battle
+	host = self._root.battles[battle_id].host
+	bans = ['Battle bans for %s'%host]+self._root.clients[self._root.usernames[host]].battle_ban
+	_replyb(self,bans)
 	
-def battlepublic_help(self,user,rights,command=None):
+def battlepublic_help(self,user,battle_id,rights,command=None):
 	'show command specific help.'
 	if not command:
 		public_commands(self,user,rights)
@@ -550,6 +566,7 @@ def battlepublic_commands(self,user,rights):
 	helparray = {}
 	for command in l:
 		exec 'isfunc = type(%s) == types.FunctionType' % command
+	for msg in msg.split('\n'):
 		if isfunc:
 			level,command = command.split('_',1)
 			try:
@@ -596,4 +613,3 @@ def admin_reload(self,user,chan,rights):
 	for handler in self._root.clienthandlers:
 		handler._rebind()
 	_reply(self,chan,'Everything was reloaded.')
-

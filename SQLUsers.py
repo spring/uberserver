@@ -13,6 +13,18 @@ from sqlalchemy.orm import mapper, sessionmaker, relation
 
 #engine = create_engine('sqlite:///:memory:')#, echo=True)
 #engine = create_engine('sqlite:///database.txt')
+
+#### IMPLEMENT THIS ####
+#import sqlalchemy.pool as pool
+#import sqlite
+
+#def getconn():
+#    return sqlite.connect(filename='myfile.db')
+
+## SQLite connections require the SingletonThreadPool    
+#p = pool.SingletonThreadPool(getconn)
+#### END ####
+
 engine = create_engine('mysql://uberserver:A2Pb2p3M547EuE47@localhost/uberserver')
 metadata = MetaData()
 

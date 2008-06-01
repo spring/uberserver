@@ -1,11 +1,15 @@
+#!/usr/bin/env python
 # coding=utf-8
 import thread, socket, time, sys, traceback
 from urllib import urlopen
 from ClientHandler import ClientHandler
-from DataHandler import root
+from DataHandler import DataHandler
 from Client import Client
 from NATServer import NATServer
 import ip2country
+
+_root = DataHandler()
+_root.parseArgv(sys.argv)
 
 print 'Detecting local IP:',
 local_addr = socket.gethostbyname(socket.gethostname())
@@ -13,7 +17,8 @@ print local_addr
 
 print 'Detecting online IP:',
 try:
-	web_addr = urlopen('http://www.zjt3.com/ip.php').read()
+	# web_addr = urlopen('http://www.zjt3.com/ip.php').read() # site down
+	web_addr = urlopen('http://whatismyip.com/automation/n09230945.asp').read()
 	print web_addr
 except:
 	web_addr = local_addr
@@ -22,20 +27,21 @@ print
 
 host = ''
 port = 8200
+natport = 8201
 backlog = 100
 size = 10240
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.setsockopt( socket.SOL_SOCKET, socket.SO_REUSEADDR,
+                               server.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR) | 1 ) # we can restart uberserver and it will ignore TIME_WAIT :D
 server.bind((host,port))
 server.listen(backlog)
 input = [server]
 
-_root = root()
 _root.local_ip = local_addr
 _root.online_ip = web_addr
 
 _root.LAN = True
 
-natport = 8201
 natserver = NATServer(natport)
 thread.start_new_thread(natserver.start,())
 natserver.bind(_root)
@@ -102,6 +108,10 @@ except:
 	traceback.print_exc(file=sys.stdout)
 	print '-'*60
 	print 'Deep error, exiting...'
-finally:
-	server.close()
+print 'Killing handlers.'
+for handler in _root.clienthandlers:
+	handler.running = False	
+print 'Killing clients.'
+for client in dict(_root.clients):
+	_root.clients[client].conn.close()
 server.close()

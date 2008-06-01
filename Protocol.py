@@ -65,18 +65,17 @@ class Protocol:
 				if user in self._root.channels[chan]['blindusers']:
 					self._root.channels[chan]['blindusers'].remove(user)
 				self._root.broadcast('LEFT %s %s %s'%(chan, user, reason), chan, user)
-			if client.current_battle:
+			if client.current_battle in self._root.battles:
 				battle_id = client.current_battle
-				if battle_id in self._root.battles:
-					if self._root.battles[battle_id]['host'] == user:
-						self._root.broadcast('BATTLECLOSED %s'%battle_id)
-						del self._root.battles[battle_id]
-					else:
-						del self._root.battles[battle_id]['users'][user]
-						for bot in bots:
-							del self._root.battles[battle_id]['bots'][bot]
-							self._root.broadcast_battle('REMOVEBOT %s %s'%(battle_id, bot), battle_id)
-						self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, user))
+				if self._root.battles[battle_id]['host'] == user:
+					self._root.broadcast('BATTLECLOSED %s'%battle_id)
+					del self._root.battles[battle_id]
+				else:
+					del self._root.battles[battle_id]['users'][user]
+					for bot in bots:
+						del self._root.battles[battle_id]['bots'][bot]
+						self._root.broadcast_battle('REMOVEBOT %s %s'%(battle_id, bot), battle_id)
+					self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, user))
 				self.incoming_MYSTATUS(client,'0')
 			self._root.broadcast('REMOVEUSER %s'%user)
 
@@ -167,6 +166,7 @@ class Protocol:
 			if ip == client.local_ip or ip == client.ip_address:
 				client.Send('UDPSOURCEPORT %i'%udpport)
 				battle_id = client.current_battle
+				if not battle_id in self._root.battles: return
 				if battle_id:
 					client.udpport = udpport
 					client.hostport = udpport
@@ -182,7 +182,7 @@ class Protocol:
 		if not client.access:
 			return
 		userlevel = client.access
-		inherit = {'mod':'user', 'admin':['mod', 'user']}
+		inherit = {'mod':['user'], 'admin':['mod', 'user']}
 
 		if userlevel in inherit:
 			inherited = inherit[userlevel]
@@ -357,6 +357,8 @@ class Protocol:
 					else:
 						translated_ip = ip_address
 					client.Send('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' %(battle_id, type, natType, host, translated_ip, port, maxplayers, passworded, rank, maphash, map, title, modname))
+					for user in battle['users']:
+						client.Send('JOINEDBATTLE %s %s'%(battle_id, username))
 				usernames = dict(self._root.usernames)
 				for user in usernames:
 					if user == username: continue
@@ -442,11 +444,13 @@ class Protocol:
 		if user in self._root.channels[chan]['users']:
 			if not quiet:
 				self._root.broadcast('CHANNELMESSAGE %s <%s> has muted <%s>.'%(chan, client.username, user), chan)
-			duration = float(duration)*60
-			if duration < 1:
-				duration = -1
-			else:
-				duration = time.time() + duration
+			try:
+				duration = float(duration)*60
+				if duration < 1:
+					duration = -1
+				else:
+					duration = time.time() + duration
+			except: duration = -1
 			self._root.channels[chan]['mutelist'][user] = duration
 
 	def incoming_UNMUTE(self,client,chan,user,quiet=''):
@@ -538,7 +542,7 @@ class Protocol:
 		client.Send('MAPGRADESFAILED Not implemented.')
 
 	def incoming_OPENBATTLE(self, client, type, natType, password, port, maxplayers, hashcode, rank, maphash, sentence_args):
-		if client.current_battle:
+		if client.current_battle in self._root.battles:
 			self.incoming_LEAVEBATTLE(client)
 			#client.Send('SERVERMSG You are already in battle.')
 			#return
@@ -578,17 +582,17 @@ class Protocol:
 			self._root.broadcast_battle('SAIDBATTLE %s %s' % (user,msg),battle_id)
 
 	def incoming_SAYBATTLEEX(self, client, msg):
-		if client.current_battle:
+		if client.current_battle in self._root.battles:
 			self._root.broadcast_battle('SAIDBATTLEEX %s %s' % (client.username,msg),client.current_battle)
 
 	def incoming_JOINBATTLE(self, client, battle_id, password=None):
 		username = client.username
-		if client.current_battle:
+		if client.current_battle in self._root.battles:
 			client.Send('JOINBATTLEFAILED You are already in a battle.')
 			return
 		if battle_id in self._root.battles:
-			battle = self._root.battles
-			if battle['password'] and not battle['password'] == 'password':
+			battle = self._root.battles[battle_id]
+			if not battle['passworded'] == 0 and not battle['password'] == password:
 				client.Send('JOINBATTLEFAILED Incorrect password.')
 				return
 			if not username in battle['users']:
@@ -671,7 +675,7 @@ class Protocol:
 					self._root.battles[battle_id]['sending_replay_script'] = False
 
 	def incoming_LEAVEBATTLE(self, client):
-		if client.current_battle:
+		if client.current_battle in self._root.battles:
 			battle_id = client.current_battle
 			if self._root.battles[battle_id]['host'] == client.username:
 				self._root.broadcast('BATTLECLOSED %s'%battle_id)
@@ -685,11 +689,11 @@ class Protocol:
 					del self._root.battles[battle_id]['bots'][bot]
 					self._root.broadcast_battle('REMOVEBOT %s'%bot, battle_id)
 				self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, client.username))
-			client.current_battle = None
+		client.current_battle = None
 
 	def incoming_MYBATTLESTATUS(self, client, battlestatus, myteamcolor):
 		if client.current_battle in self._root.battles:
-			und1, und2, und3, und4, side1, side2, side3, side4, sync1, sync2, und5, und6, und7, und8, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4, id1, id2, id3, id4, ready, und9 = self._dec2bin(battlestatus, 32)[0:37]
+			u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4, id1, id2, id3, id4, ready, u = self._dec2bin(battlestatus, 32)[0:31]
 			client.battlestatus.update({'ready':ready, 'id':id1+id2+id3+id4, 'ally':ally1+ally2+ally3+ally4, 'mode':mode, 'sync':sync1+sync2, 'side':side1+side2+side3+side4})
 			client.teamcolor = myteamcolor
 			self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(client.username, self._calc_battlestatus(client), myteamcolor), client.current_battle)
@@ -824,7 +828,7 @@ class Protocol:
 				if username in self._root.battles[battle_id]['users']:
 					kickuser = self._root.clients[self._root.usernames[username]]
 					kickuser.Send('FORCEQUITBATTLE')
-					self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, username),None, username)
+					self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, username), ignore=username)
 					if username == self._root.battles[battle_id]['host']:
 						self._root.broadcast('BATTLECLOSED %s'%battle_id)
 			else:
@@ -867,7 +871,7 @@ class Protocol:
 					self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(self._root.clients[client]), self._root.clients[client].teamcolor), battle_id)
 
 	def incoming_ADDBOT(self, client, name, battlestatus, teamcolor, AIDLL): #need to add bot removal on user removal
-		if client.current_battle:
+		if client.current_battle in self._root.battles:
 			battle_id = client.current_battle
 			if not name in self._root.battles[battle_id]['bots']:
 				client.battle_bots[name] = battle_id
@@ -875,7 +879,7 @@ class Protocol:
 				self._root.broadcast_battle('ADDBOT %s %s %s %s %s %s'%(battle_id, name, client.username, battlestatus, teamcolor, AIDLL), battle_id)
 
 	def incoming_UPDATEBOT(self, client, name, battlestatus, teamcolor):
-		if client.current_battle:
+		if client.current_battle in self._root.battles:
 			battle_id = client.current_battle
 			if name in self._root.battles[battle_id]['bots']:
 				if client.username == self._root.battles[battle_id]['bots'][name]['owner'] or client.username == self._root.battles[battle_id]['host']:
@@ -883,7 +887,7 @@ class Protocol:
 					self._root.broadcast_battle('UPDATEBOT %s %s %s %s'%(battle_id, name, battlestatus, teamcolor), battle_id)
 	
 	def incoming_REMOVEBOT(self, client, name):
-		if client.current_battle:
+		if client.current_battle in self._root.battles:
 			battle_id = client.current_battle
 			if name in self._root.battles[battle_id]['bots']:
 				if client.username == self._root.battles[battle_id]['bots'][name]['owner'] or client.username == self._root.battles[battle_id]['host']:
@@ -939,9 +943,7 @@ class Protocol:
 		self._root.broadcast('SERVERMSGBOX %s'%msg)
 	
 	def incoming_ADMINBROADCAST(self, client, msg):
-		for client in self._root.clients:
-			if client.access in ['mod','admin']:
-				client.Send('SERVERMSG %s broadcast to all admins: %s'%(client.username, msg))				
+		self._root.admin_broadcast(msg)
 
 	def incoming_KICKUSER(self, client, user):
 		if user in self._root.usernames:
@@ -993,62 +995,3 @@ class Protocol:
 		self._calc_access(changeuser)
 		self._root.broadcast('CLIENTSTATUS %s %s'%(user,changeuser.status))
 
-class Protocol_034(Protocol):
-
-	def __init__(self,root):
-		self._root = root
-		if hasattr(self, 'incoming_SETSCRIPTTAGS'):
-			del Protocol.incoming_SETSCRIPTTAGS
-
-	def _init(self,client):
-  		client.Send('TASServer 0.34 * 8201')
-
-  	def incoming_OPENBATTLE(self, client, type, natType, password, port, maxplayers, startingmetal, startingenergy, maxunits, startpos, gameendcondition, limitdgun, diminishingMMs, ghostedBuildings, hashcode, rank, maphash, sentence_args):
-		if sentence_args.count('\t') > 1:
-			map, title, modname = sentence_args.split('\t',2)
-		else:
-			return False
-		battle_id = str(self._root.nextbattle)
-		self._root.nextbattle += 1
-		client.current_battle = battle_id
-		if password == '*':
-			passworded = 0
-		else:
-			passworded = 1
-		clients = dict(self._root.clients)
-		for user in clients:
-			if self._root.clients[user].ip_address == client.ip_address:
-				translated_ip = client.local_ip
-			else:
-				translated_ip = client.ip_address
-			self._root.clients[user].Send('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' %(battle_id, type, natType, client.username, translated_ip, port, maxplayers, passworded, rank, maphash, map, title, modname))
-		self._root.battles[str(battle_id)] = {'type':type, 'natType':natType, 'password':password, 'port':port, 'maxplayers':maxplayers, 'startingmetal':startingmetal, 'startingenergy':startingenergy, 'maxunits':maxunits, 'startpos':startpos, 'gameendcondition':gameendcondition, 'limitdgun':limitdgun, 'diminishingMMs':diminishingMMs, 'ghostedBuildings':ghostedBuildings, 'hashcode':hashcode, 'rank':rank, 'maphash':maphash, 'map':map, 'title':title, 'modname':modname, 'passworded':passworded, 'users':{client.username:''}, 'host':client.username, 'startrects':{}, 'disabled_units':{}}
-		client.Send('OPENBATTLE %s'%battle_id)
-		client.Send('REQUESTBATTLESTATUS')
-
-	def incoming_JOINBATTLE(self, client, battle_id):
-		if battle_id in self._root.battles:
-			if not client.username in self._root.battles[battle_id]['users']:
-				battle = self._root.battles[battle_id]
-				client.Send('JOINBATTLE %s %s %s %s %s %s %s %s %s %s'%(battle_id, battle['startingmetal'], battle['startingenergy'], battle['maxunits'], battle['startpos'], battle['gameendcondition'], battle['limitdgun'], battle['diminishingMMs'], battle['ghostedBuildings'], battle['hashcode']))
-				self._root.broadcast('JOINEDBATTLE %s %s'%(battle_id,client.username))
-				battle_users = self._root.battles[battle_id]['users']
-				for user in battle_users:
-					battlestatus = self._calc_battlestatus(self._root.clients[self._root.usernames[user]])
-					teamcolor = self._root.clients[self._root.usernames[user]].teamcolor
-					if battlestatus and teamcolor:
-						client.Send('CLIENTBATTLESTATUS %s %s %s'%(user, battlestatus, teamcolor))
-				battle_bots = self._root.battles[battle_id]['bots']
-				for bot in battle_bots:
-					client.Send('ADDBOT %s %s %s %s %s %s'%(bot[battle_id], bot[name], bot[owner], bot[battlestatus], bot[teamcolor], bot[AIDLL]))
-				client.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
-				client.teamcolor = '0'
-				client.current_battle = battle_id
-				client.Send('REQUESTBATTLESTATUS')
-
-	def incoming_UPDATEBATTLEDETAILS(self, client, startingmetal, startingenergy, maxunits, startpos, gameendcondition, limitdgun, diminishingMMs, ghostedBuildings):
-		if not client.current_battle == None:
-			if self._root.battles[client.current_battle]['host'] == client.username:
-				updated = {'startingmetal':startingmetal, 'startingenergy':startingenergy, 'maxunits':maxunits, 'startpos':startpos, 'gameendcondition':gameendcondition, 'limitdgun':limitdgun, 'diminishingMMs':diminishingMMs, 'ghostedBuildings':ghostedBuildings}
-				self._root.battles[client.current_battle].update(updated)
-				self._root.broadcast_battle('UPDATEBATTLEDETAILS %s %s %s %s %s %s %s %s'%(updated['startingmetal'], updated['startingenergy'], updated['maxunits'], updated['startpos'], updated['gameendcondition'], updated['limitdgun'], updated['diminishingMMs'], updated['ghostedBuildings']),client.current_battle)

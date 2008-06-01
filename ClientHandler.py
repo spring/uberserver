@@ -3,6 +3,7 @@ import socket, thread, select, sys, traceback, time, os
 from Client import Client
 # from Protocol import Protocol
 # from Protocol import Protocol_034 as Protocol # legacy support
+import Protocol
 
 class ClientHandler:
 	'''This represents one client handler. Threading is recommended. Multiple copies work.'''
@@ -10,7 +11,6 @@ class ClientHandler:
 		self.num = num
 		self._root = root
 		self._bind()
-
 		self.input = []
 		self.output = []
 		self.socketmap = {}
@@ -20,15 +20,12 @@ class ClientHandler:
 		self.running = False
 
 	def _bind(self):
-		legacy = self._root.legacy
-		if legacy:
-			protocol = __import__('Protocol').Protocol_034
-		else:
-			protocol = __import__('Protocol').Protocol
-		self.protocol = protocol(self._root,self)
+		self.protocol = Protocol.Protocol(self._root,self)
 
 	def _rebind(self):
-		del self.protocol
+		reload(sys.modules['SayHooks'])
+		reload(sys.modules['Protocol'])
+#		reload(sys.modules['SQLUsers']) # later
 		self._bind()
 		for client in self.clients:
 			client.Bind(protocol=self.protocol)
@@ -39,8 +36,10 @@ class ClientHandler:
 		#	os.mkdir('profiling')
 		#cProfile.runctx('self.MainLoop()', globals(), locals(), os.path.join('profiling', '%s_%s.log'%(int(time.time()),self.num)))
 		# normal, no profiling
-		self.running = True
-		self.MainLoop()
+		while 1:
+			self.running = True
+			try: self.MainLoop()
+			except: self._root.error(traceback.format_exc())
 	
 	def MainLoop(self):
 		while self.running:
@@ -53,8 +52,7 @@ class ClientHandler:
 						client.Bind(self, self.protocol)
 					del self.pending_clients[client]
 					break # hax to only handle one each time around :)
-				except:
-					self._root.error(traceback.format_exc())
+				except:	self._root.error(traceback.format_exc())
 			while self.input or self.pending_clients:
 				try:
 					for client in dict(self.pending_clients):
@@ -64,9 +62,7 @@ class ClientHandler:
 								client.Bind(self, self.protocol)
 							del self.pending_clients[client]
 							break # hax to only handle one each time around :)
-						except:
-							self._root.error(traceback.format_exc())
-							self._root.console_write(['-'*60, traceback.format_exc(), '-'*60])
+						except:	self._root.error(traceback.format_exc())
 					if not self.input:
 						continue
    
@@ -96,8 +92,7 @@ class ClientHandler:
 						except socket.error:
 							s.close()
 							self._remove(s)
-				except:
-					self._root.error(traceback.format_exc())
+				except:	self._root.error(traceback.format_exc())
 
 	def _remove(self,s):
 		if s in self.input:

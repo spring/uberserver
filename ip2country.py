@@ -1,41 +1,6 @@
 import random
 random.seed()
 
-try:
-	from ip2c.ip2country import ip2country
-	ip2c = ip2country()
-	working = True
-except IOError:
-	working = False
-	print 'IP2Country database initialization failed. Try running the update function.'
-	print
-except ImportError:
-	working = False
-	print 'ip2c module not found. IP2Country lookups not available.'
-	print
-
-def lookup(ip):
-	if not working:
-		return '??'
-	index = ip2c.lookup(ip)
-	if index == -1:
-      		cc = '??'
-	elif index == -2: # no ip specified
-		cc = '??'
-		print 'No IP specified'
-	elif index == -3: # invalid ip2country database
-		print 'IP2Country database failure.'
-		cc = '??'
-	else:
-		cc = ip2c.countryCode(index)
-	return cc
-
-def randomcc():
-	if not working:
-		return '??'
-	cclen = len(ip2c.countryname)
-	return ip2c.countryCode( random.randint(2, cclen)-1 )
-
 def update():
 	import urllib, zipfile, sys, os
 	from ip2c import makedb
@@ -43,8 +8,7 @@ def update():
 	url = 'http://ip-to-country.webhosting.info/downloads/ip-to-country.csv.zip'
 	isGeo = False
 	
-	print
-	print 'Downloading IP2Country database from \n[%s]\n'%url
+	print '\nDownloading IP2Country database from \n[%s]\n'%url
 	urlfile = urllib.urlopen(url)
 	
 	length = int(urlfile.info()['content-length'])
@@ -72,16 +36,12 @@ def update():
 			print ' ',
 		if bytes:
 			sys.stdout.write('.')
-		#print '.',
+			sys.stdout.flush()
 	
 	just = 50 - linestatus + 5 - (linestatus / 10)
 	sys.stdout.write((' [%s]'%(('%i%%'%(total_bytes*100/length)).rjust(4))).rjust(just+6))
 	
-	print
-	print
-	
-	print 'Download complete: %s/%s'%(total_bytes, length)
-	print
+	print '\n\nDownload complete: %s/%s\n'%(total_bytes, length)
 	
 	temp = open('ip-to-country.csv.zip', 'wb')
 	temp.write(bytes)
@@ -98,8 +58,48 @@ def update():
 	print 'Making database...'
 	makedb.readFile('ip-to-country.csv', isGeo)
 	
-	print '\nCleaning up..'
+	print '\nCleaning up...'
 	os.remove('ip-to-country.csv.zip')
 	os.remove('ip-to-country.csv')
 	
-	print '\nDone.'
+	print '\nDone.\n'
+
+try:
+	from ip2c.ip2country import ip2country
+	ip2c = ip2country()
+	working = True
+except IOError:
+	working = False
+	print 'IP2Country database initialization failed. Attempting to update.'
+	try:
+		update()
+		from ip2c.ip2country import ip2country
+		ip2c = ip2country
+	except:
+		print 'Update failed.'
+except ImportError:
+	working = False
+	print 'ip2c module not found. IP2Country lookups not available.'
+	print 'run fetch_deps.py to fetch it'
+
+def lookup(ip):
+	if not working:
+		return '??'
+	index = ip2c.lookup(ip)
+	if index == -1:
+		cc = '??'
+	elif index == -2: # no ip specified
+		cc = '??'
+		print 'No IP specified'
+	elif index == -3: # invalid ip2country database
+		print 'IP2Country database failure.'
+		cc = '??'
+	else:
+		cc = ip2c.countryCode(index)
+	return cc
+
+def randomcc():
+	if not working:
+		return '??'
+	cclen = len(ip2c.countryname)
+	return ip2c.countryCode( random.randint(2, cclen)-1 )

@@ -1,6 +1,7 @@
 import urllib, zipfile, sys, os
 
-url = 'http://public.zjt3.com/uberserver/deps.zip'
+# url = 'http://public.zjt3.com/uberserver/deps.zip' # site down
+url = 'http://lunixbochs.googlepages.com/deps.zip'
 
 print
 print 'Downloading uberserver dependencies from \n[%s]\n'%url
@@ -31,7 +32,7 @@ while inc_bytes:
 		print ' ',
 	if bytes:
 		sys.stdout.write('.')
-	#print '.',
+		sys.stdout.flush()
 
 just = 50 - linestatus + 5 - (linestatus / 10)
 sys.stdout.write((' [%s]'%(('%i%%'%(total_bytes*100/length)).rjust(4))).rjust(just+6))
@@ -49,7 +50,6 @@ temp.close()
 print 'Extracting...'
 zipdb = zipfile.ZipFile('deps.zip', 'r')
 for entry in zipdb.namelist():
-	print entry
 	try:
 		f = open(entry, 'w')
 		f.write(zipdb.read(entry))
@@ -57,5 +57,6 @@ for entry in zipdb.namelist():
 	except IOError:
 		os.mkdir(entry)
 zipdb.close()
+os.remove('deps.zip')
 
 print '\nDone.'

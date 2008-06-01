@@ -78,7 +78,7 @@ class Client:
 			data = self.data.split('\n')
 			(datas, self.data) = (data[:len(data)-1], data[len(data)-1:][0])
 			for data in datas:
-				if data.endswith('\r'):
+				if data.endswith('\r') and self.telnet: # causes fail on TASClient, so only enable on telnet
 					self.nl = '\r\n'
 				command = data.rstrip('\r').lstrip(' ') # strips leading spaces and trailing carriage return
 				if len(command) > self.maxsinglemessage:
@@ -124,7 +124,6 @@ class Client:
 		if not msg: return
 		try:
 			sent = self.conn.send(msg+self.nl)
-			self.conn.flush()
 		except socket.error:
 			if self.conn in self.handler.output:
 				self.handler._remove(self.conn)
@@ -141,10 +140,10 @@ class Client:
 		senddata = self.sendingmessage[:64] # smaller chunks interpolate better, maybe base this off of number of clients?
 		try:
 			sent = self.conn.send(senddata)
+			self.sendingmessage = self.sendingmessage[sent:] # only removes the number of bytes sent
 		except socket.error:
 			if self.conn in self.handler.output:
 				self.handler._remove(self.conn)
-		self.sendingmessage = self.sendingmessage[sent:] # only removes the number of bytes sent
 		if len(self.sendbuffer) == 0 and not self.sendingmessage:
 			if self.conn in self.handler.output:
 				self.handler.output.remove(self.conn)
