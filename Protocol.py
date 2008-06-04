@@ -53,7 +53,7 @@ class Protocol:
 			user = client.username
 			if not user in self._root.usernames:
 				return
-			if not client.session_id == self._root.usernames[user]:
+			if not client == self._root.usernames[user]:
 				return
 			channels = list(client.channels)
 			bots = dict(client.battle_bots)
@@ -162,7 +162,7 @@ class Protocol:
 
 	def _udp_packet(self, username, ip, udpport):
 		if username in self._root.usernames:
-			client = self._root.clients[self._root.usernames[username]]
+			client = self._root.usernames[username]
 			if ip == client.local_ip or ip == client.ip_address:
 				client.Send('UDPSOURCEPORT %i'%udpport)
 				battle_id = client.current_battle
@@ -172,7 +172,7 @@ class Protocol:
 					client.hostport = udpport
 					host = self._root.battles[battle_id]['host']
 					if not host == username:
-						self._root.clients[self._root.usernames[host]].Send('CLIENTIPPORT %s %s %s'%(username, ip, udpport))
+						self._root.usernames[host].Send('CLIENTIPPORT %s %s %s'%(username, ip, udpport))
 				else:
 					client.udpport = udpport
 			else:
@@ -307,7 +307,7 @@ class Protocol:
 			good, reason = self.userdb.login_user(username, password, client.ip_address)
 			if good:
 				self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s.'%(client.handler.num, username, client.session_id))
-				self._root.usernames[username] = client.session_id
+				self._root.usernames[username] = client
 				client.ingame_time = reason.ingame_time
 				client.bot = reason.bot
 				client.access = reason.access
@@ -332,7 +332,7 @@ class Protocol:
 				for user in usernames:
 					try:
 						#if username == user: continue
-						addclient = self._root.clients[self._root.usernames[user]]
+						addclient = self._root.usernames[user]
 						client.Send('ADDUSER %s %s %s'%(user,addclient.country_code,addclient.cpu))
 					except:
 						pass #person must have left :)
@@ -344,8 +344,8 @@ class Protocol:
 					battle = self._root.battles[battle]
 					type, natType, host, port, maxplayers, passworded, rank, maphash, map, title, modname = [battle['type'], battle['natType'], battle['host'], battle['port'], battle['maxplayers'], battle['passworded'], battle['rank'], battle['maphash'], battle['map'], battle['title'], battle['modname']]
 					if not host in self._root.usernames: continue # host left server
-					ip_address = self._root.clients[self._root.usernames[host]].ip_address
-					host_local_ip = self._root.clients[self._root.usernames[host]].local_ip
+					ip_address = self._root.usernames[host].ip_address
+					host_local_ip = self._root.usernames[host].local_ip
 					if client.ip_address == ip_address: # translates the ip to always be compatible with the client
 						translated_ip = host_local_ip
 						# probably don't need this
@@ -362,8 +362,7 @@ class Protocol:
 				usernames = dict(self._root.usernames)
 				for user in usernames:
 					if user == username: continue
-					#client.Send('CLIENTSTATUS %s %s'%(user,self._calc_status(self._root.clients[self._root.usernames[user]],0)))
-					client.Send('CLIENTSTATUS %s %s'%(user,self._root.clients[self._root.usernames[user]].status))
+					client.Send('CLIENTSTATUS %s %s'%(user,self._root.usernames[user].status))
 				#self._root.usernames[username] = client.session_id
 				client.Send('LOGININFOEND')
 				client.status = self._calc_status(client, 0)
@@ -373,7 +372,7 @@ class Protocol:
 				self._root.console_write('Handler %s: Failed to log in user <%s> on session %s. (rejected by database)'%(client.handler.num, username, client.session_id))
 				client.Send('DENIED %s'%reason)
 		else:
-			oldclient = self._root.clients[self._root.usernames[username]]
+			oldclient = self._root.usernames[username]
 			if time.time() - oldclient.lastdata > 15:
 				oldclient._protocol._remove(oldclient, 'Removing: Ghosted')
 				oldclient.Remove()
@@ -428,7 +427,7 @@ class Protocol:
 		if user in self._root.usernames:
 			msg = self.SayHooks.hook_SAYPRIVATE(self,client,user,msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel
 			client.Send('SAYPRIVATE %s %s'%(user,msg))
-			self._root.clients[self._root.usernames[user]].Send('SAIDPRIVATE %s %s'%(client.username,msg))
+			self._root.usernames[user].Send('SAIDPRIVATE %s %s'%(client.username,msg))
 
 	def incoming_MUTE(self,client,chan,user,duration=None,args=''):
 		ip = False
@@ -611,11 +610,11 @@ class Protocol:
 					if host == username:
 						raise NameError,'%s is having an identity crisis'%(host)
 					if client.udpport:
-						self._root.clients[self._root.usernames[host]].Send('CLIENTIPPORT %s %s %s'%(username, client.ip_address, client.udpport))
+						self._root.usernames[host].Send('CLIENTIPPORT %s %s %s'%(username, client.ip_address, client.udpport))
 				battle_users = self._root.battles[battle_id]['users']
 				for user in battle_users:
-					battlestatus = self._calc_battlestatus(self._root.clients[self._root.usernames[user]])
-					teamcolor = self._root.clients[self._root.usernames[user]].teamcolor
+					battlestatus = self._calc_battlestatus(self._root.usernames[user])
+					teamcolor = self._root.usernames[user].teamcolor
 					if battlestatus and teamcolor:
 						client.Send('CLIENTBATTLESTATUS %s %s %s'%(user, battlestatus, teamcolor))
 				battle_bots = self._root.battles[battle_id]['bots']
@@ -754,14 +753,14 @@ class Protocol:
 	def incoming_FORCELEAVECHANNEL(self, client, channel, username, reason=''):
 		if channel in self._root.channels:
 			if username in self._root.channels[channel]['users']:
-				self._root.clients[self._root.usernames[username]].Send('FORCELEAVECHANNEL %s %s %s'%(channel,client.username,reason))
+				self._root.usernames[username].Send('FORCELEAVECHANNEL %s %s %s'%(channel,client.username,reason))
 				del self._root.channels[channel]['users'][username]
 				self._root.broadcast('CHANNELMESSAGE %s %s kicked from channel by <%s>.'%(channel,username,client.username),channel)
 				self._root.broadcast('LEFT %s %s kicked from channel.'%(channel,username),channel)
 
 	def incoming_RING(self, client, username):
 		if username in self._root.usernames:
-			self._root.clients[self._root.usernames[username]].Send('RING %s'%(client.username))
+			self._root.usernames[username].Send('RING %s'%(client.username))
 
 	def incoming_ADDSTARTRECT(self, client, allyno, left, top, right, bottom):
 		battle_id = client.current_battle
@@ -826,7 +825,7 @@ class Protocol:
 		if battle_id in self._root.battles:
 			if client.username == self._root.battles[battle_id]['host'] or 'mod' in client.accesslevels:
 				if username in self._root.battles[battle_id]['users']:
-					kickuser = self._root.clients[self._root.usernames[username]]
+					kickuser = self._root.usernames[username]
 					kickuser.Send('FORCEQUITBATTLE')
 					self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, username), ignore=username)
 					if username == self._root.battles[battle_id]['host']:
@@ -891,7 +890,7 @@ class Protocol:
 			battle_id = client.current_battle
 			if name in self._root.battles[battle_id]['bots']:
 				if client.username == self._root.battles[battle_id]['bots'][name]['owner'] or client.username == self._root.battles[battle_id]['host']:
-					del self._root.clients[self._root.usernames[self._root.battles[battle_id]['bots'][name]['owner']]].battle_bots[name]
+					del self._root.usernames[self._root.battles[battle_id]['bots'][name]['owner']].battle_bots[name]
 					del self._root.battles[battle_id]['bots'][name]
 				self._root.broadcast_battle('REMOVEBOT %s %s'%(battle_id, name), battle_id)
 	
@@ -905,7 +904,7 @@ class Protocol:
 	def incoming_GETINGAMETIME(self, client, username=None):
 		if username and 'mod' in client.accesslevels:
 			if username in self._root.usernames: # change to do SQL query if user is not logged in
-				ingame_time = self._root.clients[self._root.usernames[username]].ingame_time
+				ingame_time = self._root.usernames[username].ingame_time
 				client.Send('SERVERMSG %s has an in-game time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
 		else:
 			ingame_time = client.ingame_time
@@ -913,28 +912,28 @@ class Protocol:
 
 	def incoming_FORGEMSG(self, client, user, msg):
 		if user in self._root.usernames:
-			self._root.clients[self._root.usernames[user]].Send(msg)
+			self._root.usernames[user].Send(msg)
 
 	def incoming_FORGEREVERSEMSG(self, client, user, msg):
 		if user in self._root.usernames:
-			self._handle(self._root.clients[self._root.usernames[user]], msg)
+			self._handle(self._root.usernames[user], msg)
 
 	def incoming_GETLOBBYVERSION(self, client, user):
 		if user in self._root.usernames: # need to concatenate to a function liek user = _find_user(user), if user: do junk else: say there's no user or owait... i can return to way back by catching an exception :D
-			if hasattr(self._root.clients[self._root.usernames[user]], 'lobby_id'):
-				client.Send('SERVERMSG <%s> is using %s'%(user, self._root.clients[self._root.usernames[user]].lobby_id))
+			if hasattr(self._root.usernames[user], 'lobby_id'):
+				client.Send('SERVERMSG <%s> is using %s'%(user, self._root.usernames[user].lobby_id))
 	
 	def incoming_GETSENDBUFFERSIZE(self, client, username):
 		if username in self._root.usernames:
-			client.Send('SERVERMSG <%s> has a sendbuffer size of %s'%(username, len(self._root.clients[self._root.usernames[username]].sendbuffer)))
+			client.Send('SERVERMSG <%s> has a sendbuffer size of %s'%(username, len(self._root.usernames[username].sendbuffer)))
 
 	def incoming_SETINGAMETIME(self, client, minutes):
 		if user in self._root.usernames:
-			self._root.clients[self._root.usernames[user]].ingame = minutes
+			self._root.usernames[user].ingame = minutes
 
 	def incoming_SETBOTMODE(self, client, user, mode):
 		if user in self._root.usernames:
-			self._root.clients[self._root.usernames[user]].bot = (mode == True)
+			self._root.usernames[user].bot = (mode == True)
 	
 	def incoming_BROADCAST(self, client, msg):
 		self._root.broadcast('SERVERMSG %s'%msg)
@@ -947,12 +946,11 @@ class Protocol:
 
 	def incoming_KICKUSER(self, client, user):
 		if user in self._root.usernames:
-			kickeduser = self._root.clients[self._root.usernames[user]]
+			kickeduser = self._root.usernames[user]
 			for chan in list(kickeduser.channels):
 				self._root.broadcast('CHANNELMESSAGE %s <%s> has been kicked from the server by <%s>'%(chan, user, client.username))
 			self._remove(kickeduser, 'Kicked from server')
 			kickeduser.Remove()
-			#self._root.clients[self._root.usernames[user]]
 	
 	def incoming_KILLALL(self, client):
 		self._remove(client, 'Idiot')
@@ -982,14 +980,14 @@ class Protocol:
 			self._root.error(traceback.format_exc())
 
 	def incoming_MOD(self, client, user):
-		changeuser = self._root.clients[self._root.usernames[user]]
+		changeuser = self._root.usernames[user]
 		changeuser.access = 'mod'
 		changeuser.accesslevels = ['mod', 'user']
 		self._calc_access(changeuser)
 		self._root.broadcast('CLIENTSTATUS %s %s'%(user,changeuser.status))
 
 	def incoming_ADMIN(self, client, user):
-		changeuser = self._root.clients[self._root.usernames[user]]
+		changeuser = self._root.usernames[user]
 		changeuser.access = 'admin'
 		changeuser.accesslevels = ['admin', 'mod', 'user']
 		self._calc_access(changeuser)

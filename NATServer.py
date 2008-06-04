@@ -30,7 +30,7 @@ class handler(SocketServer.DatagramRequestHandler):
 		#print "%s from %s(%d)" % (msg, addr[0], addr[1])
 		self.wfile.write('PONG')
 		if msg in self._root.usernames:
-			self._root.clients[self._root.usernames[msg]]._protocol._udp_packet(msg, addr[0], addr[1])
+			self._root.usernames[msg]._protocol._udp_packet(msg, addr[0], addr[1])
 
 class NATServer:
 	def __init__(self, port):

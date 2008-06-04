@@ -124,8 +124,8 @@ class DataHandler:
 	def error(self, error):
 		error = '%s\n%s\n%s'%(separator,error,separator)
 		self.console_write(error)
-		if 'aegis' in self.usernames: self.clients[self.usernames['aegis']].Send('SERVERMSG %s'%error)
-		elif '[tN]aegis' in self.usernames: self.clients[self.usernames['[tN]aegis']].Send('SERVERMSG %s'%error)
+		if 'aegis' in self.usernames: self.usernames['aegis'].Send('SERVERMSG %s'%error)
+		elif '[tN]aegis' in self.usernames: self.usernames['[tN]aegis'].Send('SERVERMSG %s'%error)
 
 	def console_write(self, lines):
 		if type(lines) == str:
@@ -153,14 +153,14 @@ class DataHandler:
 					for user in users:
 						if user in self.usernames and not user in ignore:
 							try:
-								self.clients[self.usernames[user]].Send(msg)
+								self.usernames[user].Send(msg)
 							except KeyError: pass # user was removed
 		else:
 			users = dict(self.usernames)
 			for user in users:
 				if not user in ignore:
 					try:
-						self.clients[self.usernames[user]].Send(msg)
+						self.usernames[user].Send(msg)
 					except KeyError: pass # user was removed
 
 	def broadcast_battle(self, msg, battle_id, ignore=[]):
@@ -172,7 +172,7 @@ class DataHandler:
 				for user in users:
 					if user in self.battles[battle_id]['users'] and not user in ignore:
 						try:
-							self.clients[self.usernames[user]].Send(msg)
+							self.usernames[user].Send(msg)
 						except KeyError: pass # user was removed
 
 	def admin_broadcast(self, msg):

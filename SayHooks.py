@@ -444,11 +444,11 @@ def chanadmin_kick(self,user,chan,rights,username,reason=''):
 	if reason: reason = '(%s)'%reason
 	users = self._root.channels[chan]['users']
 	if username in users:
-		access = self._root.clients[self._root.usernames[username]].accesslevels
+		access = self._root.usernames[username].accesslevels
 		if not 'chanfounder' in rights and 'mod' in access or 'chanadmin' in access or 'admin' in access or 'chanfounder' in access:
 			_reply(self,chan,'You are not allowed to kick <%s> from the channel.'%username)
 			return
-		self._root.clients[self._root.usernames[username]].Send(('FORCELEAVECHANNEL %s %s %s'%(chan,user,reason)).strip())
+		self._root.usernames[username].Send(('FORCELEAVECHANNEL %s %s %s'%(chan,user,reason)).strip())
 		self._root.channels[chan]['users'].remove(username)
 		#self._root.broadcast('CHANNELMESSAGE %s %s kicked from channel by <%s>.'%(channel,username,client.username),channel)
 		_reply(self,chan,'You have kicked %s from the channel'%username)
@@ -458,12 +458,12 @@ def chanadmin_ban(self,user,chan,rights,username,reason=''):
 	if reason: reason = '(%s)'%reason
 	users = self._root.channels[chan]['users']
 	if username in users or username in self._root.usernames:
-		access = self._root.clients[self._root.usernames[username]].accesslevels
+		access = self._root.usernames[username].accesslevels
 		if not 'chanfounder' in rights:
 			if 'mod' in access or username in self._root.channels[chan]['admins'] or 'admin' in access or 'chanfounder' in access:
 				_reply(self,chan,'You are not allowed to ban <%s> from the channel.'%username)
 				return
-		client = self._root.clients[self._root.usernames[username]]
+		client = self._root.usernames[username]
 		client.Send(('FORCELEAVECHANNEL %s %s %s'%(chan,user,reason)).strip())
 		client.current_channel = None
 		self._root.channels[chan]['ban'][username] = reason
@@ -539,7 +539,7 @@ def battlehost_unban(self,user,battle_id,rights,username):
 def battlepublic_banlist(self,user,battle_id,rights):
 	battle_id = user.current_battle
 	host = self._root.battles[battle_id].host
-	bans = ['Battle bans for %s'%host]+self._root.clients[self._root.usernames[host]].battle_ban
+	bans = ['Battle bans for %s'%host]+self._root.usernames[host].battle_ban
 	_replyb(self,bans)
 	
 def battlepublic_help(self,user,battle_id,rights,command=None):
