@@ -1,0 +1,66 @@
+current:
+
+before release:
+make everything configurable through DataHandler/_root and command-line options/config file
+
+port testing
+
+SayHooks:
+channel registering (set owner)
+channel configuration (antispam)
+reloading <-- needs fixed. see above
+quietness? (whether to print sayhooks actions)
+maybe send things to admins/owner
+transfer of ownership
+default user state for channels :D << allows "moderated" channels
+
+add spam protecton for commands
+don't update battles, clientstatus, etc unless something actually changed
+
+embed fake chanserv in channels if !#chanserv on
+renames
+web interface (connect with loopback socket or w/e)
+
+working reloading (just need to finish _erase)
+
+working SQLite -- integrate SQLUsers.py and DataHandler.py
+
+finish sayhooks
+
+mods the power to check account registration dates, also needs registration date saved in db
+
+loading and saving of channels from sql
+access levels - webadmin, server (, ajax?)
+
+auto-idle on 30 sec without communication
+unless 10% are idle, or just don't send to idle people... only send status updates to people who aren't idle :D
+
+make battles and channels into objects -- the dictionary method requires me to reference the dictionary every time I want to reliably read/write something... and it's not always clean
+
+fix ghosting
+instead of ghosting, resend login data properly?
+
+todo:
+
+"i didn't say hard to implement, just less likely to happend ;-)
+and yes, i do see it's usefulness and i'd want the possibility too to set a maximum rank allowed
+edit: (which doesn't implies autokicks nor no evidence outside the battle itself)"
+
+satirik wants map grading << not important atm
+
+ajax interface -- intermediate server? php?
+
+
+figure out linked servers (later):
+gzipped stream
+need to negotiate every event...
+
+
+
+completed, not verified:
+do blind channels work?
+server-side battle bans
+ingame time resolve on drop from server
+
+verified:
+
