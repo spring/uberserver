@@ -7,7 +7,6 @@ class DataHandler:
 	def __init__(self):
 		self.local_ip = None
 		self.online_ip = None
-		self.LAN = False
 		self.channels = {}
 		self.chan_alias = {}
 		self.usernames = {}
@@ -17,6 +16,9 @@ class DataHandler:
 		self.nextbattle = 0
 		self.clienthandlers = []
 		self.console_buffer = []
+		self.port = 8200
+		self.natport = self.port+1
+		self.LAN = False
 		self.lanadmin = {'username':'', 'password':''}
 		self.latestspringversion = '*'
 		thread.start_new_thread(self.mute_timer,())

@@ -26,19 +26,25 @@ bad_word_dict = {}
 bad_site_list = []
 
 def _update_lists():
-	f = open('bad_words.txt', 'r')
-	for line in f.readlines():
-		if line.count(' ') < 1:
-			bad_word_dict[line.strip()] = '***'
-		else:
-			sline = line.strip().split(' ',1)
-			bad_word_dict[sline[0]] = ' '.join(sline[1:])
-	f.close()
-	f = open('bad_sites.txt', 'r')
-	for line in f.readlines():
-		line = line.strip()
-		if line and not line in bad_site_list: bad_site_list.append(line)
-	f.close()
+	try:
+		f = open('bad_words.txt', 'r')
+		for line in f.readlines():
+			if line.count(' ') < 1:
+				bad_word_dict[line.strip()] = '***'
+			else:
+				sline = line.strip().split(' ',1)
+				bad_word_dict[sline[0]] = ' '.join(sline[1:])
+		f.close()
+	except:
+		print 'Error parsing profanity list. It might not exist. Try running fetch_deps.py'
+	try:
+		f = open('bad_sites.txt', 'r')
+		for line in f.readlines():
+			line = line.strip()
+			if line and not line in bad_site_list: bad_site_list.append(line)
+		f.close()
+	except:
+		print 'Error parsing shock site list. It might not exist. Try running fetch_deps.py'
 
 def public_help(self,user,chan,rights,command=None):
 	'show command specific help.'

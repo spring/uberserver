@@ -899,11 +899,11 @@ class Protocol:
 		if not battle_id in self._root.battles:
 			client.Send('SERVERMSG Invalid battle ID.')
 			return
-		self.incoming_KICKFROMBATTLE(client, self._root.battles[battle_id])		
+		self.incoming_KICKFROMBATTLE(client, self._root.battles[battle_id])
 	
 	def incoming_GETINGAMETIME(self, client, username=None):
 		if username and 'mod' in client.accesslevels:
-			if username in self._root.usernames: # change to do SQL query if user is not logged in
+			if username in self._root.usernames: # change to do SQL query if user is not logged in # maybe abstract in the datahandler to automatically query SQL for users not logged in.
 				ingame_time = self._root.usernames[username].ingame_time
 				client.Send('SERVERMSG %s has an in-game time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
 		else:
@@ -927,7 +927,7 @@ class Protocol:
 		if username in self._root.usernames:
 			client.Send('SERVERMSG <%s> has a sendbuffer size of %s'%(username, len(self._root.usernames[username].sendbuffer)))
 
-	def incoming_SETINGAMETIME(self, client, minutes):
+	def incoming_SETINGAMETIME(self, client, user, minutes):
 		if user in self._root.usernames:
 			self._root.usernames[user].ingame = minutes
 

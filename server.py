@@ -11,6 +11,7 @@ import ip2country
 _root = DataHandler()
 _root.parseArgv(sys.argv)
 
+print
 print 'Detecting local IP:',
 local_addr = socket.gethostbyname(socket.gethostname())
 print local_addr
@@ -26,10 +27,9 @@ except:
 print
 
 host = ''
-port = 8200
-natport = 8201
+port = _root.port
+natport = _root.port
 backlog = 100
-size = 10240
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt( socket.SOL_SOCKET, socket.SO_REUSEADDR,
                                server.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR) | 1 ) # we can restart uberserver and it will ignore TIME_WAIT :D
@@ -99,7 +99,7 @@ try:
 		_root.clients[session_id] = client
 		AddClient(client)
 		session_id += 1
-		time.sleep(0.05) # just in case
+		#time.sleep(0.05) # just in case... # not sure what sleeping after connect is good for? remove it?
 except KeyboardInterrupt:
 	print
 	print 'Server killed by keyboard interrupt.'
