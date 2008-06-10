@@ -308,6 +308,8 @@ class Protocol:
 			if good:
 				self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s.'%(client.handler.num, username, client.session_id))
 				self._root.usernames[username] = client
+				nextbattle = self._root.nextbattle # caches the current battle number; we don't want to add battles twice
+				session_id = self._root.session_id
 				client.ingame_time = reason.ingame_time
 				client.bot = reason.bot
 				client.access = reason.access
@@ -333,7 +335,7 @@ class Protocol:
 					try:
 						#if username == user: continue
 						addclient = self._root.usernames[user]
-						client.Send('ADDUSER %s %s %s'%(user,addclient.country_code,addclient.cpu))
+						if addclient.session_id < session_id: client.Send('ADDUSER %s %s %s'%(user,addclient.country_code,addclient.cpu)) # if it's equal to or greater, they were already added
 					except:
 						pass #person must have left :)
 					
@@ -341,6 +343,7 @@ class Protocol:
 				battles = dict(self._root.battles)
 				for battle in battles:
 					battle_id = battle
+					if battle_id >= nextbattle: continue # was already sent
 					battle = self._root.battles[battle]
 					type, natType, host, port, maxplayers, passworded, rank, maphash, map, title, modname = [battle['type'], battle['natType'], battle['host'], battle['port'], battle['maxplayers'], battle['passworded'], battle['rank'], battle['maphash'], battle['map'], battle['title'], battle['modname']]
 					if not host in self._root.usernames: continue # host left server
@@ -621,6 +624,10 @@ class Protocol:
 				for iter in battle_bots:
 					bot = battle_bots[iter]
 					client.Send('ADDBOT %s %s %s %s %s %s'%(battle_id, iter, bot['owner'], bot['battlestatus'], bot['teamcolor'], bot['AIDLL']))
+				for allyno in self._root.battles[battle_id]['startrects']:
+					rect = self._root.battles[battle_id]['startrects'][allyno]
+					client.Send('ADDSTARTRECT %s %s %s %s %s'%(allyno, rect['left'], rect['top'], rect['right'], rect['bottom'])
+				
 				client.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
 				client.teamcolor = '0'
 				client.current_battle = battle_id
@@ -685,8 +692,9 @@ class Protocol:
 				battle_bots = dict(client.battle_bots)
 				for bot in battle_bots:
 					del client.battle_bots[bot]
-					del self._root.battles[battle_id]['bots'][bot]
-					self._root.broadcast_battle('REMOVEBOT %s'%bot, battle_id)
+					if bot in self._root.battles[battle_id]['bots']:
+						del self._root.battles[battle_id]['bots'][bot]
+						self._root.broadcast_battle('REMOVEBOT %s'%bot, battle_id)
 				self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, client.username))
 		client.current_battle = None
 
@@ -704,11 +712,14 @@ class Protocol:
 			self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(client.username, self._calc_battlestatus(client), myteamcolor), client.current_battle)
 
 	def incoming_UPDATEBATTLEINFO(self, client, SpectatorCount, locked, maphash, mapname):
-		if not client.current_battle == None:
-			if self._root.battles[client.current_battle]['host'] == client.username:
+		battle_id = client.current_battle
+		if battle_id:
+			if self._root.battles[battle_id]['host'] == client.username:
 				updated = {'SpectatorCount':SpectatorCount, 'locked':locked, 'maphash':maphash, 'mapname':mapname}
-				self._root.battles[client.current_battle].update(updated)
-				self._root.broadcast('UPDATEBATTLEINFO %s %s %s %s %s' %(client.current_battle,updated['SpectatorCount'], updated['locked'], updated['maphash'], updated['mapname']), client.current_battle)
+				old = self._root.battles[battle_id]
+				self._root.battles[battle_id].update(updated)
+				if old == self._root.battles[battle_id]: return # nothing changed
+				self._root.broadcast('UPDATEBATTLEINFO %s %s %s %s %s' %(battle_id,updated['SpectatorCount'], updated['locked'], updated['maphash'], updated['mapname']), client.current_battle)
 
 	def incoming_MYSTATUS(self, client, status):
 		if not status.isdigit():

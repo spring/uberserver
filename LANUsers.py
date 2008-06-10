@@ -2,7 +2,7 @@ import time
 
 class LANUser:
 	def __init__(self):
-		self.ingame_time = 60000
+		self.ingame_time = 0
 		self.access = 'user'
 		self.bot = False
 

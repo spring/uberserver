@@ -46,8 +46,6 @@ natserver = NATServer(natport)
 thread.start_new_thread(natserver.start,())
 natserver.bind(_root)
 
-session_id = 0
-
 curthread = 0
 maxthreads = 25
 for iter in range(maxthreads):
@@ -95,10 +93,10 @@ try:
 				address = (local_addr, address[1])
 		country_code = ip2country.lookup(address[0]) # actual flag
 		#country_code = ip2country.randomcc() # random flags
-		client = Client(_root, connection, address, session_id, country_code)
-		_root.clients[session_id] = client
+		client = Client(_root, connection, address, _root.session_id, country_code)
+		_root.clients[_root.session_id] = client
 		AddClient(client)
-		session_id += 1
+		_root.session_id += 1
 		#time.sleep(0.05) # just in case... # not sure what sleeping after connect is good for? remove it?
 except KeyboardInterrupt:
 	print
