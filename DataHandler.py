@@ -23,7 +23,7 @@ class DataHandler:
 		self.latestspringversion = '*'
 		thread.start_new_thread(self.mute_timer,())
 		thread.start_new_thread(self.console_loop,())
-		#self.output = open('output.log', 'a')
+		self.output = open('server.log', 'a')
 	
 	def parseArgv(self, argv):
 		'parses command-line options'
@@ -145,7 +145,7 @@ class DataHandler:
 			if self.console_buffer:
 				line = self.console_buffer.pop(0)
 				print line
-				#output.write(line)
+				output.write(line)
 			else:
 				time.sleep(0.1)
 		
