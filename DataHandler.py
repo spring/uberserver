@@ -127,10 +127,10 @@ class DataHandler:
 		error = '%s\n%s\n%s'%(separator,error,separator)
 		self.console_write(error)
 		if 'aegis' in self.usernames:
-			for line in error:
+			for line in error.split('\n'):
 				self.usernames['aegis'].Send('SERVERMSG %s'%line)
 		elif '[tN]aegis' in self.usernames:
-			for line in error:
+			for line in error.split('\n'):
 				self.usernames['[tN]aegis'].Send('SERVERMSG %s'%line)
 
 	def console_write(self, lines):
