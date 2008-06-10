@@ -358,7 +358,7 @@ class Protocol:
 						translated_ip = ip_address
 					client.Send('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' %(battle_id, type, natType, host, translated_ip, port, maxplayers, passworded, rank, maphash, map, title, modname))
 					for user in battle['users']:
-						client.Send('JOINEDBATTLE %s %s'%(battle_id, username))
+						client.Send('JOINEDBATTLE %s %s'%(battle_id, user))
 				usernames = dict(self._root.usernames)
 				for user in usernames:
 					if user == username: continue
