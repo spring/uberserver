@@ -75,6 +75,7 @@ except IOError:
 		update()
 		from ip2c.ip2country import ip2country
 		ip2c = ip2country
+		working = True
 	except:
 		print 'Update failed.'
 except ImportError:
