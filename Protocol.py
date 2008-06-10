@@ -1,6 +1,6 @@
 import inspect, time, re
 import md5, base64, binascii
-import traceback, sys
+import traceback, sys, os
 
 restricted = {
 				'TOKENIZE':'everyone', 'TELNET':'everyone', 'HASH':'everyone', 'EXIT':'everyone', 'PING':'everyone', # everyone
