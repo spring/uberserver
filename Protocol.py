@@ -826,8 +826,8 @@ class Protocol:
 			if client.username == self._root.battles[battle_id]['host']:
 				if username in self._root.battles[battle_id]['users']:
 					client = self._root.usernames[username]
-					self._root.clients[client].battlestatus['handicap'] = self._dec2bin(value, 7)
-					self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(self._root.clients[client]), self._root.clients[client].teamcolor), battle_id)
+					client.battlestatus['handicap'] = self._dec2bin(value, 7)
+					self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), battle_id)
 
 	def incoming_KICKFROMBATTLE(self, client, username):
 		battle_id = client.current_battle
@@ -848,8 +848,8 @@ class Protocol:
 			if client.username == self._root.battles[battle_id]['host']:
 				if username in self._root.battles[battle_id]['users']:
 					client = self._root.usernames[username]
-					self._root.clients[client].battlestatus['id'] = self._dec2bin(teamno, 4)
-					self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(self._root.clients[client]), self._root.clients[client].teamcolor), battle_id)
+					client.battlestatus['id'] = self._dec2bin(teamno, 4)
+					self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), battle_id)
 
 	def incoming_FORCEALLYNO(self, client, username, allyno):
 		battle_id = client.current_battle
@@ -857,8 +857,8 @@ class Protocol:
 			if client.username == self._root.battles[battle_id]['host']:
 				if username in self._root.battles[battle_id]['users']:
 					client = self._root.usernames[username]
-					self._root.clients[client].battlestatus['ally'] = self._dec2bin(allyno, 4)
-					self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(self._root.clients[client]), self._root.clients[client].teamcolor), battle_id)
+					client.battlestatus['ally'] = self._dec2bin(allyno, 4)
+					self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), battle_id)
 
 	def incoming_FORCETEAMCOLOR(self, client, username, teamcolor):
 		battle_id = client.current_battle
@@ -866,8 +866,8 @@ class Protocol:
 			if client.username == self._root.battles[battle_id]['host']:
 				if username in self._root.battles[battle_id]['users']:
 					client = self._root.usernames[username]
-					self._root.clients[client].teamcolor = teamcolor
-					self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(self._root.clients[client]), self._root.clients[client].teamcolor), battle_id)
+					client.teamcolor = teamcolor
+					self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), battle_id)
 
 	def incoming_FORCESPECTATORMODE(self, client, username):
 		battle_id = client.current_battle
@@ -875,8 +875,8 @@ class Protocol:
 			if client.username == self._root.battles[battle_id]['host']:
 				if username in self._root.battles[battle_id]['users']:
 					client = self._root.usernames[username]
-					self._root.clients[client].battlestatus['mode'] = '0'
-					self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(self._root.clients[client]), self._root.clients[client].teamcolor), battle_id)
+					client.battlestatus['mode'] = '0'
+					self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), battle_id)
 
 	def incoming_ADDBOT(self, client, name, battlestatus, teamcolor, AIDLL): #need to add bot removal on user removal
 		if client.current_battle in self._root.battles:
