@@ -691,8 +691,14 @@ class Protocol:
 		client.current_battle = None
 
 	def incoming_MYBATTLESTATUS(self, client, battlestatus, myteamcolor):
+		if not battlestatus.isdigit():
+			client.Send('SERVERMSG MYBATTLESTATUS failed - invalid status.')
+			return
+		if not myteamcolor.isdigit():
+			client.Send('SERVERMSG MYBATTLESTATUS failed - invalid teamcolor.')
+			return
 		if client.current_battle in self._root.battles:
-			u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4, id1, id2, id3, id4, ready, u = self._dec2bin(battlestatus, 32)[0:31]
+			u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4, id1, id2, id3, id4, ready, u = self._dec2bin(battlestatus, 32)[0:32]
 			client.battlestatus.update({'ready':ready, 'id':id1+id2+id3+id4, 'ally':ally1+ally2+ally3+ally4, 'mode':mode, 'sync':sync1+sync2, 'side':side1+side2+side3+side4})
 			client.teamcolor = myteamcolor
 			self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(client.username, self._calc_battlestatus(client), myteamcolor), client.current_battle)
@@ -705,6 +711,9 @@ class Protocol:
 				self._root.broadcast('UPDATEBATTLEINFO %s %s %s %s %s' %(client.current_battle,updated['SpectatorCount'], updated['locked'], updated['maphash'], updated['mapname']), client.current_battle)
 
 	def incoming_MYSTATUS(self, client, status):
+		if not status.isdigit():
+			client.Send('SERVERMSG MYSTATUS failed - invalid status.')
+			return
 		was_ingame = client.ingame
 		client.status = self._calc_status(client, status)
 		if client.ingame and not was_ingame:
@@ -929,7 +938,7 @@ class Protocol:
 
 	def incoming_SETINGAMETIME(self, client, user, minutes):
 		if user in self._root.usernames:
-			self._root.usernames[user].ingame = minutes
+			self._root.usernames[user].ingame_time = minutes
 
 	def incoming_SETBOTMODE(self, client, user, mode):
 		if user in self._root.usernames:
