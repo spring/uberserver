@@ -112,8 +112,8 @@ class DataHandler:
 				except: print 'Error opening file with command-line args'
 			if arg in ['o', 'output']:
 				try:
-					f = file(argp[0], 'a')
-					self.output = f
+					self.output = file(argp[0], 'w')
+					print 'logging on'
 					self.log = True
 				except: print 'Error specifying output log'
 			if arg in ['v', 'latestspringversion']:
@@ -142,7 +142,7 @@ class DataHandler:
 			for line in error.split('\n'):
 				self.usernames['[tN]aegis'].Send('SERVERMSG %s'%line)
 
-	def console_write(self, lines):
+	def console_write(self, lines=''):
 		if type(lines) == str:
 			lines = lines.split('\n')
 		elif not type(lines) == list:
@@ -154,7 +154,7 @@ class DataHandler:
 			if self.console_buffer:
 				line = self.console_buffer.pop(0)
 				print line
-				if self.log: output.write(line)
+				if self.log: self.output.write(line+'\n')
 			else:
 				time.sleep(0.1)
 		

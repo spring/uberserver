@@ -11,21 +11,6 @@ import ip2country
 _root = DataHandler()
 _root.parseArgv(sys.argv)
 
-print
-print 'Detecting local IP:',
-local_addr = socket.gethostbyname(socket.gethostname())
-print local_addr
-
-print 'Detecting online IP:',
-try:
-	# web_addr = urlopen('http://www.zjt3.com/ip.php').read() # site down
-	web_addr = urlopen('http://whatismyip.com/automation/n09230945.asp').read()
-	print web_addr
-except:
-	web_addr = local_addr
-	print 'not online'
-print
-
 host = ''
 port = _root.port
 natport = _root.port
@@ -37,8 +22,6 @@ server.bind((host,port))
 server.listen(backlog)
 input = [server]
 
-_root.local_ip = local_addr
-_root.online_ip = web_addr
 
 _root.LAN = True
 
@@ -46,13 +29,31 @@ natserver = NATServer(natport)
 thread.start_new_thread(natserver.start,())
 natserver.bind(_root)
 
+_root.console_write()
+_root.console_write('Detecting local IP:')
+local_addr = socket.gethostbyname(socket.gethostname())
+_root.console_write(local_addr)
+
+_root.console_write('Detecting online IP:')
+try:
+	# web_addr = urlopen('http://www.zjt3.com/ip.php').read() # site down
+	web_addr = urlopen('http://whatismyip.com/automation/n09230945.asp').read()
+	_root.console_write(web_addr)
+except:
+	web_addr = local_addr
+	_root.console_write('not online')
+_root.console_write()
+
+_root.local_ip = local_addr
+_root.online_ip = web_addr
+
 curthread = 0
 maxthreads = 25
 for iter in range(maxthreads):
 	_root.clienthandlers.append( ClientHandler(_root, iter) )
 
-print 'uberserver starting on port %i'%port
-print 'Using %i client handling thread(s).'%maxthreads
+_root.console_write('uberserver starting on port %i'%port)
+_root.console_write('Using %i client handling thread(s).'%maxthreads)
 
 running = 1
 clients = {}
@@ -99,17 +100,17 @@ try:
 		_root.session_id += 1
 		#time.sleep(0.05) # just in case... # not sure what sleeping after connect is good for? remove it?
 except KeyboardInterrupt:
-	print
-	print 'Server killed by keyboard interrupt.'
+	_root.console_write()
+	_root.console_write('Server killed by keyboard interrupt.')
 except:
-	print '-'*60
-	traceback.print_exc(file=sys.stdout)
-	print '-'*60
-	print 'Deep error, exiting...'
-print 'Killing handlers.'
+	_root.console_write('-'*60)
+	_root.error(traceback.format_exc())
+	_root.console_write('-'*60)
+	_root.console_write('Deep error, exiting...')
+_root.console_write('Killing handlers.')
 for handler in _root.clienthandlers:
 	handler.running = False	
-print 'Killing clients.'
+_root.console_write('Killing clients.')
 for client in dict(_root.clients):
 	_root.clients[client].conn.close()
 server.close()
