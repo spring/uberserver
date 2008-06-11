@@ -194,7 +194,7 @@ class Protocol:
 
 	def _calc_status(self, client, status):
 		status = self._dec2bin(status, 7)
-		bot, access, rank1, rank2, rank3, away, ingame = status[0:7]
+		bot, access, rank1, rank2, rank3, away, ingame = status[-7:]
 		rank1, rank2, rank3 = self._dec2bin(6, 3)
 		accesslist = {'user':0, 'mod':1, 'admin':1}
 		access = client.access
@@ -706,7 +706,7 @@ class Protocol:
 			client.Send('SERVERMSG MYBATTLESTATUS failed - invalid teamcolor.')
 			return
 		if client.current_battle in self._root.battles:
-			u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4, id1, id2, id3, id4, ready, u = self._dec2bin(battlestatus, 32)[0:32]
+			u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4, id1, id2, id3, id4, ready, u = self._dec2bin(battlestatus, 32)[-32:]
 			client.battlestatus.update({'ready':ready, 'id':id1+id2+id3+id4, 'ally':ally1+ally2+ally3+ally4, 'mode':mode, 'sync':sync1+sync2, 'side':side1+side2+side3+side4})
 			client.teamcolor = myteamcolor
 			self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(client.username, self._calc_battlestatus(client), myteamcolor), client.current_battle)
