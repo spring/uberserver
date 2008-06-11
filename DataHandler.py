@@ -24,7 +24,7 @@ class DataHandler:
 		self.latestspringversion = '*'
 		thread.start_new_thread(self.mute_timer,())
 		thread.start_new_thread(self.console_loop,())
-		#self.output = open('server.log', 'a')
+		self.log = False
 	
 	def parseArgv(self, argv):
 		'parses command-line options'
@@ -57,6 +57,8 @@ class DataHandler:
 				print '      { Hardcoded admin account for LAN. If third arg reads "hash" it will apply the standard hash algorithm to the supplied password }'
 				print '  -g, --loadargs filename'
 				print '      { Reads command-line arguments from file }'
+				print '  -o, --output /path/to/file.log'
+				print '      { Writes console output to file (for logging) }'
 				print '  -v, --latestspringversion version'
 				print '      { Sets latest Spring version to this string. Defaults to "*" }'
 				print '  -s, --sqlurl SQLURL'
@@ -108,6 +110,12 @@ class DataHandler:
 					f.close()
 					for line in data: self.parseArgv(line)
 				except: print 'Error opening file with command-line args'
+			if arg in ['o', 'output']:
+				try:
+					f = file(argp[0], 'a')
+					self.output = f
+					self.log = True
+				except: print 'Error specifying output log'
 			if arg in ['v', 'latestspringversion']:
 				try: self.latestspringversion = ' '.join(argp)
 				except: print 'Error specifying latest spring version'
@@ -146,7 +154,7 @@ class DataHandler:
 			if self.console_buffer:
 				line = self.console_buffer.pop(0)
 				print line
-				#output.write(line)
+				if self.log: output.write(line)
 			else:
 				time.sleep(0.1)
 		
