@@ -626,7 +626,7 @@ class Protocol:
 					client.Send('ADDBOT %s %s %s %s %s %s'%(battle_id, iter, bot['owner'], bot['battlestatus'], bot['teamcolor'], bot['AIDLL']))
 				for allyno in self._root.battles[battle_id]['startrects']:
 					rect = self._root.battles[battle_id]['startrects'][allyno]
-					client.Send('ADDSTARTRECT %s %s %s %s %s'%(allyno, rect['left'], rect['top'], rect['right'], rect['bottom'])
+					client.Send('ADDSTARTRECT %s %s %s %s %s'%(allyno, rect['left'], rect['top'], rect['right'], rect['bottom']))
 				
 				client.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
 				client.teamcolor = '0'
