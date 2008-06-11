@@ -154,7 +154,9 @@ class DataHandler:
 			if self.console_buffer:
 				line = self.console_buffer.pop(0)
 				print line
-				if self.log: self.output.write(line+'\n')
+				if self.log:
+					self.output.write(line+'\n')
+					self.output.flush()
 			else:
 				time.sleep(0.1)
 		
