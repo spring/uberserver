@@ -519,7 +519,7 @@ class Protocol:
 		topic = channel['topic']
 		if topic and user in self._root.channels[chan]['users']: # putting this outside of the check means a user can rejoin a channel to get the topic while in it
 			client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topic['time'], topic['text']))
-
+	
 	def incoming_SETCHANNELKEY(self,client,chan,key='*'):
 		if key == '*':
 			key = None
@@ -529,7 +529,7 @@ class Protocol:
 				self._root.broadcast('CHANNELMESSAGE %s Channel unlocked by <%s>'%(chan,client.username))
 			else:
 				self._root.broadcast('CHANNELMESSAGE %s Channel locked by <%s>'%(chan,client.username))
-
+	
 	def incoming_LEAVE(self,client,chan):
 		user = client.username
 		if chan in self._root.channels:
@@ -710,7 +710,11 @@ class Protocol:
 			client.Send('SERVERMSG MYBATTLESTATUS failed - invalid teamcolor (%s).'%myteamcolor)
 			return
 		if client.current_battle in self._root.battles:
+			if client.battlestatus['mode'] == '1': spectator = True
+			else: spectator = False
 			u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4, id1, id2, id3, id4, ready, u = self._dec2bin(battlestatus, 32)[-32:]
+			if len(self._root.battles[client.current_battle]['users']) < self._root.battles[client.current_battle]['maxplayers'] and spectator and not mode == '1':
+				mode = '0'
 			client.battlestatus.update({'ready':ready, 'id':id1+id2+id3+id4, 'ally':ally1+ally2+ally3+ally4, 'mode':mode, 'sync':sync1+sync2, 'side':side1+side2+side3+side4})
 			client.teamcolor = myteamcolor
 			self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(client.username, self._calc_battlestatus(client), myteamcolor), client.current_battle)
