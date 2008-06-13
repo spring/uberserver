@@ -375,7 +375,7 @@ class Protocol:
 		else:
 			oldclient = self._root.usernames[username]
 			if time.time() - oldclient.lastdata > 15:
-				if oldclient.password != client.password and self._root.LAN:
+				if not oldclient.password == password and self._root.LAN:
 					client.Send('DENIED Would ghost old user, but we are in LAN mode and your password does not match.')
 					return
 				oldclient._protocol._remove(oldclient, 'Removing: Ghosted')
