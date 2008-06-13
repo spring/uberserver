@@ -141,18 +141,16 @@ def _spam_enum(client, chan, timeout, repeated, unique, bonuslength): # make uni
 	now = time.time()
 	counter = 0
 	bonus = False
-	bonuslength = False ## work on this later
+	bonuslengthbonus = False ## work on this later
 	already = []
 	for when in dict(client.lastsaid[chan]):
 		if float(when) > now-timeout:
 			message = client.lastsaid[chan][when]
 			if message in already: bonus = True
-			if len(message) > bonuslength:
-				if bonus == True: return True # they just said something really long twice :>
-				else: bonus = True
+			if len(message) > bonuslength: bonusbonuslengthbonus = True
 			counter += 1
 		else: del client.lastsaid[chan][when]
-	if bonus and counter >= repeated or counter >= unique: return True
+	if bonus and bonuslengthbonus and counter >= repeated or counter >= unique: return True
 	else: return False
 
 def _spam_rec(client, chan, msg):
