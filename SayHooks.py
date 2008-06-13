@@ -619,4 +619,3 @@ def admin_reload(self,user,chan,rights):
 	for handler in self._root.clienthandlers:
 		handler._rebind()
 	_reply(self,chan,'Everything was reloaded.')
-	_reply(self,chan,'Everything was and it worked!')
