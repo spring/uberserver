@@ -602,7 +602,11 @@ class Protocol:
 				if username in client.battle_bans:
 					client.Send('JOINBATTLEFAILED <%s> has banned you from his/her battles.'%battle['host'])
 					return
+				battle_users = self._root.battles[battle_id]['users']
+				battle_bots = self._root.battles[battle_id]['bots']
+				startrects = self._root.battles[battle_id]['startrects']
 				client.Send('JOINBATTLE %s %s'%(battle_id, battle['hashcode']))
+				self._root.battles[battle_id]['users'][username] = ''
 				scripttags = []
 				battle_script_tags = battle['script_tags']
 				for tag in battle_script_tags:
@@ -615,24 +619,21 @@ class Protocol:
 						raise NameError,'%s is having an identity crisis'%(host)
 					if client.udpport:
 						self._root.usernames[host].Send('CLIENTIPPORT %s %s %s'%(username, client.ip_address, client.udpport))
-				battle_users = self._root.battles[battle_id]['users']
 				for user in battle_users:
 					battlestatus = self._calc_battlestatus(self._root.usernames[user])
 					teamcolor = self._root.usernames[user].teamcolor
 					if battlestatus and teamcolor:
 						client.Send('CLIENTBATTLESTATUS %s %s %s'%(user, battlestatus, teamcolor))
-				battle_bots = self._root.battles[battle_id]['bots']
 				for iter in battle_bots:
 					bot = battle_bots[iter]
 					client.Send('ADDBOT %s %s %s %s %s %s'%(battle_id, iter, bot['owner'], bot['battlestatus'], bot['teamcolor'], bot['AIDLL']))
-				for allyno in self._root.battles[battle_id]['startrects']:
+				for allyno in startrects:
 					rect = self._root.battles[battle_id]['startrects'][allyno]
 					client.Send('ADDSTARTRECT %s %s %s %s %s'%(allyno, rect['left'], rect['top'], rect['right'], rect['bottom']))
 				
 				client.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
 				client.teamcolor = '0'
 				client.current_battle = battle_id
-				self._root.battles[battle_id]['users'][username] = ''
 				client.Send('REQUESTBATTLESTATUS')
 				return
 		client.Send('JOINBATTLEFAILED Unable to join battle.')
