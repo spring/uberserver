@@ -137,10 +137,11 @@ def _site_censor(msg):
 			return 'I think I can post shock sites, but I am wrong.'
 	return msg
 
-def _spam_enum(client, chan, timeout, repeated, unique, bonuslength):
+def _spam_enum(client, chan, timeout, repeated, unique, bonuslength): # make unique negate bonuslength
 	now = time.time()
 	counter = 0
 	bonus = False
+	bonuslength = False ## work on this later
 	already = []
 	for when in dict(client.lastsaid[chan]):
 		if float(when) > now-timeout:

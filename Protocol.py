@@ -308,8 +308,10 @@ class Protocol:
 			if good:
 				self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s.'%(client.handler.num, username, client.session_id))
 				self._root.usernames[username] = client
-				nextbattle = self._root.nextbattle # caches the current battle number; we don't want to add battles twice
-				session_id = self._root.session_id
+				
+				battles = dict(self._root.battles)
+				usernames = dict(self._root.usernames) # cache them here in case anyone joins or hosts a battle
+				
 				client.ingame_time = reason.ingame_time
 				client.bot = reason.bot
 				client.access = reason.access
@@ -330,20 +332,17 @@ class Protocol:
 				client.Send('ACCEPTED %s'%username)
 				client.Send('MOTD Hey there.')
 				
-				usernames = dict(self._root.usernames)
 				for user in usernames:
 					try:
 						#if username == user: continue
 						addclient = self._root.usernames[user]
-						if addclient.session_id < session_id: client.Send('ADDUSER %s %s %s'%(user,addclient.country_code,addclient.cpu)) # if it's equal to or greater, they were already added
+						client.Send('ADDUSER %s %s %s'%(user,addclient.country_code,addclient.cpu))
 					except:
 						pass #person must have left :)
 					
 				self._root.broadcast('ADDUSER %s %s %s'%(username,client.country_code,cpu),ignore=username)
-				battles = dict(self._root.battles)
 				for battle in battles:
 					battle_id = battle
-					if battle_id >= nextbattle: continue # was already sent
 					battle = self._root.battles[battle]
 					type, natType, host, port, maxplayers, passworded, rank, maphash, map, title, modname = [battle['type'], battle['natType'], battle['host'], battle['port'], battle['maxplayers'], battle['passworded'], battle['rank'], battle['maphash'], battle['map'], battle['title'], battle['modname']]
 					if not host in self._root.usernames: continue # host left server
@@ -362,7 +361,6 @@ class Protocol:
 					client.Send('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' %(battle_id, type, natType, host, translated_ip, port, maxplayers, passworded, rank, maphash, map, title, modname))
 					for user in battle['users']:
 						client.Send('JOINEDBATTLE %s %s'%(battle_id, user))
-				usernames = dict(self._root.usernames)
 				for user in usernames:
 					if user == username: continue
 					client.Send('CLIENTSTATUS %s %s'%(user,self._root.usernames[user].status))

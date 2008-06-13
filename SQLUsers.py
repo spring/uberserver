@@ -50,7 +50,7 @@ class Address(object):
 		return "<Address('%s')>" % self.ip_address
 
 class Channel(object):
-	def __init__(self, name, owner='', topic='', topic_time=0, topic_owner='', antispam='', admins='', bans='', allow='', mutelist='', autokick='ban', censor=False, antishock=False):
+	def __init__(self, name, owner='', topic='', topic_time=0, topic_owner='', antispam='', admins='', autokick='ban', censor=False, antishock=False):
 		self.name = name
 		self.password = password
 		self.owner = owner
@@ -59,9 +59,7 @@ class Channel(object):
 		self.topic_owner = topic_owner
 		self.antispam = antispam
 		self.admins = admins
-		self.bans = bans
 		self.allow = allow
-		self.mutelist = mutelist
 		self.autokick = autokick
 		self.censor = censor
 		self.antishock = antishock
@@ -69,26 +67,64 @@ class Channel(object):
 	def __repr__(self):
 		return "<Channel('%s')>" % self.name
 
+class ChanUser(object):
+	def __init__(self, name, channel, admin=False, banned='', allowed=False, mute=0):
+		self.name = name
+		self.channel = channel
+		self.admin = admin
+		self.banned = banned
+		self.allowed = allowed
+		self.mute = mute
+
+	def __repr__(self):
+		return "<ChanUser('%s')>" % self.name
+
+class Antispam(object):
+	def __init__(self, channel, enabled, quiet, duration, timeout, bonus, unique, bonuslength):
+		self.channel = channel
+		self.enabled = enabled
+		self.quiet = quiet
+		self.duration = duration
+		self.timeout = timeout
+		self.bonus = bonus
+		self.unique = unique
+		self.bonuslength = bonuslength
+
+	def __repr__(self):
+		return "<Antispam('%s')>" % self.channel
+
+class Ban(object):
+	def __init__(self, reason, end_time):
+		self.reason = reason
+		self.end_time = end_time
+	
+	def __repr__(self):
+		return "<Ban('%s')>" % self.end_time
+
+class AggregateBan(object):
+	def __init__(self, ban_type, data):
+		self.ban_type = ban_type
+		self.data = data
+	
+	def __repr__(self):
+		return "<AggregateBan('%s')('%s')>" % (self.ban_type, self.data)
+
 users_table = Table('users', metadata,
         Column('id', Integer, primary_key=True),
         Column('name', String(40)),
         Column('password', String(32)),
         Column('last_login', Integer), # use seconds since unix epoch
-        Column('banned', Integer), # use seconds since unix epoch
-        Column('last_ip', String(15)),
+        Column('last_ip', String(15)), # would need update for ipv6
         Column('ingame', Integer),
         Column('access', String(32)),
-        Column('bot', Integer)
-)
+        Column('bot', Integer),
+        )
+
 addresses_table = Table('addresses', metadata, 
         Column('id', Integer, primary_key=True),
         Column('ip_address', String(100), nullable=False),
-        Column('banned', Integer), # seconds since unix epoch
-        Column('user_id', Integer, ForeignKey('users.id')))
-
-
-
-{'users':[], 'blindusers':[], 'admins':[], 'ban':{}, 'allow':[], 'autokick':'ban', 'owner':'', 'mutelist':{}, 'antispam':{'enabled':True, 'quiet':False, 'timeout':3, 'bonus':2, 'unique':4, 'bonuslength':100, 'duration':900}, 'censor':False, 'antishock':False, 'topic':None, 'key':None}
+        Column('user_id', Integer, ForeignKey('users.id')),
+        )
 
 channels_table = Table('channels', metadata,
         Column('id', Integer, primary_key=True),
@@ -98,20 +134,54 @@ channels_table = Table('channels', metadata,
         Column('topic', Integer),
         Column('topic_time', Integer),
         Column('topic_owner', String(40)),
-	Column('antispam', String), # pickles :)
-	Column('admins', String),   # pickle these
-	Column('bans', String),     # if not specifying length doesn't work, set to like 10k for admin/ban/allow and actually figure out the max logical length for antispam
-	Column('allow', String)     #
-	Column('mutelist', String),
-	Column('autokick', String(10)),
+	Column('antispam', ForeignKey('antispam.id')),
+	Column('autokick', String(5)),
 	Column('censor', Boolean),
 	Column('antishock', Boolean),
-)
+	)
 
-mapper(User, users_table, properties={    
-        'addresses':relation(Address, backref='user', cascade="all, delete, delete-orphan")
-        })
+chanuser_table = Table('chanuser', metadata,
+        Column('id', Integer, primary_key=True),
+        Column('name', String(40)),
+        Column('channel', String(40)),
+        Column('admin', Boolean),
+        Column('banned', String),
+        Column('allowed', Boolean),
+	Column('mute', Integer),
+	)
+
+antispam_table = Table('antispam', metadata,
+        Column('id', Integer, primary_key=True),
+        Column('channel', String(40)),
+        Column('enabled', Boolean),
+	Column('quiet', Boolean),
+	Column('duration', Integer),
+        Column('timeout', Integer),
+        Column('bonus', Integer),
+        Column('unique', Integer),
+	Column('bonuslength', Integer),
+	)
+
+bans_table = Table('bans', metadata, # server bans
+	Column('id', Integer, primary_key=True),
+	Column('reason', String(120)),
+	Column('end_time', Integer), # seconds since unix epoch
+	)
+
+aggregatebans_table = Table('bans', metadata, # server bans
+	Column('id', Integer, primary_key=True),
+	Column('type', String(10)), # what exactly is banned (user, ip, subnet, hostname, etc)
+	Column('data', String(60)), # regex would be cool
+	Column('ban_id', ForeignKey('bans.id')),
+	)
+
+mapper(User, users_table, properties={
+	'addresses':relation(Address, backref='user', cascade="all, delete, delete-orphan")
+	})
 mapper(Address, addresses_table)
+mapper(User, users_table, properties={
+	'addresses':relation(Address, backref='user', cascade="all, delete, delete-orphan")
+	})
 metadata.create_all(engine)
 
 class UsersHandler:
@@ -140,7 +210,7 @@ class UsersHandler:
 					reason = 'You are banned: (%s) hours remaining.' % (float(seconds) / 60 / 60)
 		exists = self.session.query(Address).filter(Address.user_id==entry.id).first()
 		if not exists:
-        		entry.addresses.append(Address(ip_address=ip))
+			entry.addresses.append(Address(ip_address=ip))
 		entry.last_login = now
 		entry.last_ip = ip
 		self.session.commit()
