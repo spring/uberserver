@@ -722,7 +722,7 @@ class Protocol:
 				updated = {'SpectatorCount':SpectatorCount, 'locked':locked, 'maphash':maphash, 'mapname':mapname}
 				old = self._root.battles[battle_id]
 				self._root.battles[battle_id].update(updated)
-				if old == self._root.battles[battle_id]: return # nothing changed
+				# if old == self._root.battles[battle_id]: return # nothing changed # apparently broken
 				self._root.broadcast('UPDATEBATTLEINFO %s %s %s %s %s' %(battle_id,updated['SpectatorCount'], updated['locked'], updated['maphash'], updated['mapname']), client.current_battle)
 
 	def incoming_MYSTATUS(self, client, status):
