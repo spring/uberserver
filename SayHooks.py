@@ -138,6 +138,7 @@ def _site_censor(msg):
 	return msg
 
 def _spam_enum(client, chan, timeout, repeated, unique, bonuslength): # make unique negate bonuslength
+	return False
 	now = time.time()
 	counter = 0
 	bonus = False

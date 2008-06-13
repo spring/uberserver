@@ -114,3 +114,5 @@ _root.console_write('Killing clients.')
 for client in dict(_root.clients):
 	_root.clients[client].conn.close()
 server.close()
+
+while _root.console_buffer: time.sleep(0.5)
