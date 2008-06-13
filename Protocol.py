@@ -702,7 +702,7 @@ class Protocol:
 	def incoming_MYBATTLESTATUS(self, client, battlestatus, myteamcolor):
 		try:
 			if int(battlestatus) < 1:
-				battlestatus = str(abs(int(battlestatus)) + 2^31)
+				battlestatus = str(abs(int(battlestatus)) + 2^32)
 		except:
 			client.Send('SERVERMSG MYBATTLESTATUS failed - invalid status (%s).'%battlestatus)
 			return
