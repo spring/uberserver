@@ -13,7 +13,7 @@ _root.parseArgv(sys.argv)
 
 host = ''
 port = _root.port
-natport = _root.port
+natport = _root.natport
 backlog = 100
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt( socket.SOL_SOCKET, socket.SO_REUSEADDR,

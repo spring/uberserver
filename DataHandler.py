@@ -19,6 +19,7 @@ class DataHandler:
 		self.console_buffer = []
 		self.port = 8200
 		self.natport = self.port+1
+		print self.natport
 		self.LAN = False
 		self.lanadmin = {'username':'', 'password':''}
 		self.latestspringversion = '*'

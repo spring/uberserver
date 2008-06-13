@@ -713,7 +713,7 @@ class Protocol:
 			if client.battlestatus['mode'] == '1': spectator = True
 			else: spectator = False
 			u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4, id1, id2, id3, id4, ready, u = self._dec2bin(battlestatus, 32)[-32:]
-			if len(self._root.battles[client.current_battle]['users']) < self._root.battles[client.current_battle]['maxplayers'] and spectator and not mode == '1':
+			if len(self._root.battles[client.current_battle]['users']) > self._root.battles[client.current_battle]['maxplayers'] and spectator and not mode == '0':
 				mode = '0'
 			client.battlestatus.update({'ready':ready, 'id':id1+id2+id3+id4, 'ally':ally1+ally2+ally3+ally4, 'mode':mode, 'sync':sync1+sync2, 'side':side1+side2+side3+side4})
 			client.teamcolor = myteamcolor
