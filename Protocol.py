@@ -235,10 +235,10 @@ class Protocol:
 		return {'users':[], 'blindusers':[], 'admins':[], 'ban':{}, 'allow':[], 'autokick':'ban', 'owner':'', 'mutelist':{}, 'antispam':{'enabled':True, 'quiet':False, 'timeout':3, 'bonus':2, 'unique':4, 'bonuslength':100, 'duration':900}, 'censor':False, 'antishock':False, 'topic':None, 'key':None}
 
 	def _time_remaining(self, seconds):
-		if mutelist[mute] < 1:
+		if seconds < 1:
 			message = 'forever'
 		else:
-			seconds = mutelist[mute] - time.time()
+			seconds = seconds - time.time()
 			minutesleft = float(seconds) / 60
 			hoursleft = minutesleft / 60
 			daysleft = hoursleft / 24
