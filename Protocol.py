@@ -754,7 +754,7 @@ class Protocol:
 
 	def incoming_CHANNELS(self, client):
 		for channel in self._root.channels:
-			if not channel['owner']: return # only list registered channels
+			if not self._root.channels[channel]['owner']: return # only list registered channels
 			chaninfo = '%s %s'%(channel, len(self._root.channels[channel]['users']))
 			topic = self._root.channels[channel]['topic']
 			if topic:
