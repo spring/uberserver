@@ -595,8 +595,11 @@ class Protocol:
 			return
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
-			if not battle['passworded'] == 0 and not battle['password'] == password:
+			if battle['passworded'] == 1 and not battle['password'] == password:
 				client.Send('JOINBATTLEFAILED Incorrect password.')
+				return
+			if battle['locked'] == '1':
+				client.Send('JOINBATTLEFAILED Battle is locked.')
 				return
 			if not username in battle['users']:
 				if username in client.battle_bans:
