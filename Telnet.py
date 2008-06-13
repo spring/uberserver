@@ -2,7 +2,7 @@ out_filter = {'SERVERMSG':'Message from server:', 'LOGININFOEND':'Login finished
 out_replace = {'ACCEPTED':'Login accepted.'}
 out_ignore = ['ADDUSER', 'CLIENTSTATUS']
 
-in_filter = {'/j':'JOIN', '/join':'JOIN', '/part':'/LEAVE', '/q':'EXIT', '/me':'SAYEX'}
+in_filter = {'/j':'JOIN', '/join':'JOIN', '/part':'/LEAVE', '/q':'EXIT', '/me':'SAYEX', '/r':'RAW'}
 in_allowed = ['LOGIN', 'HASH']
 
 def cmd(msg):
@@ -37,6 +37,8 @@ def filter_in(client, msg):
 		response = []
 		if client.current_channel: response+=['LEAVE %s'%client.current_channel]
 		return response+['JOIN %s'%args]
+	if command == 'RAW':
+		return args
 	#print 'in: %s'%msg
 	return rmsg(command, args)
 
