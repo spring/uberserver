@@ -312,7 +312,7 @@ class Protocol:
 				battles = dict(self._root.battles)
 				usernames = dict(self._root.usernames) # cache them here in case anyone joins or hosts a battle
 				
-				client.ingame_time = reason.ingame_time
+				client.ingame_time = int(reason.ingame_time)
 				client.bot = reason.bot
 				client.access = reason.access
 				self._calc_access(client)
@@ -930,10 +930,10 @@ class Protocol:
 	def incoming_GETINGAMETIME(self, client, username=None):
 		if username and 'mod' in client.accesslevels:
 			if username in self._root.usernames: # change to do SQL query if user is not logged in # maybe abstract in the datahandler to automatically query SQL for users not logged in.
-				ingame_time = self._root.usernames[username].ingame_time
+				ingame_time = int(self._root.usernames[username].ingame_time)
 				client.Send('SERVERMSG %s has an in-game time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
 		else:
-			ingame_time = client.ingame_time
+			ingame_time = int(client.ingame_time)
 			client.Send('SERVERMSG Your in-game time is %d minutes (%d hours).'%(ingame_time, ingame_time / 60))
 
 	def incoming_FORGEMSG(self, client, user, msg):
@@ -955,7 +955,7 @@ class Protocol:
 
 	def incoming_SETINGAMETIME(self, client, user, minutes):
 		if user in self._root.usernames:
-			self._root.usernames[user].ingame_time = minutes
+			self._root.usernames[user].ingame_time = int(minutes)
 
 	def incoming_SETBOTMODE(self, client, user, mode):
 		if user in self._root.usernames:
