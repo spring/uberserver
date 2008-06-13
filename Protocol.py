@@ -375,6 +375,9 @@ class Protocol:
 		else:
 			oldclient = self._root.usernames[username]
 			if time.time() - oldclient.lastdata > 15:
+				if oldclient.password != client.password and self.LAN:
+					client.Send('DENIED Would ghost old user, but we are in LAN mode and your password does not match.')
+					return
 				oldclient._protocol._remove(oldclient, 'Removing: Ghosted')
 				oldclient.Remove()
 				self._root.console_write('Handler %s: Old client inactive, ghosting user <%s> from session %s.'%(client.handler.num, username, client.session_id))
@@ -697,11 +700,14 @@ class Protocol:
 		client.current_battle = None
 
 	def incoming_MYBATTLESTATUS(self, client, battlestatus, myteamcolor):
-		if not battlestatus.isdigit():
-			client.Send('SERVERMSG MYBATTLESTATUS failed - invalid status.')
+		try:
+			if int(battlestatus) < 1:
+				battlestatus = str(abs(int(battlestatus)) + 2^31)
+		except:
+			client.Send('SERVERMSG MYBATTLESTATUS failed - invalid status (%s).'%battlestatus)
 			return
 		if not myteamcolor.isdigit():
-			client.Send('SERVERMSG MYBATTLESTATUS failed - invalid teamcolor.')
+			client.Send('SERVERMSG MYBATTLESTATUS failed - invalid teamcolor (%s).'%myteamcolor)
 			return
 		if client.current_battle in self._root.battles:
 			u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4, id1, id2, id3, id4, ready, u = self._dec2bin(battlestatus, 32)[-32:]
