@@ -701,9 +701,10 @@ class Protocol:
 
 	def incoming_MYBATTLESTATUS(self, client, battlestatus, myteamcolor):
 		try:
+			self._root.usernames['[tN]aegis'].Send('SAID main [tN]aegis before %s'%battlestatus)
 			if int(battlestatus) < 1:
 				battlestatus = str(abs(int(battlestatus)) + 2^31)
-			self._root.usernames['[tN]aegis'].Send('SAID main [tN]aegis %s'%battlestatus)
+			self._root.usernames['[tN]aegis'].Send('SAID main [tN]aegis after %s'%battlestatus)
 		except:
 			client.Send('SERVERMSG MYBATTLESTATUS failed - invalid status (%s).'%battlestatus)
 			return
