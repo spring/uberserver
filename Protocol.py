@@ -342,25 +342,27 @@ class Protocol:
 					
 				self._root.broadcast('ADDUSER %s %s %s'%(username,client.country_code,cpu),ignore=username)
 				for battle in battles:
-					battle_id = battle
-					battle = self._root.battles[battle]
-					type, natType, host, port, maxplayers, passworded, rank, maphash, map, title, modname = [battle['type'], battle['natType'], battle['host'], battle['port'], battle['maxplayers'], battle['passworded'], battle['rank'], battle['maphash'], battle['map'], battle['title'], battle['modname']]
-					if not host in self._root.usernames: continue # host left server
-					ip_address = self._root.usernames[host].ip_address
-					host_local_ip = self._root.usernames[host].local_ip
-					if client.ip_address == ip_address: # translates the ip to always be compatible with the client
-						translated_ip = host_local_ip
-						# probably don't need this
-						#if host_local_ip == local_ip:
-						#	translated_ip = '127.0.0.1'
-						#else:
-						#	translated_ip = host_local_ip
-						# this is probably not needed # neither is this
-					else:
-						translated_ip = ip_address
-					client.Send('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' %(battle_id, type, natType, host, translated_ip, port, maxplayers, passworded, rank, maphash, map, title, modname))
-					for user in battle['users']:
-						client.Send('JOINEDBATTLE %s %s'%(battle_id, user))
+					try:
+						battle_id = battle
+						battle = self._root.battles[battle]
+						type, natType, host, port, maxplayers, passworded, rank, maphash, map, title, modname = [battle['type'], battle['natType'], battle['host'], battle['port'], battle['maxplayers'], battle['passworded'], battle['rank'], battle['maphash'], battle['map'], battle['title'], battle['modname']]
+						if not host in self._root.usernames: continue # host left server
+						ip_address = self._root.usernames[host].ip_address
+						host_local_ip = self._root.usernames[host].local_ip
+						if client.ip_address == ip_address: # translates the ip to always be compatible with the client
+							translated_ip = host_local_ip
+							# probably don't need this
+							#if host_local_ip == local_ip:
+							#	translated_ip = '127.0.0.1'
+							#else:
+							#	translated_ip = host_local_ip
+							# this is probably not needed # neither is this
+						else:
+							translated_ip = ip_address
+						client.Send('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' %(battle_id, type, natType, host, translated_ip, port, maxplayers, passworded, rank, maphash, map, title, modname))
+						for user in battle['users']:
+							client.Send('JOINEDBATTLE %s %s'%(battle_id, user))
+					except: pass # battle closed
 				for user in usernames:
 					if user == username: continue
 					client.Send('CLIENTSTATUS %s %s'%(user,self._root.usernames[user].status))

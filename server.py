@@ -20,7 +20,6 @@ server.setsockopt( socket.SOL_SOCKET, socket.SO_REUSEADDR,
                                server.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR) | 1 ) # we can restart uberserver and it will ignore TIME_WAIT :D
 server.bind((host,port))
 server.listen(backlog)
-input = [server]
 
 
 _root.LAN = True
