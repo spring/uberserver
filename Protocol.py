@@ -38,13 +38,16 @@ class Protocol:
 		self._root = root
 		self.handler = handler
 		if LAN:
-			self.userdb = __import__('LANUsers').UsersHandler()
+			self.userdb = __import__('LANUsers').UsersHandler() # maybe make an import request to datahandler, then have it reload it too. less hardcoded-ness
 		else:
 			self.userdb = __import__('SQLUsers').UsersHandler()
 		self.SayHooks = __import__('SayHooks')
 
 	def _new(self,client):
-		client.Send('TASServer 0.35 * 8201 0')
+		if self._root.LAN: lan = '1'
+		else: lan = '0'
+		login_string = '%s %s %s %s %s'% (self._root.server, self._root.server_version, self._root.latestspringversion, self._root.natport, lan)
+		client.Send(login_string)
 
 	def _remove(self,client,reason='Quit'):
 		if client.username:
@@ -309,9 +312,6 @@ class Protocol:
 				self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s.'%(client.handler.num, username, client.session_id))
 				self._root.usernames[username] = client
 				
-				battles = dict(self._root.battles)
-				usernames = dict(self._root.usernames) # cache them here in case anyone joins or hosts a battle
-				
 				client.ingame_time = int(reason.ingame_time)
 				client.bot = reason.bot
 				client.access = reason.access
@@ -332,6 +332,10 @@ class Protocol:
 				client.Send('ACCEPTED %s'%username)
 				client.Send('MOTD Hey there.')
 				
+				self._root.broadcast('ADDUSER %s %s %s'%(username,client.country_code,cpu),ignore=username)
+				
+				# aquire usernames lock
+				usernames = dict(self._root.usernames) # cache them here in case anyone joins or hosts a battle
 				for user in usernames:
 					try:
 						#if username == user: continue
@@ -339,8 +343,10 @@ class Protocol:
 						client.Send('ADDUSER %s %s %s'%(user,addclient.country_code,addclient.cpu))
 					except:
 						pass #person must have left :)
-					
-				self._root.broadcast('ADDUSER %s %s %s'%(username,client.country_code,cpu),ignore=username)
+				# release usernames lock
+				
+				# acquire battles lock
+				battles = dict(self._root.battles)
 				for battle in battles:
 					try:
 						battle_id = battle
