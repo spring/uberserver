@@ -7,6 +7,7 @@ from DataHandler import DataHandler
 from Client import Client
 from NATServer import NATServer
 import ip2country
+import ChanServ
 
 _root = DataHandler()
 _root.parseArgv(sys.argv)
@@ -47,12 +48,11 @@ _root.local_ip = local_addr
 _root.online_ip = web_addr
 
 curthread = 0
-maxthreads = 25
-for iter in range(maxthreads):
+for iter in range(_root.max_threads):
 	_root.clienthandlers.append( ClientHandler(_root, iter) )
 
 _root.console_write('uberserver starting on port %i'%port)
-_root.console_write('Using %i client handling thread(s).'%maxthreads)
+_root.console_write('Using %i client handling thread(s).'%_root.max_threads)
 
 running = 1
 clients = {}
@@ -84,6 +84,15 @@ def RemoveClient(client):
 #        exit() # replace with a working fallback to lan mode
 
 try:
+	if web_addr:
+		address = (web_addr, 0)
+	elif local_addr:
+		address = (local_addr, 0)
+	country_code = ip2country.lookup(address[0]) # actual flag
+	chanserv = ChanServ.Client(_root, address, _root.session_id, country_code)
+	_root.clients[_root.session_id] = chanserv
+	AddClient(chanserv)
+	_root.session_id += 1
 	while running:
 		connection, address = server.accept()
 		if address[0].startswith('127.'): # detects if the connection is from this computer
@@ -102,16 +111,15 @@ except KeyboardInterrupt:
 	_root.console_write()
 	_root.console_write('Server killed by keyboard interrupt.')
 except:
-	_root.console_write('-'*60)
 	_root.error(traceback.format_exc())
-	_root.console_write('-'*60)
 	_root.console_write('Deep error, exiting...')
 _root.console_write('Killing handlers.')
 for handler in _root.clienthandlers:
 	handler.running = False	
 _root.console_write('Killing clients.')
 for client in dict(_root.clients):
-	_root.clients[client].conn.close()
+	conn = _root.clients[client].conn
+	if conn: conn.close()
 server.close()
 
 while _root.console_buffer: time.sleep(0.5)

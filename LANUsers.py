@@ -9,7 +9,7 @@ class LANUser:
 class UsersHandler:
 	def login_user(self, user, password, ip):
 		User = LANUser()
-		if ip in ('192.168.1.8', '216.7.57.152') or ip.startswith('127.0.'):
+		if ip in ('216.7.57.152', '98.202.28.24') or ip.startswith('127.0.'):
 			User.access = 'admin'
 		return True, User
 

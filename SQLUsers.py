@@ -14,7 +14,7 @@ from sqlalchemy.orm import mapper, sessionmaker, relation
 #engine = create_engine('sqlite:///:memory:')#, echo=True)
 #engine = create_engine('sqlite:///database.txt')
 
-#### IMPLEMENT THIS ####
+#### IMPLEMENT THIS #### ...maybe not...
 #import sqlalchemy.pool as pool
 #import sqlite
 

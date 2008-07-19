@@ -6,6 +6,7 @@ class Client:
 
 	def __init__(self, root, connection, address, session_id, country_code):
 		'initial setup for the connected client'
+		self.static = False
 		self._protocol = False
 		self.removing = False
 		self.msg_id = ''

@@ -81,6 +81,7 @@ class Protocol:
 					self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, user))
 				self.incoming_MYSTATUS(client,'0')
 			self._root.broadcast('REMOVEUSER %s'%user)
+			del self._root.clients[client.session_id]
 
 	def _handle(self,client,msg):
 		if msg.startswith('#'):
@@ -222,7 +223,7 @@ class Protocol:
 		else:
 			rank = 0
 		rank1, rank2, rank3 = self._dec2bin(rank, 3)
-		client.ingame = (ingame == '1')
+		client.is_ingame = (ingame == '1')
 		client.away = (away == '1')
 		status = self._bin2dec('%s%s%s%s%s%s%s'%(bot, access, rank1, rank2, rank3, away, ingame))
 		client.status = status
@@ -265,14 +266,20 @@ class Protocol:
 				message = '%0.0f second(s)'%(float(seconds))
 		return message
 
-	def incoming_PING(self,client,args=None):
+	def incoming_PING(self, client, args=None):
 		if args:
 			client.Send('PONG %s'%args)
 		else:
 			client.Send('PONG')
+	
+	def incoming_PORTTEST(self, client, port):
+		host = client.ip_address
+		port = int(port)
+		sock = socket(AF_INET,SOCK_DGRAM)
+		sock.sendto('Port testing...', (host, port))
 
 	def incoming_REGISTER(self, client, username, password):
-		(good, reason) = self.userdb.register_user(username, password, client.ip_address)
+		good, reason = self.userdb.register_user(username, password, client.ip_address)
 		if good:
 			client.Send('REGISTRATIONACCEPTED')
 		else:
@@ -321,7 +328,7 @@ class Protocol:
 				client.cpu = cpu
 				client.local_ip = None
 				client.hook = ''
-				client.went_ingame = -1
+				client.went_ingame = 0
 				if local_ip.startswith('127.') or not validateIP(local_ip):
 					client.local_ip = client.ip_address
 				else:
@@ -745,12 +752,13 @@ class Protocol:
 		if not status.isdigit():
 			client.Send('SERVERMSG MYSTATUS failed - invalid status.')
 			return
-		was_ingame = client.ingame
+		was_ingame = client.is_ingame
 		client.status = self._calc_status(client, status)
-		if client.ingame and not was_ingame:
+		if client.is_ingame and not was_ingame:
 			battle_id = client.current_battle
 			if battle_id:
 				host = self._root.battles[battle_id]['host']
+				
 				if len(self._root.battles[battle_id]['users']) > 1:
 					client.went_ingame = time.time()
 				if client.username == host:
@@ -761,8 +769,8 @@ class Protocol:
 						for line in self._root.battles[battle_id]['replay_script']:
 							self._root.broadcast_battle('SCRIPT %s'%line, battle_id, client.username)
 						self._root.broadcast_battle('SCRIPTEND', battle_id, client.username)
-		elif was_ingame and not client.ingame:
-			ingame_time = float(time.time() - client.went_ingame) / 60
+		elif was_ingame and not client.is_ingame and client.went_ingame:
+			ingame_time = (time.time() - client.went_ingame) / 60
 			if ingame_time >= 1:
 				client.ingame_time += int(ingame_time)
 		if not client.username in self._root.usernames: return
@@ -984,11 +992,13 @@ class Protocol:
 	def incoming_ADMINBROADCAST(self, client, msg):
 		self._root.admin_broadcast(msg)
 
-	def incoming_KICKUSER(self, client, user):
+	def incoming_KICKUSER(self, client, user, reason=''):
 		if user in self._root.usernames:
 			kickeduser = self._root.usernames[user]
+			if reason: reason = ' (reason: %s)' % reason
 			for chan in list(kickeduser.channels):
-				self._root.broadcast('CHANNELMESSAGE %s <%s> has been kicked from the server by <%s>'%(chan, user, client.username))
+				self._root.broadcast('CHANNELMESSAGE %s <%s> kicked <%s> from the server%s'%(chan, client.username, user, reason))
+			kickeduser.SendNow('SERVERMSG You\'ve been kicked from server by <%s>%s' % (client.username, reason))
 			self._remove(kickeduser, 'Kicked from server')
 			kickeduser.Remove()
 	
