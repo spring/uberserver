@@ -3,24 +3,85 @@ import md5, base64, binascii
 import traceback, sys, os
 
 restricted = {
-				'TOKENIZE':'everyone', 'TELNET':'everyone', 'HASH':'everyone', 'EXIT':'everyone', 'PING':'everyone', # everyone
-				'LOGIN':'fresh', 'REGISTER':'fresh', # freshly connected client
-				'ADDBOT':'user', 'ADDSTARTRECT':'user', 'CHANNELS':'user', 'DISABLEUNITS':'user', # user
-				'ENABLEALLUNITS':'user', 'ENABLEUNITS':'user', 'FORCEALLYNO':'user', # user
-				'FORCESPECTATORMODE':'user', 'FORCETEAMCOLOR':'user', 'FORCETEAMNO':'user', 'GETINGAMETIME':'user', # user
-				'HANDICAP':'user', 'JOIN':'user', 'JOINBATTLE':'user', 'KICKFROMBATTLE':'user', 'LEAVE':'user', 'LEAVEBATTLE':'user', # user
-				'MAPGRADES':'user', 'MUTELIST':'user', 'MYBATTLESTATUS':'user', 'MYSTATUS':'user', 'OPENBATTLE':'user', # user
-				'REMOVEBOT':'user', 'REMOVESTARTRECT':'user', 'RING':'user', 'SAY':'user', 'SAYBATTLE':'user', 'SAYBATTLEEX':'user', # user
-				'SAYEX':'user', 'SAYPRIVATE':'user', 'SCRIPT':'user', 'SCRIPTEND':'user', 'SCRIPTSTART':'user', 'SETBOTMODE':'user', # user
-				'SETSCRIPTTAGS':'user', 'UPDATEBATTLEINFO':'user', 'UPDATEBOT':'user', 'UPDATEBATTLEDETAILS':'user', # user
-				'KICKUSER':'mod', 'CHANNELTOPIC': 'mod', 'MUTE': 'mod', 'UNMUTE': 'mod', # moderator
-				'FORCELEAVECHANNEL':'mod', 'FORCECLOSEBATTLE':'mod', # moderator
-				'FORGEMSG':'admin', 'FORGEREVERSEMSG':'admin', 'SETBOTMODE':'admin', 'SETINGAMETIME':'admin', # admin
-				'ALIAS':'admin', 'UNALIAS':'admin', 'ALIASLIST':'admin', 'GETLOBBYVERSION':'admin', 'GETSENDBUFFERSIZE':'admin', # admin
-				'BROADCAST':'admin', 'BROADCASTEX':'admin', 'ADMINBROADCAST':'admin', 'TESTLOGIN':'admin', # admin
-				'KILLALL':'admin', 'SETINGAMETIME':'admin', # admin
-				'MOD':'admin', 'ADMIN':'admin', # admin
-				}
+	########
+	# everyone
+	'TOKENIZE':'everyone',
+	'TELNET':'everyone',
+	'HASH':'everyone',
+	'EXIT':'everyone',
+	'PING':'everyone',
+	########
+	# freshly connected client
+	'LOGIN':'fresh',
+	'REGISTER':'fresh',
+	########
+	# user
+	'ADDBOT':'user',
+	'ADDSTARTRECT':'user',
+	'CHANNELS':'user',
+	'DISABLEUNITS':'user',
+	'ENABLEALLUNITS':'user',
+	'ENABLEUNITS':'user',
+	'FORCEALLYNO':'user',
+	'FORCESPECTATORMODE':'user',
+	'FORCETEAMCOLOR':'user',
+	'FORCETEAMNO':'user',
+	'GETINGAMETIME':'user',
+	'HANDICAP':'user',
+	'JOIN':'user',
+	'JOINBATTLE':'user',
+	'KICKFROMBATTLE':'user',
+	'LEAVE':'user',
+	'LEAVEBATTLE':'user',
+	'MAPGRADES':'user',
+	'MUTELIST':'user',
+	'MYBATTLESTATUS':'user',
+	'MYSTATUS':'user',
+	'OPENBATTLE':'user',
+	'REMOVEBOT':'user',
+	'REMOVESTARTRECT':'user',
+	'RING':'user',
+	'SAY':'user',
+	'SAYBATTLE':'user',
+	'SAYBATTLEEX':'user',
+	'SAYEX':'user',
+	'SAYPRIVATE':'user',
+	'SCRIPT':'user',
+	'SCRIPTEND':'user',
+	'SCRIPTSTART':'user',
+	'SETBOTMODE':'user',
+	'SETSCRIPTTAGS':'user',
+	'UPDATEBATTLEINFO':'user',
+	'UPDATEBOT':'user',
+	'UPDATEBATTLEDETAILS':'user',
+	########
+	# moderator
+	'KICKUSER':'mod',
+	'CHANNELTOPIC':'mod',
+	'MUTE':'mod',
+	'UNMUTE':'mod',
+	'FORCELEAVECHANNEL':'mod',
+	'FORCECLOSEBATTLE':'mod',
+	########
+	# admin
+	'FORGEMSG':'admin',
+	'FORGEREVERSEMSG':'admin',
+	'SETBOTMODE':'admin',
+	'SETINGAMETIME':'admin',
+	'ALIAS':'admin',
+	'UNALIAS':'admin',
+	'ALIASLIST':'admin',
+	'GETLOBBYVERSION':'admin',
+	'GETSENDBUFFERSIZE':'admin',
+	'BROADCAST':'admin',
+	'BROADCASTEX':'admin',
+	'ADMINBROADCAST':'admin',
+	'TESTLOGIN':'admin',
+	'KILLALL':'admin',
+	'SETINGAMETIME':'admin',
+	'MOD':'admin',
+	'ADMIN':'admin',
+	}
 
 #from Users import UsersHandler
 #from Users import LANUsersHandler as UsersHandler # we're in LAN mode
