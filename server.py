@@ -47,10 +47,6 @@ _root.console_write()
 _root.local_ip = local_addr
 _root.online_ip = web_addr
 
-curthread = 0
-for iter in range(_root.max_threads):
-	_root.clienthandlers.append( ClientHandler(_root, iter) )
-
 _root.console_write('uberserver starting on port %i'%port)
 _root.console_write('Using %i client handling thread(s).'%_root.max_threads)
 
@@ -61,16 +57,22 @@ def AddClient(client):
 	# start detection of handler with the least clients
 	curthread = 0
 	lowlen = -1
-	for iter in range(len(_root.clienthandlers)):
-		curtest = _root.clienthandlers[iter].clients_num
-		if curtest < lowlen or lowlen == -1:
-			lowlen = curtest
-			curthread = iter
-			if lowlen == 0:
-				break # end if it's at 0, we won't get much lower :>
+	# allows for on-the-fly increasing of threads
+	if _root.max_threads > len(_root.clienthandlers):
+		i = len(_root.clienthandlers)
+		_root.clienthandlers.append( ClientHandler(_root, i) )
+		curthread = i
+	else:
+		for i in range(len(_root.clienthandlers)):
+			curtest = _root.clienthandlers[i].clients_num
+			if curtest < lowlen or lowlen == -1:
+				lowlen = curtest
+				curthread = i
+				if lowlen == 0:
+					break # end if it's at 0, we won't get much lower :>
 	# end detection -- this code places a new client in the handler with the least clients
-	if not _root.clienthandlers[iter].running:
-		thread.start_new_thread(_root.clienthandlers[iter].Run, ())
+	if not _root.clienthandlers[curthread].running:
+		thread.start_new_thread(_root.clienthandlers[curthread].Run, ())
 	_root.clienthandlers[curthread].AddClient(client)
 	clients[client] = curthread
 
@@ -100,8 +102,10 @@ try:
 				address = (web_addr, address[1])
 			elif local_addr:
 				address = (local_addr, address[1])
-		country_code = ip2country.lookup(address[0]) # actual flag
-		#country_code = ip2country.randomcc() # random flags
+		
+		if _root.randomflags: country_code = ip2country.randomcc() # random flag
+		else: country_code = ip2country.lookup(address[0]) # actual flag
+		
 		client = Client(_root, connection, address, _root.session_id, country_code)
 		_root.clients[_root.session_id] = client
 		AddClient(client)

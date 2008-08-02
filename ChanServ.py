@@ -55,21 +55,81 @@ class ChanServ:
 		return 'Hello, %s!\nI am an automated channel service bot,\nfor the full list of commands, see http://taspring.clan-sy.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
 	
 	def HandleCommand(self, chan, user, cmd, args=None):
+		if 'mod' in self._root.usernames[user].accesslevels:
+			access = 'mod'
+		elif user == self._root.channels[chan]['owner']:
+			access = 'founder'
+		elif user in self._root.channels[chan]['admins']:
+			access = 'op'
+		else:
+			access = 'normal'
 		cmd = cmd.lower()
-		print chan, user, cmd, args
 		if cmd == 'info':
 			return 'channel info'
 		if cmd == 'topic':
 			if not args:
+				self._root.channels[chan]['topic'] = None
 				return 'topic disabled'
 			else:
 				return 'topic is now %s' % topic
 		if cmd == 'register':
-			if 'mod' in self._root.usernames[user].accesslevels:
+			if access == 'mod':
 				if not args: args = user
-				return 'Channel #%s successfully registered to <%s>' % ( chan, args.split(' ',1)[0] )
+				return '#%s: successfully registered to <%s>' % ( chan, args.split(' ',1)[0] )
 			else:
 				return 'Sorry, you must contact one of the server moderators to register a channel for you.'
+		if cmd == 'unregister':
+			if access in ['mod', 'founder']:
+				if not args: args = user
+				return '#%s: successfully unregistered.' % chan
+			else:
+				return 'Sorry, you must contact one of the server moderators to unregister a channel.'
+		if cmd == 'changefounder':
+			if access in ['mod', 'founder']:
+				if not args: return 'Please specify a new founder'
+				return '#%s: successfully changed founder to <%s>' % (chan, args)
+			else:
+				return 'Sorry, you must contact one of the server moderators to unregister a channel.'
+		if cmd == 'spamprotection':
+			if access in ['mod', 'founder']:
+				if args == 'on':
+					return '#%s: spam protection enabled'
+				elif args == 'off':
+					return '#%s: spam protection disabled'
+				else:
+					return '#%s: spam protection status is unknown'
+			else:
+				return '#%s: spam protection status is unknown'
+		if cmd == 'op':
+			if access in ['mod', 'founder']:
+				if not args: return 'Please specify a user to op'
+				return '#%s: %s added to the operator list by <%s>' % (chan, args, user)
+			else:
+				return '#%s: you do not have permission to op users'
+		if cmd == 'deop':
+			if access in ['mod', 'founder']:
+				if not args: return 'Please specify a user to deop'
+				return '#%s: %s removed from the operator list by <%s>' % (chan, args, user)
+			else:
+				return '#%s: you do not have permission to deop users'
+		if cmd == 'topic':
+			if access in ['mod', 'founder', 'op']:
+				if not args: return '#%s: topic disabled'
+				return '#%s: topic successfully changed'
+			else:
+				return '#%s: you do not have permission to set the topic'
+		if cmd == 'chanmsg':
+			if access in ['mod', 'founder', 'op']:
+				if not args: return 'Please specify a message'
+				return '#%s: insert chanmsg here'
+			else:
+				return '#%s: you do not have sufficient rights to issue chanmsg'
+		if cmd == 'lock': pass
+		if cmd == 'unlock': pass
+		if cmd == 'kick': pass
+		if cmd == 'mute': pass
+		if cmd == 'unmute': pass
+		if cmd == 'mutelist': pass
 		return ''
 
 	

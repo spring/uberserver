@@ -23,6 +23,9 @@ class DataHandler:
 	server_version = 0.35
 	engine = None
 	max_threads = 25
+	sqlurl = 'sqlite:///:memory:'
+	randomflags = False
+	nextbattle = 0
 	
 	def __init__(self):
 		self.channels = MutexDict()
@@ -65,6 +68,8 @@ class DataHandler:
 				print '      { Hardcoded admin account for LAN. If third arg reads "hash" it will apply the standard hash algorithm to the supplied password }'
 				print '  -g, --loadargs filename'
 				print '      { Reads command-line arguments from file }'
+				print '  -r  --randomflags'
+				print '      { Randomizes country codes (flags) }'
 				print '  -o, --output /path/to/file.log'
 				print '      { Writes console output to file (for logging) }'
 				print '  -v, --latestspringversion version'
@@ -120,21 +125,36 @@ class DataHandler:
 					f.close()
 					for line in data: self.parseArgv(line)
 				except: print 'Error opening file with command-line args'
+			if arg in ['r', 'randomcc']:
+				try: self.randomflags = True
+				except: print 'Error enabling random flags. (weird)'
 			if arg in ['o', 'output']:
 				try:
 					self.output = file(argp[0], 'w')
-					print 'logging on'
+					print 'Logging enabled at: %s' % argp[0]
 					self.log = True
-				except: print 'Error specifying output log'
+				except: print 'Error specifying log location'
 			if arg in ['v', 'latestspringversion']:
-				try: self.latestspringversion = ' '.join(argp)
+				try: self.latestspringversion = argp[0] # ' '.join(argp) # shouldn't have spaces
 				except: print 'Error specifying latest spring version'
 			if arg in ['m', 'maxthreads']:
 				try: self.max_threads = int(argp[0])
 				except: print 'Error specifing max threads'
-			#if arg in ['s', 'sqlurl']:
-			#	try:
-			#		self.
+			if arg in ['s', 'sqlurl']:
+				try: self.sqlurl = argp[0]
+				except: print 'Error specifying SQL URL'
+		if self.LAN: return
+		try:
+			sqlalchemy = __import__('sqlalchemy')
+			self.engine = sqlalchemy.create_engine('sqlite:///:memory:')
+			if self.sqlurl.startswith('sqlite'):
+				print 'Multiple threads are not supported with sqlite, forcing a single thread'
+				print 'Please note the server performance will not be optimal'
+				print 'You might want to install a real database server or use LAN mode'
+				self.max_threads = 1
+		except ImportError:
+			print 'sqlalchemy not found or invalid SQL URL, reverting to LAN mode'
+			self.LAN = True
 	def mute_timer(self):
 		while 1:
 			try:

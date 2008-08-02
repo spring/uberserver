@@ -3,85 +3,70 @@ import md5, base64, binascii
 import traceback, sys, os
 
 restricted = {
+'everyone':['TOKENIZE','TELNET','HASH','EXIT','PING'],
+'fresh':['LOGIN','REGISTER'],
+'user':[
 	########
-	# everyone
-	'TOKENIZE':'everyone',
-	'TELNET':'everyone',
-	'HASH':'everyone',
-	'EXIT':'everyone',
-	'PING':'everyone',
+	# battle
+	'ADDBOT',
+	'ADDSTARTRECT',
+	'DISABLEUNITS',
+	'ENABLEUNITS',
+	'FORCEALLYNO',
+	'FORCESPECTATORMODE',
+	'FORCETEAMCOLOR',
+	'FORCETEAMNO', 
+	'HANDICAP',
+	'JOINBATTLE',
+	'KICKFROMBATTLE',
+	'LEAVEBATTLE',
+	'MAPGRADES',
+	'MYBATTLESTATUS',
+	'OPENBATTLE',
+	'REMOVEBOT',
+	'REMOVESTARTRECT',
+	'RING',
+	#########
+	# channel
+	'CHANNELS',
+	'JOIN',
+	'LEAVE',
+	'MUTELIST',
+	'SAY',
+	'SAYEX',
+	'SAYPRIVATE',
+	'SAYBATTLE',
+	'SAYBATTLEEX',
+	'SCRIPT',
+	'SCRIPTEND',
+	'SCRIPTSTART',
+	'SETSCRIPTTAGS',
+	'UPDATEBATTLEINFO',
+	'UPDATEBOT',
+	'UPDATEBATTLEDETAILS',
 	########
-	# freshly connected client
-	'LOGIN':'fresh',
-	'REGISTER':'fresh',
-	########
-	# user
-	'ADDBOT':'user',
-	'ADDSTARTRECT':'user',
-	'CHANNELS':'user',
-	'DISABLEUNITS':'user',
-	'ENABLEALLUNITS':'user',
-	'ENABLEUNITS':'user',
-	'FORCEALLYNO':'user',
-	'FORCESPECTATORMODE':'user',
-	'FORCETEAMCOLOR':'user',
-	'FORCETEAMNO':'user',
-	'GETINGAMETIME':'user',
-	'HANDICAP':'user',
-	'JOIN':'user',
-	'JOINBATTLE':'user',
-	'KICKFROMBATTLE':'user',
-	'LEAVE':'user',
-	'LEAVEBATTLE':'user',
-	'MAPGRADES':'user',
-	'MUTELIST':'user',
-	'MYBATTLESTATUS':'user',
-	'MYSTATUS':'user',
-	'OPENBATTLE':'user',
-	'REMOVEBOT':'user',
-	'REMOVESTARTRECT':'user',
-	'RING':'user',
-	'SAY':'user',
-	'SAYBATTLE':'user',
-	'SAYBATTLEEX':'user',
-	'SAYEX':'user',
-	'SAYPRIVATE':'user',
-	'SCRIPT':'user',
-	'SCRIPTEND':'user',
-	'SCRIPTSTART':'user',
-	'SETBOTMODE':'user',
-	'SETSCRIPTTAGS':'user',
-	'UPDATEBATTLEINFO':'user',
-	'UPDATEBOT':'user',
-	'UPDATEBATTLEDETAILS':'user',
-	########
-	# moderator
-	'KICKUSER':'mod',
-	'CHANNELTOPIC':'mod',
-	'MUTE':'mod',
-	'UNMUTE':'mod',
-	'FORCELEAVECHANNEL':'mod',
-	'FORCECLOSEBATTLE':'mod',
-	########
-	# admin
-	'FORGEMSG':'admin',
-	'FORGEREVERSEMSG':'admin',
-	'SETBOTMODE':'admin',
-	'SETINGAMETIME':'admin',
-	'ALIAS':'admin',
-	'UNALIAS':'admin',
-	'ALIASLIST':'admin',
-	'GETLOBBYVERSION':'admin',
-	'GETSENDBUFFERSIZE':'admin',
-	'BROADCAST':'admin',
-	'BROADCASTEX':'admin',
-	'ADMINBROADCAST':'admin',
-	'TESTLOGIN':'admin',
-	'KILLALL':'admin',
-	'SETINGAMETIME':'admin',
-	'MOD':'admin',
-	'ADMIN':'admin',
-	}
+	# meta
+	'GETINGAMETIME',
+	'MYSTATUS',],
+'mod':['CHANNELTOPIC','FORCECLOSEBATTLE','FORCELEAVECHANNEL','KICKUSER','MUTE','SETBOTMODE','UNMUTE'],
+'admin':[
+	#########
+	# channel
+	'ALIAS','UNALIAS','ALIASLIST',
+	#########
+	# server
+	'ADMINBROADCAST', 'BROADCAST','BROADCASTEX',
+	#########
+	# users
+	'FORGEMSG','FORGEREVERSEMSG',
+	'GETLOBBYVERSION','GETSENDBUFFERSIZE',
+	'MOD','ADMIN',
+	'TESTLOGIN','SETBOTMODE','SETINGAMETIME',],
+}
+
+restricted_list = []
+for level in restricted:
+	restricted_list += restricted[level]
 
 #from Users import UsersHandler
 #from Users import LANUsersHandler as UsersHandler # we're in LAN mode
@@ -113,6 +98,7 @@ class Protocol:
 	def _remove(self,client,reason='Quit'):
 		if client.username:
 			if client.removing: return
+			if client.static: return
 			client.removing = True
 			user = client.username
 			if not user in self._root.usernames:
@@ -165,8 +151,12 @@ class Protocol:
 		if not hasattr(self, 'incoming_'+command):
 			return False
 
-		if command in restricted:
-			if not restricted[command] in client.accesslevels:
+		access = []
+		for level in client.accesslevels:
+			access += restricted[level]
+		
+		if command in restricted_list:
+			if not command in access:
 				client.Send('SERVERMSG %s failed. Insufficient rights.'%command)
 				return False
 		else:
@@ -435,7 +425,7 @@ class Protocol:
 							translated_ip = ip_address
 						client.Send('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' %(battle_id, type, natType, host, translated_ip, port, maxplayers, passworded, rank, maphash, map, title, modname))
 						for user in battle['users']:
-							client.Send('JOINEDBATTLE %s %s'%(battle_id, user))
+							if not user == battle['host']: client.Send('JOINEDBATTLE %s %s'%(battle_id, user))
 					except: pass # battle closed
 				for user in usernames:
 					if user == username: continue
@@ -602,9 +592,9 @@ class Protocol:
 		if chan in self._root.channels:
 			self._root.channels[chan]['key'] = key
 			if key == None:
-				self._root.broadcast('CHANNELMESSAGE %s Channel unlocked by <%s>'%(chan,client.username))
+				self._root.broadcast('CHANNELMESSAGE %s Channel unlocked by <%s>'%(chan,client.username), chan)
 			else:
-				self._root.broadcast('CHANNELMESSAGE %s Channel locked by <%s>'%(chan,client.username))
+				self._root.broadcast('CHANNELMESSAGE %s Channel locked by <%s>'%(chan,client.username), chan)
 	
 	def incoming_LEAVE(self,client,chan):
 		user = client.username
@@ -1058,7 +1048,7 @@ class Protocol:
 			kickeduser = self._root.usernames[user]
 			if reason: reason = ' (reason: %s)' % reason
 			for chan in list(kickeduser.channels):
-				self._root.broadcast('CHANNELMESSAGE %s <%s> kicked <%s> from the server%s'%(chan, client.username, user, reason))
+				self._root.broadcast('CHANNELMESSAGE %s <%s> kicked <%s> from the server%s'%(chan, client.username, user, reason),chan)
 			kickeduser.SendNow('SERVERMSG You\'ve been kicked from server by <%s>%s' % (client.username, reason))
 			self._remove(kickeduser, 'Kicked from server')
 			kickeduser.Remove()

@@ -169,9 +169,9 @@ class MutexDict:
 		self.unlock(lock)
 		return data
 	
-	def __iter__(self):
+	def __iter__(self,lock=None):
 		lock = self.lock(lock)
-		data = iter(self.data, lock=None)
+		data = iter(self.data)
 		self.unlock(lock)
 		return data
 	

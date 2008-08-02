@@ -25,7 +25,7 @@ from sqlalchemy.orm import mapper, sessionmaker, relation
 #p = pool.SingletonThreadPool(getconn)
 #### END ####
 
-engine = create_engine('mysql://uberserver:A2Pb2p3M547EuE47@localhost/uberserver')
+#engine = create_engine('mysql://uberserver:A2Pb2p3M547EuE47@localhost/uberserver')
 metadata = MetaData()
 
 class User(object):
@@ -44,6 +44,8 @@ class User(object):
 
 class Address(object):
 	def __init__(self, ip_address):
+		self.first_time = int(time.time())
+		self.last_time = int(time.time())
 		self.ip_address = ip_address
 
 	def __repr__(self):
@@ -123,6 +125,8 @@ users_table = Table('users', metadata,
 addresses_table = Table('addresses', metadata, 
         Column('id', Integer, primary_key=True),
         Column('ip_address', String(100), nullable=False),
+        Column('first_time', Integer),
+        Column('last_time', Integer),
         Column('user_id', Integer, ForeignKey('users.id')),
         )
 
@@ -175,19 +179,17 @@ aggregatebans_table = Table('bans', metadata, # server bans
 	Column('ban_id', ForeignKey('bans.id')),
 	)
 
-mapper(User, users_table, properties={
-	'addresses':relation(Address, backref='user', cascade="all, delete, delete-orphan")
-	})
 mapper(Address, addresses_table)
 mapper(User, users_table, properties={
 	'addresses':relation(Address, backref='user', cascade="all, delete, delete-orphan")
 	})
-metadata.create_all(engine)
+#metadata.create_all(engine)
 
 class UsersHandler:
-	def __init__(self):
-                Session = sessionmaker(bind=engine, autoflush=True, transactional=True)
-                self.session = Session()
+	def __init__(self, engine):
+		metadata.create_all(engine)
+		Session = sessionmaker(bind=engine, autoflush=True, transactional=True)
+		self.session = Session()
 
 	def login_user(self, user, password, ip):
 		good = True
