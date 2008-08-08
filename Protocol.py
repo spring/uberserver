@@ -409,7 +409,7 @@ class Protocol:
 					try:
 						battle_id = battle
 						battle = self._root.battles[battle]
-						type, natType, host, port, maxplayers, passworded, rank, maphash, map, title, modname = [battle['type'], battle['natType'], battle['host'], battle['port'], battle['maxplayers'], battle['passworded'], battle['rank'], battle['maphash'], battle['map'], battle['title'], battle['modname']]
+						type, natType, host, port, maxplayers, passworded, rank, maphash, engine, version, map, title, modname = [battle['type'], battle['natType'], battle['host'], battle['port'], battle['maxplayers'], battle['passworded'], battle['rank'], battle['maphash'], battle['engine'], battle['version'], battle['map'], battle['title'], battle['modname']]
 						if not host in self._root.usernames: continue # host left server
 						ip_address = self._root.usernames[host].ip_address
 						host_local_ip = self._root.usernames[host].local_ip
@@ -423,7 +423,7 @@ class Protocol:
 							# this is probably not needed # neither is this
 						else:
 							translated_ip = ip_address
-						client.Send('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' %(battle_id, type, natType, host, translated_ip, port, maxplayers, passworded, rank, maphash, map, title, modname))
+						client.Send('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' %(battle_id, type, natType, host, translated_ip, port, maxplayers, passworded, rank, maphash, engine, version, map, title, modname))
 						for user in battle['users']:
 							if not user == battle['host']: client.Send('JOINEDBATTLE %s %s'%(battle_id, user))
 					except: pass # battle closed
@@ -610,7 +610,7 @@ class Protocol:
 	def incoming_MAPGRADES(self, client, grades):
 		client.Send('MAPGRADESFAILED Not implemented.')
 
-	def incoming_OPENBATTLE(self, client, type, natType, password, port, maxplayers, hashcode, rank, maphash, sentence_args):
+	def incoming_OPENBATTLE(self, client, type, natType, password, port, maxplayers, hashcode, rank, maphash, engine, version, sentence_args):
 		if client.current_battle in self._root.battles:
 			self.incoming_LEAVEBATTLE(client)
 			#client.Send('SERVERMSG You are already in battle.')
@@ -635,8 +635,8 @@ class Protocol:
 					translated_ip = client.local_ip
 			else:
 				translated_ip = client.ip_address
-			self._root.clients[user].Send('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' %(battle_id, type, natType, client.username, translated_ip, port, maxplayers, passworded, rank, maphash, map, title, modname))
-		self._root.battles[str(battle_id)] = {'type':type, 'natType':natType, 'password':password, 'port':port, 'maxplayers':maxplayers, 'hashcode':hashcode, 'rank':rank, 'maphash':maphash, 'map':map, 'title':title, 'modname':modname, 'passworded':passworded, 'users':{client.username:''}, 'host':client.username, 'startrects':{}, 'disabled_units':{}, 'bots':{}, 'script_tags':{}, 'replay_script':{}, 'replay':False, 'sending_replay_script':False, 'locked':False}
+			self._root.clients[user].Send('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' %(battle_id, type, natType, client.username, translated_ip, port, maxplayers, passworded, rank, maphash, engine, version, map, title, modname))
+		self._root.battles[str(battle_id)] = {'type':type, 'natType':natType, 'password':password, 'port':port, 'maxplayers':maxplayers, 'hashcode':hashcode, 'rank':rank, 'maphash':maphash, 'engine':engine, 'version':version, 'map':map, 'title':title, 'modname':modname, 'passworded':passworded, 'users':{client.username:''}, 'host':client.username, 'startrects':{}, 'disabled_units':{}, 'bots':{}, 'script_tags':{}, 'replay_script':{}, 'replay':False, 'sending_replay_script':False, 'locked':False}
 		client.Send('OPENBATTLE %s'%battle_id)
 		client.Send('REQUESTBATTLESTATUS')
 
