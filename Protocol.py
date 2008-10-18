@@ -409,7 +409,7 @@ class Protocol:
 				for battle in battles:
 					try:
 						battle_id = battle
-						battle = self._root.battles[battle]
+						ubattle = self._root.battles[battle_id].copy()
 						#type, natType, host, port, maxplayers, passworded, rank, maphash, engine, version, map, title, modname = [battle['type'], battle['natType'], battle['host'], battle['port'], battle['maxplayers'], battle['passworded'], battle['rank'], battle['maphash'], battle['engine'], battle['version'], battle['map'], battle['title'], battle['modname']]
 						if not host in self._root.usernames: continue # host left server
 						ip_address = self._root.usernames[host].ip_address
@@ -424,9 +424,10 @@ class Protocol:
 							# this is probably not needed # neither is this
 						else:
 							translated_ip = ip_address
+						ubattle.update({'ip':translated_ip})
 						#client.Send('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' %(battle_id, type, natType, host, translated_ip, port, maxplayers, passworded, rank, maphash, engine, version, map, title, modname))
 						#self._root.clients[user].Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % battle)
-						self._root.clients[user].Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % battle)
+						self._root.clients[user].Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
 						for user in battle['users']:
 							if not user == battle['host']: client.Send('JOINEDBATTLE %s %s'%(battle_id, user))
 					except: pass # battle closed
@@ -632,7 +633,8 @@ class Protocol:
 			passworded = 1
 		clients = dict(self._root.clients)
 		battle_id = str(battle_id)
-		battle = {'id':battle_id, 'type':type, 'natType':natType, 'password':password, 'port':port, 'maxplayers':maxplayers, 'hashcode':hashcode, 'rank':rank, 'maphash':maphash, 'engine':engine, 'version':version, 'map':map, 'title':title, 'modname':modname, 'passworded':passworded, 'users':{client.username:''}, 'host':client.username, 'startrects':{}, 'disabled_units':{}, 'bots':{}, 'script_tags':{}, 'replay_script':{}, 'replay':False, 'sending_replay_script':False, 'locked':False}
+		#battle = {'id':battle_id, 'type':type, 'natType':natType, 'password':password, 'port':port, 'maxplayers':maxplayers, 'hashcode':hashcode, 'rank':rank, 'maphash':maphash, 'engine':engine, 'version':version, 'map':map, 'title':title, 'modname':modname, 'passworded':passworded, 'users':{client.username:''}, 'host':client.username, 'startrects':{}, 'disabled_units':{}, 'bots':{}, 'script_tags':{}, 'replay_script':{}, 'replay':False, 'sending_replay_script':False, 'locked':False}
+		battle = {'id':battle_id, 'type':type, 'natType':natType, 'password':password, 'port':port, 'maxplayers':maxplayers, 'hashcode':hashcode, 'rank':rank, 'maphash':maphash, 'map':map, 'title':title, 'modname':modname, 'passworded':passworded, 'users':{client.username:''}, 'host':client.username, 'startrects':{}, 'disabled_units':{}, 'bots':{}, 'script_tags':{}, 'replay_script':{}, 'replay':False, 'sending_replay_script':False, 'locked':False}
 		for user in clients:
 			ubattle = battle.copy()
 			if self._root.clients[user].ip_address == client.ip_address: # translates the ip to always be compatible with the client
@@ -644,7 +646,7 @@ class Protocol:
 				translated_ip = client.ip_address
 			ubattle.update({'passworded':passworded, 'ip':translated_ip})
 			#self._root.clients[user].Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % battle)
-			self._root.clients[user].Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % battle)
+			self._root.clients[user].Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
 		self._root.battles[battle_id] = battle
 		#self._root.battles[str(battle_id)] = {'type':type, 'natType':natType, 'password':password, 'port':port, 'maxplayers':maxplayers, 'hashcode':hashcode, 'rank':rank, 'maphash':maphash, 'engine':engine, 'version':version, 'map':map, 'title':title, 'modname':modname, 'passworded':passworded, 'users':{client.username:''}, 'host':client.username, 'startrects':{}, 'disabled_units':{}, 'bots':{}, 'script_tags':{}, 'replay_script':{}, 'replay':False, 'sending_replay_script':False, 'locked':False}
 		client.Send('OPENBATTLE %s'%battle_id)

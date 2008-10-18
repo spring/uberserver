@@ -29,7 +29,7 @@ class ClientHandler:
 		self._bind()
 		for client in self.clients:
 			client.Bind(protocol=self.protocol)
-			print self.protocol
+			#print self.protocol
 
 	def Run(self):
 		# commented out to remove profiling
