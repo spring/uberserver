@@ -92,7 +92,7 @@ class Protocol:
 	def _new(self,client):
 		if self._root.LAN: lan = '1'
 		else: lan = '0'
-		login_string = ' '.join(self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), lan)
+		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), lan))
 		#login_string = '%s %s %s %s %s'% (self._root.server, self._root.server_version, self._root.latestspringversion, self._root.natport, lan)
 		client.Send(login_string)
 
