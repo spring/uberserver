@@ -92,7 +92,8 @@ class Protocol:
 	def _new(self,client):
 		if self._root.LAN: lan = '1'
 		else: lan = '0'
-		login_string = '%s %s %s %s %s'% (self._root.server, self._root.server_version, self._root.latestspringversion, self._root.natport, lan)
+		login_string = ' '.join(self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), lan)
+		#login_string = '%s %s %s %s %s'% (self._root.server, self._root.server_version, self._root.latestspringversion, self._root.natport, lan)
 		client.Send(login_string)
 
 	def _remove(self,client,reason='Quit'):
@@ -134,7 +135,7 @@ class Protocol:
 		if msg.startswith('#'):
 			test = msg.split(' ')[0][1:]
 			if test.isdigit():
-				msg_id = '#%s '%test
+				msg_id = '#%i '%test
 				msg = ' '.join(msg.split(' ')[1:])
 			else:
 				msg_id = ''
@@ -289,7 +290,7 @@ class Protocol:
 		# probably make a SQL query here
 		return {'users':[], 'blindusers':[], 'admins':[], 'ban':{}, 'allow':[], 'autokick':'ban', 'owner':'', 'mutelist':{}, 'antispam':{'enabled':True, 'quiet':False, 'timeout':3, 'bonus':2, 'unique':4, 'bonuslength':100, 'duration':900}, 'censor':False, 'antishock':False, 'topic':None, 'key':None}
 
-	def _time_remaining(self, seconds):
+	def _format_time(self, seconds):
 		if seconds < 1:
 			message = 'forever'
 		else:
@@ -409,7 +410,7 @@ class Protocol:
 					try:
 						battle_id = battle
 						battle = self._root.battles[battle]
-						type, natType, host, port, maxplayers, passworded, rank, maphash, engine, version, map, title, modname = [battle['type'], battle['natType'], battle['host'], battle['port'], battle['maxplayers'], battle['passworded'], battle['rank'], battle['maphash'], battle['engine'], battle['version'], battle['map'], battle['title'], battle['modname']]
+						#type, natType, host, port, maxplayers, passworded, rank, maphash, engine, version, map, title, modname = [battle['type'], battle['natType'], battle['host'], battle['port'], battle['maxplayers'], battle['passworded'], battle['rank'], battle['maphash'], battle['engine'], battle['version'], battle['map'], battle['title'], battle['modname']]
 						if not host in self._root.usernames: continue # host left server
 						ip_address = self._root.usernames[host].ip_address
 						host_local_ip = self._root.usernames[host].local_ip
@@ -423,7 +424,9 @@ class Protocol:
 							# this is probably not needed # neither is this
 						else:
 							translated_ip = ip_address
-						client.Send('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' %(battle_id, type, natType, host, translated_ip, port, maxplayers, passworded, rank, maphash, engine, version, map, title, modname))
+						#client.Send('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' %(battle_id, type, natType, host, translated_ip, port, maxplayers, passworded, rank, maphash, engine, version, map, title, modname))
+						#self._root.clients[user].Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % battle)
+						self._root.clients[user].Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % battle)
 						for user in battle['users']:
 							if not user == battle['host']: client.Send('JOINEDBATTLE %s %s'%(battle_id, user))
 					except: pass # battle closed
@@ -473,7 +476,7 @@ class Protocol:
 					if mute == 0:
 						self._root.broadcast('SAID %s %s %s' % (chan,client.username,msg),chan)
 					else:
-						client.Send('CHANNELMESSAGE %s You are muted for the next %s.'%(chan, self._time_remaining(mute)))
+						client.Send('CHANNELMESSAGE %s You are muted for the next %s.'%(chan, self._format_time(mute)))
 				else:
 					self._root.broadcast('SAID %s %s %s' % (chan,client.username,msg),chan)
 
@@ -488,7 +491,7 @@ class Protocol:
 					if mute == 0:
 						self._root.broadcast('SAIDEX %s %s %s' % (chan,client.username,msg),chan)
 					else:
-						client.Send('CHANNELMESSAGE %s You are muted for the next %s.'%(chan, self._time_remaining(mute)))
+						client.Send('CHANNELMESSAGE %s You are muted for the next %s.'%(chan, self._format_time(mute)))
 				else:
 					self._root.broadcast('SAIDEX %s %s %s' % (chan,client.username,msg),chan)
 
@@ -538,7 +541,7 @@ class Protocol:
 				mutelist = dict(self._root.channels[channel]['mutelist'])
 				client.Send('MUTELISTBEGIN %s'%channel)
 				for mute in mutelist:
-					message = self._time_remaining(mutelist[mute])
+					message = self._format_time(mutelist[mute])
 					client.Send('MUTELIST %s, %s'%(mute,message))
 				client.Send('MUTELISTEND')
 
@@ -610,7 +613,8 @@ class Protocol:
 	def incoming_MAPGRADES(self, client, grades):
 		client.Send('MAPGRADESFAILED Not implemented.')
 
-	def incoming_OPENBATTLE(self, client, type, natType, password, port, maxplayers, hashcode, rank, maphash, engine, version, sentence_args):
+	def incoming_OPENBATTLE(self, client, type, natType, password, port, maxplayers, hashcode, rank, maphash, sentence_args):
+	#def incoming_OPENBATTLE(self, client, type, natType, password, port, maxplayers, hashcode, rank, maphash, engine, version, sentence_args):
 		if client.current_battle in self._root.battles:
 			self.incoming_LEAVEBATTLE(client)
 			#client.Send('SERVERMSG You are already in battle.')
@@ -627,7 +631,10 @@ class Protocol:
 		else:
 			passworded = 1
 		clients = dict(self._root.clients)
+		battle_id = str(battle_id)
+		battle = {'id':battle_id, 'type':type, 'natType':natType, 'password':password, 'port':port, 'maxplayers':maxplayers, 'hashcode':hashcode, 'rank':rank, 'maphash':maphash, 'engine':engine, 'version':version, 'map':map, 'title':title, 'modname':modname, 'passworded':passworded, 'users':{client.username:''}, 'host':client.username, 'startrects':{}, 'disabled_units':{}, 'bots':{}, 'script_tags':{}, 'replay_script':{}, 'replay':False, 'sending_replay_script':False, 'locked':False}
 		for user in clients:
+			ubattle = battle.copy()
 			if self._root.clients[user].ip_address == client.ip_address: # translates the ip to always be compatible with the client
 				if client.local_ip == self._root.clients[user].local_ip:
 					translated_ip = '127.0.0.1'
@@ -635,8 +642,11 @@ class Protocol:
 					translated_ip = client.local_ip
 			else:
 				translated_ip = client.ip_address
-			self._root.clients[user].Send('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' %(battle_id, type, natType, client.username, translated_ip, port, maxplayers, passworded, rank, maphash, engine, version, map, title, modname))
-		self._root.battles[str(battle_id)] = {'type':type, 'natType':natType, 'password':password, 'port':port, 'maxplayers':maxplayers, 'hashcode':hashcode, 'rank':rank, 'maphash':maphash, 'engine':engine, 'version':version, 'map':map, 'title':title, 'modname':modname, 'passworded':passworded, 'users':{client.username:''}, 'host':client.username, 'startrects':{}, 'disabled_units':{}, 'bots':{}, 'script_tags':{}, 'replay_script':{}, 'replay':False, 'sending_replay_script':False, 'locked':False}
+			ubattle.update({'passworded':passworded, 'ip':translated_ip})
+			#self._root.clients[user].Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % battle)
+			self._root.clients[user].Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % battle)
+		self._root.battles[battle_id] = battle
+		#self._root.battles[str(battle_id)] = {'type':type, 'natType':natType, 'password':password, 'port':port, 'maxplayers':maxplayers, 'hashcode':hashcode, 'rank':rank, 'maphash':maphash, 'engine':engine, 'version':version, 'map':map, 'title':title, 'modname':modname, 'passworded':passworded, 'users':{client.username:''}, 'host':client.username, 'startrects':{}, 'disabled_units':{}, 'bots':{}, 'script_tags':{}, 'replay_script':{}, 'replay':False, 'sending_replay_script':False, 'locked':False}
 		client.Send('OPENBATTLE %s'%battle_id)
 		client.Send('REQUESTBATTLESTATUS')
 
@@ -695,10 +705,12 @@ class Protocol:
 						client.Send('CLIENTBATTLESTATUS %s %s %s'%(user, battlestatus, teamcolor))
 				for iter in battle_bots:
 					bot = battle_bots[iter]
-					client.Send('ADDBOT %s %s %s %s %s %s'%(battle_id, iter, bot['owner'], bot['battlestatus'], bot['teamcolor'], bot['AIDLL']))
+					client.Send('ADDBOT %s %s'(battle_id,iter)+' %(owner)s %(battlestatus)s %(teamcolor)s %(AIDLL)s'%(bot))
+					#client.Send('ADDBOT %s %s %s %s %s %s'%(battle_id, iter, bot['owner'], bot['battlestatus'], bot['teamcolor'], bot['AIDLL']))
 				for allyno in startrects:
 					rect = self._root.battles[battle_id]['startrects'][allyno]
-					client.Send('ADDSTARTRECT %s %s %s %s %s'%(allyno, rect['left'], rect['top'], rect['right'], rect['bottom']))
+					client.Send('ADDSTARTRECT %s'%(allyno)+' %(left)s %(top)s %(right)s %(bottom)s'%(rect))
+					#client.Send('ADDSTARTRECT %s %s %s %s %s'%(allyno, rect['left'], rect['top'], rect['right'], rect['bottom']))
 				
 				client.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
 				client.teamcolor = '0'
@@ -793,11 +805,11 @@ class Protocol:
 		battle_id = client.current_battle
 		if battle_id:
 			if self._root.battles[battle_id]['host'] == client.username:
-				updated = {'SpectatorCount':SpectatorCount, 'locked':locked, 'maphash':maphash, 'mapname':mapname}
+				updated = {'id':battle_id, 'spectators':SpectatorCount, 'locked':locked, 'maphash':maphash, 'mapname':mapname}
 				old = self._root.battles[battle_id]
 				self._root.battles[battle_id].update(updated)
 				# if old == self._root.battles[battle_id]: return # nothing changed # apparently broken
-				self._root.broadcast('UPDATEBATTLEINFO %s %s %s %s %s' %(battle_id,updated['SpectatorCount'], updated['locked'], updated['maphash'], updated['mapname']), client.current_battle)
+				self._root.broadcast('UPDATEBATTLEINFO %(id)s %(spectators)s %(locked)s %(maphash)s %(mapname)s'%updated, battle_id)
 
 	def incoming_MYSTATUS(self, client, status):
 		if not status.isdigit():
@@ -864,9 +876,10 @@ class Protocol:
 	def incoming_ADDSTARTRECT(self, client, allyno, left, top, right, bottom):
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
-			if self._root.battles[client.current_battle]['host'] == client.username:
-				self._root.battles[client.current_battle]['startrects'][allyno] = {'left':left, 'top':top, 'right':right, 'bottom':bottom}
-				self._root.broadcast_battle('ADDSTARTRECT %s %s %s %s %s'%(allyno, left, top, right, bottom), client.current_battle)
+			if self._root.battles[battle_id]['host'] == client.username:
+				rect = {'left':left, 'top':top, 'right':right, 'bottom':bottom}
+				self._root.battles[battle_id]['startrects'][allyno] = rect
+				self._root.broadcast_battle('ADDSTARTRECT %s'%(allyno)+' %(left)s %(top)s %(right)s %(bottom)s'%(rect), client.current_battle)
 
 	def incoming_REMOVESTARTRECT(self, client, allyno):
 		battle_id = client.current_battle

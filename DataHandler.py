@@ -154,7 +154,8 @@ class DataHandler:
 				self.max_threads = 1
 		except ImportError:
 			print 'sqlalchemy not found or invalid SQL URL, reverting to LAN mode'
-			self.LAN = True
+			self.LAN = True
+
 	def mute_timer(self):
 		while 1:
 			try:

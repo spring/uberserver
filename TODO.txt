@@ -3,6 +3,8 @@ ingame time is broken
 
 to fix:
 
+don't cater to scunthorpe (match swear words on registration)
+
 make everything configurable through DataHandler/_root and command-line options/config file
 channel registering (set owner)
 channel configuration (antispam)
@@ -11,11 +13,13 @@ quietness? (whether to print sayhooks actions)
 maybe send things to admins/owner
 transfer of ownership
 default user state for channels :D << allows "moderated" channels
-locked channels hidden by default
+locked channels hidden by default (hide, show, lock)
 renames
 working SQLite -- integrate SQLUsers.py and DataHandler.py << just force single thread
 mods the power to check account registration dates, also needs registration date saved in db
 loading and saving of channels from sql
 fix ghosting, instead of ghosting, resend login data properly?
+
+make a unit test for sql, run it through sqlite
 
 final todo: should be indistinguishable from tasserver to the untrained eye upon initial deployment

@@ -33,6 +33,7 @@ class User(object):
 		self.name = name
 		self.password = password
 		self.last_login = int(time.time())
+		self.register_date = int(time.time())
 		self.banned = 0
 		self.last_ip = last_ip
 		self.ingame_time = 0
@@ -113,6 +114,7 @@ users_table = Table('users', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('name', String(40)),
 	Column('password', String(32)),
+	Column('register_date', Integer)),
 	Column('last_login', Integer), # use seconds since unix epoch
 	Column('last_ip', String(15)), # would need update for ipv6
 	Column('ingame', Integer),
@@ -237,7 +239,7 @@ class UsersHandler:
 		if results:
 			return False, 'Username already exists.'
 		entry = User(user, password, ip)
-        	entry.addresses.append(Address(ip_address=ip))
+        entry.addresses.append(Address(ip_address=ip))
 		self.session.save(entry)
 		self.session.commit()
 		return True, 'Account registered successfully.'
