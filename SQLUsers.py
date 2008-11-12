@@ -161,7 +161,7 @@ channels_table = Table('channels', metadata,
 	Column('topic', Integer),
 	Column('topic_time', Integer),
 	Column('topic_owner', String(40)),
-	Column('antispam_id', ForeignKey('antispam.id')),
+	Column('antispam_id', Integer, ForeignKey('antispam.id')),
 	Column('autokick', String(5)),
 	Column('censor', Boolean),
 	Column('antishock', Boolean),
@@ -198,7 +198,7 @@ aggregatebans_table = Table('ban_items', metadata, # server bans
 	Column('id', Integer, primary_key=True),
 	Column('type', String(10)), # what exactly is banned (user, ip, subnet, hostname, ip range, etc)
 	Column('data', String(60)), # regex would be cool
-	Column('ban_id', ForeignKey('ban_groups.id')),
+	Column('ban_id', Integer, ForeignKey('ban_groups.id')),
 	)
 
 mapper(User, users_table, properties={

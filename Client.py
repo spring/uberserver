@@ -1,6 +1,7 @@
 import socket, time, sys
 import Telnet
 
+
 class Client:
 	'this object represents one connected client'
 
