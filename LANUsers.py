@@ -1,11 +1,14 @@
 import time
 
 class LANUser:
-	def __init__(self):
+	def __init__(self, user, casename, password, ip):
+		self.user = user
+		self.casename = casename
 		self.ingame_time = 0
 		self.access = 'user'
 		self.last_login = int(time.time())
 		self.register_date = int(time.time())
+		self.last_ip = ip
 		self.bot = False
 
 class UsersHandler:
@@ -13,10 +16,12 @@ class UsersHandler:
 		self._root = root
 		
 	def login_user(self, user, password, ip):
-		User = LANUser()
-		lanadmin = self._root.lanadmin['username']
-		if user == lanadmin['username']
+		name = user.lower()
+		User = LANUser(name, user, password, ip)
+		lanadmin = self._root.lanadmin
+		if name == lanadmin['username'].lower():
 			if password == lanadmin['password']:
+				User.casename = lanadmin['username']
 				User.access = 'admin'
 			else: return False, 'Bad username/password'
 		return True, User

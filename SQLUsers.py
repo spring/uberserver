@@ -30,8 +30,9 @@ from sqlalchemy.orm import mapper, sessionmaker, relation
 metadata = MetaData()
 
 class User(object):
-	def __init__(self, name, password, last_ip, access='user'):
+	def __init__(self, name, casename, password, last_ip, access='user'):
 		self.name = name
+		self.casename = casename
 		self.password = password
 		self.last_login = int(time.time())
 		self.register_date = int(time.time())
@@ -45,7 +46,9 @@ class User(object):
 
 class Address(object):
 	def __init__(self, ip_address):
-		self.time = int(time.time())
+		self.first_time = int(time.time())
+		self.last_time = int(time.time())
+		self.count = 1
 		self.ip_address = ip_address
 
 	def __repr__(self):
@@ -123,6 +126,7 @@ class AggregateBan(object):
 users_table = Table('users', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('name', String(40)),
+	Column('casename', String(40)),
 	Column('password', String(32)),
 	Column('register_date', Integer),
 	Column('last_login', Integer), # use seconds since unix epoch
@@ -135,7 +139,9 @@ users_table = Table('users', metadata,
 addresses_table = Table('addresses', metadata, 
 	Column('id', Integer, primary_key=True),
 	Column('ip_address', String(15), nullable=False),
-	Column('time', Integer),
+	Column('first_time', Integer),
+	Column('last_time', Integer),
+	Column('count', Integer),
 	Column('user_id', Integer, ForeignKey('users.id')),
 	)
 
@@ -228,13 +234,14 @@ class UsersHandler:
 		useridban = results.filter(AggregateBan.type=='userid').filter(AggregateBan.data==userid)
 		
 	def login_user(self, user, password, ip, userid=None):
+		name = user.lower()
 		lanadmin = self._root.lanadmin
 		if user == lanadmin['username'] and password == lanadmin['password']:
-			sqluser = User(user, password, ip, 'admin')
+			sqluser = User(name, lanadmin['username'], password, ip, 'admin')
 			return True, sqluser
 		good = True
 		now = int(time.time())
-		entry = self.session.query(User).filter(User.name==user).first() # should only ever be one user with each name so we can just grab the first one :)
+		entry = self.session.query(User).filter(User.name==name).first() # should only ever be one user with each name so we can just grab the first one :)
 		reason = entry
 		if not entry:
 			return False, 'No user named %s'%user
@@ -251,40 +258,52 @@ class UsersHandler:
 				#else:
 					#reason = 'You are banned: (%s) hours remaining.' % (float(seconds) / 60 / 60)
 		exists = self.session.query(Address).filter(Address.user_id==entry.id).first()
-		if not exists:
-			entry.addresses.append(Address(ip_address=ip))
+		if not exists: entry.addresses.append(Address(ip_address=ip))
+		else:
+			exists.last_time = now
+			exists.count += 1
 		entry.last_login = now
 		entry.last_ip = ip
 		self.session.commit()
 		return good, reason
 
 	def register_user(self, user, password, ip): # need to add better ban checks so it can check if an ip address is banned when registering an account :)
-		results = self.session.query(User).filter(User.name==user).first()
-		if results:
-			return False, 'Username already exists.'
+		if self._root.censor:
+			if not self._root.SayHooks._nasty_word_censor(user):
+				return False, 'Name failed to pass profanity filter.'
+		name = user.lower()
+		results = self.session.query(User).filter(User.name==name).first()
 		lanadmin = self._root.lanadmin
-		if user == lanadmin['username']:
+		if name == lanadmin['username'].lower():
 			if password == lanadmin['password']: # if you register a lanadmin account with the right user and pass combo, it makes it into a normal admin account
 				if user in self._root.usernames:
 					self._root.usernames[user]
-				entry = User(user, password, ip, 'admin')
+				entry = User(name, lanadmin['username'], password, ip, 'admin')
 				entry.addresses.append(Address(ip_address=ip))
 				self.session.save(entry)
 				self.session.commit()
 				return True, 'Account registered successfully.'
 			else: return False, 'Username already exists.'
-		entry = User(user, password, ip)
+		if results:
+			return False, 'Username already exists.'
+		entry = User(name, user, password, ip)
 		entry.addresses.append(Address(ip_address=ip))
 		self.session.save(entry)
 		self.session.commit()
 		return True, 'Account registered successfully.'
 
 	def rename_user(self, user, newname):
-		results = self.session.query(User).filter(User.name==newname).first()
+		if self._root.censor:
+			if not self._root.SayHooks._nasty_word_censor(user):
+				return False, 'Name failed to pass profanity filter.'
+		lnewname = newname.lower()
+		results = self.session.query(User).filter(User.name==lnewname).first()
 		if results:
 			return False, 'Username already exists.'
-		entry = self.session.query(User).filter(User.name==user).first()
-		entry.name = newname
+		entry = self.session.query(User).filter(User.name==user.lower()).first()
+		if not entry: return False, 'You don\'t seem to exist anymore. Contact an admin or moderator.'
+		entry.name = lnewname
+		entry.casename = newname
 		self.session.save(entry)
 		self.session.commit()
 		return True, 'Account renamed successfully.'

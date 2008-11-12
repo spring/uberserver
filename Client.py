@@ -3,37 +3,6 @@ import Telnet
 
 class Client:
 	'this object represents one connected client'
-	static = False
-	_protocol = False
-	removing = False
-	msg_id = ''
-	sendbuffer = []
-	sendingmessage = ''
-	logged_in = False
-	status = '12'
-	access = ['fresh']
-	accesslevels = ['fresh', 'everyone']
-	channels = []
-	battle_bots = {}
-	current_battle = None
-	battle_bans = []
-	username = ''
-	password = ''
-	ingame_time = 0
-	hostport = 8542
-	udpport = 0
-	maxsinglemessage = 1024
-	maxpersecond = 1024
-	maxseconds = 5
-	msglengthhistory = {}
-	lastsaid = {}
-	nl = '\n'
-	telnet = False
-	current_channel = ''
-	blind_channels = []
-	tokenized = False
-	hashpw = False
-	data = ''
 
 	def __init__(self, root, connection, address, session_id, country_code):
 		'initial setup for the connected client'
@@ -44,6 +13,38 @@ class Client:
 		self.port = address[1]
 		self.country_code = country_code
 		self.session_id = session_id
+		
+		self.static = False
+		self._protocol = False
+		self.removing = False
+		self.msg_id = ''
+		self.sendbuffer = []
+		self.sendingmessage = ''
+		self.logged_in = False
+		self.status = '12'
+		self.access = ['fresh']
+		self.accesslevels = ['fresh', 'everyone']
+		self.channels = []
+		self.battle_bots = {}
+		self.current_battle = None
+		self.battle_bans = []
+		self.username = ''
+		self.password = ''
+		self.ingame_time = 0
+		self.hostport = 8542
+		self.udpport = 0
+		self.maxsinglemessage = 1024
+		self.maxpersecond = 1024
+		self.maxseconds = 5
+		self.msglengthhistory = {}
+		self.lastsaid = {}
+		self.nl = '\n'
+		self.telnet = False
+		self.current_channel = ''
+		self.blind_channels = []
+		self.tokenized = False
+		self.hashpw = False
+		self.data = ''
 		
 		print 'Client connected from %s, session ID %s.' % (self.ip_address, session_id)
 		now = time.time()

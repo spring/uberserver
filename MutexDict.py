@@ -6,7 +6,7 @@ import thread
 class MutexDict:
 	def __init__(self, dict=None, **kwargs):
 		self.mutex = thread.allocate_lock()
-		self.lock_id = 0
+		self.lock_id = -1
 		self.data = {}
 		if dict is not None:
 			self.update(dict)
@@ -169,7 +169,7 @@ class MutexDict:
 		self.unlock(lock)
 		return data
 	
-	def __iter__(self,lock=None):
+	def __iter__(self, lock=None):
 		lock = self.lock(lock)
 		data = iter(self.data)
 		self.unlock(lock)

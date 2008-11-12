@@ -28,6 +28,7 @@ class DataHandler:
 	nextbattle = 0
 	SayHooks = __import__('SayHooks')
 	UsersHandler = None
+	censor = True
 	
 	def __init__(self):
 		self.channels = MutexDict()
@@ -80,6 +81,8 @@ class DataHandler:
 				print '      { Uses the specified number of threads for handling clients }'
 				print '  -s, --sqlurl SQLURL'
 				print '      { Uses SQL database at the url specified }'
+				print '  -c, --no-censor'
+				print '      { Disables censoring of #main, #newbies, and usernames (default is to censor) }'
 				print
 				print 'SQLURL Examples:'
 				#print '  "sqlite:///:memory:" or "sqlite:///"'
@@ -145,6 +148,9 @@ class DataHandler:
 			if arg in ['s', 'sqlurl']:
 				try: self.sqlurl = argp[0]
 				except: print 'Error specifying SQL URL'
+			if arg in ['c', 'no-censor']:
+				self.censor = False
+				
 		if self.sqlurl == 'sqlite:///:memory:' or self.sqlurl == 'sqlite:///':
 			print 'In-memory sqlite databases are not supported.'
 			print 'Falling back to LAN mode.'
@@ -202,10 +208,11 @@ class DataHandler:
 				self.usernames['[tN]aegis'].Send('SERVERMSG %s'%line)
 
 	def console_write(self, lines=''):
-		if type(lines) == str:
+		if type(lines) == str or type(lines) == unicode:
 			lines = lines.split('\n')
 		elif not type(lines) == list:
-			lines = ['Failed to print lines of type %s'%type(lines)]
+			try: lines = lines.__repr__()
+			except: lines = ['Failed to print lines of type %s'%type(lines)]
 		self.console_buffer += lines
 
 	def console_loop(self):
@@ -225,7 +232,7 @@ class DataHandler:
 				print '-'*60
 		
 	def broadcast(self, msg, chan=None, ignore=[]):
-		if type(ignore) == str:
+		if type(ignore) == str:# or type(ignore) == unicode:
 			ignore = [ignore]
 		if chan in self.channels:
 			if 'users' in self.channels[chan]:
@@ -245,7 +252,7 @@ class DataHandler:
 					except KeyError: pass # user was removed
 
 	def broadcast_battle(self, msg, battle_id, ignore=[]):
-		if type(ignore) == str:
+		if type(ignore) == str:# or type(ignore) == unicode:
 			ignore = [ignore]
 		if battle_id in self.battles:
 			if 'users' in self.battles[battle_id]:

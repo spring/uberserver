@@ -371,10 +371,13 @@ class Protocol:
 			m = md5.new()
 			m.update(password)
 			password = base64.b64encode(binascii.a2b_hex(m.hexdigest()))
+		#good, reason = self.userdb.login_user(username, password, client.ip_address)
+		#if not self._root.LAN and good: username = reason.casename # springlobby can't handle the username changing after login
 		if not username in self._root.usernames:
 			good, reason = self.userdb.login_user(username, password, client.ip_address)
 			if good:
 				self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s.'%(client.handler.num, username, client.session_id))
+				client.username = username
 				self._root.usernames[username] = client
 				
 				client.ingame_time = int(reason.ingame_time)
@@ -402,19 +405,21 @@ class Protocol:
 				self._root.broadcast('ADDUSER %s %s %s'%(username,client.country_code,cpu),ignore=username)
 				
 				# aquire usernames lock
+				#lock = self._root.usernames.lock()
 				usernames = dict(self._root.usernames) # cache them here in case anyone joins or hosts a battle
-				for user in usernames:
+				for user in usernames: #self._root.usernames.__iter__(lock):
 					try:
 						#if username == user: continue
 						addclient = self._root.usernames[user]
 						client.Send('ADDUSER %s %s %s'%(user,addclient.country_code,addclient.cpu))
-					except:
-						pass #person must have left :)
+					except: pass #person must have left :)
+				#self._root.usernames.unlock(lock)
 				# release usernames lock
 				
 				# acquire battles lock
+				#lock = self._root.battles.lock()
 				battles = dict(self._root.battles)
-				for battle in battles:
+				for battle in battles: #self._root.battles.__iter__(lock):
 					try:
 						battle_id = battle
 						ubattle = self._root.battles[battle_id].copy()
@@ -439,9 +444,13 @@ class Protocol:
 						for user in battle['users']:
 							if not user == battle['host']: client.Send('JOINEDBATTLE %s %s'%(battle_id, user))
 					except: pass # battle closed
-				for user in usernames:
-					if user == username: continue
+				#self._root.battles.unlock(lock)
+				
+				#lock = self._root.usernames.lock()
+				for user in usernames: # self._root.usernames.__iter__(lock):
+					if user == username: continue # potential problem spot, might need to check to make sure username is still in user db
 					client.Send('CLIENTSTATUS %s %s'%(user,self._root.usernames[user].status))
+				#self._root.usernames.unlock(lock)
 				#self._root.usernames[username] = client.session_id
 				client.Send('LOGININFOEND')
 				client.status = self._calc_status(client, 0)
@@ -459,7 +468,8 @@ class Protocol:
 				oldclient._protocol._remove(oldclient, 'Removing: Ghosted')
 				oldclient.Remove()
 				self._root.console_write('Handler %s: Old client inactive, ghosting user <%s> from session %s.'%(client.handler.num, username, client.session_id))
-				client.Send('DENIED Ghosted old user, please relogin.')
+				#client.Send('DENIED Ghosted old user, please relogin.') # relogin is automagic :D
+				self.incoming_LOGIN(client, username, password, cpu, local_ip, sentence_args)
 			else:
 				self._root.console_write('Handler %s: Failed to log in user <%s> on session %s. (already logged in)'%(client.handler.num, username, client.session_id))
 				client.Send('DENIED Already logged in.') # negotiate relogin ----- ask other client if it is still connected, then wait 15 seconds to allow for latency
@@ -876,7 +886,7 @@ class Protocol:
 
 	def incoming_CHANNELS(self, client):
 		for channel in self._root.channels:
-			if not self._root.channels[channel]['owner']: return # only list registered channels
+			if not self._root.channels[channel]['owner'] or self._root.channels[channel]['key']: return # only list unlocked registered channels
 			chaninfo = '%s %s'%(channel, len(self._root.channels[channel]['users']))
 			topic = self._root.channels[channel]['topic']
 			if topic:

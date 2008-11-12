@@ -9,24 +9,34 @@ channel registering (set owner)
 working SQLite -- integrate SQLUsers.py and DataHandler.py << just force single thread
 mods the power to check account registration dates, also needs registration date saved in db
 
+go case-insensitive to do easier name checking
+make renaming to a different case of the same name possible - nevermind, you can just log in as any form of your name ^_^
+don't cater to scunthorpe (match swear words on registration and rename)
+
+locked channels hidden by default (hide, show, lock) -- locked channels are hidden from CHANNELS (/list)
+
 to fix/add:
 
-go case-insensitive to do easier name checking
+use a mutex on every loop
+
+renames - go through battle bans, channel users, etc and update them on rename
 
 chanserv -- finish commands, make them all work and compliant with existing chanserv
-don't cater to scunthorpe (match swear words on registration)
 channel configuration (antispam)
 quietness? (whether to print sayhooks actions)
 maybe send things to admins/owner
-default user state for channels :D << allows "moderated" channels
-locked channels hidden by default (hide, show, lock)
-renames
+
 loading and saving of channels from sql
 fix ghosting, instead of ghosting, resend login data properly?
+
+ban controls, at least in client
 
 final todo: should be indistinguishable from tasserver to the untrained eye upon initial deployment
 
 thoughts:
+default user state for channels :D << allows "moderated" channels
+logging in when banned throws you hidden into a #banned channel
+
 multiple protocol support
 track disconnected clients since the last command they sent - resend all data from that point.
 ability to host multiple battles simultaneously if you have a bot tag
