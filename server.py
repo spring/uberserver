@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 # coding=utf-8
+
+print 'Starting uberserver...'
+print
+
 import thread, socket, time, sys, traceback
 from urllib import urlopen
 from ClientHandler import ClientHandler
@@ -24,7 +28,7 @@ server.bind((host,port))
 server.listen(backlog)
 
 
-_root.LAN = True
+# _root.LAN = True # GAH
 
 natserver = NATServer(natport)
 thread.start_new_thread(natserver.start,())
@@ -38,7 +42,8 @@ _root.console_write(local_addr)
 _root.console_write('Detecting online IP:')
 try:
 	# web_addr = urlopen('http://www.zjt3.com/ip.php').read() # site down
-	web_addr = urlopen('http://whatismyip.com/automation/n09230945.asp').read()
+	web_addr = '216.7.57.152' # swap with line below when committing
+	#web_addr = urlopen('http://whatismyip.com/automation/n09230945.asp').read()
 	_root.console_write(web_addr)
 except:
 	web_addr = local_addr
@@ -48,7 +53,7 @@ _root.console_write()
 _root.local_ip = local_addr
 _root.online_ip = web_addr
 
-_root.console_write('uberserver starting on port %i'%port)
+_root.console_write('Listening for clients on port %i'%port)
 _root.console_write('Using %i client handling thread(s).'%_root.max_threads)
 
 running = 1

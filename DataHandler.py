@@ -23,10 +23,11 @@ class DataHandler:
 	server_version = 0.35
 	engine = None
 	max_threads = 25
-	sqlurl = 'sqlite:///:memory:'
+	sqlurl = 'sqlite:///sqlite.txt'
 	randomflags = False
 	nextbattle = 0
 	SayHooks = __import__('SayHooks')
+	UsersHandler = None
 	
 	def __init__(self):
 		self.channels = MutexDict()
@@ -81,8 +82,8 @@ class DataHandler:
 				print '      { Uses SQL database at the url specified }'
 				print
 				print 'SQLURL Examples:'
-				print '  "sqlite:///:memory:" or "sqlite:///"'
-				print '     { both make a temporary database in memory }'
+				#print '  "sqlite:///:memory:" or "sqlite:///"'
+				#print '     { both make a temporary database in memory }'
 				print '  "sqlite:////absolute/path/to/database.txt"'
 				print '     { uses a database in the file specified }'
 				print '  "sqlite:///relative/path/to/database.txt"'
@@ -144,18 +145,35 @@ class DataHandler:
 			if arg in ['s', 'sqlurl']:
 				try: self.sqlurl = argp[0]
 				except: print 'Error specifying SQL URL'
-		if self.LAN: return
-		try:
-			sqlalchemy = __import__('sqlalchemy')
-			self.engine = sqlalchemy.create_engine(sqlurl)
-			if self.sqlurl.startswith('sqlite'):
-				print 'Multiple threads are not supported with sqlite, forcing a single thread'
-				print 'Please note the server performance will not be optimal'
-				print 'You might want to install a real database server or use LAN mode'
-				self.max_threads = 1
-		except ImportError:
-			print 'sqlalchemy not found or invalid SQL URL, reverting to LAN mode'
+		if self.sqlurl == 'sqlite:///:memory:' or self.sqlurl == 'sqlite:///':
+			print 'In-memory sqlite databases are not supported.'
+			print 'Falling back to LAN mode.'
+			print
 			self.LAN = True
+		if not self.LAN:
+			try:
+				sqlalchemy = __import__('sqlalchemy')
+				self.engine = sqlalchemy.create_engine(self.sqlurl)
+				if self.sqlurl.startswith('sqlite'):
+					print 'Multiple threads are not supported with sqlite, forcing a single thread'
+					print 'Please note the server performance will not be optimal'
+					print 'You might want to install a real database server or use LAN mode'
+					print
+					self.max_threads = 1
+			except ImportError:
+				print 'sqlalchemy not found or invalid SQL URL, reverting to LAN mode'
+				self.LAN = True
+		if self.LAN or not self.engine:
+				self.UsersHandler = __import__('LANUsers').UsersHandler # maybe make an import request to datahandler, then have it reload it too. less hardcoded-ness
+		else:
+			try:
+				self.UsersHandler = __import__('SQLUsers').UsersHandler
+				testhandler = self.UsersHandler(self, self.engine)
+			except:
+				self.LAN = True
+				print traceback.format_exc()
+				print 'Error importing SQL - reverting to LAN'
+				self.UsersHandler = __import__('LANUsers').UsersHandler
 
 	def mute_timer(self):
 		while 1:

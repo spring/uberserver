@@ -47,7 +47,9 @@ restricted = {
 	########
 	# meta
 	'GETINGAMETIME',
-	'MYSTATUS',],
+	'GETREGISTRATIONDATE',
+	'MYSTATUS',
+	'RENAMEACCOUNT'],
 	'mod':['CHANNELTOPIC','FORCECLOSEBATTLE','FORCELEAVECHANNEL','KICKUSER','MUTE','SETBOTMODE','UNMUTE'],
 	'admin':[
 	#########
@@ -87,7 +89,10 @@ class Protocol:
 			self.userdb = __import__('LANUsers').UsersHandler(root) # maybe make an import request to datahandler, then have it reload it too. less hardcoded-ness
 		else:
 			try: self.userdb = __import__('SQLUsers').UsersHandler(root, root.engine)
-			except: self.userdb = __import__('LANUsers').UsersHandler(root)
+			except:
+				print traceback.format_exc()
+				print 'Error importing SQL - reverting to LAN'
+				self.userdb = __import__('LANUsers').UsersHandler(root)
 		self.SayHooks = root.SayHooks
 
 	def _new(self, client):
@@ -375,6 +380,8 @@ class Protocol:
 				client.ingame_time = int(reason.ingame_time)
 				client.bot = reason.bot
 				client.access = reason.access
+				client.last_login = reason.last_login
+				client.register_date = reason.register_date
 				self._calc_access(client)
 				client.username = username
 				client.password = password
@@ -1049,6 +1056,26 @@ class Protocol:
 		else:
 			ingame_time = int(client.ingame_time)
 			client.Send('SERVERMSG Your in-game time is %d minutes (%d hours).'%(ingame_time, ingame_time / 60))
+	
+	def incoming_GETREGISTRATIONDATE(self, client, username=None):
+		if username and 'mod' in client.accesslevels:
+			if username in self._root.usernames:
+				reason = self._root.usernames[username].register_date
+				good = True
+			else: good, reason = self.UsersHandler.get_registration_date(username)
+		else:
+			good = True
+			username = client.username
+			reason = client.register_date
+		if good: client.Send('SERVERMSG <%s> registered on %s.' % (username, time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(reason))))
+		else: client.Send('SERVERMSG Database returned error when retrieving registration date for <%s> (%s)' % (username, reason))
+	
+	def incoming_RENAMEACCOUNT(self, client, newname):
+		user = client.username
+		if user == newuser: return
+		good, reason = self.UsersHandler.rename_account(user, newname)
+		if good:
+			pass
 
 	def incoming_FORGEMSG(self, client, user, msg):
 		if user in self._root.usernames:
@@ -1085,11 +1112,17 @@ class Protocol:
 		self._root.admin_broadcast(msg)
 
 	def incoming_KICKUSER(self, client, user, reason=''):
+		if reason.startswith('quiet'):
+			reason = reason.split('quiet')[1].lstrip()
+			quiet = True
+		else: quiet = False
 		if user in self._root.usernames:
 			kickeduser = self._root.usernames[user]
 			if reason: reason = ' (reason: %s)' % reason
-			for chan in list(kickeduser.channels):
-				self._root.broadcast('CHANNELMESSAGE %s <%s> kicked <%s> from the server%s'%(chan, client.username, user, reason),chan)
+			if not quiet:
+				for chan in list(kickeduser.channels):
+					self._root.broadcast('CHANNELMESSAGE %s <%s> kicked <%s> from the server%s'%(chan, client.username, user, reason),chan)
+			client.Send('SERVERMSG You\'ve kicked <%s> from the server.' % user)
 			kickeduser.SendNow('SERVERMSG You\'ve been kicked from server by <%s>%s' % (client.username, reason))
 			self._remove(kickeduser, 'Kicked from server')
 			kickeduser.Remove()

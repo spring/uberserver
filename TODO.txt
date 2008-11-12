@@ -3,30 +3,32 @@ ingame time is broken
 
 latest:
 make everything configurable through DataHandler/_root and command-line options/config file
+reloading <-- needs fixed. see above
+transfer of ownership
+channel registering (set owner)
+working SQLite -- integrate SQLUsers.py and DataHandler.py << just force single thread
+mods the power to check account registration dates, also needs registration date saved in db
 
 to fix/add:
 
-multiple protocol support
+go case-insensitive to do easier name checking
 
+chanserv -- finish commands, make them all work and compliant with existing chanserv
 don't cater to scunthorpe (match swear words on registration)
-channel registering (set owner)
 channel configuration (antispam)
-reloading <-- needs fixed. see above
 quietness? (whether to print sayhooks actions)
 maybe send things to admins/owner
-transfer of ownership
 default user state for channels :D << allows "moderated" channels
 locked channels hidden by default (hide, show, lock)
 renames
-working SQLite -- integrate SQLUsers.py and DataHandler.py << just force single thread
-mods the power to check account registration dates, also needs registration date saved in db
 loading and saving of channels from sql
 fix ghosting, instead of ghosting, resend login data properly?
-track disconnected clients since the last command they sent - resend all data from that point.
 
 final todo: should be indistinguishable from tasserver to the untrained eye upon initial deployment
 
 thoughts:
+multiple protocol support
+track disconnected clients since the last command they sent - resend all data from that point.
 ability to host multiple battles simultaneously if you have a bot tag
 move battle ingame notification from host's ingame status to an updatebattleinfo param
 
