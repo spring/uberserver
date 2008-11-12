@@ -200,12 +200,10 @@ class DataHandler:
 	def error(self, error):
 		error = '%s\n%s\n%s'%(separator,error,separator)
 		self.console_write(error)
-		if 'aegis' in self.usernames:
-			for line in error.split('\n'):
-				self.usernames['aegis'].Send('SERVERMSG %s'%line)
-		elif '[tN]aegis' in self.usernames:
-			for line in error.split('\n'):
-				self.usernames['[tN]aegis'].Send('SERVERMSG %s'%line)
+		for user in self.usernames:
+			if self.usernames[user].debug
+				for line in error.split('\n'):
+					self.usernames[user].Send('SERVERMSG %s'%line)
 
 	def console_write(self, lines=''):
 		if type(lines) == str or type(lines) == unicode:

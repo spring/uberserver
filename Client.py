@@ -45,6 +45,7 @@ class Client:
 		self.blind_channels = []
 		self.tokenized = False
 		self.hashpw = False
+		self.debug = False
 		self.data = ''
 		
 		print 'Client connected from %s, session ID %s.' % (self.ip_address, session_id)

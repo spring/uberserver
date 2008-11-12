@@ -62,7 +62,7 @@ restricted = {
 	# users
 	'FORGEMSG','FORGEREVERSEMSG',
 	'GETLOBBYVERSION','GETSENDBUFFERSIZE',
-	'MOD','ADMIN',
+	'ADMIN','MOD','DEBUG',
 	'TESTLOGIN','SETBOTMODE','SETINGAMETIME',],
 }
 
@@ -1177,6 +1177,12 @@ class Protocol:
 		changeuser.accesslevels = ['admin', 'mod', 'user']
 		self._calc_access(changeuser)
 		self._root.broadcast('CLIENTSTATUS %s %s'%(user,changeuser.status))
+
+	def incoming_DEBUG(self, client, enabled=None):
+		if enabled == 'on':	client.debug = True
+		elif enabled == 'off': client.debug = False
+		else: client.debug = not client.debug
+		
 	
 	def incoming_RELOAD(self, client, user):
 		self._root.reload()
