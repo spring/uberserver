@@ -48,14 +48,14 @@ restricted = {
 	# meta
 	'GETINGAMETIME',
 	'MYSTATUS',],
-'mod':['CHANNELTOPIC','FORCECLOSEBATTLE','FORCELEAVECHANNEL','KICKUSER','MUTE','SETBOTMODE','UNMUTE'],
-'admin':[
+	'mod':['CHANNELTOPIC','FORCECLOSEBATTLE','FORCELEAVECHANNEL','KICKUSER','MUTE','SETBOTMODE','UNMUTE'],
+	'admin':[
 	#########
 	# channel
 	'ALIAS','UNALIAS','ALIASLIST',
 	#########
 	# server
-	'ADMINBROADCAST', 'BROADCAST','BROADCASTEX',
+	'ADMINBROADCAST', 'BROADCAST','BROADCASTEX','RELOAD'
 	#########
 	# users
 	'FORGEMSG','FORGEREVERSEMSG',
@@ -79,24 +79,25 @@ def validateIP(ipAddress):
 
 class Protocol:
 
-	def __init__(self,root,handler):
+	def __init__(self, root, handler):
 		LAN = root.LAN
 		self._root = root
 		self.handler = handler
-		if LAN:
-			self.userdb = __import__('LANUsers').UsersHandler() # maybe make an import request to datahandler, then have it reload it too. less hardcoded-ness
+		if LAN or not root.engine:
+			self.userdb = __import__('LANUsers').UsersHandler(root) # maybe make an import request to datahandler, then have it reload it too. less hardcoded-ness
 		else:
-			self.userdb = __import__('SQLUsers').UsersHandler()
-		self.SayHooks = __import__('SayHooks')
+			try: self.userdb = __import__('SQLUsers').UsersHandler(root, root.engine)
+			except: self.userdb = __import__('LANUsers').UsersHandler(root)
+		self.SayHooks = root.SayHooks
 
-	def _new(self,client):
+	def _new(self, client):
 		if self._root.LAN: lan = '1'
 		else: lan = '0'
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), lan))
 		#login_string = '%s %s %s %s %s'% (self._root.server, self._root.server_version, self._root.latestspringversion, self._root.natport, lan)
 		client.Send(login_string)
 
-	def _remove(self,client,reason='Quit'):
+	def _remove(self, client, reason='Quit'):
 		if client.username:
 			if client.removing: return
 			if client.static: return
@@ -287,8 +288,8 @@ class Protocol:
 		return status
 	
 	def _new_channel(self, chan):
-		# probably make a SQL query here
-		return {'users':[], 'blindusers':[], 'admins':[], 'ban':{}, 'allow':[], 'autokick':'ban', 'owner':'', 'mutelist':{}, 'antispam':{'enabled':True, 'quiet':False, 'timeout':3, 'bonus':2, 'unique':4, 'bonuslength':100, 'duration':900}, 'censor':False, 'antishock':False, 'topic':None, 'key':None}
+		# probably make a SQL query here # nevermind, I'll just load channels at the beginning
+		return {'users':[], 'blindusers':[], 'admins':[], 'ban':{}, 'allow':[], 'autokick':'ban', 'chanserv':False, 'owner':'', 'mutelist':{}, 'antispam':{'enabled':True, 'quiet':False, 'timeout':3, 'bonus':2, 'unique':4, 'bonuslength':100, 'duration':900}, 'censor':False, 'antishock':False, 'topic':None, 'key':None}
 
 	def _format_time(self, seconds):
 		if seconds < 1:
@@ -301,19 +302,19 @@ class Protocol:
 			if daysleft > 7:
 				message = '%0.2f weeks' % (daysleft / 7)
 			if daysleft == 7:
-				message = '1 week'
+				message = 'a week'
 			if daysleft > 1:
 				message = '%0.2f days' % daysleft
 			if daysleft == 1:
-				message = '1 day'
+				message = 'a day'
 			elif hoursleft > 1:
 				message = '%0.2f hours' % hoursleft
 			elif hoursleft == 1:
-				message = '1 hour'
+				message = 'an hour'
 			elif minutesleft > 1:
 				message = '%0.1f minutes' % minutesleft
 			elif minutesleft == 1:
-				message = '1 minute'
+				message = 'a minute'
 			else:
 				message = '%0.0f second(s)'%(float(seconds))
 		return message
@@ -464,24 +465,49 @@ class Protocol:
 			client.Send('SERVERMSG Hooking commands enabled. Use help if you don\'t know what you\'re doing. Prepend commands with "%s"'%chars)
 		elif client.hook:
 			client.Send('SERVERMSG Hooking commands disabled.')
-
-	def incoming_SAY(self,client,chan,msg):
+	
+	def incoming_SAYHOOKED(self, client, chan, msg):
 		if not msg: return
 		if chan in self._root.channels:
 			user = client.username
 			if user in self._root.channels[chan]['users']:
-				msg = self.SayHooks.hook_SAY(self,client,chan,msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel # nevermind, i just need to add inchan :>
+				self.SayHooks.hook_SAY(self, client, chan, msg)
+	
+	#def incoming_SAYEXHOOKED(self, client, chan, msg): # sayex hook was only for filtering
+	#	if not msg: return
+	#	if chan in self._root.channels:
+	#		user = client.username
+	#		if user in self._root.channels[chan]['users']:
+	#			self.SayHooks.hook_SAYEX(self,client,chan,msg)
+	
+	def incoming_SAYPRIVATEHOOKED(self, client, msg):
+		if not msg: return
+		user = client.username
+		self.SayHooks.hook_SAYPRIVATE(self, client, msg)
+	
+	def incoming_SAYBATTLEHOOKED(self, client, msg):
+		battle_id = client.current_battle
+		if not battle_id in self._root.battles: return
+		if not client in self._root.battles['users']: return
+		self.SayHooks.hook_SAYBATTLE(self, client, battle_id, msg)
+
+	def incoming_SAY(self, client, chan, msg):
+		if not msg: return
+		if chan in self._root.channels:
+			user = client.username
+			if user in self._root.channels[chan]['users']:
+				msg = self.SayHooks.hook_SAY(self, client, chan, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel # nevermind, i just need to add inchan :>
 				if not msg: return
 				if user in self._root.channels[chan]['mutelist']:
 					mute = self._root.channels[chan]['mutelist'][user]
 					if mute == 0:
-						self._root.broadcast('SAID %s %s %s' % (chan,client.username,msg),chan)
+						self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan)
 					else:
 						client.Send('CHANNELMESSAGE %s You are muted for the next %s.'%(chan, self._format_time(mute)))
 				else:
-					self._root.broadcast('SAID %s %s %s' % (chan,client.username,msg),chan)
+					self._root.broadcast('SAID %s %s %s' % (chan, client.username ,msg), chan)
 
-	def incoming_SAYEX(self,client,chan,msg):
+	def incoming_SAYEX(self, client, chan, msg):
 		if not msg: return
 		if chan in self._root.channels:
 			user  = client.username
@@ -496,14 +522,14 @@ class Protocol:
 				else:
 					self._root.broadcast('SAIDEX %s %s %s' % (chan,client.username,msg),chan)
 
-	def incoming_SAYPRIVATE(self,client,user,msg):
+	def incoming_SAYPRIVATE(self, client, user, msg):
 		if not msg: return
 		if user in self._root.usernames:
-			msg = self.SayHooks.hook_SAYPRIVATE(self,client,user,msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel
-			client.Send('SAYPRIVATE %s %s'%(user,msg))
-			self._root.usernames[user].Send('SAIDPRIVATE %s %s'%(client.username,msg))
+			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel
+			client.Send('SAYPRIVATE %s %s'%(user, msg))
+			self._root.usernames[user].Send('SAIDPRIVATE %s %s'%(client.username, msg))
 
-	def incoming_MUTE(self,client,chan,user,duration=None,args=''):
+	def incoming_MUTE(self, client, chan, user, duration=None, args=''):
 		ip = False
 		quiet = False
 		if args:
@@ -526,7 +552,7 @@ class Protocol:
 			except: duration = -1
 			self._root.channels[chan]['mutelist'][user] = duration
 
-	def incoming_UNMUTE(self,client,chan,user,quiet=''):
+	def incoming_UNMUTE(self, client, chan, user, quiet=''):
 		quiet = (quiet.lower()=='quiet')
 		if not chan in self._root.channels:
 			return
@@ -546,7 +572,7 @@ class Protocol:
 					client.Send('MUTELIST %s, %s'%(mute,message))
 				client.Send('MUTELISTEND')
 
-	def incoming_JOIN(self,client,chan,key=None):
+	def incoming_JOIN(self, client, chan, key=None):
 		alreadyaliased = []
 		run = True
 		blind = False
@@ -590,7 +616,7 @@ class Protocol:
 		if topic and user in self._root.channels[chan]['users']: # putting this outside of the check means a user can rejoin a channel to get the topic while in it
 			client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topic['time'], topic['text']))
 	
-	def incoming_SETCHANNELKEY(self,client,chan,key='*'):
+	def incoming_SETCHANNELKEY(self, client, chan, key='*'):
 		if key == '*':
 			key = None
 		if chan in self._root.channels:
@@ -600,7 +626,7 @@ class Protocol:
 			else:
 				self._root.broadcast('CHANNELMESSAGE %s Channel locked by <%s>'%(chan,client.username), chan)
 	
-	def incoming_LEAVE(self,client,chan):
+	def incoming_LEAVE(self, client, chan):
 		user = client.username
 		if chan in self._root.channels:
 			if chan in client.channels:
@@ -1108,4 +1134,7 @@ class Protocol:
 		changeuser.accesslevels = ['admin', 'mod', 'user']
 		self._calc_access(changeuser)
 		self._root.broadcast('CLIENTSTATUS %s %s'%(user,changeuser.status))
+	
+	def incoming_RELOAD(self, client, user):
+		self._root.reload()
 

@@ -1,11 +1,14 @@
 should be fixed:
 ingame time is broken
 
-to fix:
+latest:
+make everything configurable through DataHandler/_root and command-line options/config file
+
+to fix/add:
+
+multiple protocol support
 
 don't cater to scunthorpe (match swear words on registration)
-
-make everything configurable through DataHandler/_root and command-line options/config file
 channel registering (set owner)
 channel configuration (antispam)
 reloading <-- needs fixed. see above
@@ -19,7 +22,15 @@ working SQLite -- integrate SQLUsers.py and DataHandler.py << just force single 
 mods the power to check account registration dates, also needs registration date saved in db
 loading and saving of channels from sql
 fix ghosting, instead of ghosting, resend login data properly?
-
-make a unit test for sql, run it through sqlite
+track disconnected clients since the last command they sent - resend all data from that point.
 
 final todo: should be indistinguishable from tasserver to the untrained eye upon initial deployment
+
+thoughts:
+ability to host multiple battles simultaneously if you have a bot tag
+move battle ingame notification from host's ingame status to an updatebattleinfo param
+
+insane amounts of stats - maybe through a separate sql db and a bot
+
+separate in-battle map sync and map download percentage
+make a unit test for sql, run it through sqlite

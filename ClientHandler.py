@@ -23,8 +23,6 @@ class ClientHandler:
 		self.protocol = Protocol.Protocol(self._root,self)
 
 	def _rebind(self):
-		reload(sys.modules['SayHooks'])
-		reload(sys.modules['Protocol'])
 #		reload(sys.modules['SQLUsers']) # later
 		self._bind()
 		for client in self.clients:

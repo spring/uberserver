@@ -26,6 +26,7 @@ class DataHandler:
 	sqlurl = 'sqlite:///:memory:'
 	randomflags = False
 	nextbattle = 0
+	SayHooks = __import__('SayHooks')
 	
 	def __init__(self):
 		self.channels = MutexDict()
@@ -146,7 +147,7 @@ class DataHandler:
 		if self.LAN: return
 		try:
 			sqlalchemy = __import__('sqlalchemy')
-			self.engine = sqlalchemy.create_engine('sqlite:///:memory:')
+			self.engine = sqlalchemy.create_engine(sqlurl)
 			if self.sqlurl.startswith('sqlite'):
 				print 'Multiple threads are not supported with sqlite, forcing a single thread'
 				print 'Please note the server performance will not be optimal'
@@ -242,3 +243,10 @@ class DataHandler:
 			client = self.clients[client]
 			if 'admin' in client.accesslevels:
 				client.Send('SERVERMSG Admin broadcast: %s'%msg)
+
+	def reload(self):
+		reload(sys.modules['SayHooks'])
+		reload(sys.modules['Protocol'])
+		self.SayHooks = __import__('SayHooks')
+		for handler in self.clienthandlers:
+			handler._rebind()

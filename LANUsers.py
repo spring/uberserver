@@ -7,9 +7,13 @@ class LANUser:
 		self.bot = False
 
 class UsersHandler:
+	def __init__(self, root):
+		self._root = root
+		
 	def login_user(self, user, password, ip):
+		
 		User = LANUser()
-		if ip in ('216.7.57.152', '98.202.28.24') or ip.startswith('127.0.'):
+		if ip in ('216.7.57.152') or ip.startswith('127.0.'):
 			User.access = 'admin'
 		return True, User
 
