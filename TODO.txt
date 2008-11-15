@@ -17,9 +17,12 @@ locked channels hidden by default (hide, show, lock) -- locked channels are hidd
 
 to fix/add:
 
-use a mutex on every loop
+user agreement (lol)
 
-renames - go through battle bans, channel users, etc and update them on rename
+antispam - 'antispam':{'enabled':True, 'quiet':False, 'agressiveness':1, 'bonuslength':100, 'duration':900}
+
+renames - go through battle bans, channel users, etc and update them on rename - would be much preferred to use userids internally.
+update chanserv to check if user is in database before performing actions
 
 chanserv -- finish commands, make them all work and compliant with existing chanserv
 channel configuration (antispam)
@@ -33,7 +36,17 @@ ban controls, at least in client
 
 final todo: should be indistinguishable from tasserver to the untrained eye upon initial deployment
 
+
+web interface:
+php wrapper with https login
+instead of using LOGIN, use WEBLOGIN
+
+webinterface returns raw html
+
 thoughts:
+
+use a mutex on every loop if there's a problem
+
 default user state for channels :D << allows "moderated" channels
 logging in when banned throws you hidden into a #banned channel
 

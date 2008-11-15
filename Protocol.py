@@ -294,7 +294,7 @@ class Protocol:
 	
 	def _new_channel(self, chan):
 		# probably make a SQL query here # nevermind, I'll just load channels at the beginning
-		return {'users':[], 'blindusers':[], 'admins':[], 'ban':{}, 'allow':[], 'autokick':'ban', 'chanserv':False, 'owner':'', 'mutelist':{}, 'antispam':{'enabled':True, 'quiet':False, 'timeout':3, 'bonus':2, 'unique':4, 'bonuslength':100, 'duration':900}, 'censor':False, 'antishock':False, 'topic':None, 'key':None}
+		return {'users':[], 'blindusers':[], 'admins':[], 'ban':{}, 'allow':[], 'autokick':'ban', 'chanserv':False, 'owner':'', 'mutelist':{}, 'antispam':{'enabled':True, 'quiet':False, 'agressiveness':1, 'bonuslength':100, 'duration':900}, 'censor':False, 'antishock':False, 'topic':None, 'key':None}
 
 	def _format_time(self, seconds):
 		if seconds < 1:
@@ -897,9 +897,13 @@ class Protocol:
 	def incoming_CHANNELTOPIC(self, client, channel, topic):
 		if channel in self._root.channels:
 			if client.username in self._root.channels[channel]['users']:
-				topicdict = {'user':client.username, 'text':topic, 'time':'%s'%(int(time.time())*1000)}
+				if topic == '*':
+					self._root.broadcast('CHANNELMESSAGE %s Topic disabled.'%channel, channel)
+					topicdict = {}
+				else:
+					self._root.broadcast('CHANNELMESSAGE %s Topic changed.'%channel, channel)
+					topicdict = {'user':client.username, 'text':topic, 'time':'%s'%(int(time.time())*1000)}
 				self._root.channels[channel]['topic'] = topicdict
-				self._root.broadcast('CHANNELMESSAGE %s Topic changed.'%channel, channel)
 				self._root.broadcast('CHANNELTOPIC %s %s %s %s'%(channel, client.username, topicdict['time'], topic), channel)
 
 	def incoming_CHANNELMESSAGE(self, client, channel, message):
@@ -910,7 +914,7 @@ class Protocol:
 		if channel in self._root.channels:
 			if username in self._root.channels[channel]['users']:
 				self._root.usernames[username].Send('FORCELEAVECHANNEL %s %s %s'%(channel,client.username,reason))
-				del self._root.channels[channel]['users'][username]
+				self._root.channels[channel]['users'].remove(username)
 				self._root.broadcast('CHANNELMESSAGE %s %s kicked from channel by <%s>.'%(channel,username,client.username),channel)
 				self._root.broadcast('LEFT %s %s kicked from channel.'%(channel,username),channel)
 

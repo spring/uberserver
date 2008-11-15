@@ -2,7 +2,7 @@ out_filter = {'SERVERMSG':'Message from server:', 'LOGININFOEND':'Login finished
 out_replace = {'ACCEPTED':'Login accepted.'}
 out_ignore = ['ADDUSER', 'CLIENTSTATUS']
 
-in_filter = {'/j':'JOIN', '/join':'JOIN', '/part':'/LEAVE', '/q':'EXIT', '/me':'SAYEX', '/r':'RAW'}
+in_filter = {'/j':'JOIN', '/join':'JOIN', '/part':'/LEAVE', '/quit':'EXIT', '/q':'EXIT', '/me':'SAYEX', '/r':'RAW', '/t':'TELNET'}
 in_allowed = ['LOGIN', 'HASH']
 
 def cmd(msg):
@@ -14,7 +14,7 @@ def cmd(msg):
 	return command, args
 
 def rmsg(command, args):
-	return '%s %s'%(command, args)
+	return '%s %s'%(command, args).rstrip(' ')
 
 def filter_in(client, msg):
 	while '\b' in msg:

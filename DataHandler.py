@@ -201,7 +201,7 @@ class DataHandler:
 		error = '%s\n%s\n%s'%(separator,error,separator)
 		self.console_write(error)
 		for user in self.usernames:
-			if self.usernames[user].debug
+			if self.usernames[user].debug:
 				for line in error.split('\n'):
 					self.usernames[user].Send('SERVERMSG %s'%line)
 
@@ -270,6 +270,7 @@ class DataHandler:
 	def reload(self):
 		reload(sys.modules['SayHooks'])
 		reload(sys.modules['Protocol'])
+		reload(sys.modules['ChanServ'])
 		self.SayHooks = __import__('SayHooks')
 		for handler in self.clienthandlers:
 			handler._rebind()

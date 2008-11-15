@@ -306,6 +306,8 @@ class UsersHandler:
 		entry.casename = newname
 		self.session.save(entry)
 		self.session.commit()
+		# need to iterate through channels and rename junk there...
+		# it might actually be a lot easier to use userids in the server...
 		return True, 'Account renamed successfully.'
 
 	def remove_user(self, user):
