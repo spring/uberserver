@@ -39,12 +39,13 @@ class ChanServ:
 					hlist.append('SAYPRIVATE %s %s' % (user, s) )
 				self.Send( hlist )
 			else:
-				chan = chan.lstrip('#')
 				if msg.count(' ') >= 2:
 					cmd, chan, msg = msg.split(' ',2)
+					chan = chan.lstrip('#')
 					response = self.HandleCommand(chan, user, cmd, msg)
 				elif msg.count(' '):
 					cmd, chan = msg.split(' ',1)
+					chan = chan.lstrip('#')
 					reponse = self.HandleCommand(chan, user, msg)
 				else:
 					response = 'Error: Invalid params'
