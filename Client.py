@@ -100,12 +100,12 @@ class Client:
 					for cmd in command:
 						self._protocol._handle(self,cmd)
 
-	def Remove(self):
+	def Remove(self, reason='Quit'):
 		try:
 			self.conn.shutdown(socket.SHUT_RDWR)
 		except socket.error: #socket shut down by itself ;) probably got a bad file descriptor
 			pass
-		self.handler.RemoveClient(self)
+		self.handler.RemoveClient(self, reason)
 
 	def Send(self, msg):
 		if self.telnet:

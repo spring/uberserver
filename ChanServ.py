@@ -26,6 +26,14 @@ class ChanServ:
 					hlist.append('SAYPRIVATE %s %s' % (user, s))
 				self.Send(hlist)
 			else:
+				if msg.startswith('#'): ### it needs to check the second param for a channel ###
+					if msg.count(' '):
+						chan, msg = msg.lstrip('#').split(' ')
+						if msg.count(' '): msg = msg.split(' ',1)[0]
+						msg = user
+					else:
+						chan = msg.lstrip('#')
+						msg = user
 				self.Send('SAYPRIVATE %s %s' % (user, self.HandleCommand(chan, user, msg)))
 	
 	def handleSAIDPRIVATE(self, msg):
@@ -39,6 +47,7 @@ class ChanServ:
 					hlist.append('SAYPRIVATE %s %s' % (user, s) )
 				self.Send( hlist )
 			else:
+				response = ''
 				if msg.count(' ') >= 2:
 					cmd, chan, msg = msg.split(' ',2)
 					chan = chan.lstrip('#')
@@ -46,6 +55,7 @@ class ChanServ:
 				elif msg.count(' '):
 					cmd, chan = msg.split(' ',1)
 					chan = chan.lstrip('#')
+					msg = user
 					reponse = self.HandleCommand(chan, user, msg)
 				else:
 					response = 'Error: Invalid params'
@@ -55,6 +65,7 @@ class ChanServ:
 		return 'Hello, %s!\nI am an automated channel service bot,\nfor the full list of commands, see http://taspring.clan-sy.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
 	
 	def HandleCommand(self, chan, user, cmd, args=None):
+		print chan, user, cmd, args
 		client = self._root.usernames[user]
 		if 'mod' in client.accesslevels:
 			access = 'mod'
@@ -90,11 +101,12 @@ class ChanServ:
 				self._root.broadcast('CHANNELTOPIC %s %s %s %s'%(chan, user, topicdict['time'], topic), chan)
 				return '%#s: Topic changed' % topic
 		if cmd == 'register':
+			print 'register', access, args
 			if access == 'mod':
 				if not args: args = user
 				self._root.channels[chan]['founder'] = args
-				self.client.Send('JOIN %s' % chan)
-				self._root.broadcast('CHANNELMESSAGE Channel has been registered to <%s>' % args)
+				self.Send('JOIN %s' % chan)
+				self._root.broadcast('CHANNELMESSAGE %s Channel has been registered to <%s>' % (chan, args))
 				return '#%s: Successfully registered to <%s>' % (chan, args.split(' ',1)[0])
 			else:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to register a channel' % chan
@@ -110,7 +122,7 @@ class ChanServ:
 			if access in ['mod', 'founder']:
 				if not args: return '#%s: You must specify a new founder' % chan
 				self._root.channels[chan]['founder'] = args
-				self._root.broadcast('CHANNELMESSAGE Founder has been changed to <%s>' % args)
+				self._root.broadcast('CHANNELMESSAGE %s Founder has been changed to <%s>' % (chan, args))
 				return '#%s: Successfully changed founder to <%s>' % (chan, args)
 			else:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to change the founder' % chan
@@ -143,7 +155,7 @@ class ChanServ:
 		if cmd == 'op':
 			if access in ['mod', 'founder']:
 				if not args: return '#%s: You must specify a user to op' % chan
-				if args in self._root.channels[chan]['admins']: return '#%s: <%s> was already an op' % args
+				if args in self._root.channels[chan]['admins']: return '#%s: <%s> was already an op' % (chan, args)
 				self._root.channels[chan]['admins'].append(args)
 				self._root.broadcast('CHANNELMESSAGE %s <%s> added to the operator list by <%s>' % (chan, args, user), chan)
 				return '#%s: <%s> added to the operator list' % (chan, args)
@@ -152,7 +164,7 @@ class ChanServ:
 		if cmd == 'deop':
 			if access in ['mod', 'founder']:
 				if not args: return '#%s: You must specify a user to deop' % chan
-				if not args in eslf._root.channels[chan]['admins']: return '#%s: <%s> was not an op' % args
+				if not args in eslf._root.channels[chan]['admins']: return '#%s: <%s> was not an op' % (chan, args)
 				self._root.channels[chan]['admins'].remove(args)
 				self._root.broadcast('CHANNELMESSAGE %s <%s> removed from the operator list by <%s>' % (chan, args, user), chan)
 				return '#%s: <%s> removed from the operator list' % (chan, args)
@@ -218,7 +230,7 @@ class ChanServ:
 				if args in self._root.channels[chan]['mutelist']:
 					self._root.broadcast('CHANNELMESSAGE %s <%s> has unmuted <%s>' % (chan, user, args), chan)
 					return '#%s: <%s> unmuted' % (chan, args)
-				else: return '#%s: <%s> is not muted' % args
+				else: return '#%s: <%s> is not muted' % (chan, args)
 			else:
 				return '#%s: You do not have permission to unmute users' % chan
 		if cmd == 'mutelist':

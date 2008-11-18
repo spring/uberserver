@@ -294,7 +294,7 @@ class Protocol:
 	
 	def _new_channel(self, chan):
 		# probably make a SQL query here # nevermind, I'll just load channels at the beginning
-		return {'users':[], 'blindusers':[], 'admins':[], 'ban':{}, 'allow':[], 'autokick':'ban', 'chanserv':False, 'owner':'', 'mutelist':{}, 'antispam':{'enabled':True, 'quiet':False, 'agressiveness':1, 'bonuslength':100, 'duration':900}, 'censor':False, 'antishock':False, 'topic':None, 'key':None}
+		return {'users':[], 'blindusers':[], 'admins':[], 'ban':{}, 'allow':[], 'autokick':'ban', 'chanserv':False, 'owner':'', 'mutelist':{}, 'antispam':{'enabled':False, 'quiet':False, 'agressiveness':1, 'bonuslength':100, 'duration':900}, 'censor':False, 'antishock':False, 'topic':None, 'key':None}
 
 	def _format_time(self, seconds):
 		if seconds < 1:
@@ -1076,7 +1076,7 @@ class Protocol:
 			if username in self._root.usernames:
 				reason = self._root.usernames[username].register_date
 				good = True
-			else: good, reason = self.UsersHandler.get_registration_date(username)
+			else: good, reason = self.userdb.get_registration_date(username)
 		else:
 			good = True
 			username = client.username
@@ -1086,10 +1086,13 @@ class Protocol:
 	
 	def incoming_RENAMEACCOUNT(self, client, newname):
 		user = client.username
-		if user == newuser: return
-		good, reason = self.UsersHandler.rename_account(user, newname)
+		if user == newname: return
+		good, reason = self.userdb.rename_user(user, newname)
 		if good:
-			pass
+			client.Remove('renaming')
+			client.Send('SERVERMSG Your account has been renamed to <%s>. Reconnect with the new username (you will now be automatically disconnected).' % newname)
+		else:
+			client.Send('SERVERMSG Failed to rename to <%s>: %s' % (newname, reason))
 
 	def incoming_FORGEMSG(self, client, user, msg):
 		if user in self._root.usernames:
@@ -1138,12 +1141,10 @@ class Protocol:
 					self._root.broadcast('CHANNELMESSAGE %s <%s> kicked <%s> from the server%s'%(chan, client.username, user, reason),chan)
 			client.Send('SERVERMSG You\'ve kicked <%s> from the server.' % user)
 			kickeduser.SendNow('SERVERMSG You\'ve been kicked from server by <%s>%s' % (client.username, reason))
-			self._remove(kickeduser, 'Kicked from server')
-			kickeduser.Remove()
+			kickeduser.Remove('Kicked from server')
 	
 	def incoming_KILLALL(self, client):
-		self._remove(client, 'Idiot')
-		client.Remove()
+		client.Remove('Idiot')
 	
 	def incoming_TESTLOGIN(self, client, username, password):
 		good, reason = self.userdb.login_user(username, password, client.ip_address)
@@ -1153,12 +1154,9 @@ class Protocol:
 			client.Send('TESTLOGINDENY')
 
 	def incoming_EXIT(self, client, reason=('Exiting')):
-		self._remove(client, 'Quit: %s'%reason)
-		try: client.handler.input.remove(client.conn)
-		except: pass
-		try: client.handler.output.remove(client.conn)
-		except: pass
-		client.Remove()
+		if reason: reason = 'Quit: %s' % reason
+		else: reason = 'Quit'
+		client.Remove(reason)
 
 	def incoming_PYTHON(self, client, code):
 		'Execute Python code.'

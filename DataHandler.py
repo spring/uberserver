@@ -1,4 +1,4 @@
-import thread, time
+import thread, time, sys
 import md5, binascii, base64
 import traceback
 
@@ -203,7 +203,7 @@ class DataHandler:
 		for user in self.usernames:
 			if self.usernames[user].debug:
 				for line in error.split('\n'):
-					self.usernames[user].Send('SERVERMSG %s'%line)
+					if line: self.usernames[user].Send('SERVERMSG %s'%line)
 
 	def console_write(self, lines=''):
 		if type(lines) == str or type(lines) == unicode:

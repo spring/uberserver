@@ -304,7 +304,7 @@ class UsersHandler:
 		if not entry: return False, 'You don\'t seem to exist anymore. Contact an admin or moderator.'
 		entry.name = lnewname
 		entry.casename = newname
-		self.session.save(entry)
+		#self.session.save(entry)
 		self.session.commit()
 		# need to iterate through channels and rename junk there...
 		# it might actually be a lot easier to use userids in the server...
