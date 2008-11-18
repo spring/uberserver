@@ -1,26 +1,29 @@
 import socket, time, sys
 import Telnet
 
+
 class Client:
 	'this object represents one connected client'
 
 	def __init__(self, root, connection, address, session_id, country_code):
 		'initial setup for the connected client'
+		self._root = root
+		self.conn = connection
+		self.ip_address = address[0]
+		self.local_ip = address[0]
+		self.port = address[1]
+		self.country_code = country_code
+		self.session_id = session_id
+		
+		self.static = False
 		self._protocol = False
 		self.removing = False
 		self.msg_id = ''
 		self.sendbuffer = []
 		self.sendingmessage = ''
-		self._root = root
-		self.conn = connection
-		self.ip_address = address[0]
-		self.local_ip = address[0]
 		self.logged_in = False
-		self.port = address[1]
-		self.country_code = country_code
-		self.session_id = session_id
 		self.status = '12'
-		self.access = 'fresh'
+		self.access = ['fresh']
 		self.accesslevels = ['fresh', 'everyone']
 		self.channels = []
 		self.battle_bots = {}
@@ -28,6 +31,7 @@ class Client:
 		self.battle_bans = []
 		self.username = ''
 		self.password = ''
+		self.ingame_time = 0
 		self.hostport = 8542
 		self.udpport = 0
 		self.maxsinglemessage = 1024
@@ -41,9 +45,14 @@ class Client:
 		self.blind_channels = []
 		self.tokenized = False
 		self.hashpw = False
-		print 'Client connected from %s, session ID %s.' % (self.ip_address, session_id)
+		self.debug = False
 		self.data = ''
-		self.lastdata = time.time()
+		
+		print 'Client connected from %s, session ID %s.' % (self.ip_address, session_id)
+		now = time.time()
+		self.last_login = now
+		self.register_date = now
+		self.lastdata = now
 
 	def Bind(self, handler=None, protocol=None):
 		if handler:
@@ -91,12 +100,12 @@ class Client:
 					for cmd in command:
 						self._protocol._handle(self,cmd)
 
-	def Remove(self):
+	def Remove(self, reason='Quit'):
 		try:
 			self.conn.shutdown(socket.SHUT_RDWR)
 		except socket.error: #socket shut down by itself ;) probably got a bad file descriptor
 			pass
-		self.handler.RemoveClient(self)
+		self.handler.RemoveClient(self, reason)
 
 	def Send(self, msg):
 		if self.telnet:

@@ -1,31 +1,44 @@
-import thread, time
+import thread, time, sys
 import md5, binascii, base64
+import traceback
+
+from MutexDict import MutexDict
 
 separator = '-'*60
 
 class DataHandler:
+
+	local_ip = None
+	online_ip = None
+	session_id = 0
+	clienthandlers = []
+	console_buffer = []
+	port = 8200
+	natport = port+1
+	LAN = False
+	lanadmin = {'username':'', 'password':''}
+	latestspringversion = '*'
+	log = False
+	server = 'TASServer'
+	server_version = 0.35
+	engine = None
+	max_threads = 25
+	sqlurl = 'sqlite:///sqlite.txt'
+	randomflags = False
+	nextbattle = 0
+	SayHooks = __import__('SayHooks')
+	UsersHandler = None
+	censor = True
+	
 	def __init__(self):
-		self.local_ip = None
-		self.online_ip = None
-		self.channels = {}
-		self.chan_alias = {}
-		self.usernames = {}
-		self.clients = {}
-		self.battles = {}
-		self.mapgrades = {}
-		self.nextbattle = 1 # if it starts at 0, client.current_battle checks are longer (must check against None instead of pure bool)
-		self.session_id = 0
-		self.clienthandlers = []
-		self.console_buffer = []
-		self.port = 8200
-		self.natport = self.port+1
-		print self.natport
-		self.LAN = False
-		self.lanadmin = {'username':'', 'password':''}
-		self.latestspringversion = '*'
-		thread.start_new_thread(self.mute_timer,())
+		self.channels = MutexDict()
+		self.chan_alias = MutexDict()
+		self.usernames = MutexDict()
+		self.clients = MutexDict()
+		self.battles = MutexDict()
+		#self.mapgrades = MutexDict()
+		thread.start_new_thread(self.mute_timer,()) # maybe make into a single thread
 		thread.start_new_thread(self.console_loop,())
-		self.log = False
 	
 	def parseArgv(self, argv):
 		'parses command-line options'
@@ -58,16 +71,22 @@ class DataHandler:
 				print '      { Hardcoded admin account for LAN. If third arg reads "hash" it will apply the standard hash algorithm to the supplied password }'
 				print '  -g, --loadargs filename'
 				print '      { Reads command-line arguments from file }'
+				print '  -r  --randomflags'
+				print '      { Randomizes country codes (flags) }'
 				print '  -o, --output /path/to/file.log'
 				print '      { Writes console output to file (for logging) }'
 				print '  -v, --latestspringversion version'
 				print '      { Sets latest Spring version to this string. Defaults to "*" }'
+				print '  -m, --maxthreads number'
+				print '      { Uses the specified number of threads for handling clients }'
 				print '  -s, --sqlurl SQLURL'
 				print '      { Uses SQL database at the url specified }'
+				print '  -c, --no-censor'
+				print '      { Disables censoring of #main, #newbies, and usernames (default is to censor) }'
 				print
 				print 'SQLURL Examples:'
-				print '  "sqlite:///:memory:" or "sqlite:///"'
-				print '     { both make a temporary database in memory }'
+				#print '  "sqlite:///:memory:" or "sqlite:///"'
+				#print '     { both make a temporary database in memory }'
 				print '  "sqlite:////absolute/path/to/database.txt"'
 				print '     { uses a database in the file specified }'
 				print '  "sqlite:///relative/path/to/database.txt"'
@@ -111,58 +130,107 @@ class DataHandler:
 					f.close()
 					for line in data: self.parseArgv(line)
 				except: print 'Error opening file with command-line args'
+			if arg in ['r', 'randomcc']:
+				try: self.randomflags = True
+				except: print 'Error enabling random flags. (weird)'
 			if arg in ['o', 'output']:
 				try:
 					self.output = file(argp[0], 'w')
-					print 'logging on'
+					print 'Logging enabled at: %s' % argp[0]
 					self.log = True
-				except: print 'Error specifying output log'
+				except: print 'Error specifying log location'
 			if arg in ['v', 'latestspringversion']:
-				try: self.latestspringversion = ' '.join(argp)
-				except: print 'Error specifying latest spring version'
+				try: self.latestspringversion = argp[0] # ' '.join(argp) # shouldn't have spaces
+				except: print 'Error specifying latest spring version'
+			if arg in ['m', 'maxthreads']:
+				try: self.max_threads = int(argp[0])
+				except: print 'Error specifing max threads'
+			if arg in ['s', 'sqlurl']:
+				try: self.sqlurl = argp[0]
+				except: print 'Error specifying SQL URL'
+			if arg in ['c', 'no-censor']:
+				self.censor = False
+				
+		if self.sqlurl == 'sqlite:///:memory:' or self.sqlurl == 'sqlite:///':
+			print 'In-memory sqlite databases are not supported.'
+			print 'Falling back to LAN mode.'
+			print
+			self.LAN = True
+		if not self.LAN:
+			try:
+				sqlalchemy = __import__('sqlalchemy')
+				self.engine = sqlalchemy.create_engine(self.sqlurl)
+				if self.sqlurl.startswith('sqlite'):
+					print 'Multiple threads are not supported with sqlite, forcing a single thread'
+					print 'Please note the server performance will not be optimal'
+					print 'You might want to install a real database server or use LAN mode'
+					print
+					self.max_threads = 1
+			except ImportError:
+				print 'sqlalchemy not found or invalid SQL URL, reverting to LAN mode'
+				self.LAN = True
+		if self.LAN or not self.engine:
+				self.UsersHandler = __import__('LANUsers').UsersHandler # maybe make an import request to datahandler, then have it reload it too. less hardcoded-ness
+		else:
+			try:
+				self.UsersHandler = __import__('SQLUsers').UsersHandler
+				testhandler = self.UsersHandler(self, self.engine)
+			except:
+				self.LAN = True
+				print traceback.format_exc()
+				print 'Error importing SQL - reverting to LAN'
+				self.UsersHandler = __import__('LANUsers').UsersHandler
+
 	def mute_timer(self):
 		while 1:
-			now = time.time()
-			channels = dict(self.channels)
-			for channel in channels:
-				mutelist = dict(channels[channel]['mutelist'])
-				for user in mutelist:
-					expiretime = mutelist[user]
-					if 0 <= expiretime and expiretime < now:
-						del self.channels[channel]['mutelist'][user]
-						self.broadcast('CHANNELMESSAGE %s <%s> has been unmuted (mute expired).'%(channel, user))
-			time.sleep(1)
+			try:
+				now = time.time()
+				channels = dict(self.channels)
+				for channel in channels:
+					mutelist = dict(channels[channel]['mutelist'])
+					for user in mutelist:
+						expiretime = mutelist[user]
+						if 0 <= expiretime and expiretime < now:
+							del self.channels[channel]['mutelist'][user]
+							self.broadcast('CHANNELMESSAGE %s <%s> has been unmuted (mute expired).'%(channel, user))
+				time.sleep(1)
+			except:
+				self.error(traceback.format_exc())
 
 	def error(self, error):
 		error = '%s\n%s\n%s'%(separator,error,separator)
 		self.console_write(error)
-		if 'aegis' in self.usernames:
-			for line in error.split('\n'):
-				self.usernames['aegis'].Send('SERVERMSG %s'%line)
-		elif '[tN]aegis' in self.usernames:
-			for line in error.split('\n'):
-				self.usernames['[tN]aegis'].Send('SERVERMSG %s'%line)
+		for user in self.usernames:
+			if self.usernames[user].debug:
+				for line in error.split('\n'):
+					if line: self.usernames[user].Send('SERVERMSG %s'%line)
 
 	def console_write(self, lines=''):
-		if type(lines) == str:
+		if type(lines) == str or type(lines) == unicode:
 			lines = lines.split('\n')
 		elif not type(lines) == list:
-			lines = ['Failed to print lines of type %s'%type(lines)]
+			try: lines = lines.__repr__()
+			except: lines = ['Failed to print lines of type %s'%type(lines)]
 		self.console_buffer += lines
 
 	def console_loop(self):
 		while True:
-			if self.console_buffer:
-				line = self.console_buffer.pop(0)
-				print line
-				if self.log:
-					self.output.write(line+'\n')
-					self.output.flush()
-			else:
-				time.sleep(0.1)
+			try:
+				if self.console_buffer:
+					line = self.console_buffer.pop(0)
+					print line
+					if self.log:
+						self.output.write(line+'\n')
+						self.output.flush()
+				else:
+					time.sleep(0.1)
+			except:
+				print '-'*60
+				print traceback.format_exc()
+				print '-'*60
 		
 	def broadcast(self, msg, chan=None, ignore=[]):
-		if type(ignore) == str:
+		if type(ignore) == str:# or type(ignore) == unicode:
 			ignore = [ignore]
 		if chan in self.channels:
 			if 'users' in self.channels[chan]:
@@ -182,7 +250,7 @@ class DataHandler:
 					except KeyError: pass # user was removed
 
 	def broadcast_battle(self, msg, battle_id, ignore=[]):
-		if type(ignore) == str:
+		if type(ignore) == str:# or type(ignore) == unicode:
 			ignore = [ignore]
 		if battle_id in self.battles:
 			if 'users' in self.battles[battle_id]:
@@ -198,3 +266,11 @@ class DataHandler:
 			client = self.clients[client]
 			if 'admin' in client.accesslevels:
 				client.Send('SERVERMSG Admin broadcast: %s'%msg)
+
+	def reload(self):
+		reload(sys.modules['SayHooks'])
+		reload(sys.modules['Protocol'])
+		reload(sys.modules['ChanServ'])
+		self.SayHooks = __import__('SayHooks')
+		for handler in self.clienthandlers:
+			handler._rebind()

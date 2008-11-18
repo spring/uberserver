@@ -86,6 +86,7 @@ def public_commands(self,user,chan,rights):
 			_reply(self,chan,'* %s'%_permissiondocs[level])
 			for command in helparray[level]:
 				_reply(self,chan,command)
+				
 def _clear_lists():
 	global bad_word_dict
 	global bad_site_list
@@ -104,6 +105,12 @@ def _process_word(word):
 		word = bad_word_dict[lword]
 	if uppercase: word = word.upper()
 	return word
+
+def _nasty_word_censor(msg):
+	msg = msg.lower()
+	for word in bad_word_dict.keys():
+		if word.lower() in msg: return False
+	return True
 
 def _word_censor(msg):
 	words = []
@@ -134,7 +141,7 @@ def _site_censor(msg):
 			testmsg2 += letter
 	for site in bad_site_list:
 		if site in msg or site in testmsg1 or site in testmsg2:
-			return 'I think I can post shock sites, but I am wrong.'
+			return # 'I think I can post shock sites, but I am wrong.'
 	return msg
 
 def _spam_enum(client, chan, timeout, repeated, unique, bonuslength): # make unique negate bonuslength
@@ -438,6 +445,22 @@ def chanowner_deop(self,user,chan,rights,users):
 			self._root.channels[chan]['admins'].remove(user)
 			_reply(self,chan,'%s removed from this channels admin list.')
 
+def chanowner_register(self,user,chan,rights,owner=None):
+	if owner == None: owner = user
+	if self._root.channels[chan]['owner'] == owner:
+		_reply(self,chan,'Channel #%s already belongs to #%s' % (chan,owner))
+		return
+	if 'ChanServ' in self._root.usernames: self._root.usernames['ChanServ'].Send('JOIN %s' % chan)
+	self._root.channels[chan]['owner'] = user
+	_reply(self,chan,'Channel #%s successfully registered to %s' % (chan,user))
+
+def chanowner_unregister(self,user,chan,rights):
+	if not self._root.channels[chan]['owner']:
+		_reply(self,chan,'Channel #%s is not registered' % chan)
+		return
+	self._root.channels[chan]['owner'] = ''
+	_reply(self,chan,'Channel #%s successfully unregistered' % chan)
+
 def chanadmin_topic(self,user,channel,rights,topic):
 	if user in self._root.channels[channel]['users']:
 		topicdict = {'user':user, 'text':topic, 'time':'%s'%(int(time.time())*1000)}
@@ -616,6 +639,5 @@ def public_allowlist(self,user,chan,rights):
 
 def admin_reload(self,user,chan,rights):
 	'reload everything'
-	for handler in self._root.clienthandlers:
-		handler._rebind()
+	self._root.reload()
 	_reply(self,chan,'Everything was reloaded.')

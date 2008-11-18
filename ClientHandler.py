@@ -23,12 +23,12 @@ class ClientHandler:
 		self.protocol = Protocol.Protocol(self._root,self)
 
 	def _rebind(self):
-		reload(sys.modules['SayHooks'])
-		reload(sys.modules['Protocol'])
 #		reload(sys.modules['SQLUsers']) # later
 		self._bind()
 		for client in self.clients:
-			client.Bind(protocol=self.protocol)
+			#client.Bind(protocol=self.protocol)
+			client.Bind(Protocol.Protocol(self._root,self)) # allows client's protocol to be overridden with ease
+			#print self.protocol
 
 	def Run(self):
 		# commented out to remove profiling
@@ -110,7 +110,7 @@ class ClientHandler:
 		self.pending_clients[client] = ''
 		self.socketmap[client.conn] = client
 
-	def RemoveClient(self, client):
+	def RemoveClient(self, client, reason='Quit'):
 		self.clients_num -= 1
 		if client.conn in self.input:
 			self.input.remove(client.conn)
@@ -119,5 +119,5 @@ class ClientHandler:
 		self._root.console_write('Client disconnected from %s, session ID was %s'%(client.ip_address, client.session_id))
 		#if client.username in self._root.usernames:
 		#    del self._root.usernames[client.username]
-		client._protocol._remove(client)
+		client._protocol._remove(client, reason)
 		#del self._root.clients[client.session_id]
