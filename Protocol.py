@@ -420,10 +420,11 @@ class Protocol:
 				#lock = self._root.battles.lock()
 				battles = dict(self._root.battles)
 				for battle in battles: #self._root.battles.__iter__(lock):
-					try:
+					#try:
 						battle_id = battle
 						ubattle = self._root.battles[battle_id].copy()
 						#type, natType, host, port, maxplayers, passworded, rank, maphash, engine, version, map, title, modname = [battle['type'], battle['natType'], battle['host'], battle['port'], battle['maxplayers'], battle['passworded'], battle['rank'], battle['maphash'], battle['engine'], battle['version'], battle['map'], battle['title'], battle['modname']]
+						host = ubattle['host']
 						if not host in self._root.usernames: continue # host left server
 						ip_address = self._root.usernames[host].ip_address
 						host_local_ip = self._root.usernames[host].local_ip
@@ -440,10 +441,10 @@ class Protocol:
 						ubattle.update({'ip':translated_ip})
 						#client.Send('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' %(battle_id, type, natType, host, translated_ip, port, maxplayers, passworded, rank, maphash, engine, version, map, title, modname))
 						#self._root.clients[user].Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % battle)
-						self._root.clients[user].Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
-						for user in battle['users']:
-							if not user == battle['host']: client.Send('JOINEDBATTLE %s %s'%(battle_id, user))
-					except: pass # battle closed
+						client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
+						for user in ubattle['users']:
+							if not user == ubattle['host']: client.Send('JOINEDBATTLE %s %s'%(battle_id, user))
+					#except: pass # battle closed
 				#self._root.battles.unlock(lock)
 				
 				#lock = self._root.usernames.lock()
