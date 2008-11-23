@@ -74,7 +74,7 @@ except IOError:
 	try:
 		update()
 		from ip2c.ip2country import ip2country
-		ip2c = ip2country
+		ip2c = ip2country()
 		working = True
 	except:
 		print 'Update failed.'
@@ -84,8 +84,7 @@ except ImportError:
 	print 'run fetch_deps.py to fetch it'
 
 def lookup(ip):
-	if not working:
-		return '??'
+	if not working: return '??'
 	index = ip2c.lookup(ip)
 	if index == -1:
 		cc = '??'
@@ -100,7 +99,6 @@ def lookup(ip):
 	return cc
 
 def randomcc():
-	if not working:
-		return '??'
+	if not working: return '??'
 	cclen = len(ip2c.countryname)
 	return ip2c.countryCode( random.randint(2, cclen)-1 )
