@@ -34,9 +34,9 @@ update chanserv to check if user is in database before performing actions
 
 channel configuration (antispam) - copy from chanserv to sayhooks
 quietness? (whether to print sayhooks actions)
-maybe send things to admins/owner
+maybe still send quiet actions to admins/owner
 
-loading and saving of channels from sql
+loading and saving of channels from sql; proper syncing of everything to the sql database
 fix ghosting, instead of ghosting, resend login data properly?
 
 ban controls, at least in client

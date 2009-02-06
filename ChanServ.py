@@ -1,3 +1,5 @@
+import time
+
 class ChanServ:
 	def __init__(self, client, root):
 		self.client = client
@@ -26,14 +28,17 @@ class ChanServ:
 					hlist.append('SAYPRIVATE %s %s' % (user, s))
 				self.Send(hlist)
 			else:
-				if msg.startswith('#'): ### it needs to check the second param for a channel ###
-					if msg.count(' '):
-						chan, msg = msg.lstrip('#').split(' ')
-						if msg.count(' '): msg = msg.split(' ',1)[0]
-						msg = user
-					else:
-						chan = msg.lstrip('#')
-						msg = user
+				if msg.count(' ') >= 2:
+					cmd, chan, args = msg.split(' ',2)
+					chan = chan.lstrip('#')
+				#if msg.startswith('#'): # wtf was I thinking
+				#	if msg.count(' '):
+				#		chan, msg = msg.lstrip('#').split(' ')
+				#		if msg.count(' '): msg = msg.split(' ',1)[0]
+				#		msg = user
+				#	else:
+				#		chan = msg.lstrip('#')
+				#		msg = user
 				self.Send('SAYPRIVATE %s %s' % (user, self.HandleCommand(chan, user, msg)))
 	
 	def handleSAIDPRIVATE(self, msg):
@@ -98,7 +103,7 @@ class ChanServ:
 			else:
 				topicdict = {'user':client.username, 'text':args, 'time':'%s'%(int(time.time())*1000)}
 				self._root.broadcast('CHANNELMESSAGE %s Topic changed.')
-				self._root.broadcast('CHANNELTOPIC %s %s %s %s'%(chan, user, topicdict['time'], topic), chan)
+				self._root.broadcast('CHANNELTOPIC %s %s %s %s'%(chan, user, topicdict['time'], topicdict['text']), chan)
 				return '%#s: Topic changed' % topic
 		if cmd == 'register':
 			print 'register', access, args

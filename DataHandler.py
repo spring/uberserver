@@ -159,7 +159,7 @@ class DataHandler:
 		if not self.LAN:
 			try:
 				sqlalchemy = __import__('sqlalchemy')
-				self.engine = sqlalchemy.create_engine(self.sqlurl)
+				self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=512, pool_recycle=300)
 				if self.sqlurl.startswith('sqlite'):
 					print 'Multiple threads are not supported with sqlite, forcing a single thread'
 					print 'Please note the server performance will not be optimal'
