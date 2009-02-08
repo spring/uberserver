@@ -2,6 +2,7 @@ should be fixed:
 ingame time is broken
 
 latest:
+
 make everything configurable through DataHandler/_root and command-line options/config file
 reloading <-- needs fixed. see above
 transfer of ownership
@@ -17,13 +18,15 @@ locked channels hidden by default (hide, show, lock) -- locked channels are hidd
 
 to fix/add:
 
-new protocol with "newprotocol" in lobby name/version
+bot flood limit
+
+new protocol with "newprotocol" in lobby name/version - poll lobby evelopers for alternatives
 
 userid is an optional sentence arg, tab split lobby name and search for ints afterward.
 raise an error and deny login if args don't match (i.e. multiple tabs)
 deny commands and raise errors for invalid args, saying "talk to your lobby dev"?
 
-redirect hook_SAYPRIVATE to $local/SERVERMSG
+redirect hook_SAYPRIVATE to $local/SERVERMSG - screw it, kill private sayhooks
 
 user agreement (lol)
 
@@ -51,6 +54,8 @@ instead of using LOGIN, use WEBLOGIN
 webinterface returns raw html
 
 thoughts:
+
+ability to pull updates from trusted servers
 
 use a mutex on every loop if there's a problem
 
