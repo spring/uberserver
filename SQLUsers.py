@@ -30,7 +30,7 @@ from sqlalchemy.orm import mapper, sessionmaker, relation
 metadata = MetaData()
 
 class User(object):
-	def __init__(self, name, casename, password, last_ip, access='user'):
+	def __init__(self, name, casename, password, last_ip, access='agreement'):
 		self.name = name
 		self.casename = casename
 		self.password = password
@@ -39,20 +39,23 @@ class User(object):
 		self.last_ip = last_ip
 		self.ingame_time = 0
 		self.bot = 0
-		self.access = access # user, moderator, admin
+		self.access = access # user, moderator, admin, bot, agreement
 
 	def __repr__(self):
 		return "<User('%s', '%s')>" % (self.name, self.password)
 
-class Address(object):
-	def __init__(self, ip_address):
-		self.first_time = int(time.time())
-		self.last_time = int(time.time())
-		self.count = 1
+class Login(object):
+	def __init__(self, now, ip_address, lobby_id, user_id, cpu, local_ip, country):
+		self.time = now
 		self.ip_address = ip_address
+		self.lobby_id = lobby_id
+		self.user_id = user_id
+		self.cpu = cpu
+		self.local_ip = local_ip
+		self.country = country
 
 	def __repr__(self):
-		return "<Address('%s')>" % self.ip_address
+		return "<Login('%s', '%s')>" % (self.ip_address, self.time)
 
 class Rename(object):
 	def __init__(self, original, new):
@@ -136,13 +139,16 @@ users_table = Table('users', metadata,
 	Column('bot', Integer),
 	)
 
-addresses_table = Table('addresses', metadata, 
+logins_table = Table('logins', metadata, 
 	Column('id', Integer, primary_key=True),
 	Column('ip_address', String(15), nullable=False),
-	Column('first_time', Integer),
-	Column('last_time', Integer),
-	Column('count', Integer),
-	Column('user_id', Integer, ForeignKey('users.id')),
+	Column('time', Integer),
+	Column('lobby_id', String(128)),
+	Column('cpu', Integer),
+	Column('local_ip', String(15)),
+	Column('country', String(4)),
+	Column('user_id', Integer),
+	Column('user_dbid', Integer, ForeignKey('users.id')),
 	)
 
 renames_table = Table('renames', metadata,
@@ -202,10 +208,10 @@ aggregatebans_table = Table('ban_items', metadata, # server bans
 	)
 
 mapper(User, users_table, properties={
-	'addresses':relation(Address, backref='user', cascade="all, delete, delete-orphan"),
+	'logins':relation(Login, backref='user', cascade="all, delete, delete-orphan"),
 	'renames':relation(Rename, backref='user', cascade="all, delete, delete-orphan"),
 	})
-mapper(Address, addresses_table)
+mapper(Login, logins_table)
 mapper(Rename, renames_table)
 mapper(Channel, channels_table, properties={
 	'antispam':relation(Antispam, backref='channel', cascade="all, delete, delete-orphan"),
@@ -233,7 +239,7 @@ class UsersHandler:
 		ipban = results.filter(AggregateBan.type=='ip').filter(AggregateBan.data==ip)
 		useridban = results.filter(AggregateBan.type=='userid').filter(AggregateBan.data==userid)
 		
-	def login_user(self, user, password, ip, userid=None):
+	def login_user(self, user, password, ip, user_id, cpu, local_ip, country):
 		name = user.lower()
 		lanadmin = self._root.lanadmin
 		if user == lanadmin['username'] and password == lanadmin['password']:
@@ -257,11 +263,7 @@ class UsersHandler:
 					#reason = 'You are banned: (%s) days remaining.' % daysleft
 				#else:
 					#reason = 'You are banned: (%s) hours remaining.' % (float(seconds) / 60 / 60)
-		exists = self.session.query(Address).filter(Address.user_id==entry.id).first()
-		if not exists: entry.addresses.append(Address(ip_address=ip))
-		else:
-			exists.last_time = now
-			exists.count += 1
+		entry.logins.append(Login(now, ip, user_id, cpu, local_ip, country))
 		entry.last_login = now
 		entry.last_ip = ip
 		self.session.commit()

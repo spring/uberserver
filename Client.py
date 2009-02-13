@@ -23,7 +23,7 @@ class Client:
 		self.sendingmessage = ''
 		self.logged_in = False
 		self.status = '12'
-		self.access = ['fresh']
+		self.access = 'fresh'
 		self.accesslevels = ['fresh', 'everyone']
 		self.channels = []
 		self.battle_bots = {}
@@ -34,9 +34,11 @@ class Client:
 		self.ingame_time = 0
 		self.hostport = 8542
 		self.udpport = 0
-		self.maxsinglemessage = 1024
-		self.maxpersecond = 1024
-		self.maxseconds = 5
+		self.floodlimits = {'fresh':{'msglength':1024, 'bytespersecond':1024, 'seconds':2,
+							'user':{'msglength':1024, 'bytespersecond':1024, 'seconds':5}
+							'bot':{'msglength':1024, 'bytespersecond':5120, 'seconds':5}
+							'mod':{'msglength':10240, 'bytespersecond':10240, 'seconds':10}
+							'admin':{'disabled':True},}
 		self.msglengthhistory = {}
 		self.lastsaid = {}
 		self.nl = '\n'
@@ -65,23 +67,29 @@ class Client:
 			self._protocol = protocol
 
 	def Handle(self, data):
-		now = int(time.time())
-		self.lastdata = now
-		if now in self.msglengthhistory:
-			self.msglengthhistory[now] += len(data)
-		else:
-			self.msglengthhistory[now] = len(data)
-		total = 0
-		for iter in dict(self.msglengthhistory):
-			if iter < now - (self.maxseconds-1):
-				del self.msglengthhistory[iter]
+		if self.access in self.floodlimit: limit = self.floodlimit[self.access]
+		else: limit = self.floodlimit['user']
+		if not 'disabled' in limit:
+			msglength = limit['msglength']
+			bytespersecond = limit['bytespersecond']
+			seconds = limit['seconds']
+			now = int(time.time())
+			self.lastdata = now
+			if now in self.msglengthhistory:
+				self.msglengthhistory[now] += len(data)
 			else:
-				total += self.msglengthhistory[iter]
-		if total > (self.maxpersecond * self.maxseconds):
-			self.SendNow('SERVERMSG No flooding (over %s per second for 5 seconds)'%self.maxpersecond)
-			self._protocol._remove(self, 'Kicked for flooding')
-			self.Remove()
-			return
+				self.msglengthhistory[now] = len(data)
+			total = 0
+			for iter in dict(self.msglengthhistory):
+				if iter < now - (seconds-1):
+					del self.msglengthhistory[iter]
+				else:
+					total += self.msglengthhistory[iter]
+			if total > (bytespersecond * seconds):
+				self.SendNow('SERVERMSG No flooding (over %s per second for %s seconds)'%(bytespersecond, seconds))
+				self._protocol._remove(self, 'Kicked for flooding')
+				self.Remove()
+				return
 		self.data += data
 		if self.data.count('\n') > 0:
 			data = self.data.split('\n')

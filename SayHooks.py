@@ -219,24 +219,7 @@ def hook_SAYEX(self, client, chan, msg):
 	return msg
 
 def hook_SAYPRIVATE(self, client, target, msg):
-	user = client.username
-	if client.hook and msg.startswith(client.hook):
-		access = []
-
-		if 'admin' in client.accesslevels: admin = True
-		else: admin = False
-		if 'mod' in client.accesslevels: mod = True
-		else: mod = False
-
-		if admin:
-			access.append('admin')
-		if mod:
-			access.append('mod')
-		access.append('public')
-		good, reason = _do(client, chan, user, msg[len(client.hook):], access)
-		if not good:
-			client.Send('CHANNELMESSAGE %s %s'%(chan, reason))
-	else: return _site_censor(msg)
+	return _site_censor(msg)
 
 def hook_SAYBATTLE(self, client, battle_id, msg):
 	user = client.username

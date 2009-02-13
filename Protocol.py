@@ -5,6 +5,7 @@ import traceback, sys, os
 restricted = {
 'everyone':['TOKENIZE','TELNET','HASH','EXIT','PING'],
 'fresh':['LOGIN','REGISTER'],
+'agreement':['CONFIRMAGREEMENT'],
 'user':[
 	########
 	# battle
@@ -15,7 +16,7 @@ restricted = {
 	'FORCEALLYNO',
 	'FORCESPECTATORMODE',
 	'FORCETEAMCOLOR',
-	'FORCETEAMNO', 
+	'FORCETEAMNO',
 	'HANDICAP',
 	'JOINBATTLE',
 	'KICKFROMBATTLE',
@@ -80,7 +81,6 @@ def validateIP(ipAddress):
 	return re_ip.match(ipAddress)
 
 class Protocol:
-
 	def __init__(self, root, handler):
 		LAN = root.LAN
 		self._root = root
@@ -365,8 +365,12 @@ class Protocol:
 		if not validateIP(local_ip): local_ip = client.ip_address
 		if '\t' in sentence_args:
 			lobby_id, user_id = sentence_args.split('\t',1)
+			if user_id.replace('-',1).isnum():
+				user_id = int(user_id)
+			else: user_id = None
 		else:
 			lobby_id = sentence_args
+			user_id = 0
 		if client.hashpw:
 			m = md5.new()
 			m.update(password)
@@ -374,8 +378,22 @@ class Protocol:
 		#good, reason = self.userdb.login_user(username, password, client.ip_address)
 		#if not self._root.LAN and good: username = reason.casename # springlobby can't handle the username changing after login
 		if not username in self._root.usernames:
-			good, reason = self.userdb.login_user(username, password, client.ip_address)
+			good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id)
 			if good:
+				if client.access == 'agreement':
+					agreement = ['AGREEMENT {\rtf1\ansi\ansicpg1250\deff0\deflang1060{\fonttbl{\f0\fswiss\fprq2\fcharset238 Verdana;}{\f1\fswiss\fprq2\fcharset238{\*\fname Arial;}Arial CE;}{\f2\fswiss\fcharset238{\*\fname Arial;}Arial CE;}}',
+					'AGREEMENT {\*\generator Msftedit 5.41.15.1507;}\viewkind4\uc1\pard\ul\b\f0\fs22 Terms of Use\ulnone\b0\f1\fs20\par',
+					'AGREEMENT \f2\par',
+					'AGREEMENT \f0\fs16 While the administrators and moderators of this server will attempt to keep spammers and players violating this agreement off the server, it is impossible for them to maintain order at all times. Therefore you acknowledge that any messages in our channels express the views and opinions of the author and not the administrators or moderators (except for messages by these people) and hence will not be held liable.\par',
+					'AGREEMENT \par',
+					'AGREEMENT You agree not to use any abusive, obscene, vulgar, slanderous, hateful, threatening, sexually-oriented or any other material that may violate any applicable laws. Doing so may lead to you being immediately and permanently banned (and your service provider being informed). You agree that the administrators and moderators of this server have the right to mute, kick or ban you at any time should they see fit. As a user you agree to any information you have entered above being stored in a database. While this information will not be disclosed to any third party without your consent administrators and moderators cannot be held responsible for any hacking attempt that may lead to the data being compromised. Passwords are sent and stored in encoded form. Any personal information such as personal statistics will be kept privately and will not be disclosed to any third party.\par',
+					'AGREEMENT \par',
+					'AGREEMENT By using this service you hereby agree to all of the above terms.\fs18\par',
+					'AGREEMENT \f2\fs20\par',
+					'AGREEMENT }',
+					'AGREEMENTEND']
+					for line in agreement: client.Send(line)
+					return
 				self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s.'%(client.handler.num, username, client.session_id))
 				client.username = username
 				self._root.usernames[username] = client
@@ -463,17 +481,22 @@ class Protocol:
 		else:
 			oldclient = self._root.usernames[username]
 			if time.time() - oldclient.lastdata > 15:
-				if not oldclient.password == password and self._root.LAN:
+				if self._root.LAN and not oldclient.password == password:
 					client.Send('DENIED Would ghost old user, but we are in LAN mode and your password does not match.')
 					return
 				oldclient._protocol._remove(oldclient, 'Removing: Ghosted')
 				oldclient.Remove()
 				self._root.console_write('Handler %s: Old client inactive, ghosting user <%s> from session %s.'%(client.handler.num, username, client.session_id))
 				#client.Send('DENIED Ghosted old user, please relogin.') # relogin is automagic :D
-				self.in_LOGIN(client, username, password, cpu, local_ip, sentence_args)
+				self.in_LOGIN(client, username, password, cpu, local_ip, sentence_args) # kicks old user and logs in new user
 			else:
 				self._root.console_write('Handler %s: Failed to log in user <%s> on session %s. (already logged in)'%(client.handler.num, username, client.session_id))
 				client.Send('DENIED Already logged in.') # negotiate relogin ----- ask other client if it is still connected, then wait 15 seconds to allow for latency
+
+	def in_CONFIRMAGREEMENT(self, client):
+		if client.access == 'agreement':
+			client.access = 'fresh'
+			# TODO - Update access in db
 
 	def in_HOOK(self, client, chars=''):
 		chars = chars.strip()
@@ -1086,6 +1109,8 @@ class Protocol:
 		else: client.Send('SERVERMSG Database returned error when retrieving registration date for <%s> (%s)' % (username, reason))
 	
 	def in_RENAMEACCOUNT(self, client, newname):
+		client.Send('SERVERMSG Renames are currently disabled.')
+		return
 		user = client.username
 		if user == newname: return
 		good, reason = self.userdb.rename_user(user, newname)
@@ -1094,12 +1119,20 @@ class Protocol:
 			client.Send('SERVERMSG Your account has been renamed to <%s>. Reconnect with the new username (you will now be automatically disconnected).' % newname)
 		else:
 			client.Send('SERVERMSG Failed to rename to <%s>: %s' % (newname, reason))
+	
+	def in_CHANGEPASSWORD(self, newpassword):
+		client.Send('SERVERMSG Changing password is currently disabled.')
 
-	#def in_FORGEMSG(self, client, user, msg):
+	def in_FORGEMSG(self, client, user, msg):
+		if user == client.username:
+			client.Send(msg)
+		else:
+			client.Send('SERVERMSG Forging messages to anyone but yourself is disabled.')
 	#	if user in self._root.usernames:
 	#		self._root.usernames[user].Send(msg)
 
-	#def in_FORGEREVERSEMSG(self, client, user, msg):
+	def in_FORGEREVERSEMSG(self, client, user, msg):
+		client.Send('SERVERMSG Forging messages is disabled.')
 	#	if user in self._root.usernames:
 	#		self._handle(self._root.usernames[user], msg)
 
@@ -1118,7 +1151,10 @@ class Protocol:
 
 	def in_SETBOTMODE(self, client, user, mode):
 		if user in self._root.usernames:
-			self._root.usernames[user].bot = (mode == True)
+			bot = (mode.lower() in ('true', 'yes', '1'))
+			self._root.usernames[user].bot = bot
+			client.Send('SERVERMSG <%s> is now a bot: %s' % bot)
+			# TODO - sync with database
 	
 	def in_BROADCAST(self, client, msg):
 		self._root.broadcast('SERVERMSG %s'%msg)

@@ -1,8 +1,6 @@
 should be fixed:
 ingame time is broken
 
-latest:
-
 make everything configurable through DataHandler/_root and command-line options/config file
 reloading <-- needs fixed. see above
 transfer of ownership
@@ -16,36 +14,33 @@ don't cater to scunthorpe (match swear words on registration and rename)
 
 locked channels hidden by default (hide, show, lock) -- locked channels are hidden from CHANNELS (/list)
 
-to fix/add:
-
-bot flood limit
-
-new protocol with "newprotocol" in lobby name/version - poll lobby evelopers for alternatives
-
-userid is an optional sentence arg, tab split lobby name and search for ints afterward.
-raise an error and deny login if args don't match (i.e. multiple tabs)
-deny commands and raise errors for invalid args, saying "talk to your lobby dev"?
-
+forgereversemsg is disabled in all cases.
+forgemsg is disabled for anyone but yourself
 redirect hook_SAYPRIVATE to $local/SERVERMSG - screw it, kill private sayhooks
-
+bot flood limit
+renames disabled until implemented properly
+userid is an optional sentence arg, tab split lobby name and search for ints afterward.
 user agreement (lol)
-
-antispam - 'antispam':{'enabled':True, 'quiet':False, 'agressiveness':1, 'bonuslength':100, 'duration':900}
-
-renames - go through battle bans, channel users, etc and update them on rename - would be much preferred to use userids internally. - use a userid object? findUserID(username) on every incoming and autoresolve to username on outgoing :D
-update chanserv to check if user is in database before performing actions
-
-channel configuration (antispam) - copy from chanserv to sayhooks
-quietness? (whether to print sayhooks actions)
-maybe still send quiet actions to admins/owner
-
-loading and saving of channels from sql; proper syncing of everything to the sql database
 fix ghosting, instead of ghosting, resend login data properly?
 
-ban controls, at least in client
+to fix/add:
+
+antispam - 'antispam':{'enabled':True, 'quiet':False, 'agressiveness':1, 'bonuslength':100, 'duration':900}
+channel configuration (antispam) - copy from chanserv to sayhooks
+
+update chanserv to check if user is in database before performing actions
+loading and saving of channels from sql; proper syncing of everything to the sql database
+
+ban controls, at least in client, finish ban checking
+renames - go through battle bans, channel users, etc and update them on rename - would be much preferred to use userids internally. - use a userid object? findUserID(username) on every incoming and autoresolve to username on outgoing :D
 
 final todo: should be indistinguishable from tasserver to the untrained eye upon initial deployment
 
+after release:
+new protocol with "newprotocol" in lobby name/version - poll lobby developers for alternatives
+quietness? (whether to print sayhooks actions)
+maybe still send quiet actions to admins/owner
+deny commands and raise errors for invalid args, saying "talk to your lobby dev"?
 
 web interface:
 php wrapper with https login
@@ -54,6 +49,10 @@ instead of using LOGIN, use WEBLOGIN
 webinterface returns raw html
 
 thoughts:
+
+LAN mode can be SQLite with autoregistration?
+
+outgoing protocol class too - useful for abstracting protocol version differences.
 
 ability to pull updates from trusted servers
 
