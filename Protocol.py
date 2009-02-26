@@ -378,7 +378,7 @@ class Protocol:
 		#good, reason = self.userdb.login_user(username, password, client.ip_address)
 		#if not self._root.LAN and good: username = reason.casename # springlobby can't handle the username changing after login
 		if not username in self._root.usernames:
-			good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id)
+			good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 			if good:
 				if client.access == 'agreement':
 					agreement = ['AGREEMENT {\rtf1\ansi\ansicpg1250\deff0\deflang1060{\fonttbl{\f0\fswiss\fprq2\fcharset238 Verdana;}{\f1\fswiss\fprq2\fcharset238{\*\fname Arial;}Arial CE;}{\f2\fswiss\fcharset238{\*\fname Arial;}Arial CE;}}',
