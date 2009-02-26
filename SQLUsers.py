@@ -53,6 +53,7 @@ class Login(object):
 		self.cpu = cpu
 		self.local_ip = local_ip
 		self.country = country
+		self.end = 0
 
 	def __repr__(self):
 		return "<Login('%s', '%s')>" % (self.ip_address, self.time)
@@ -147,6 +148,7 @@ logins_table = Table('logins', metadata,
 	Column('cpu', Integer),
 	Column('local_ip', String(15)),
 	Column('country', String(4)),
+	Column('end', Integer),
 	Column('user_id', Integer),
 	Column('user_dbid', Integer, ForeignKey('users.id')),
 	)
@@ -239,7 +241,7 @@ class UsersHandler:
 		ipban = results.filter(AggregateBan.type=='ip').filter(AggregateBan.data==ip)
 		useridban = results.filter(AggregateBan.type=='userid').filter(AggregateBan.data==userid)
 		
-	def login_user(self, user, password, ip, user_id, cpu, local_ip, country):
+	def login_user(self, user, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		name = user.lower()
 		lanadmin = self._root.lanadmin
 		if user == lanadmin['username'] and password == lanadmin['password']:
@@ -263,7 +265,7 @@ class UsersHandler:
 					#reason = 'You are banned: (%s) days remaining.' % daysleft
 				#else:
 					#reason = 'You are banned: (%s) hours remaining.' % (float(seconds) / 60 / 60)
-		entry.logins.append(Login(now, ip, user_id, cpu, local_ip, country))
+		entry.logins.append(Login(now, ip, lobby_id, user_id, cpu, local_ip, country))
 		entry.last_login = now
 		entry.last_ip = ip
 		self.session.commit()
