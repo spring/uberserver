@@ -291,7 +291,6 @@ class UsersHandler:
 		if results:
 			return False, 'Username already exists.'
 		entry = User(name, user, password, ip)
-		entry.addresses.append(Address(ip_address=ip))
 		self.session.save(entry)
 		#self.session.commit()
 		return True, 'Account registered successfully.'
