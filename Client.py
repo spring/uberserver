@@ -35,8 +35,9 @@ class Client:
 		self.hostport = 8542
 		self.udpport = 0
 		self.bot = 0
-		self.floodlimits = {'fresh':{'msglength':1024, 'bytespersecond':1024, 'seconds':2,
-							'user':{'msglength':1024, 'bytespersecond':1024, 'seconds':5},
+		self.floodlimits = {'fresh':{'msglength':1024, 'bytespersecond':1024, 'seconds':2},
+							'user':{'msglength':1024, 'bytespersecond':256, 'seconds':5},
+							'bot':{'msglength':1024, 'bytespersecond':10240, 'seconds':3},
 							'mod':{'msglength':10240, 'bytespersecond':10240, 'seconds':10},
 							'admin':{'disabled':True},}
 		self.msglengthhistory = {}
@@ -67,15 +68,13 @@ class Client:
 			self._protocol = protocol
 
 	def Handle(self, data):
-		if self.access in self.floodlimit: limit = self.floodlimit[self.access]
+		if self.bot: limit = self.floodlimit['bot']
+		elif self.access in self.floodlimit: limit = self.floodlimit[self.access]
 		else: limit = self.floodlimit['user']
 		if not 'disabled' in limit:
 			msglength = limit['msglength']
 			bytespersecond = limit['bytespersecond']
 			seconds = limit['seconds']
-			if self.bot:
-				bytespersecond = bytespersecond * 5
-				seconds = seconds * 2
 			now = int(time.time())
 			self.lastdata = now
 			if now in self.msglengthhistory:

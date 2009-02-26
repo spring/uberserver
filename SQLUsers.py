@@ -229,7 +229,7 @@ class UsersHandler:
 	def __init__(self, root, engine):
 		self._root = root
 		metadata.create_all(engine)
-		Session = sessionmaker(bind=engine, autoflush=True, transactional=True)
+		Session = sessionmaker(bind=engine, autoflush=True, transactional=False)
 		self.session = Session()
 	
 	def check_ban(self, user=None, ip=None, userid=None):
