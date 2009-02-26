@@ -268,7 +268,7 @@ class UsersHandler:
 		entry.logins.append(Login(now, ip, lobby_id, user_id, cpu, local_ip, country))
 		entry.last_login = now
 		entry.last_ip = ip
-		self.session.commit()
+		#self.session.commit()
 		return good, reason
 
 	def register_user(self, user, password, ip): # need to add better ban checks so it can check if an ip address is banned when registering an account :)
@@ -285,7 +285,7 @@ class UsersHandler:
 				entry = User(name, lanadmin['username'], password, ip, 'admin')
 				entry.addresses.append(Address(ip_address=ip))
 				self.session.save(entry)
-				self.session.commit()
+				#self.session.commit()
 				return True, 'Account registered successfully.'
 			else: return False, 'Username already exists.'
 		if results:
@@ -293,7 +293,7 @@ class UsersHandler:
 		entry = User(name, user, password, ip)
 		entry.addresses.append(Address(ip_address=ip))
 		self.session.save(entry)
-		self.session.commit()
+		#self.session.commit()
 		return True, 'Account registered successfully.'
 
 	def rename_user(self, user, newname):
@@ -309,7 +309,7 @@ class UsersHandler:
 		entry.name = lnewname
 		entry.casename = newname
 		#self.session.save(entry)
-		self.session.commit()
+		#self.session.commit()
 		# need to iterate through channels and rename junk there...
 		# it might actually be a lot easier to use userids in the server...
 		return True, 'Account renamed successfully.'
@@ -319,7 +319,7 @@ class UsersHandler:
 		if not entry:
 			return False, 'User not found.'
 		self.session.delete(entry)
-		self.session.commit()
+		#self.session.commit()
 		return True, 'Success.'
 	
 	def load_channels(self):
@@ -352,4 +352,4 @@ class UsersHandler:
 	def save_channels(self, channels):
 		for channel in channels:
 			self.save_channel(channel)
-		self.session.commit()
+		#self.session.commit()
