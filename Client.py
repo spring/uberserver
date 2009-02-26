@@ -100,8 +100,8 @@ class Client:
 				if data.endswith('\r') and self.telnet: # causes fail on TASClient, so only enable on telnet
 					self.nl = '\r\n'
 				command = data.rstrip('\r').lstrip(' ') # strips leading spaces and trailing carriage return
-				if len(command) > self.maxsinglemessage:
-					self.Send('SERVERMSG Max length exceeded (%s): no message for you.'%self.maxsinglemessage)
+				if len(command) > msglength:
+					self.Send('SERVERMSG Max length exceeded (%s): no message for you.'%msglength)
 				else:
 					if self.telnet:
 						command = Telnet.filter_in(self,command)
