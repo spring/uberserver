@@ -34,10 +34,10 @@ class Client:
 		self.ingame_time = 0
 		self.hostport = 8542
 		self.udpport = 0
+		self.bot = 0
 		self.floodlimits = {'fresh':{'msglength':1024, 'bytespersecond':1024, 'seconds':2,
-							'user':{'msglength':1024, 'bytespersecond':1024, 'seconds':5}
-							'bot':{'msglength':1024, 'bytespersecond':5120, 'seconds':5}
-							'mod':{'msglength':10240, 'bytespersecond':10240, 'seconds':10}
+							'user':{'msglength':1024, 'bytespersecond':1024, 'seconds':5},
+							'mod':{'msglength':10240, 'bytespersecond':10240, 'seconds':10},
 							'admin':{'disabled':True},}
 		self.msglengthhistory = {}
 		self.lastsaid = {}
@@ -73,6 +73,9 @@ class Client:
 			msglength = limit['msglength']
 			bytespersecond = limit['bytespersecond']
 			seconds = limit['seconds']
+			if self.bot:
+				bytespersecond = bytespersecond * 5
+				seconds = seconds * 2
 			now = int(time.time())
 			self.lastdata = now
 			if now in self.msglengthhistory:

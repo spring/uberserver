@@ -36,7 +36,8 @@ natserver.bind(_root)
 
 _root.console_write()
 _root.console_write('Detecting local IP:')
-local_addr = socket.gethostbyname(socket.gethostname())
+try: local_addr = socket.gethostbyname(socket.gethostname())
+except: local_addr = '127.0.0.1'
 _root.console_write(local_addr)
 
 _root.console_write('Detecting online IP:')
