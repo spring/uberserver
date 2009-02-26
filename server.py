@@ -42,9 +42,7 @@ _root.console_write(local_addr)
 
 _root.console_write('Detecting online IP:')
 try:
-	# web_addr = urlopen('http://www.zjt3.com/ip.php').read() # site down
-	web_addr = '216.7.57.152' # swap with line below when committing
-	#web_addr = urlopen('http://whatismyip.com/automation/n09230945.asp').read()
+	web_addr = urlopen('http://whatismyip.com/automation/n09230945.asp').read()
 	_root.console_write(web_addr)
 except:
 	web_addr = local_addr
