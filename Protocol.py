@@ -365,7 +365,7 @@ class Protocol:
 		if not validateIP(local_ip): local_ip = client.ip_address
 		if '\t' in sentence_args:
 			lobby_id, user_id = sentence_args.split('\t',1)
-			if user_id.replace('-','',1).isnum():
+			if user_id.replace('-','',1).isdigit():
 				user_id = int(user_id)
 			else: user_id = None
 		else:
