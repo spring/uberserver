@@ -40,6 +40,7 @@ class User(object):
 		self.ingame_time = 0
 		self.bot = 0
 		self.access = access # user, moderator, admin, bot, agreement
+		self.hook_chars = ''
 
 	def __repr__(self):
 		return "<User('%s', '%s')>" % (self.name, self.password)
@@ -138,6 +139,7 @@ users_table = Table('users', metadata,
 	Column('ingame_time', Integer),
 	Column('access', String(32)),
 	Column('bot', Integer),
+	Column('hook_chars', String(4)),
 	)
 
 logins_table = Table('logins', metadata, 
@@ -312,6 +314,11 @@ class UsersHandler:
 		# need to iterate through channels and rename junk there...
 		# it might actually be a lot easier to use userids in the server...
 		return True, 'Account renamed successfully.'
+	
+	def confirm_agreement(self, client):
+		name = client.username.lower()
+		entry = self.session.query(User).filter(User.name==name).first()
+		if entry: entry.access = 'user'
 
 	def remove_user(self, user):
 		entry = self.session.query(User).filter(User.name==user).first()

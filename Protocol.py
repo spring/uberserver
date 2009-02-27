@@ -382,7 +382,11 @@ class Protocol:
 		if not username in self._root.usernames:
 			good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 			if good:
+				client.access = reason.access
+				self._calc_access(client)
+				client.username = username
 				if client.access == 'agreement':
+					self._root.console_write('Handler %s: Sent user <%s> the terms of service on session %s.'%(client.handler.num, username, client.session_id))
 					agreement = ['AGREEMENT {\rtf1\ansi\ansicpg1250\deff0\deflang1060{\fonttbl{\f0\fswiss\fprq2\fcharset238 Verdana;}{\f1\fswiss\fprq2\fcharset238{\*\fname Arial;}Arial CE;}{\f2\fswiss\fcharset238{\*\fname Arial;}Arial CE;}}',
 					'AGREEMENT {\*\generator Msftedit 5.41.15.1507;}\viewkind4\uc1\pard\ul\b\f0\fs22 Terms of Use\ulnone\b0\f1\fs20\par',
 					'AGREEMENT \f2\par',
@@ -397,15 +401,12 @@ class Protocol:
 					for line in agreement: client.Send(line)
 					return
 				self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s.'%(client.handler.num, username, client.session_id))
-				client.username = username
 				self._root.usernames[username] = client
 				
 				client.ingame_time = int(reason.ingame_time)
 				client.bot = reason.bot
-				client.access = reason.access
 				client.last_login = reason.last_login
 				client.register_date = reason.register_date
-				self._calc_access(client)
 				client.username = username
 				client.password = password
 				client.cpu = cpu
@@ -498,7 +499,8 @@ class Protocol:
 	def in_CONFIRMAGREEMENT(self, client):
 		if client.access == 'agreement':
 			client.access = 'fresh'
-			# TODO - Update access in db
+			self._calc_access(client)
+			self.userdb.confirm_agreement(client)
 
 	def in_HOOK(self, client, chars=''):
 		chars = chars.strip()
