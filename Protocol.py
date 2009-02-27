@@ -164,10 +164,12 @@ class Protocol:
 		
 		if command in restricted_list:
 			if not command in access:
+				print client.access, client.accesslevels
 				client.Send('SERVERMSG %s failed. Insufficient rights.'%command)
 				return False
 		else:
 			if not 'user' in client.accesslevels:
+				print client.access, client.accesslevels
 				client.Send('SERVERMSG %s failed. Insufficient rights.'%command)
 				return False
 		
