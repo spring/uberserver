@@ -36,7 +36,7 @@ class Client:
 		self.udpport = 0
 		self.bot = 0
 		self.floodlimit = {'fresh':{'msglength':1024, 'bytespersecond':1024, 'seconds':2},
-							'user':{'msglength':1024, 'bytespersecond':256, 'seconds':5},
+							'user':{'msglength':1024, 'bytespersecond':1024, 'seconds':3},
 							'bot':{'msglength':1024, 'bytespersecond':10240, 'seconds':3},
 							'mod':{'msglength':10240, 'bytespersecond':10240, 'seconds':10},
 							'admin':{'disabled':True},}
