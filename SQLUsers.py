@@ -134,8 +134,8 @@ users_table = Table('users', metadata,
 	Column('casename', String(40)),
 	Column('password', String(32)),
 	Column('register_date', Integer),
-	Column('last_login', Integer), # use seconds since unix epoch
-	Column('last_ip', String(15)), # would need update for ipv6
+	Column('last_login', Integer), # use seconds since unix epoch # should replace these with last_session or just remove them
+	Column('last_ip', String(15)), # would need update for ipv6   # 
 	Column('ingame_time', Integer),
 	Column('access', String(32)),
 	Column('bot', Integer),
@@ -314,6 +314,15 @@ class UsersHandler:
 		# need to iterate through channels and rename junk there...
 		# it might actually be a lot easier to use userids in the server...
 		return True, 'Account renamed successfully.'
+	
+	def save_user(self, client):
+		name = client.username.lower()
+		entry = self.session.query(User).filter(User.name==name).first()
+		if entry:
+			entry.ingame_time = client.ingame_time
+			entry.access = client.access
+			entry.bot = client.bot
+			entry.hook_chars = client.hook
 	
 	def confirm_agreement(self, client):
 		name = client.username.lower()

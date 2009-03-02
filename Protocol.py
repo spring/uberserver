@@ -407,11 +407,11 @@ class Protocol:
 				client.bot = reason.bot
 				client.last_login = reason.last_login
 				client.register_date = reason.register_date
+				client.hook = reason.hook_chars
 				client.username = username
 				client.password = password
 				client.cpu = cpu
 				client.local_ip = None
-				client.hook = ''
 				client.went_ingame = 0
 				if local_ip.startswith('127.') or not validateIP(local_ip):
 					client.local_ip = client.ip_address
@@ -500,7 +500,7 @@ class Protocol:
 		if client.access == 'agreement':
 			client.access = 'fresh'
 			self._calc_access(client)
-			self.userdb.confirm_agreement(client)
+			self.userdb.save_user(client)
 
 	def in_HOOK(self, client, chars=''):
 		chars = chars.strip()
@@ -510,6 +510,7 @@ class Protocol:
 			client.Send('SERVERMSG Hooking commands enabled. Use help if you don\'t know what you\'re doing. Prepend commands with "%s"'%chars)
 		elif client.hook:
 			client.Send('SERVERMSG Hooking commands disabled.')
+		self.userdb.save_user(client)
 	
 	def in_SAYHOOKED(self, client, chan, msg):
 		if not msg: return
@@ -909,6 +910,7 @@ class Protocol:
 			ingame_time = (time.time() - client.went_ingame) / 60
 			if ingame_time >= 1:
 				client.ingame_time += int(ingame_time)
+				self.userdb.save_user(client)
 		if not client.username in self._root.usernames: return
 		self._root.broadcast('CLIENTSTATUS %s %s'%(client.username, client.status))
 
@@ -1152,13 +1154,14 @@ class Protocol:
 	def in_SETINGAMETIME(self, client, user, minutes):
 		if user in self._root.usernames:
 			self._root.usernames[user].ingame_time = int(minutes)
+			self.userdb.save_user(client)
 
 	def in_SETBOTMODE(self, client, user, mode):
 		if user in self._root.usernames:
 			bot = (mode.lower() in ('true', 'yes', '1'))
 			self._root.usernames[user].bot = bot
 			client.Send('SERVERMSG <%s> is now a bot: %s' % bot)
-			# TODO - sync with database
+			entry.username = client.username.lower()
 	
 	def in_BROADCAST(self, client, msg):
 		self._root.broadcast('SERVERMSG %s'%msg)
