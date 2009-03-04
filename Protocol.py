@@ -326,6 +326,31 @@ class Protocol:
 			else:
 				message = '%0.0f second(s)'%(float(seconds))
 		return message
+	
+	def _time_since(self, seconds):
+		seconds = time.time() - seconds
+		minutesleft = float(seconds) / 60
+		hoursleft = minutesleft / 60
+		daysleft = hoursleft / 24
+		if daysleft > 7:
+			message = '%0.2f weeks' % (daysleft / 7)
+		if daysleft == 7:
+			message = 'a week'
+		if daysleft > 1:
+			message = '%0.2f days' % daysleft
+		if daysleft == 1:
+			message = 'a day'
+		elif hoursleft > 1:
+			message = '%0.2f hours' % hoursleft
+		elif hoursleft == 1:
+			message = 'an hour'
+		elif minutesleft > 1:
+			message = '%0.1f minutes' % minutesleft
+		elif minutesleft == 1:
+			message = 'a minute'
+		else:
+			message = '%0.0f second(s)'%(float(seconds))
+		return message
 
 	def in_PING(self, client, args=None):
 		if args:
@@ -422,7 +447,24 @@ class Protocol:
 				client.teamcolor = '0'
 				client.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
 				client.Send('ACCEPTED %s'%username)
-				client.Send('MOTD Hey there.')
+				
+				client.Send('MOTD Welcome, %s!' % username)
+				client.Send('MOTD There are currently %i clients connected' % len(self._root.clients))
+				client.Send('MOTD to the server talking in %i open channels' % len(self._root.channels))
+				client.Send('MOTD and participating in %i battles.' % len(self._root.battles))
+				client.Send('MOTD Server\'s uptime is %s' % self._time_since(self._root.start_time))
+				client.Send('MOTD')
+				client.Send('MOTD You are being hosted by fnord.clan-sy.com,')
+				client.Send('MOTD the main Spring server located in Stockholm, Sweden.')
+				client.Send('MOTD If you experience any problems, please report them to')
+				client.Send('MOTD lunixbochs@gmail.com')
+				client.Send('MOTD')
+				client.Send('MOTD Statistics are available through this page:')
+				client.Send('MOTD http://tracker.caspring.org/stats/view.php')
+				client.Send('MOTD User agreement can be found here:')
+				client.Send('MOTD http://spring.clan-sy.com/dl/Agreement.html')
+				client.Send('MOTD')
+				client.Send('MOTD Have fun playing Spring :-)')
 				
 				self._root.broadcast('ADDUSER %s %s %s'%(username,client.country_code,cpu),ignore=username)
 				

@@ -1,6 +1,7 @@
 import thread, time, sys
 import md5, binascii, base64
 import traceback
+import time
 
 from MutexDict import MutexDict
 
@@ -31,6 +32,7 @@ class DataHandler:
 	censor = True
 	
 	def __init__(self):
+		self.start_time = time.time()
 		self.channels = MutexDict()
 		self.chan_alias = MutexDict()
 		self.usernames = MutexDict()
