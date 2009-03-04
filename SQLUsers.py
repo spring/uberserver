@@ -1,6 +1,6 @@
 import time
 
-from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean
+from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean, Text
 from sqlalchemy.exceptions import OperationalError
 from sqlalchemy.orm import mapper, sessionmaker, relation
 
@@ -136,6 +136,7 @@ users_table = Table('users', metadata,
 	Column('register_date', Integer),
 	Column('last_login', Integer), # use seconds since unix epoch # should replace these with last_session or just remove them
 	Column('last_ip', String(15)), # would need update for ipv6   # 
+	Column('last_id', String(128)),
 	Column('ingame_time', Integer),
 	Column('access', String(32)),
 	Column('bot', Integer),
@@ -182,7 +183,7 @@ chanuser_table = Table('chanuser', metadata,
 	Column('name', String(40)),
 	Column('channel', String(40)),
 	Column('admin', Boolean),
-	Column('banned', String(120)),
+	Column('banned', Boolean),
 	Column('allowed', Boolean),
 	Column('mute', Integer),
 	)
@@ -200,13 +201,13 @@ antispam_table = Table('antispam', metadata,
 
 bans_table = Table('ban_groups', metadata, # server bans
 	Column('id', Integer, primary_key=True),
-	Column('reason', String(120)),
+	Column('reason', Text),
 	Column('end_time', Integer), # seconds since unix epoch
 	)
 
 aggregatebans_table = Table('ban_items', metadata, # server bans
 	Column('id', Integer, primary_key=True),
-	Column('type', String(10)), # what exactly is banned (user, ip, subnet, hostname, ip range, etc)
+	Column('type', String(10)), # what exactly is banned (username, ip, subnet, hostname, (ip) range, userid, )
 	Column('data', String(60)), # regex would be cool
 	Column('ban_id', Integer, ForeignKey('ban_groups.id')),
 	)
@@ -222,10 +223,10 @@ mapper(Channel, channels_table, properties={
 	})
 mapper(ChanUser, chanuser_table)
 mapper(Antispam, antispam_table)
-mapper(Ban, bans_table)
-mapper(AggregateBan, aggregatebans_table, properties={
-	'ban':relation(Ban, backref='item', cascade="all, delete, delete-orphan")
+mapper(Ban, bans_table, properties={
+	'entries':relation(AggregateBan, backref='ban', cascade="all, delete, delete-orphan"),
 	})
+mapper(AggregateBan, aggregatebans_table)
 
 #metadata.create_all(engine)
 
@@ -237,6 +238,7 @@ class UsersHandler:
 		self.session = Session()
 	
 	def check_ban(self, user=None, ip=None, userid=None):
+		return
 		results = self.session.query(AggregateBan)
 		subnetbans = results.filter(AggregateBan.type=='subnet')
 		userban = results.filter(AggregateBan.type=='user').filter(AggregateBan.data==user)
@@ -258,7 +260,7 @@ class UsersHandler:
 		if not password == entry.password:
 			good = False
 			reason = 'Invalid password'
-		#if entry.banned > 0:
+		#if entry.banned > 0: # update with time remaining from protocol or wherever it is
 			#if entry.banned > now:
 				#good = False
 				#timeleft = entry.banned - now
@@ -270,8 +272,14 @@ class UsersHandler:
 		entry.logins.append(Login(now, ip, lobby_id, user_id, cpu, local_ip, country))
 		entry.last_login = now
 		entry.last_ip = ip
+		entry.last_id = user_id
 		#self.session.commit()
 		return good, reason
+	
+	def end_session(self, username):
+		name = username.lower()
+		entry = self.session.query(User).filter(User.name==name).first()
+		if not entry.logins[-1].end: entry.logins[-1].end = time.time()
 
 	def register_user(self, user, password, ip): # need to add better ban checks so it can check if an ip address is banned when registering an account :)
 		if self._root.censor:
@@ -296,6 +304,34 @@ class UsersHandler:
 		self.session.save(entry)
 		#self.session.commit()
 		return True, 'Account registered successfully.'
+	
+	def ban_user(self, username, duration, reason):
+		name = username.lower()
+		entry = self.session.query(User).filter(User.name==name).first()
+		end_time = int(time.time()) + duration
+		ban = Ban(reason, end_time)
+		self.session.save(ban)
+		ban.entries.append(AggregateBan('user', name))
+		ban.entries.append(AggregateBan('ip', entry.last_ip))
+		ban.entries.append(AggregateBan('userid', entry.last_id))
+		return 'Successfully banned %s for %s days.' % (username, duration)
+	
+	def unban_user(self, username):
+		results = self.session.query(AggregateBan).filter(AggregateBan.type=='user').filter(AggregateBan.data==user)
+		if results:
+			for result in results:
+				self.session.delete(result.ban)
+			return 'Successfully unbanned %s.' % username
+		else:
+			return 'No matching bans for %s.' % username
+	
+	def banlist(self):
+		banlist = []
+		for ban in self.session.query(Ban):
+			current_ban = '%s (%s)' % (ban.end_time, ban.reason)
+			for entry in ban.entries:
+				current_ban += ' (%s - %s)' % (entry.ban_type, entry.data)
+		return banlist
 
 	def rename_user(self, user, newname):
 		if self._root.censor:
@@ -318,11 +354,13 @@ class UsersHandler:
 	def save_user(self, client):
 		name = client.username.lower()
 		entry = self.session.query(User).filter(User.name==name).first()
+		print entry, name
 		if entry:
 			entry.ingame_time = client.ingame_time
 			entry.access = client.access
 			entry.bot = client.bot
 			entry.hook_chars = client.hook
+			print 'saved'
 	
 	def confirm_agreement(self, client):
 		name = client.username.lower()

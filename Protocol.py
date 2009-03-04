@@ -61,6 +61,7 @@ restricted = {
 	'ADMINBROADCAST', 'BROADCAST','BROADCASTEX','RELOAD'
 	#########
 	# users
+	'BAN', 'BANUSER', 'BANIP', 'UNBAN', 'BANLIST',
 	'FORGEMSG','FORGEREVERSEMSG',
 	'GETLOBBYVERSION','GETSENDBUFFERSIZE',
 	'ADMIN','MOD','DEBUG',
@@ -112,6 +113,7 @@ class Protocol:
 				return
 			if not client == self._root.usernames[user]:
 				return
+			self.userdb.end_session(username)
 			channels = list(client.channels)
 			bots = dict(client.battle_bots)
 			#del self._root.clients[client.session_id]
@@ -164,7 +166,6 @@ class Protocol:
 		
 		if command in restricted_list:
 			if not command in access:
-				print client.access, client.accesslevels
 				client.Send('SERVERMSG %s failed. Insufficient rights.'%command)
 				return False
 		else:
@@ -503,6 +504,9 @@ class Protocol:
 			self.userdb.save_user(client)
 
 	def in_HOOK(self, client, chars=''):
+		if not client.access in ('admin', 'mod'):
+			client.Send('SERVERMSG Hooking disabled for normal users until finished. Sorry.')
+			return
 		chars = chars.strip()
 		if chars.count(' '): return
 		client.hook = chars
@@ -1115,8 +1119,8 @@ class Protocol:
 		else: client.Send('SERVERMSG Database returned error when retrieving registration date for <%s> (%s)' % (username, reason))
 	
 	def in_RENAMEACCOUNT(self, client, newname):
-		client.Send('SERVERMSG Renames are currently disabled.')
-		return
+		#client.Send('SERVERMSG Renames are currently disabled.')
+		#return
 		user = client.username
 		if user == newname: return
 		good, reason = self.userdb.rename_user(user, newname)
@@ -1153,7 +1157,8 @@ class Protocol:
 
 	def in_SETINGAMETIME(self, client, user, minutes):
 		if user in self._root.usernames:
-			self._root.usernames[user].ingame_time = int(minutes)
+			client = self._root.usernames[user]
+			client.ingame_time = int(minutes)
 			self.userdb.save_user(client)
 
 	def in_SETBOTMODE(self, client, user, mode):
@@ -1201,6 +1206,27 @@ class Protocol:
 		if reason: reason = 'Quit: %s' % reason
 		else: reason = 'Quit'
 		client.Remove(reason)
+	
+	def in_BAN(self, client, username, duration, reason):
+		try: duration == float(duration)
+		except:
+			client.Send('SERVERMSG Duration must be a float (it\'s the ban duration in days)')
+		response = self.userdb.ban(username, duration, reason)
+		if response: client.Send('SERVERMSG %s' % response)
+	
+	def in_UNBAN(self, client, username):
+		response = self.userdb.unban(username)
+		if response: client.Send('SERVERMSG %s' % response)
+	
+	def in_BANLIST(self, client):
+		for entry in self.userdb.banlist():
+			client.Send('SERVERMSG %s' % entry)
+	
+	def in_BANIP(self, client, ip, duration, reason):
+		client.Send('SERVERMSG BANIP not implemented')
+	
+	def in_BANUSER(self, client, username, duration, reason):
+		client.Send('SERVERMSG BANUSER not implemented')
 
 	def in_PYTHON(self, client, code):
 		'Execute Python code.'
@@ -1216,6 +1242,7 @@ class Protocol:
 		changeuser.accesslevels = ['mod', 'user']
 		self._calc_access(changeuser)
 		self._root.broadcast('CLIENTSTATUS %s %s'%(user,changeuser.status))
+		self.userdb.save_user(changeuser)
 
 	def in_ADMIN(self, client, user):
 		changeuser = self._root.usernames[user]
@@ -1223,6 +1250,7 @@ class Protocol:
 		changeuser.accesslevels = ['admin', 'mod', 'user']
 		self._calc_access(changeuser)
 		self._root.broadcast('CLIENTSTATUS %s %s'%(user,changeuser.status))
+		self.userdb.save_user(changeuser)
 
 	def in_DEBUG(self, client, enabled=None):
 		if enabled == 'on':	client.debug = True

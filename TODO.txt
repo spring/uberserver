@@ -23,6 +23,8 @@ userid is an optional sentence arg, tab split lobby name and search for ints aft
 user agreement (lol)
 fix ghosting, instead of ghosting, resend login data properly?
 
+session end recorded in logins table
+
 to fix/add:
 
 antispam - 'antispam':{'enabled':True, 'quiet':False, 'agressiveness':1, 'bonuslength':100, 'duration':900}
@@ -31,10 +33,9 @@ channel configuration (antispam) - copy from chanserv to sayhooks
 update chanserv to check if user is in database before performing actions
 loading and saving of channels from sql; proper syncing of everything to the sql database
 
-ban controls, at least in client, finish ban checking
 renames - go through battle bans, channel users, etc and update them on rename - would be much preferred to use userids internally. - use a userid object? findUserID(username) on every incoming and autoresolve to username on outgoing :D
 
-final todo: should be indistinguishable from tasserver to the untrained eye upon initial deployment
+ban controls, at least in client, finish ban checking
 
 after release:
 new protocol with "newprotocol" in lobby name/version - poll lobby developers for alternatives
