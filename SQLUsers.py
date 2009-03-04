@@ -354,13 +354,11 @@ class UsersHandler:
 	def save_user(self, client):
 		name = client.username.lower()
 		entry = self.session.query(User).filter(User.name==name).first()
-		print entry, name
 		if entry:
 			entry.ingame_time = client.ingame_time
 			entry.access = client.access
 			entry.bot = client.bot
 			entry.hook_chars = client.hook
-			print 'saved'
 	
 	def confirm_agreement(self, client):
 		name = client.username.lower()
