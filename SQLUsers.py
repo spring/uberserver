@@ -154,7 +154,7 @@ logins_table = Table('logins', metadata,
 	Column('local_ip', String(15)),
 	Column('country', String(4)),
 	Column('end', Integer),
-	Column('user_id', Integer),
+	Column('user_id', String(128)),
 	Column('user_dbid', Integer, ForeignKey('users.id')),
 	)
 
@@ -457,3 +457,18 @@ class UsersHandler:
 	def save_channels(self, channels):
 		for channel in channels:
 			self.save_channel(channel)
+
+	def inject_user(self, user, password, ip, lastlogin, uid, ingame, country, bot, mapgrades, access):
+		name = user.lower()
+		#results = self.session.query(User).filter(User.name==name).first()
+		#if results: return False, 'Account already exists.'
+		entry = User(name, user, password, ip)
+		entry.last_login = lastlogin
+		entry.last_id = uid
+		entry.ingame_time = ingame
+		entry.register_date = lastlogin
+		entry.access = access
+		entry.bot = bot
+		entry.mapgrades = mapgrades
+		self.session.save(entry)
+		return True, 'Account %s injected successfully.' % user
