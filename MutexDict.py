@@ -32,7 +32,7 @@ class MutexDict:
 		lock = self.lock(lock)
 		data = len(self.data)
 		self.unlock(lock)
-		return len
+		return data
 	
 	def __getitem__(self, key, lock=None):
 		lock = self.lock(lock)
