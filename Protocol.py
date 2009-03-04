@@ -113,7 +113,7 @@ class Protocol:
 				return
 			if not client == self._root.usernames[user]:
 				return
-			self.userdb.end_session(username)
+			self.userdb.end_session(user)
 			channels = list(client.channels)
 			bots = dict(client.battle_bots)
 			#del self._root.clients[client.session_id]
@@ -170,7 +170,6 @@ class Protocol:
 				return False
 		else:
 			if not 'user' in client.accesslevels:
-				print client.access, client.accesslevels
 				client.Send('SERVERMSG %s failed. Insufficient rights.'%command)
 				return False
 		
@@ -541,9 +540,10 @@ class Protocol:
 
 	def in_CONFIRMAGREEMENT(self, client):
 		if client.access == 'agreement':
+			client.access = 'user'
+			self.userdb.save_user(client)
 			client.access = 'fresh'
 			self._calc_access(client)
-			self.userdb.save_user(client)
 
 	def in_HOOK(self, client, chars=''):
 		if not client.access in ('admin', 'mod'):
