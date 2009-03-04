@@ -41,6 +41,7 @@ class User(object):
 		self.bot = 0
 		self.access = access # user, moderator, admin, bot, agreement
 		self.hook_chars = ''
+		self.mapgrades = ''
 
 	def __repr__(self):
 		return "<User('%s', '%s')>" % (self.name, self.password)
@@ -141,6 +142,7 @@ users_table = Table('users', metadata,
 	Column('access', String(32)),
 	Column('bot', Integer),
 	Column('hook_chars', String(4)),
+	Column('mapgrades', Text),
 	)
 
 logins_table = Table('logins', metadata, 
@@ -234,18 +236,20 @@ class UsersHandler:
 	def __init__(self, root, engine):
 		self._root = root
 		metadata.create_all(engine)
-		Session = sessionmaker(bind=engine, autoflush=True, transactional=False)
-		self.session = Session()
+		self.sessionmaker = sessionmaker(bind=engine, autoflush=True, transactional=True)
 	
 	def check_ban(self, user=None, ip=None, userid=None):
 		return
-		results = self.session.query(AggregateBan)
+		session = self.sessionmaker()
+		results = session.query(AggregateBan)
 		subnetbans = results.filter(AggregateBan.type=='subnet')
 		userban = results.filter(AggregateBan.type=='user').filter(AggregateBan.data==user)
 		ipban = results.filter(AggregateBan.type=='ip').filter(AggregateBan.data==ip)
 		useridban = results.filter(AggregateBan.type=='userid').filter(AggregateBan.data==userid)
+		session.close()
 		
 	def login_user(self, user, password, ip, lobby_id, user_id, cpu, local_ip, country):
+		session = self.sessionmaker()
 		name = user.lower()
 		lanadmin = self._root.lanadmin
 		if user == lanadmin['username'] and password == lanadmin['password']:
@@ -253,7 +257,7 @@ class UsersHandler:
 			return True, sqluser
 		good = True
 		now = int(time.time())
-		entry = self.session.query(User).filter(User.name==name).first() # should only ever be one user with each name so we can just grab the first one :)
+		entry = session.query(User).filter(User.name==name).first() # should only ever be one user with each name so we can just grab the first one :)
 		reason = entry
 		if not entry:
 			return False, 'No user named %s'%user
@@ -273,114 +277,163 @@ class UsersHandler:
 		entry.last_login = now
 		entry.last_ip = ip
 		entry.last_id = user_id
-		#self.session.commit()
+		session.commit()
 		return good, reason
 	
 	def end_session(self, username):
+		session = self.sessionmaker()
 		name = username.lower()
-		entry = self.session.query(User).filter(User.name==name).first()
+		entry = session.query(User).filter(User.name==name).first()
 		if not entry.logins[-1].end: entry.logins[-1].end = time.time()
+		session.commit()
 
 	def register_user(self, user, password, ip): # need to add better ban checks so it can check if an ip address is banned when registering an account :)
+		if len(user)>20: return False, 'Username too long'
+		session = self.sessionmaker()
 		if self._root.censor:
 			if not self._root.SayHooks._nasty_word_censor(user):
 				return False, 'Name failed to pass profanity filter.'
 		name = user.lower()
-		results = self.session.query(User).filter(User.name==name).first()
+		results = session.query(User).filter(User.name==name).first()
 		lanadmin = self._root.lanadmin
 		if name == lanadmin['username'].lower():
 			if password == lanadmin['password']: # if you register a lanadmin account with the right user and pass combo, it makes it into a normal admin account
 				if user in self._root.usernames:
-					self._root.usernames[user]
+					self._root.usernames[user] # what the *********************
 				entry = User(name, lanadmin['username'], password, ip, 'admin')
 				entry.addresses.append(Address(ip_address=ip))
-				self.session.save(entry)
-				#self.session.commit()
+				session.save(entry)
+				session.commit()
 				return True, 'Account registered successfully.'
 			else: return False, 'Username already exists.'
 		if results:
 			return False, 'Username already exists.'
 		entry = User(name, user, password, ip)
-		self.session.save(entry)
-		#self.session.commit()
+		session.save(entry)
+		session.commit()
 		return True, 'Account registered successfully.'
 	
 	def ban_user(self, username, duration, reason):
+		session = self.sessionmaker()
 		name = username.lower()
-		entry = self.session.query(User).filter(User.name==name).first()
+		entry = session.query(User).filter(User.name==name).first()
 		end_time = int(time.time()) + duration
 		ban = Ban(reason, end_time)
-		self.session.save(ban)
+		session.save(ban)
 		ban.entries.append(AggregateBan('user', name))
 		ban.entries.append(AggregateBan('ip', entry.last_ip))
 		ban.entries.append(AggregateBan('userid', entry.last_id))
+		session.commit()
 		return 'Successfully banned %s for %s days.' % (username, duration)
 	
 	def unban_user(self, username):
-		results = self.session.query(AggregateBan).filter(AggregateBan.type=='user').filter(AggregateBan.data==user)
+		session = self.sessionmaker()
+		results = session.query(AggregateBan).filter(AggregateBan.type=='user').filter(AggregateBan.data==user)
 		if results:
 			for result in results:
-				self.session.delete(result.ban)
+				session.delete(result.ban)
+			session.commit()
 			return 'Successfully unbanned %s.' % username
 		else:
+			session.close()
 			return 'No matching bans for %s.' % username
 	
 	def banlist(self):
+		session = self.sessionmaker()
 		banlist = []
-		for ban in self.session.query(Ban):
+		for ban in session.query(Ban):
 			current_ban = '%s (%s)' % (ban.end_time, ban.reason)
 			for entry in ban.entries:
 				current_ban += ' (%s - %s)' % (entry.ban_type, entry.data)
+		session.close()
 		return banlist
 
 	def rename_user(self, user, newname):
+		if len(newname)>20: return False, 'Username too long'
+		session = self.sessionmaker()
 		if self._root.censor:
 			if not self._root.SayHooks._nasty_word_censor(user):
 				return False, 'Name failed to pass profanity filter.'
 		lnewname = newname.lower()
-		results = self.session.query(User).filter(User.name==lnewname).first()
-		if results:
-			return False, 'Username already exists.'
-		entry = self.session.query(User).filter(User.name==user.lower()).first()
+		if not lnewname == user.lower(): # this makes it so people can rename to a different case of the same name
+			results = session.query(User).filter(User.name==lnewname).first()
+			if results:
+				return False, 'Username already exists.'
+		entry = session.query(User).filter(User.name==user.lower()).first()
 		if not entry: return False, 'You don\'t seem to exist anymore. Contact an admin or moderator.'
 		entry.name = lnewname
 		entry.casename = newname
-		#self.session.save(entry)
-		#self.session.commit()
+		session.save(entry)
+		session.commit()
 		# need to iterate through channels and rename junk there...
-		# it might actually be a lot easier to use userids in the server...
+		# it might actually be a lot easier to use userids in the server... # later.
 		return True, 'Account renamed successfully.'
 	
 	def save_user(self, client):
+		session = self.sessionmaker()
 		name = client.username.lower()
-		entry = self.session.query(User).filter(User.name==name).first()
+		entry = session.query(User).filter(User.name==name).first()
 		if entry:
 			entry.ingame_time = client.ingame_time
 			entry.access = client.access
 			entry.bot = client.bot
 			entry.hook_chars = client.hook
+		session.commit()
 	
 	def confirm_agreement(self, client):
+		session = self.sessionmaker()
 		name = client.username.lower()
-		entry = self.session.query(User).filter(User.name==name).first()
+		entry = session.query(User).filter(User.name==name).first()
 		if entry: entry.access = 'user'
+		session.commit()
+	
+	def get_lastlogin(self, username):
+		session = self.sessionmaker()
+		name = username.lower()
+		entry = session.query(User).filter(User.name==name).first()
+		session.close()
+		if entry: return True, entry.last_login
+		else: return False, 'user not found in database'
+	
+	def get_registration_date(self, username):
+		session = self.sessionmaker()
+		name = username.lower()
+		entry = session.query(User).filter(User.name==name).first()
+		session.close()
+		if entry: return True, entry.register_date
+		else: return False, 'user not found in database'
+	
+	def get_account_info(self, username):
+		session = self.sessionmaker()
+		name = username.lower()
+		entry = session.query(User).filter(User.name==name).first()
+		session.close()
+		if entry:
+			data = '%s %s %s %s %s %s %s %s %s %s %s %s' % (entry.name, entry.casename, entry.password, entry.access, entry.register_date, entry.last_login, entry.last_ip, entry.last_id, entry.access, entry.bot, entry.hook_chars, entry.mapgrades)
+			#data = '%s %s %s %s %s %s %s %s %s %s %s' % (entry.name, entry.casename, entry.password, entry.access, entry.register_date, entry.last_login, entry.last_ip, entry.last_id, entry.access, entry.bot, entry.hook_chars)
+			return True, data
+		else: return False, 'user not found in database'
 
 	def remove_user(self, user):
-		entry = self.session.query(User).filter(User.name==user).first()
+		session = self.sessionmaker()
+		entry = session.query(User).filter(User.name==user).first()
 		if not entry:
 			return False, 'User not found.'
-		self.session.delete(entry)
-		#self.session.commit()
+		session.delete(entry)
+		session.commit()
 		return True, 'Success.'
 	
 	def load_channels(self):
-		response = self.session.query(Channel)
+		session = self.sessionmaker()
+		response = session.query(Channel)
 		for channel in response:
 			channels.append({})
+		session.close()
 		return channels
 	
 	def save_channel(self, channel):
-		entry = self.session.query(Channel)
+		session = self.sessionmaker()
+		entry = session.query(Channel)
 		entry.password = channel['password']
 		entry.chanserv = channel['chanserv']
 		entry.owner = channel['owner']
@@ -398,9 +451,9 @@ class UsersHandler:
 		entry.autokick = channel['autokick']
 		entry.censor = channel['censor']
 		entry.antishock = channel['antishock']
-		self.session.save(entry)
+		session.save(entry)
+		session.commit()
 
 	def save_channels(self, channels):
 		for channel in channels:
 			self.save_channel(channel)
-		#self.session.commit()

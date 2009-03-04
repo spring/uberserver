@@ -402,10 +402,10 @@ class Protocol:
 			m = md5.new()
 			m.update(password)
 			password = base64.b64encode(binascii.a2b_hex(m.hexdigest()))
-		#good, reason = self.userdb.login_user(username, password, client.ip_address)
-		#if not self._root.LAN and good: username = reason.casename # springlobby can't handle the username changing after login
+		good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
+		if not self._root.LAN and good: username = reason.casename
 		if not username in self._root.usernames:
-			good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
+			#good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 			if good:
 				client.access = reason.access
 				self._calc_access(client)
@@ -452,18 +452,14 @@ class Protocol:
 				client.Send('MOTD to the server talking in %i open channels' % len(self._root.channels))
 				client.Send('MOTD and participating in %i battles.' % len(self._root.battles))
 				client.Send('MOTD Server\'s uptime is %s' % self._time_since(self._root.start_time))
-				client.Send('MOTD')
-				client.Send('MOTD You are being hosted by fnord.clan-sy.com,')
-				client.Send('MOTD the main Spring server located in Stockholm, Sweden.')
-				client.Send('MOTD If you experience any problems, please report them to')
-				client.Send('MOTD lunixbochs@gmail.com')
-				client.Send('MOTD')
-				client.Send('MOTD Statistics are available through this page:')
-				client.Send('MOTD http://tracker.caspring.org/stats/view.php')
-				client.Send('MOTD User agreement can be found here:')
-				client.Send('MOTD http://spring.clan-sy.com/dl/Agreement.html')
-				client.Send('MOTD')
-				client.Send('MOTD Have fun playing Spring :-)')
+				if os.path.isfile('motd.txt'):
+					f = open('motd.txt', 'r')
+					data = f.read()
+					f.close()
+					if data:
+						client.Send('MOTD')
+						for line in data.split('\n'):
+							client.Send('MOTD %s' % line.strip())
 				
 				self._root.broadcast('ADDUSER %s %s %s'%(username,client.country_code,cpu),ignore=username)
 				
@@ -915,6 +911,8 @@ class Protocol:
 			if client.battlestatus['mode'] == '1': spectator = True
 			else: spectator = False
 			u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4, id1, id2, id3, id4, ready, u = self._dec2bin(battlestatus, 32)[-32:]
+			# support more allies and ids.
+			#u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4,ally5, ally6, ally7, ally8, id1, id2, id3, id4,id5, id6, id7, id8, ready, u = self._dec2bin(battlestatus, 40)[-40:]
 			if len(self._root.battles[client.current_battle]['users']) > self._root.battles[client.current_battle]['maxplayers'] and spectator and not mode == '0':
 				mode = '0'
 			client.battlestatus.update({'ready':ready, 'id':id1+id2+id3+id4, 'ally':ally1+ally2+ally3+ally4, 'mode':mode, 'sync':sync1+sync2, 'side':side1+side2+side3+side4})
@@ -1143,9 +1141,17 @@ class Protocol:
 			if username in self._root.usernames: # change to do SQL query if user is not logged in # maybe abstract in the datahandler to automatically query SQL for users not logged in.
 				ingame_time = int(self._root.usernames[username].ingame_time)
 				client.Send('SERVERMSG %s has an in-game time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
-		else:
+		elif not username:
 			ingame_time = int(client.ingame_time)
 			client.Send('SERVERMSG Your in-game time is %d minutes (%d hours).'%(ingame_time, ingame_time / 60))
+		else:
+			client.Send('SERVERMSG You can\'t get the ingame time of other users.')
+	
+	def in_GETLASTLOGINTIME(self, client, username):
+		if username:
+			good, data = self.userdb.get_lastlogin(username)
+			if good: client.Send('SERVERMSG <%s> last logged in on %s.' % (username, time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(data))))
+			else: client.Send('SERVERMSG Database returned error when retrieving last login time for <%s> (%s)' % (username, data))
 	
 	def in_GETREGISTRATIONDATE(self, client, username=None):
 		if username and 'mod' in client.accesslevels:
@@ -1159,6 +1165,12 @@ class Protocol:
 			reason = client.register_date
 		if good: client.Send('SERVERMSG <%s> registered on %s.' % (username, time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(reason))))
 		else: client.Send('SERVERMSG Database returned error when retrieving registration date for <%s> (%s)' % (username, reason))
+	
+	def in_GETACCOUNTINFO(self, client, username):
+		good, data = self.userdb.get_account_info(username)
+		if good:
+			client.Send('SERVERMSG %s' % data)
+		else: client.Send('SERVERMSG Database returned error when retrieving account info for <%s> (%s)' % (username, data))
 	
 	def in_RENAMEACCOUNT(self, client, newname):
 		#client.Send('SERVERMSG Renames are currently disabled.')

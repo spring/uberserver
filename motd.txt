@@ -1,0 +1,11 @@
+You are being hosted by fnord.clan-sy.com,
+the main Spring server located in Stockholm, Sweden.
+If you experience any problems, please report them to
+lunixbochs@gmail.com
+
+Statistics are available through this page:
+http://tracker.caspring.org/stats/view.php
+User agreement can be found here:
+http://spring.clan-sy.com/dl/Agreement.html
+
+Have fun playing Spring :-)

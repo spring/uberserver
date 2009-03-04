@@ -14,7 +14,7 @@ def cmd(msg):
 	return command, args
 
 def rmsg(command, args):
-	return '%s %s'%(command, args).rstrip(' ')
+	return ('%s %s'%(command, args)).rstrip(' ')
 
 def filter_in(client, msg):
 	while '\b' in msg:
