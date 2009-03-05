@@ -1248,7 +1248,7 @@ class Protocol:
 			bot = (mode.lower() in ('true', 'yes', '1'))
 			self._root.usernames[user].bot = bot
 			client.Send('SERVERMSG is <%s> a bot? %s' % (user, bot))
-			entry.username = client.username.lower()
+			self.userdb.save_user(self._root.usernames[user])
 	
 	def in_BROADCAST(self, client, msg):
 		self._root.broadcast('SERVERMSG %s'%msg)
