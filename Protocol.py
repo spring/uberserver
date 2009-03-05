@@ -999,8 +999,8 @@ class Protocol:
 				else:
 					self._root.broadcast('CHANNELMESSAGE %s Topic changed.'%channel, channel)
 					topicdict = {'user':client.username, 'text':topic, 'time':'%s'%(int(time.time())*1000)}
+					self._root.broadcast('CHANNELTOPIC %s %s %s %s'%(channel, client.username, topicdict['time'], topic), channel)
 				self._root.channels[channel]['topic'] = topicdict
-				self._root.broadcast('CHANNELTOPIC %s %s %s %s'%(channel, client.username, topicdict['time'], topic), channel)
 
 	def in_CHANNELMESSAGE(self, client, channel, message):
 		if channel in self._root.channels:

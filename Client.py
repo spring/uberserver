@@ -38,7 +38,7 @@ class Client:
 		self.hook = ''
 		self.floodlimit = {'fresh':{'msglength':1024, 'bytespersecond':1024, 'seconds':2},
 							'user':{'msglength':1024, 'bytespersecond':1024, 'seconds':3},
-							'bot':{'msglength':1024, 'bytespersecond':10240, 'seconds':3},
+							'bot':{'msglength':1024, 'bytespersecond':10240, 'seconds':10},
 							'mod':{'msglength':10240, 'bytespersecond':10240, 'seconds':10},
 							'admin':{'disabled':True},}
 		self.msglengthhistory = {}
@@ -69,7 +69,7 @@ class Client:
 			self._protocol = protocol
 
 	def Handle(self, data):
-		if self.bot: limit = self.floodlimit['bot']
+		if self.bot and not (access in self.floodlimit and 'disabled' in self.floodlimit[access]): limit = self.floodlimit['bot']
 		elif self.access in self.floodlimit: limit = self.floodlimit[self.access]
 		else: limit = self.floodlimit['user']
 		if not 'disabled' in limit:
