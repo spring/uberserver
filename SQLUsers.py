@@ -391,6 +391,18 @@ class UsersHandler:
 			#data = '%s %s %s %s %s %s %s %s %s %s %s' % (entry.name, entry.casename, entry.password, entry.access, entry.register_date, entry.last_login, entry.last_ip, entry.last_id, entry.access, entry.bot, entry.hook_chars)
 			return True, data
 		else: return False, 'user not found in database'
+	
+	def find_ip(self, username):
+		session = self.sessionmaker()
+		name = username.lower()
+		return
+		
+	def get_ip(self, usenrame):
+		session = self.sessionmaker()
+		name = username.lower()
+		entry = session.query(User).filter(User.name==name).first()
+		ip = entry.ip
+		return entry.ip
 
 	def remove_user(self, user):
 		session = self.sessionmaker()

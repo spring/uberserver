@@ -74,7 +74,7 @@ restricted = {
 	'GETLOBBYVERSION', 'GETSENDBUFFERSIZE',
 	'GETACCOUNTINFO', 'GETLASTLOGINTIME', 'GETREGISTRATIONDATE',
 	'ADMIN','MOD','DEBUG','PYTHON',
-	'TESTLOGIN','SETBOTMODE','SETINGAMETIME',],
+	'TESTLOGIN','SETINGAMETIME',],
 }
 
 restricted_list = []
@@ -843,7 +843,7 @@ class Protocol:
 						client.Send('CLIENTBATTLESTATUS %s %s %s'%(user, battlestatus, teamcolor))
 				for iter in battle_bots:
 					bot = battle_bots[iter]
-					client.Send('ADDBOT %s %s'(battle_id,iter)+' %(owner)s %(battlestatus)s %(teamcolor)s %(AIDLL)s'%(bot))
+					client.Send('ADDBOT %s %s'%(battle_id,iter)+' %(owner)s %(battlestatus)s %(teamcolor)s %(AIDLL)s'%(bot))
 					#client.Send('ADDBOT %s %s %s %s %s %s'%(battle_id, iter, bot['owner'], bot['battlestatus'], bot['teamcolor'], bot['AIDLL']))
 				for allyno in startrects:
 					rect = self._root.battles[battle_id]['startrects'][allyno]
@@ -1194,6 +1194,12 @@ class Protocol:
 			client.Send('SERVERMSG %s' % data)
 		else: client.Send('SERVERMSG Database returned error when retrieving account info for <%s> (%s)' % (username, data))
 	
+	def in_FINDIP(self, client, username):
+		good, data = self.userdb.find_ip(username)
+		if good:
+			client.Send('SERVERMSG %s' % data)
+		else: client.Send('SERVERMSG Database returned error when finding ip for <%s> (%s)' % (username, data))
+	
 	def in_RENAMEACCOUNT(self, client, newname):
 		#client.Send('SERVERMSG Renames are currently disabled.')
 		#return
@@ -1241,7 +1247,7 @@ class Protocol:
 		if user in self._root.usernames:
 			bot = (mode.lower() in ('true', 'yes', '1'))
 			self._root.usernames[user].bot = bot
-			client.Send('SERVERMSG <%s> is now a bot: %s' % bot)
+			client.Send('SERVERMSG is <%s> a bot? %s' % (user, bot))
 			entry.username = client.username.lower()
 	
 	def in_BROADCAST(self, client, msg):
@@ -1311,7 +1317,11 @@ class Protocol:
 		try:
 			exec code
 		except:
-			self._root.error(traceback.format_exc())
+			client.Send('-'*20)
+			for line in traceback.format_exc().split('\n'):
+				client.Send(line)
+			client.Send('-'*20)
+			#self._root.error(traceback.format_exc())
 
 	def in_MOD(self, client, user):
 		changeuser = self._root.usernames[user]
