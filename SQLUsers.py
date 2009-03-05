@@ -4,29 +4,6 @@ from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, 
 from sqlalchemy.exceptions import OperationalError
 from sqlalchemy.orm import mapper, sessionmaker, relation
 
-#for user in session.query(User).filter(User.name=='ed'):
-#	print user
-
-#print session.query(User).\
-#	join('addresses', aliased=True).filter(Address.ip_address=='216.7.57.1').all()
-
-#session.query(Address).filter_by(user=user).all()
-
-#engine = create_engine('sqlite:///:memory:')#, echo=True)
-#engine = create_engine('sqlite:///database.txt')
-
-#### IMPLEMENT THIS #### ...maybe not...
-#import sqlalchemy.pool as pool
-#import sqlite
-
-#def getconn():
-#    return sqlite.connect(filename='myfile.db')
-
-## SQLite connections require the SingletonThreadPool    
-#p = pool.SingletonThreadPool(getconn)
-#### END ####
-
-#engine = create_engine('mysql://uberserver:A2Pb2p3M547EuE47@localhost/uberserver')
 metadata = MetaData()
 
 class User(object):
@@ -460,8 +437,6 @@ class UsersHandler:
 
 	def inject_user(self, user, password, ip, lastlogin, uid, ingame, country, bot, mapgrades, access):
 		name = user.lower()
-		#results = self.session.query(User).filter(User.name==name).first()
-		#if results: return False, 'Account already exists.'
 		entry = User(name, user, password, ip)
 		entry.last_login = lastlogin
 		entry.last_id = uid
