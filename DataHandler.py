@@ -273,6 +273,7 @@ class DataHandler:
 		reload(sys.modules['SayHooks'])
 		reload(sys.modules['Protocol'])
 		reload(sys.modules['ChanServ'])
+		if 'SQLUsers' in sys.modules: reload(sys.modules['SQLUsers'])
 		self.SayHooks = __import__('SayHooks')
 		for handler in self.clienthandlers:
 			handler._rebind()

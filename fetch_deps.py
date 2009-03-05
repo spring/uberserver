@@ -55,7 +55,7 @@ for entry in zipdb.namelist():
 		f.write(zipdb.read(entry))
 		f.close()
 	except IOError:
-		os.mkdir(entry)
+		if not os.path.exists(entry): os.mkdir(entry)
 zipdb.close()
 os.remove('deps.zip')
 

@@ -13,6 +13,7 @@ restricted = {
 	'ADDSTARTRECT',
 	'DISABLEUNITS',
 	'ENABLEUNITS',
+	'ENABLEALLUNITS',
 	'FORCEALLYNO',
 	'FORCESPECTATORMODE',
 	'FORCETEAMCOLOR',
@@ -34,9 +35,12 @@ restricted = {
 	'LEAVE',
 	'MUTELIST',
 	'SAY',
+	'SAYHOOKED',
 	'SAYEX',
 	'SAYPRIVATE',
+	'SAYPRIVATEHOOKED',
 	'SAYBATTLE',
+	'SAYBATTLEHOOKED',
 	'SAYBATTLEEX',
 	'SCRIPT',
 	'SCRIPTEND',
@@ -47,24 +51,29 @@ restricted = {
 	'UPDATEBATTLEDETAILS',
 	########
 	# meta
+	'CHANGEPASSWORD',
 	'GETINGAMETIME',
 	'GETREGISTRATIONDATE',
+	'HOOK',
+	'KILLALL',
 	'MYSTATUS',
+	'PORTTEST',
 	'RENAMEACCOUNT'],
-	'mod':['CHANNELTOPIC','FORCECLOSEBATTLE','FORCELEAVECHANNEL','KICKUSER','MUTE','SETBOTMODE','UNMUTE'],
+	'mod':['SETCHANNELKEY','CHANNELTOPIC','CHANNELMESSAGE','FORCECLOSEBATTLE','FORCELEAVECHANNEL','KICKUSER','MUTE','SETBOTMODE','UNMUTE'],
 	'admin':[
 	#########
 	# channel
 	'ALIAS','UNALIAS','ALIASLIST',
 	#########
 	# server
-	'ADMINBROADCAST', 'BROADCAST','BROADCASTEX','RELOAD'
+	'ADMINBROADCAST', 'BROADCAST','BROADCASTEX','RELOAD',
 	#########
 	# users
 	'BAN', 'BANUSER', 'BANIP', 'UNBAN', 'BANLIST',
 	'FORGEMSG','FORGEREVERSEMSG',
-	'GETLOBBYVERSION','GETSENDBUFFERSIZE',
-	'ADMIN','MOD','DEBUG',
+	'GETLOBBYVERSION', 'GETSENDBUFFERSIZE',
+	'GETACCOUNTINFO', 'GETLASTLOGINTIME', 'GETREGISTRATIONDATE',
+	'ADMIN','MOD','DEBUG','PYTHON',
 	'TESTLOGIN','SETBOTMODE','SETINGAMETIME',],
 }
 
@@ -568,10 +577,10 @@ class Protocol:
 	#		if user in self._root.channels[chan]['users']:
 	#			self.SayHooks.hook_SAYEX(self,client,chan,msg)
 	
-	def in_SAYPRIVATEHOOKED(self, client, msg):
+	def in_SAYPRIVATEHOOKED(self, client, user, msg):
 		if not msg: return
 		user = client.username
-		self.SayHooks.hook_SAYPRIVATE(self, client, msg)
+		self.SayHooks.hook_SAYPRIVATE(self, client, user, msg)
 	
 	def in_SAYBATTLEHOOKED(self, client, msg):
 		battle_id = client.current_battle
@@ -679,6 +688,17 @@ class Protocol:
 		if not chan in self._root.channels:
 			self._root.channels[chan] = self._new_channel(chan)
 		channel = self._root.channels[chan]
+		if user in channel['users']:
+			if user in channel['blindusers'] and not blind:
+				channel['blindusers'].remove(user)
+				client.Send('FORCELEAVECHANNEL %s server Vision restored.' % chan)
+				client.Send('JOIN %s' % chan)
+				client.Send('CLIENTS %s %s'%(chan, ' '.join(self._root.channels[chan]['users'])))
+			elif user not in channel['blindusers'] and blind:
+				channel['blindusers'].append(user)
+				client.Send('FORCELEAVECHANNEL %s server Going blind.' % chan)
+				client.Send('JOIN %s' % chan)
+				client.Send('CLIENTS %s %s' % (chan, user)) 
 		if not user in channel['users']:
 			if not user == channel['owner'] and not 'mod' in client.accesslevels and not 'admin' in client.accesslevels:
 				if not channel['key'] == key and channel['key'] and not nolock:
@@ -698,8 +718,10 @@ class Protocol:
 				self._root.channels[chan]['users'].append(user)
 				client.Send('CLIENTS %s %s'%(chan, ' '.join(self._root.channels[chan]['users'])))
 			else:
+				self._root.broadcast('JOINED %s %s'%(chan,user),chan,self._root.channels[chan]['blindusers'])
 				self._root.channels[chan]['users'].append(user)
 				self._root.channels[chan]['blindusers'].append(user)
+				client.Send('CLIENTS %s %s'%(chan, user))
 		topic = channel['topic']
 		if topic and user in self._root.channels[chan]['users']: # putting this outside of the check means a user can rejoin a channel to get the topic while in it
 			client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topic['time'], topic['text']))
@@ -725,7 +747,7 @@ class Protocol:
 			if user in self._root.channels[chan]['blindusers']:
 				self._root.channels[chan]['blindusers'].remove(user)
 	
-	def in_MAPGRADES(self, client, grades):
+	def in_MAPGRADES(self, client, grades): # update in db
 		client.Send('MAPGRADESFAILED Not implemented.')
 
 	def in_OPENBATTLE(self, client, type, natType, password, port, maxplayers, hashcode, rank, maphash, sentence_args):
@@ -1262,14 +1284,15 @@ class Protocol:
 		client.Remove(reason)
 	
 	def in_BAN(self, client, username, duration, reason):
-		try: duration == float(duration)
+		try: duration = float(duration)
 		except:
 			client.Send('SERVERMSG Duration must be a float (it\'s the ban duration in days)')
-		response = self.userdb.ban(username, duration, reason)
+			return
+		response = self.userdb.ban_user(username, duration, reason)
 		if response: client.Send('SERVERMSG %s' % response)
 	
 	def in_UNBAN(self, client, username):
-		response = self.userdb.unban(username)
+		response = self.userdb.unban_user(username)
 		if response: client.Send('SERVERMSG %s' % response)
 	
 	def in_BANLIST(self, client):

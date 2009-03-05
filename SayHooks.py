@@ -46,6 +46,9 @@ def _update_lists():
 	except:
 		print 'Error parsing shock site list. It might not exist. Try running fetch_deps.py'
 
+def public_raw(self,user,chan,rights,msg):
+	self._protocol._handle(self, msg)
+
 def public_help(self,user,chan,rights,command=None):
 	'show command specific help.'
 	if not command:
@@ -509,13 +512,15 @@ def chanadmin_disallow(self,user,chan,rights,username):
 def chanadmin_chanmsg(self,user,chan,rights,message):
 	self._root.broadcast('CHANNELMESSAGE %s %s'%(chan, message), chan)
 
-def modchan_alias(self,user,chan,rights,alias,blind=None,nokey=None):
-	args = (blind.lower(), nokey.lower())
-	if 'blind' in args: blind = True
-	else: blind = False
-	if 'nokey' in args: nokey = True
-	else: nokey = False
-	if alias in self._root.channels:
+def modchan_alias(self,user,chan,rights,alias,args=None):
+	if args:
+		args = args.lower()
+		if 'blind' in args: blind = True
+		else: blind = False
+		if 'nolock' in args: nolock = True
+		else: nolock = False
+	else: blind = nolock = False
+	if alias in self._root.channels and not self._root.channels['alias']['founder']:
 		_reply(self,chan,'Cannot alias #%s to #%s, #%s is a registered channel.'%(alias, chan, alias))
 	else:
 		self._root.chan_alias[alias] = {'chan':chan, 'blind':blind, 'nolock':nolock}

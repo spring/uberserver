@@ -27,7 +27,7 @@ class ClientHandler:
 		self._bind()
 		for client in self.clients:
 			#client.Bind(protocol=self.protocol)
-			client.Bind(Protocol.Protocol(self._root,self)) # allows client's protocol to be overridden with ease
+			client.Bind(protocol=Protocol.Protocol(self._root,self)) # allows client's protocol to be overridden with ease
 			#print self.protocol
 
 	def Run(self):

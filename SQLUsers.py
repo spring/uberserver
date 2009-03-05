@@ -99,12 +99,12 @@ class Ban(object):
 		return "<Ban('%s')>" % self.end_time
 
 class AggregateBan(object):
-	def __init__(self, ban_type, data):
-		self.ban_type = ban_type
+	def __init__(self, type, data):
+		self.type = type
 		self.data = data
 	
 	def __repr__(self):
-		return "<AggregateBan('%s')('%s')>" % (self.ban_type, self.data)
+		return "<AggregateBan('%s')('%s')>" % (self.type, self.data)
 
 users_table = Table('users', metadata,
 	Column('id', Integer, primary_key=True),
@@ -305,7 +305,7 @@ class UsersHandler:
 	
 	def unban_user(self, username):
 		session = self.sessionmaker()
-		results = session.query(AggregateBan).filter(AggregateBan.type=='user').filter(AggregateBan.data==user)
+		results = session.query(AggregateBan).filter(AggregateBan.type=='user').filter(AggregateBan.data==username)
 		if results:
 			for result in results:
 				session.delete(result.ban)
@@ -321,7 +321,8 @@ class UsersHandler:
 		for ban in session.query(Ban):
 			current_ban = '%s (%s)' % (ban.end_time, ban.reason)
 			for entry in ban.entries:
-				current_ban += ' (%s - %s)' % (entry.ban_type, entry.data)
+				current_ban += ' (%s - %s)' % (entry.type, entry.data)
+			banlist.append(current_ban)
 		session.close()
 		return banlist
 
@@ -386,7 +387,7 @@ class UsersHandler:
 		entry = session.query(User).filter(User.name==name).first()
 		session.close()
 		if entry:
-			data = '%s %s %s %s %s %s %s %s %s %s %s %s' % (entry.name, entry.casename, entry.password, entry.access, entry.register_date, entry.last_login, entry.last_ip, entry.last_id, entry.access, entry.bot, entry.hook_chars, entry.mapgrades)
+			data = '%s %s %s %s %s %s %s %s %s %s %s' % (entry.name, entry.casename, entry.password, entry.register_date, entry.last_login, entry.last_ip, entry.last_id, entry.access, entry.bot, entry.hook_chars, entry.mapgrades)
 			#data = '%s %s %s %s %s %s %s %s %s %s %s' % (entry.name, entry.casename, entry.password, entry.access, entry.register_date, entry.last_login, entry.last_ip, entry.last_id, entry.access, entry.bot, entry.hook_chars)
 			return True, data
 		else: return False, 'user not found in database'
