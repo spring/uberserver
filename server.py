@@ -56,7 +56,7 @@ _root.console_write('Listening for clients on port %i'%port)
 _root.console_write('Using %i client handling thread(s).'%_root.max_threads)
 
 running = 1
-clients = {}
+#clients = {}
 
 def AddClient(client):
 	# start detection of handler with the least clients
@@ -79,11 +79,11 @@ def AddClient(client):
 	if not _root.clienthandlers[curthread].running:
 		thread.start_new_thread(_root.clienthandlers[curthread].Run, ())
 	_root.clienthandlers[curthread].AddClient(client)
-	clients[client] = curthread
+#	clients[client] = curthread
 
-def RemoveClient(client):
-	threadnum = clients[client]
-	_root.clienthandlers[threadnum].RemoveClient(client)
+#def RemoveClient(client):
+#	threadnum = clients[client]
+#	_root.clienthandlers[threadnum].RemoveClient(client)
 
 #try:
 #        import Users
@@ -115,8 +115,8 @@ try:
 		_root.clients[_root.session_id] = client
 		AddClient(client)
 		_root.session_id += 1
-		if not _root.session_id % (_root.max_threads*2):
-			time.sleep(0.1)
+		#if not _root.session_id % (_root.max_threads*2):
+		#	time.sleep(0.1)
 		#time.sleep(0.05) # just in case... # not sure what sleeping after connect is good for? remove it?
 except KeyboardInterrupt:
 	_root.console_write()

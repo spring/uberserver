@@ -114,9 +114,13 @@ class ClientHandler:
 		self.clients_num -= 1
 		if client.conn in self.input:
 			self.input.remove(client.conn)
+		if client.conn in self.output:
+			self.output.remove(client.conn)
 		if client in self.clients:
 			del self.clients[client]
 		self._root.console_write('Client disconnected from %s, session ID was %s'%(client.ip_address, client.session_id))
+		try: client.conn.close() # >_< limits total users ever connected to ulimit if this is removed. silly me.
+		except: pass
 		#if client.username in self._root.usernames:
 		#    del self._root.usernames[client.username]
 		client._protocol._remove(client, reason)
