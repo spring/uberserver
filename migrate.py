@@ -1,11 +1,12 @@
-print
-print 'starting migration'
-print
 import sqlalchemy, time, sys
 
 if not len(sys.argv) == 3:
 	print 'usage: migrate.py [/path/to/accounts.txt] [dburl]'
 	sys.exit()
+
+print
+print 'starting migration'
+print
 
 accountstxt = sys.argv[1]
 dburl = sys.argv[2]
@@ -30,7 +31,7 @@ for line in data.split('\n'):
 	if line:
 		line = line.split()
 		if len(line) < 8: continue
-		
+
 		username = line[0]
 		password = line[1]
 		access = line[2]
@@ -52,12 +53,6 @@ for line in data.split('\n'):
 		else: access = 'user'
 		accounts[username] = {'user':username, 'pass':password, 'ingame':ingame, 'lastlogin':lastlogin, 'uid':uid, 'ip':ip, 'country':country, 'bot':bot, 'mapgrades':mapgrades, 'access':access}
 
-start = time.time()
-count = 0
 print
 print 'writing accounts to database'
-for user in accounts.values():
-	count += 1
-	good, data = db.inject_user(user['user'], user['pass'], user['ip'], user['lastlogin'], user['uid'], user['ingame'], user['country'], user['bot'], user['mapgrades'], user['access'])
-	print count, count/(time.time()-start), data
-db.session.commit()
+db.inject_users(accounts.values())
