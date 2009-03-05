@@ -53,7 +53,7 @@ print 'populating duplicates (no duplicates will be added to the database)'
 start = time.time()
 count = 0
 d = open('duplicate.txt', 'w')
-usernames = [account['user'] for account in accounts]
+usernames = [account['user'] for account in accounts.values()]
 lowercase = [username.lower() for username in usernames]
 for user in usernames:
 	if lowercase.count(user.lower) > 1:
