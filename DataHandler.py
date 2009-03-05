@@ -1,4 +1,4 @@
-import thread, time, sys
+import thread, time, sys, os
 import md5, binascii, base64
 import traceback
 import time
@@ -30,6 +30,7 @@ class DataHandler:
 	SayHooks = __import__('SayHooks')
 	UsersHandler = None
 	censor = True
+	motd = None
 	
 	def __init__(self):
 		self.start_time = time.time()
@@ -152,7 +153,6 @@ class DataHandler:
 				except: print 'Error specifying SQL URL'
 			if arg in ['c', 'no-censor']:
 				self.censor = False
-				
 		if self.sqlurl == 'sqlite:///:memory:' or self.sqlurl == 'sqlite:///':
 			print 'In-memory sqlite databases are not supported.'
 			print 'Falling back to LAN mode.'
@@ -161,7 +161,7 @@ class DataHandler:
 		if not self.LAN:
 			try:
 				sqlalchemy = __import__('sqlalchemy')
-				self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=512, pool_recycle=300)
+				self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.max_threads*2, pool_recycle=300) # hopefully no thread will open more than two sql connections :/
 				if self.sqlurl.startswith('sqlite'):
 					print 'Multiple threads are not supported with sqlite, forcing a single thread'
 					print 'Please note the server performance will not be optimal'
@@ -182,6 +182,15 @@ class DataHandler:
 				print traceback.format_exc()
 				print 'Error importing SQL - reverting to LAN'
 				self.UsersHandler = __import__('LANUsers').UsersHandler
+		if os.path.isfile('motd.txt'):
+			motd = []
+			f = open('motd.txt', 'r')
+			data = f.read()
+			f.close()
+			if data:
+				for line in data.split('\n'):
+					motd.append(line.strip())
+			self.motd = motd
 
 	def mute_timer(self):
 		while 1:
@@ -277,3 +286,12 @@ class DataHandler:
 		self.SayHooks = __import__('SayHooks')
 		for handler in self.clienthandlers:
 			handler._rebind()
+		if os.path.isfile('motd.txt'):
+			motd = []
+			f = open('motd.txt', 'r')
+			data = f.read()
+			f.close()
+			if data:
+				for line in data.split('\n'):
+					motd.append(line.strip())
+			self.motd = motd

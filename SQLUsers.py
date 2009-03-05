@@ -255,6 +255,7 @@ class UsersHandler:
 		entry.last_ip = ip
 		entry.last_id = user_id
 		session.commit()
+		session.close()
 		return good, reason
 	
 	def end_session(self, username):
@@ -263,6 +264,7 @@ class UsersHandler:
 		entry = session.query(User).filter(User.name==name).first()
 		if not entry.logins[-1].end: entry.logins[-1].end = time.time()
 		session.commit()
+		session.close()
 
 	def register_user(self, user, password, ip): # need to add better ban checks so it can check if an ip address is banned when registering an account :)
 		if len(user)>20: return False, 'Username too long'
@@ -281,6 +283,7 @@ class UsersHandler:
 				entry.addresses.append(Address(ip_address=ip))
 				session.save(entry)
 				session.commit()
+				session.close()
 				return True, 'Account registered successfully.'
 			else: return False, 'Username already exists.'
 		if results:
@@ -288,6 +291,7 @@ class UsersHandler:
 		entry = User(name, user, password, ip)
 		session.save(entry)
 		session.commit()
+		session.close()
 		return True, 'Account registered successfully.'
 	
 	def ban_user(self, username, duration, reason):
@@ -301,6 +305,7 @@ class UsersHandler:
 		ban.entries.append(AggregateBan('ip', entry.last_ip))
 		ban.entries.append(AggregateBan('userid', entry.last_id))
 		session.commit()
+		session.close()
 		return 'Successfully banned %s for %s days.' % (username, duration)
 	
 	def unban_user(self, username):
@@ -310,6 +315,7 @@ class UsersHandler:
 			for result in results:
 				session.delete(result.ban)
 			session.commit()
+			session.close()
 			return 'Successfully unbanned %s.' % username
 		else:
 			session.close()
@@ -339,10 +345,11 @@ class UsersHandler:
 				return False, 'Username already exists.'
 		entry = session.query(User).filter(User.name==user.lower()).first()
 		if not entry: return False, 'You don\'t seem to exist anymore. Contact an admin or moderator.'
+		entry.renames.append(Rename(user, newname))
 		entry.name = lnewname
 		entry.casename = newname
-		session.save(entry)
 		session.commit()
+		session.close()
 		# need to iterate through channels and rename junk there...
 		# it might actually be a lot easier to use userids in the server... # later.
 		return True, 'Account renamed successfully.'
@@ -357,6 +364,7 @@ class UsersHandler:
 			entry.bot = client.bot
 			entry.hook_chars = client.hook
 		session.commit()
+		session.close()
 	
 	def confirm_agreement(self, client):
 		session = self.sessionmaker()
@@ -364,6 +372,7 @@ class UsersHandler:
 		entry = session.query(User).filter(User.name==name).first()
 		if entry: entry.access = 'user'
 		session.commit()
+		session.close()
 	
 	def get_lastlogin(self, username):
 		session = self.sessionmaker()
@@ -379,6 +388,14 @@ class UsersHandler:
 		entry = session.query(User).filter(User.name==name).first()
 		session.close()
 		if entry: return True, entry.register_date
+		else: return False, 'user not found in database'
+	
+	def get_ingame_time(self, username):
+		session = self.sessionmaker()
+		name = username.lower()
+		entry = session.query(User).filter(User.name==name).first()
+		session.close()
+		if entry: return True, entry.ingame_time
 		else: return False, 'user not found in database'
 	
 	def get_account_info(self, username):
@@ -411,6 +428,7 @@ class UsersHandler:
 			return False, 'User not found.'
 		session.delete(entry)
 		session.commit()
+		session.close()
 		return True, 'Success.'
 	
 	def load_channels(self):
@@ -443,6 +461,7 @@ class UsersHandler:
 		entry.antishock = channel['antishock']
 		session.save(entry)
 		session.commit()
+		session.close()
 
 	def save_channels(self, channels):
 		for channel in channels:
@@ -469,6 +488,7 @@ class UsersHandler:
 			if not count % 500:
 				print 'executing query'
 				session.commit()
+				session.close()
 				session = self.sessionmaker()
 			entry = self.inject_user(user['user'], user['pass'], user['ip'], user['lastlogin'], user['uid'], user['ingame'], user['country'], user['bot'], user['mapgrades'], user['access'])
 			session.save(entry)

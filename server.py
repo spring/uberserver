@@ -115,6 +115,8 @@ try:
 		_root.clients[_root.session_id] = client
 		AddClient(client)
 		_root.session_id += 1
+		if not _root.session_id % (_root.max_threads*2):
+			time.sleep(0.1)
 		#time.sleep(0.05) # just in case... # not sure what sleeping after connect is good for? remove it?
 except KeyboardInterrupt:
 	_root.console_write()

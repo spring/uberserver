@@ -461,14 +461,11 @@ class Protocol:
 				client.Send('MOTD to the server talking in %i open channels' % len(self._root.channels))
 				client.Send('MOTD and participating in %i battles.' % len(self._root.battles))
 				client.Send('MOTD Server\'s uptime is %s' % self._time_since(self._root.start_time))
-				if os.path.isfile('motd.txt'):
-					f = open('motd.txt', 'r')
-					data = f.read()
-					f.close()
-					if data:
-						client.Send('MOTD')
-						for line in data.split('\n'):
-							client.Send('MOTD %s' % line.strip())
+				
+				if self._root.motd:
+					client.Send('MOTD')
+					for line in list(self._root.motd):
+						client.Send('MOTD %s' % line)
 				
 				self._root.broadcast('ADDUSER %s %s %s'%(username,client.country_code,cpu),ignore=username)
 				
@@ -656,7 +653,7 @@ class Protocol:
 		#elif user in self._root.channels[chan]:
 		#	return
 		if user in self._root.channels[chan]['mutelist']:
-			self._root.broadcast('CHANNELMESSAGE %s <%s> has unmuted <%s>.'%(chan, client.username, user), chan)
+			if not quiet: self._root.broadcast('CHANNELMESSAGE %s <%s> has unmuted <%s>.'%(chan, client.username, user), chan)
 			del self._root.channels[chan]['mutelist'][user]
 
 	def in_MUTELIST(self, client, channel):
@@ -849,7 +846,6 @@ class Protocol:
 					rect = self._root.battles[battle_id]['startrects'][allyno]
 					client.Send('ADDSTARTRECT %s'%(allyno)+' %(left)s %(top)s %(right)s %(bottom)s'%(rect))
 					#client.Send('ADDSTARTRECT %s %s %s %s %s'%(allyno, rect['left'], rect['top'], rect['right'], rect['bottom']))
-				
 				client.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
 				client.teamcolor = '0'
 				client.current_battle = battle_id
@@ -869,7 +865,7 @@ class Protocol:
 					setscripttags.update({tag:value})
 				scripttags = []
 				for tag in setscripttags:
-					scripttags.append('%s=%s'%(tag, setscripttags[tag]))
+					scripttags.append('%s=%s'%(tag.lower(), setscripttags[tag]))
 				self._root.battles[battle_id]['script_tags'].update(setscripttags)
 				if not scripttags:
 					return
@@ -1163,6 +1159,13 @@ class Protocol:
 			if username in self._root.usernames: # change to do SQL query if user is not logged in # maybe abstract in the datahandler to automatically query SQL for users not logged in.
 				ingame_time = int(self._root.usernames[username].ingame_time)
 				client.Send('SERVERMSG %s has an in-game time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
+			else:
+				good, data = self.userdb.get_ingame_time(username)
+				if good:
+					ingame_time = int(data)
+					client.Send('SERVERMSG %s has an in-game time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
+				else: client.Send('SERVERMSG Database returned error when retrieving ingame time for <%s> (%s)' % (username, data))
+					
 		elif not username:
 			ingame_time = int(client.ingame_time)
 			client.Send('SERVERMSG Your in-game time is %d minutes (%d hours).'%(ingame_time, ingame_time / 60))
@@ -1207,6 +1210,9 @@ class Protocol:
 		if user == newname: return
 		good, reason = self.userdb.rename_user(user, newname)
 		if good:
+			del self._root.usernames[user]
+			self._root.usernames[newname] = client
+			client.username = newname
 			client.Remove('renaming')
 			client.Send('SERVERMSG Your account has been renamed to <%s>. Reconnect with the new username (you will now be automatically disconnected).' % newname)
 		else:
@@ -1317,10 +1323,10 @@ class Protocol:
 		try:
 			exec code
 		except:
-			client.Send('-'*20)
+			client.Send('SERVERMSG %s'%('-'*20))
 			for line in traceback.format_exc().split('\n'):
-				client.Send(line)
-			client.Send('-'*20)
+				client.Send('SERVERMSG  %s'%line)
+			client.Send('SERVERMSG %s'%('-'*20))
 			#self._root.error(traceback.format_exc())
 
 	def in_MOD(self, client, user):
@@ -1344,7 +1350,7 @@ class Protocol:
 		elif enabled == 'off': client.debug = False
 		else: client.debug = not client.debug
 		
-	def in_RELOAD(self, client, user):
+	def in_RELOAD(self, client):
 		'Reloads Protocol, SayHooks, Telnet, UserHandler, and ChanServ'
 		self._root.reload()
 

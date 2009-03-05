@@ -63,6 +63,9 @@ class Client:
 			self.handler = handler
 			if not self.conn in self.handler.input:
 				self.handler.input.append(self.conn)
+			if len(self.sendbuffer)>0:
+				if not self.conn in self.handler.output:
+					self.handler.output.append(self.conn)
 		if protocol:
 			if not self._protocol:
 				protocol._new(self)
@@ -122,9 +125,6 @@ class Client:
 		if self.telnet:
 			msg = Telnet.filter_out(self,msg)
 		if not msg: return
-		while not hasattr(self, 'handler') and not self.removing:
-			print 'sleeping'
-			time.sleep(1) # waiting until login is finished :)
 		handled = False
 		cflocals = sys._getframe(2).f_locals    # this whole thing with cflocals is basically a complicated way of checking if this client
 		if 'self' in cflocals:                  # was called by its own handling thread, because other ones won't deal with its msg_id
@@ -134,9 +134,6 @@ class Client:
 					handled = True
 		if not handled:
 			self.sendbuffer.append('%s%s'%(msg,self.nl))
-		if len(self.sendbuffer)>0:
-			if not self.conn in self.handler.output:
-				self.handler.output.append(self.conn)
 
 	def SendNow(self, msg):
 		if self.telnet:
