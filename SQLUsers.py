@@ -445,5 +445,19 @@ class UsersHandler:
 		entry.access = access
 		entry.bot = bot
 		entry.mapgrades = mapgrades
-		self.session.save(entry)
-		return True, 'Account %s injected successfully.' % user
+		return entry
+	
+	def inject_users(self, accounts):
+		session = self.sessionmaker()
+		count = 0
+		start = time.time()
+		for user in accounts:
+			count += 1
+			if not count % 500:
+				print 'executing query'
+				session.commit()
+				session = self.sessionmaker()
+			entry = self.inject_user(user['user'], user['pass'], user['ip'], user['lastlogin'], user['uid'], user['ingame'], user['country'], user['bot'], user['mapgrades'], user['access'])
+			session.save(entry)
+			print count, count/(time.time()-start)
+		

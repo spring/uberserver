@@ -52,23 +52,9 @@ for line in data.split('\n'):
 		else: access = 'user'
 		accounts[username] = {'user':username, 'pass':password, 'ingame':ingame, 'lastlogin':lastlogin, 'uid':uid, 'ip':ip, 'country':country, 'bot':bot, 'mapgrades':mapgrades, 'access':access}
 
-print 'populating duplicates (no duplicates will be added to the database)'
-usernames = [account['user'] for account in accounts.values()]
-lowercase = [username.lower() for username in usernames]
-duplicates = []
-for user in usernames:
-	if lowercase.count(user.lower) > 1:
-		duplicates.append(user)
-		del accounts[user]
-
-print 'saving %i duplicates' % len(duplicates)	
-d = open('duplicate.txt', 'w')
-for user in duplicates:
-	d.write('%s\n'+user)
-d.close()
-
 start = time.time()
 count = 0
+print
 print 'writing accounts to database'
 for user in accounts.values():
 	count += 1
