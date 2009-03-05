@@ -48,9 +48,11 @@ for line in data.split('\n'):
 		else: bot = False
 		if bot: ingame = ingame*2
 
-		if accss & 3: access = 'admin'
-		elif accss & 2: access = 'mod'
+		if accss == 1: access = 'agreement'
+		elif accss&3 == 3: access = 'admin'
+		elif accss&2 == 2: access = 'mod'
 		else: access = 'user'
+		
 		accounts[username] = {'user':username, 'pass':password, 'ingame':ingame, 'lastlogin':lastlogin, 'uid':uid, 'ip':ip, 'country':country, 'bot':bot, 'mapgrades':mapgrades, 'access':access}
 
 print
