@@ -510,7 +510,7 @@ class Protocol:
 						#client.Send('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' %(battle_id, type, natType, host, translated_ip, port, maxplayers, passworded, rank, maphash, engine, version, map, title, modname))
 						#self._root.clients[user].Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % battle)
 						client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
-						client.Send('UPDATEBATTLEINFO %(id)s %(spectators)s %(locked)s %(maphash)s %(mapname)s'%ubattle)
+						client.Send('UPDATEBATTLEINFO %(id)s %(spectators)s %(locked)s %(maphash)s %(map)s'%ubattle)
 						for user in ubattle['users']:
 							if not user == ubattle['host']: client.Send('JOINEDBATTLE %s %s'%(battle_id, user))
 					#except: pass # battle closed
