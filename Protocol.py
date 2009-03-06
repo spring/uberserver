@@ -1208,9 +1208,6 @@ class Protocol:
 		else: client.Send('SERVERMSG Database returned error when finding ip for <%s> (%s)' % (username, data))
 	
 	def in_RENAMEACCOUNT(self, client, newname):
-		if not 'admin' in client.accesslevels:
-			client.Send('SERVERMSG Renames are currently disabled, sorry. Trying to get them working properly asap :)')
-			return
 		user = client.username
 		if user == newname: return
 		good, reason = self.userdb.rename_user(user, newname)
