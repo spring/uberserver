@@ -140,12 +140,13 @@ class Protocol:
 					self._root.broadcast('BATTLECLOSED %s'%battle_id)
 					del self._root.battles[battle_id]
 				else:
-					del self._root.battles[battle_id]['users'][user]
-					for bot in bots:
-						if bot in self._root.battles[battle_id]['bots']:
-							del self._root.battles[battle_id]['bots'][bot]
-							self._root.broadcast_battle('REMOVEBOT %s %s'%(battle_id, bot), battle_id)
-					self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, user))
+					if user in self._root.battles[battle_id]['users']:
+						del self._root.battles[battle_id]['users'][user]
+						for bot in bots:
+							if bot in self._root.battles[battle_id]['bots']:
+								del self._root.battles[battle_id]['bots'][bot]
+								self._root.broadcast_battle('REMOVEBOT %s %s'%(battle_id, bot), battle_id)
+						self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, user))
 				#self.in_MYSTATUS(client,'0') # no idea.
 			self._root.broadcast('REMOVEUSER %s'%user)
 		del self._root.clients[client.session_id]
