@@ -1,5 +1,5 @@
 import socket, thread, select, sys, traceback, time, os
-#import cProfile # for profiling
+import cProfile # for profiling
 from Client import Client
 # from Protocol import Protocol
 # from Protocol import Protocol_034 as Protocol # legacy support
@@ -32,14 +32,15 @@ class ClientHandler:
 
 	def Run(self):
 		# commented out to remove profiling
-		#if not os.path.isdir('profiling'):
-		#	os.mkdir('profiling')
-		#cProfile.runctx('self.MainLoop()', globals(), locals(), os.path.join('profiling', '%s_%s.log'%(int(time.time()),self.num)))
+		if not os.path.isdir('profiling'):
+			os.mkdir('profiling')
+		self.running = True
+		cProfile.runctx('self.MainLoop()', globals(), locals(), os.path.join('profiling', '%s.log'%(self.num)))
 		# normal, no profiling
-		while 1:
-			self.running = True
-			try: self.MainLoop()
-			except: self._root.error(traceback.format_exc())
+		#while 1:
+		#	self.running = True
+		#	try: self.MainLoop()
+		#	except: self._root.error(traceback.format_exc())
 	
 	def MainLoop(self):
 		while self.running:
