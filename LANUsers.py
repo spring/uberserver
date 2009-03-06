@@ -10,6 +10,7 @@ class LANUser:
 		self.register_date = int(time.time())
 		self.last_ip = ip
 		self.bot = False
+		self.hook_chars = ''
 
 class UsersHandler:
 	def __init__(self, root):
