@@ -4,6 +4,7 @@ import Telnet
 
 class Client:
 	'this object represents one connected client'
+	handler = None
 
 	def __init__(self, root, connection, address, session_id, country_code):
 		'initial setup for the connected client'
@@ -128,8 +129,8 @@ class Client:
 		handled = False
 		cflocals = sys._getframe(2).f_locals    # this whole thing with cflocals is basically a complicated way of checking if this client
 		if 'self' in cflocals:                  # was called by its own handling thread, because other ones won't deal with its msg_id
-			if hasattr(cflocals['self'], 'handler'):
-				if cflocals['self'].handler == self.handler:
+			if hasattr(cflocals['self'], 'protocol'):
+				if cflocals['self'].protocol == self.protocol:
 					self.sendbuffer.append(self.msg_id+'%s%s'%(msg,self.nl))
 					handled = True
 		if not handled:
