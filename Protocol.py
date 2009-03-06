@@ -488,7 +488,7 @@ class Protocol:
 				#lock = self._root.battles.lock()
 				battles = dict(self._root.battles)
 				for battle in battles: #self._root.battles.__iter__(lock):
-					#try:
+					try:
 						battle_id = battle
 						ubattle = self._root.battles[battle_id].copy()
 						#type, natType, host, port, maxplayers, passworded, rank, maphash, engine, version, map, title, modname = [battle['type'], battle['natType'], battle['host'], battle['port'], battle['maxplayers'], battle['passworded'], battle['rank'], battle['maphash'], battle['engine'], battle['version'], battle['map'], battle['title'], battle['modname']]
@@ -513,7 +513,7 @@ class Protocol:
 						client.Send('UPDATEBATTLEINFO %(id)s %(spectators)s %(locked)s %(maphash)s %(map)s'%ubattle)
 						for user in ubattle['users']:
 							if not user == ubattle['host']: client.Send('JOINEDBATTLE %s %s'%(battle_id, user))
-					#except: pass # battle closed
+					except KeyError: pass # battle closed
 				#self._root.battles.unlock(lock)
 				
 				#lock = self._root.usernames.lock()

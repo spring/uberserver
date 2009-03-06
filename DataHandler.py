@@ -211,10 +211,12 @@ class DataHandler:
 	def error(self, error):
 		error = '%s\n%s\n%s'%(separator,error,separator)
 		self.console_write(error)
-		for user in self.usernames:
+		for user in dict(self.usernames):
 			if self.usernames[user].debug:
 				for line in error.split('\n'):
-					if line: self.usernames[user].Send('SERVERMSG %s'%line)
+					if line:
+						try: self.usernames[user].Send('SERVERMSG %s'%line)
+						except KeyError: pass # the user was removed
 
 	def console_write(self, lines=''):
 		if type(lines) == str or type(lines) == unicode:
