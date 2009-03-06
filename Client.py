@@ -135,7 +135,7 @@ class Client:
 					handled = True
 		if not handled:
 			self.sendbuffer.append('%s%s'%(msg,self.nl))
-		if len(self.sendbuffer)>0:
+		if len(self.sendbuffer)>0 and self.handler:
 			if not self.conn in self.handler.output:
 				self.handler.output.append(self.conn)
 
