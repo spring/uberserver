@@ -1209,6 +1209,7 @@ class Protocol:
 		else: client.Send('SERVERMSG Database returned error when finding ip for <%s> (%s)' % (username, data))
 	
 	def in_RENAMEACCOUNT(self, client, newname):
+		return
 		user = client.username
 		if user == newname: return
 		good, reason = self.userdb.rename_user(user, newname)
