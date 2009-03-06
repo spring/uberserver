@@ -114,42 +114,40 @@ class Protocol:
 		client.Send(login_string)
 
 	def _remove(self, client, reason='Quit'):
-		try:
-			if client.username:
-				if client.removing: return
-				if client.static: return
-				client.removing = True
-				user = client.username
-				if not user in self._root.usernames:
-					return
-				if not client == self._root.usernames[user]:
-					return
-				self.userdb.end_session(user)
-				channels = list(client.channels)
-				bots = dict(client.battle_bots)
-				#del self._root.clients[client.session_id]
-				del self._root.usernames[user]
-				for chan in channels:
-					if user in self._root.channels[chan]['users']:
-						self._root.channels[chan]['users'].remove(user)
-						if user in self._root.channels[chan]['blindusers']:
-							self._root.channels[chan]['blindusers'].remove(user)
-					self._root.broadcast('LEFT %s %s %s'%(chan, user, reason), chan, user)
-				if client.current_battle in self._root.battles:
-					battle_id = client.current_battle
-					if self._root.battles[battle_id]['host'] == user:
-						self._root.broadcast('BATTLECLOSED %s'%battle_id)
-						del self._root.battles[battle_id]
-					else:
-						del self._root.battles[battle_id]['users'][user]
-						for bot in bots:
-							if bot in self._root.battles[battle_id]['bots']:
-								del self._root.battles[battle_id]['bots'][bot]
-								self._root.broadcast_battle('REMOVEBOT %s %s'%(battle_id, bot), battle_id)
-						self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, user))
-					#self.in_MYSTATUS(client,'0') # no idea.
-				self._root.broadcast('REMOVEUSER %s'%user)
-		except: pass
+		if client.username:
+			if client.removing: return
+			if client.static: return
+			client.removing = True
+			user = client.username
+			if not user in self._root.usernames:
+				return
+			if not client == self._root.usernames[user]:
+				return
+			self.userdb.end_session(user)
+			channels = list(client.channels)
+			bots = dict(client.battle_bots)
+			#del self._root.clients[client.session_id]
+			del self._root.usernames[user]
+			for chan in channels:
+				if user in self._root.channels[chan]['users']:
+					self._root.channels[chan]['users'].remove(user)
+					if user in self._root.channels[chan]['blindusers']:
+						self._root.channels[chan]['blindusers'].remove(user)
+				self._root.broadcast('LEFT %s %s %s'%(chan, user, reason), chan, user)
+			if client.current_battle in self._root.battles:
+				battle_id = client.current_battle
+				if self._root.battles[battle_id]['host'] == user:
+					self._root.broadcast('BATTLECLOSED %s'%battle_id)
+					del self._root.battles[battle_id]
+				else:
+					del self._root.battles[battle_id]['users'][user]
+					for bot in bots:
+						if bot in self._root.battles[battle_id]['bots']:
+							del self._root.battles[battle_id]['bots'][bot]
+							self._root.broadcast_battle('REMOVEBOT %s %s'%(battle_id, bot), battle_id)
+					self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, user))
+				#self.in_MYSTATUS(client,'0') # no idea.
+			self._root.broadcast('REMOVEUSER %s'%user)
 		del self._root.clients[client.session_id]
 
 	def _handle(self,client,msg):
