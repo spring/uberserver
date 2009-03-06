@@ -59,7 +59,8 @@ restricted = {
 	'MYSTATUS',
 	'PORTTEST',
 	'RENAMEACCOUNT'],
-	'mod':['SETCHANNELKEY','CHANNELTOPIC','CHANNELMESSAGE','FORCECLOSEBATTLE','FORCELEAVECHANNEL','KICKUSER','MUTE','SETBOTMODE','UNMUTE'],
+	'mod':['BAN', 'BANUSER', 'BANIP', 'UNBAN', 'BANLIST','KICKUSER',
+	'SETCHANNELKEY','CHANNELTOPIC','CHANNELMESSAGE','FORCECLOSEBATTLE','FORCELEAVECHANNEL','MUTE','SETBOTMODE','UNMUTE'],
 	'admin':[
 	#########
 	# channel
@@ -69,7 +70,7 @@ restricted = {
 	'ADMINBROADCAST', 'BROADCAST','BROADCASTEX','RELOAD',
 	#########
 	# users
-	'BAN', 'BANUSER', 'BANIP', 'UNBAN', 'BANLIST',
+	
 	'FORGEMSG','FORGEREVERSEMSG',
 	'GETLOBBYVERSION', 'GETSENDBUFFERSIZE',
 	'GETACCOUNTINFO', 'GETLASTLOGINTIME', 'GETREGISTRATIONDATE',
@@ -1207,7 +1208,7 @@ class Protocol:
 		else: client.Send('SERVERMSG Database returned error when finding ip for <%s> (%s)' % (username, data))
 	
 	def in_RENAMEACCOUNT(self, client, newname):
-		if not 'admin' in client.access:
+		if not 'admin' in client.accesslevels:
 			client.Send('SERVERMSG Renames are currently disabled, sorry. Trying to get them working properly asap :)')
 			return
 		user = client.username
@@ -1216,7 +1217,7 @@ class Protocol:
 		if good:
 			del self._root.usernames[user]
 			self._root.usernames[newname] = client
-			client.username = newname
+			#client.username = newname
 			client.Remove('renaming')
 			client.Send('SERVERMSG Your account has been renamed to <%s>. Reconnect with the new username (you will now be automatically disconnected).' % newname)
 		else:
