@@ -1215,11 +1215,8 @@ class Protocol:
 		if user == newname: return
 		good, reason = self.userdb.rename_user(user, newname)
 		if good:
-			del self._root.usernames[user]
-			self._root.usernames[newname] = client
-			#client.username = newname
-			client.Remove('renaming')
 			client.Send('SERVERMSG Your account has been renamed to <%s>. Reconnect with the new username (you will now be automatically disconnected).' % newname)
+			client.Remove('renaming')
 		else:
 			client.Send('SERVERMSG Failed to rename to <%s>: %s' % (newname, reason))
 	
