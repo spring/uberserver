@@ -4,43 +4,6 @@ import Telnet
 
 class Client:
 	'this object represents one connected client'
-	handler = None
-	static = False
-	_protocol = None
-	removing = False
-	msg_id = ''
-	sendbuffer = []
-	sendingmessage = ''
-	logged_in = False
-	status = '12'
-	access = 'fresh'
-	accesslevels = ['fresh','everyone']
-	channels = []
-	battle_bots = {}
-	current_battle = None
-	battle_bans = []
-	username = ''
-	password = ''
-	ingame_time = 0
-	hostport = 8452
-	udpport = 0
-	bot = 0
-	hook = ''
-	floodlimit = {'fresh':{'msglength':1024, 'bytespersecond':1024, 'seconds':2},
-						'user':{'msglength':1024, 'bytespersecond':1024, 'seconds':10},
-						'bot':{'msglength':1024, 'bytespersecond':10240, 'seconds':5},
-						'mod':{'msglength':10240, 'bytespersecond':10240, 'seconds':10},
-						'admin':{'disabled':True},}
-	msglengthhistory = {}
-	lastsaid = {}
-	nl = '\n'
-	telnet = False
-	current_channel = ''
-	blind_channels = []
-	tokenized = False
-	hashpw = False
-	debug = False
-	data = ''
 
 	def __init__(self, root, connection, address, session_id, country_code):
 		'initial setup for the connected client'
@@ -51,6 +14,44 @@ class Client:
 		self.port = address[1]
 		self.country_code = country_code
 		self.session_id = session_id
+		
+		self.handler = None
+		self.static = False
+		self._protocol = None
+		self.removing = False
+		self.msg_id = ''
+		self.sendbuffer = []
+		self.sendingmessage = ''
+		self.logged_in = False
+		self.status = '12'
+		self.access = 'fresh'
+		self.accesslevels = ['fresh','everyone']
+		self.channels = []
+		self.battle_bots = {}
+		self.current_battle = None
+		self.battle_bans = []
+		self.username = ''
+		self.password = ''
+		self.ingame_time = 0
+		self.hostport = 8452
+		self.udpport = 0
+		self.bot = 0
+		self.hook = ''
+		self.floodlimit = {'fresh':{'msglength':1024, 'bytespersecond':1024, 'seconds':2},
+							'user':{'msglength':1024, 'bytespersecond':1024, 'seconds':10},
+							'bot':{'msglength':1024, 'bytespersecond':10240, 'seconds':5},
+							'mod':{'msglength':10240, 'bytespersecond':10240, 'seconds':10},
+							'admin':{'disabled':True},}
+		self.msglengthhistory = {}
+		self.lastsaid = {}
+		self.nl = '\n'
+		self.telnet = False
+		self.current_channel = ''
+		self.blind_channels = []
+		self.tokenized = False
+		self.hashpw = False
+		self.debug = False
+		self.data = ''
 		
 		self._root.console_write('Client connected from %s, session ID %s.' % (self.ip_address, session_id))
 		now = time.time()
@@ -117,6 +118,7 @@ class Client:
 	def Remove(self, reason='Quit'):
 		try:
 			self.conn.shutdown(socket.SHUT_RDWR)
+			self.conn.close()
 		except socket.error: #socket shut down by itself ;) probably got a bad file descriptor
 			pass
 		self.handler.RemoveClient(self, reason)

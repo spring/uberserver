@@ -8,31 +8,31 @@ from MutexDict import MutexDict
 separator = '-'*60
 
 class DataHandler:
-
-	local_ip = None
-	online_ip = None
-	session_id = 0
-	clienthandlers = []
-	console_buffer = []
-	port = 8200
-	natport = port+1
-	LAN = False
-	lanadmin = {'username':'', 'password':''}
-	latestspringversion = '*'
-	log = False
-	server = 'TASServer'
-	server_version = 0.35
-	engine = None
-	max_threads = 25
-	sqlurl = 'sqlite:///sqlite.txt'
-	randomflags = False
-	nextbattle = 0
-	SayHooks = __import__('SayHooks')
-	UsersHandler = None
-	censor = True
-	motd = None
 	
 	def __init__(self):
+		self.local_ip = None
+		self.online_ip = None
+		self.session_id = 0
+		self.clienthandlers = []
+		self.console_buffer = []
+		self.port = 8200
+		self.natport = port+1
+		self.LAN = False
+		self.lanadmin = {'username':'', 'password':''}
+		self.latestspringversion = '*'
+		self.log = False
+		self.server = 'TASServer'
+		self.server_version = 0.35
+		self.engine = None
+		self.max_threads = 25
+		self.sqlurl = 'sqlite:///sqlite.txt'
+		self.randomflags = False
+		self.nextbattle = 0
+		self.SayHooks = __import__('SayHooks')
+		self.UsersHandler = None
+		self.censor = True
+		self.motd = None
+		
 		self.start_time = time.time()
 		self.channels = MutexDict()
 		self.chan_alias = MutexDict()
