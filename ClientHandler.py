@@ -37,37 +37,39 @@ class ClientHandler:
 	
 	def MainLoop(self):
 		self.running = True
-		while self.running and self.input:
-			try:
-				try: inputready,outputready,exceptready = select.select(self.input,self.output,[], 0.5) # should I be using exceptready to close the sockets?
-				except:
-					for s in self.input:
-						try: select.select([s],[],[],0)
-						except: self._remove(s)
-					continue
-				if not self.running: continue
-  
-				for s in inputready:
-					try:
-						data = s.recv(1024)
+		while self.running:
+			while not self.input: time.sleep(0.1)
+			while self.running and self.input:
+				try:
+					try: inputready,outputready,exceptready = select.select(self.input,self.output,[], 0.5) # should I be using exceptready to close the sockets?
 					except socket.error:
-						self._remove(s)
+						for s in list(self.input):
+							try: select.select([s],[],[],0)
+							except: self._remove(s)
 						continue
-					if data:
-						if s in self.socketmap:
-							self.socketmap[s].Handle(data)
-					else:
-						self._remove(s)
+					if not self.running: continue
   
-				for s in outputready:
-					try:
-						self.socketmap[s].FlushBuffer()
-					except KeyError:
-						self._remove(s)
-					except socket.error:
-						s.close()
-						self._remove(s)
-			except:	self._root.error(traceback.format_exc())
+					for s in inputready:
+						try:
+							data = s.recv(1024)
+						except socket.error:
+							self._remove(s)
+							continue
+						if data:
+							if s in self.socketmap:
+								self.socketmap[s].Handle(data)
+						else:
+							self._remove(s)
+  
+					for s in outputready:
+						try:
+							self.socketmap[s].FlushBuffer()
+						except KeyError:
+							self._remove(s)
+						except socket.error:
+							s.close()
+							self._remove(s)
+				except:	self._root.error(traceback.format_exc())
 		self.running = False
 
 	def _remove(self,s):
