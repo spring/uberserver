@@ -101,7 +101,10 @@ try:
 	#AddClient(chanserv)
 	_root.session_id += 1
 	while running:
-		connection, address = server.accept()
+		try: connection, address = server.accept()
+		except socket.error:
+			_root.console_write('Error, refused new connection:')
+			_root.error(traceback.format_exc()) # I hope this doesn't happen on anything but maxfiles
 		if address[0].startswith('127.'): # detects if the connection is from this computer
 			if web_addr:
 				address = (web_addr, address[1])
