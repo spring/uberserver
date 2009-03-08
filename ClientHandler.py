@@ -42,11 +42,7 @@ class ClientHandler:
 			while self.running and self.input:
 				try:
 					try: inputready,outputready,exceptready = select.select(self.input,self.output,[], 0.5) # should I be using exceptready to close the sockets?
-					except socket.error:
-						for s in list(self.input):
-							try: select.select([s],[],[],0)
-							except: self._remove(s)
-						continue
+					except: continue
 					if not self.running: continue
   
 					for s in inputready:
