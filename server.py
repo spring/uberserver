@@ -102,9 +102,11 @@ try:
 	_root.session_id += 1
 	while running:
 		try: connection, address = server.accept()
-		except socket.error:
-			_root.console_write('Error, refused new connection:')
-			_root.error(traceback.format_exc()) # I hope this doesn't happen on anything but maxfiles
+		except socket.error, e:
+			if e[0] == 24: # ulimit maxfiles
+				_root.console_write('Maximum files reached, refused new connection.')
+			else:
+				raise socket.error, e
 		if address[0].startswith('127.'): # detects if the connection is from this computer
 			if web_addr:
 				address = (web_addr, address[1])
