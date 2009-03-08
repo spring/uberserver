@@ -148,7 +148,7 @@ class Protocol:
 						self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, user))
 				#self.in_MYSTATUS(client,'0') # no idea.
 			self._root.broadcast('REMOVEUSER %s'%user)
-		del self._root.clients[client.session_id]
+		if client in self._root.clients: del self._root.clients[client.session_id]
 
 	def _handle(self,client,msg):
 		if msg.startswith('#'):
