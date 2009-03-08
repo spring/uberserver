@@ -39,7 +39,7 @@ class ClientHandler:
 	
 	def MainLoop(self):
 		self.running = True
-		while self.input:
+		while self.running and self.input:
 			try:
 				try: inputready,outputready,exceptready = select.select(self.input,self.output,[], 0.5) # should I be using exceptready to close the sockets?
 				except:
