@@ -52,7 +52,7 @@ class Client:
 		self.country_code = country_code
 		self.session_id = session_id
 		
-		_root.console_write('Client connected from %s, session ID %s.' % (self.ip_address, session_id))
+		self._root.console_write('Client connected from %s, session ID %s.' % (self.ip_address, session_id))
 		now = time.time()
 		self.last_login = now
 		self.register_date = now
