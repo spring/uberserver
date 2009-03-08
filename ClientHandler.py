@@ -29,13 +29,11 @@ class ClientHandler:
 
 	def Run(self):
 		# commented out to remove profiling
-		if not os.path.isdir('profiling'):
-			os.mkdir('profiling')
-		thread.start_new_thread(cProfile.runctx,('self.MainLoop()', globals(), locals(), os.path.join('profiling', '%s.log'%(self.num))))
+		#if not os.path.isdir('profiling'):
+		#	os.mkdir('profiling')
+		#thread.start_new_thread(cProfile.runctx,('self.MainLoop()', globals(), locals(), os.path.join('profiling', '%s.log'%(self.num))))
 		# normal, no profiling
-		#while 1:
-		#	try: thread.start_new_thread(self.MainLoop,())
-		#	except: self._root.error(traceback.format_exc())
+		thread.start_new_thread(self.MainLoop,())
 	
 	def MainLoop(self):
 		self.running = True
