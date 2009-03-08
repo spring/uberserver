@@ -241,7 +241,7 @@ class UsersHandler:
 		if not password == entry.password:
 			good = False
 			reason = 'Invalid password'
-		#if entry.banned > 0: # update with time remaining from protocol or wherever it is
+		#if entry.banned > 0: # update with _time_remaining() from protocol or wherever it is
 			#if entry.banned > now:
 				#good = False
 				#timeleft = entry.banned - now
@@ -412,13 +412,16 @@ class UsersHandler:
 	def find_ip(self, username):
 		session = self.sessionmaker()
 		name = username.lower()
-		return
+		results = session.query(User).filter(User.last_ip==ip)
+		session.close()
+		return results
 		
 	def get_ip(self, usenrame):
 		session = self.sessionmaker()
 		name = username.lower()
 		entry = session.query(User).filter(User.name==name).first()
 		ip = entry.ip
+		session.close()
 		return entry.ip
 
 	def remove_user(self, user):
@@ -486,11 +489,9 @@ class UsersHandler:
 		for user in accounts:
 			count += 1
 			if not count % 500:
-				print 'executing query'
 				session.commit()
 				session.close()
 				session = self.sessionmaker()
 			entry = self.inject_user(user['user'], user['pass'], user['ip'], user['lastlogin'], user['uid'], user['ingame'], user['country'], user['bot'], user['mapgrades'], user['access'])
 			session.save(entry)
-			print count, count/(time.time()-start)
 		

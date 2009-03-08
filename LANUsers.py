@@ -27,6 +27,8 @@ class UsersHandler:
 		#		User.access = 'admin'
 		#	else: return False, 'Bad username/password'
 		return True, User
+	
+	def end_session(self, *args, **kwargs): pass
 
 	def register_user(self, user, password, ip): # need to add better ban checks so it can check if an ip address is banned when registering an account :) << lolwut this is LAN server
 		good = user in self._root.usernames

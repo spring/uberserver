@@ -59,7 +59,7 @@ restricted = {
 	'MYSTATUS',
 	'PORTTEST',
 	'RENAMEACCOUNT'],
-	'mod':['BAN', 'BANUSER', 'BANIP', 'UNBAN', 'BANLIST','KICKUSER',
+	'mod':['BAN', 'BANUSER', 'BANIP', 'UNBAN', 'BANLIST','KICKUSER','FINDIP','GETIP',
 	'SETCHANNELKEY','CHANNELTOPIC','CHANNELMESSAGE','FORCECLOSEBATTLE','FORCELEAVECHANNEL','MUTE','SETBOTMODE','UNMUTE'],
 	'admin':[
 	#########
@@ -70,7 +70,6 @@ restricted = {
 	'ADMINBROADCAST', 'BROADCAST','BROADCASTEX','RELOAD',
 	#########
 	# users
-	
 	'FORGEMSG','FORGEREVERSEMSG',
 	'GETLOBBYVERSION', 'GETSENDBUFFERSIZE',
 	'GETACCOUNTINFO', 'GETLASTLOGINTIME', 'GETREGISTRATIONDATE',
@@ -1202,19 +1201,32 @@ class Protocol:
 			client.Send('SERVERMSG %s' % data)
 		else: client.Send('SERVERMSG Database returned error when retrieving account info for <%s> (%s)' % (username, data))
 	
-	def in_FINDIP(self, client, username):
-		good, data = self.userdb.find_ip(username)
+	def in_FINDIP(self, client, address):
+		good, data = self.userdb.find_ip(address)
 		if good:
-			client.Send('SERVERMSG %s' % data)
+			for entry in results:
+				if entry.casename in self._root.usernames:
+					client.Send('SERVERMSG <%s> is currently bound to %s.' % (entry.casename, address))
+				else:
+					client.Send('SERVERMSG <%s> was recently bound to %s at %s' % (entry.casename, address, time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(entry.lastlogin))))
+		else: client.Send('SERVERMSG Database returned error when finding ip for <%s> (%s)' % (username, data))
+	
+	def in_GETIP(self, client, username):
+		if username in self._root.usernames:
+			client.Send('SERVERMSG <%s> is currently bound to %s' % (username, self._root.usernames[username].ip_address))
+			return
+		good, data = self.userdb.get_ip(username)
+		if good:
+			client.Send('SERVERMSG <%s> was recently bound to %s' % data)
 		else: client.Send('SERVERMSG Database returned error when finding ip for <%s> (%s)' % (username, data))
 	
 	def in_RENAMEACCOUNT(self, client, newname):
-		return
+	#	return
 		user = client.username
 		if user == newname: return
 		good, reason = self.userdb.rename_user(user, newname)
 		if good:
-			client.Send('SERVERMSG Your account has been renamed to <%s>. Reconnect with the new username (you will now be automatically disconnected).' % newname)
+			client.SendNow('SERVERMSG Your account has been renamed to <%s>. Reconnect with the new username (you will now be automatically disconnected).' % newname)
 			client.Remove('renaming')
 		else:
 			client.Send('SERVERMSG Failed to rename to <%s>: %s' % (newname, reason))

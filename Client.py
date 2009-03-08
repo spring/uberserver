@@ -5,6 +5,42 @@ import Telnet
 class Client:
 	'this object represents one connected client'
 	handler = None
+	static = False
+	_protocol = None
+	removing = False
+	msg_id = ''
+	sendbuffer = []
+	sendingmessage = ''
+	logged_in = False
+	status = '12'
+	access = 'fresh'
+	accesslevels = ['fresh','everyone']
+	channels = []
+	battle_bots = {}
+	current_battle = None
+	battle_bans = []
+	username = ''
+	password = ''
+	ingame_time = 0
+	hostport = 8452
+	udpport = 0
+	bot = 0
+	hook = ''
+	floodlimit = {'fresh':{'msglength':1024, 'bytespersecond':1024, 'seconds':2},
+						'user':{'msglength':1024, 'bytespersecond':1024, 'seconds':10},
+						'bot':{'msglength':1024, 'bytespersecond':10240, 'seconds':5},
+						'mod':{'msglength':10240, 'bytespersecond':10240, 'seconds':10},
+						'admin':{'disabled':True},}
+	msglengthhistory = {}
+	lastsaid = {}
+	nl = '\n'
+	telnet = False
+	current_channel = ''
+	blind_channels = []
+	tokenized = False
+	hashpw = False
+	debug = False
+	data = ''
 
 	def __init__(self, root, connection, address, session_id, country_code):
 		'initial setup for the connected client'
@@ -16,44 +52,7 @@ class Client:
 		self.country_code = country_code
 		self.session_id = session_id
 		
-		self.static = False
-		self._protocol = False
-		self.removing = False
-		self.msg_id = ''
-		self.sendbuffer = []
-		self.sendingmessage = ''
-		self.logged_in = False
-		self.status = '12'
-		self.access = 'fresh'
-		self.accesslevels = ['fresh', 'everyone']
-		self.channels = []
-		self.battle_bots = {}
-		self.current_battle = None
-		self.battle_bans = []
-		self.username = ''
-		self.password = ''
-		self.ingame_time = 0
-		self.hostport = 8542
-		self.udpport = 0
-		self.bot = 0
-		self.hook = ''
-		self.floodlimit = {'fresh':{'msglength':1024, 'bytespersecond':1024, 'seconds':2},
-							'user':{'msglength':1024, 'bytespersecond':1024, 'seconds':10},
-							'bot':{'msglength':1024, 'bytespersecond':10240, 'seconds':5},
-							'mod':{'msglength':10240, 'bytespersecond':10240, 'seconds':10},
-							'admin':{'disabled':True},}
-		self.msglengthhistory = {}
-		self.lastsaid = {}
-		self.nl = '\n'
-		self.telnet = False
-		self.current_channel = ''
-		self.blind_channels = []
-		self.tokenized = False
-		self.hashpw = False
-		self.debug = False
-		self.data = ''
-		
-		print 'Client connected from %s, session ID %s.' % (self.ip_address, session_id)
+		_root.console_write('Client connected from %s, session ID %s.' % (self.ip_address, session_id))
 		now = time.time()
 		self.last_login = now
 		self.register_date = now
@@ -129,8 +128,8 @@ class Client:
 		handled = False
 		cflocals = sys._getframe(2).f_locals    # this whole thing with cflocals is basically a complicated way of checking if this client
 		if 'self' in cflocals:                  # was called by its own handling thread, because other ones won't deal with its msg_id
-			if hasattr(cflocals['self'], 'protocol'):
-				if cflocals['self'].protocol == self.protocol:
+			if hasattr(cflocals['self'], 'handler'):
+				if cflocals['self'].handler == self.handler:
 					self.sendbuffer.append(self.msg_id+'%s%s'%(msg,self.nl))
 					handled = True
 		if not handled:
@@ -144,7 +143,7 @@ class Client:
 			msg = Telnet.filter_out(msg)
 		if not msg: return
 		try:
-			sent = self.conn.send(msg+self.nl)
+			self.conn.send(msg+self.nl)
 		except socket.error:
 			if self.conn in self.handler.output:
 				self.handler._remove(self.conn)

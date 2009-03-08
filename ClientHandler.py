@@ -14,8 +14,7 @@ class ClientHandler:
 		self.input = []
 		self.output = []
 		self.socketmap = {}
-		self.pending_clients = {}
-		self.clients = {}
+		self.clients = []
 		self.clients_num = 0
 		self.running = False
 
@@ -23,84 +22,60 @@ class ClientHandler:
 		self.protocol = Protocol.Protocol(self._root,self)
 
 	def _rebind(self):
-#		reload(sys.modules['SQLUsers']) # later
 		self._bind()
 		for client in self.clients:
 			#client.Bind(protocol=self.protocol)
 			client.Bind(protocol=Protocol.Protocol(self._root,self)) # allows client's protocol to be overridden with ease
-			#print self.protocol
 
 	def Run(self):
 		# commented out to remove profiling
 		if not os.path.isdir('profiling'):
 			os.mkdir('profiling')
-		self.running = True
-		cProfile.runctx('self.MainLoop()', globals(), locals(), os.path.join('profiling', '%s.log'%(self.num)))
+		thread.start_new_thread(cProfile.runctx,('self.MainLoop()', globals(), locals(), os.path.join('profiling', '%s.log'%(self.num))))
 		# normal, no profiling
 		#while 1:
-		#	self.running = True
-		#	try: self.MainLoop()
+		#	try: thread.start_new_thread(self.MainLoop,())
 		#	except: self._root.error(traceback.format_exc())
 	
 	def MainLoop(self):
-		while self.running:
-			while not self.input and not self.pending_clients and self.running:
-				time.sleep(0.1)
-			for client in dict(self.pending_clients):
-				try:
-					if not client in self.clients and client in self.pending_clients:
-						self.clients[client] = ''
-						client.Bind(self, self.protocol)
-					del self.pending_clients[client]
-					break # hax to only handle one each time around :)
-				except:	self._root.error(traceback.format_exc())
-			while self.input or self.pending_clients:
-				try:
-					for client in dict(self.pending_clients):
-						try:
-							if not client in self.clients and client in self.pending_clients:
-								self.clients[client] = ''
-								client.Bind(self, self.protocol)
-							del self.pending_clients[client]
-							break # hax to only handle one each time around :)
-						except:	self._root.error(traceback.format_exc())
-					if not self.input:
-						continue
-   
+		self.running = True
+		while self.input:
+			try:
+				try: inputready,outputready,exceptready = select.select(self.input,self.output,[], 0.5) # should I be using exceptready to close the sockets?
+				except:
+					for s in self.input:
+						try: select.select([s],[],[],0)
+						except: self._remove(s)
+  
+				for s in inputready:
 					try:
-						inputready,outputready,exceptready = select.select(self.input,self.output,[], 0.5)
-					except:
-						inputready = []
-						outputready = []
-   
-					for s in inputready:
-						try:
-							data = s.recv(1024)
-						except socket.error:
-							self._remove(s)
-							continue
-						if data:
-							if s in self.socketmap:
-								self.socketmap[s].Handle(data)
-						else:
-							self._remove(s)
-   
-					for s in outputready:
-						try:
-							self.socketmap[s].FlushBuffer()
-						except KeyError:
-							self._remove(s)
-						except socket.error:
-							s.close()
-							self._remove(s)
-				except:	self._root.error(traceback.format_exc())
+						data = s.recv(1024)
+					except socket.error:
+						self._remove(s)
+						continue
+					if data:
+						if s in self.socketmap:
+							self.socketmap[s].Handle(data)
+					else:
+						self._remove(s)
+  
+				for s in outputready:
+					try:
+						self.socketmap[s].FlushBuffer()
+					except KeyError:
+						self._remove(s)
+					except socket.error:
+						s.close()
+						self._remove(s)
+			except:	self._root.error(traceback.format_exc())
+		self.running = False
 
 	def _remove(self,s):
 		if s in self.input:
 			self.input.remove(s)
 		if s in self.output:
 			self.output.remove(s)
-		if s in self.socketmap: # for some reason gets called twice sometimes, so needs the check
+		if s in self.socketmap: # called twice sometimes, so needs the check
 			client = self.socketmap[s]
 			client.Remove()
 			try: del self.socketmap[s]
@@ -108,8 +83,11 @@ class ClientHandler:
 
 	def AddClient(self, client):
 		self.clients_num += 1
-		self.pending_clients[client] = ''
 		self.socketmap[client.conn] = client
+		
+		self.clients.append(client)
+		client.Bind(self, self.protocol)
+		if not self.running: self.Run()
 
 	def RemoveClient(self, client, reason='Quit'):
 		self.clients_num -= 1
@@ -118,11 +96,8 @@ class ClientHandler:
 		if client.conn in self.output:
 			self.output.remove(client.conn)
 		if client in self.clients:
-			del self.clients[client]
+			self.clients.remove(client)
 		self._root.console_write('Client disconnected from %s, session ID was %s'%(client.ip_address, client.session_id))
 		try: client.conn.close() # >_< limits total users ever connected to ulimit if this is removed. silly me.
-		except: pass
-		#if client.username in self._root.usernames:
-		#    del self._root.usernames[client.username]
+		except: pass # already closed
 		client._protocol._remove(client, reason)
-		#del self._root.clients[client.session_id]

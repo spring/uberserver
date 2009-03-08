@@ -280,14 +280,17 @@ class DataHandler:
 			if 'admin' in client.accesslevels:
 				client.Send('SERVERMSG Admin broadcast: %s'%msg)
 
+	def _rebind_handlers(self):
+		for handler in self.clienthandlers:
+			handler._rebind()
+
 	def reload(self):
 		reload(sys.modules['SayHooks'])
 		reload(sys.modules['Protocol'])
 		reload(sys.modules['ChanServ'])
 		if 'SQLUsers' in sys.modules: reload(sys.modules['SQLUsers'])
 		self.SayHooks = __import__('SayHooks')
-		for handler in self.clienthandlers:
-			handler._rebind()
+		thread.start_new_thread(self._rebind_handlers, ()) # why should reloading block the thread? :)
 		if os.path.isfile('motd.txt'):
 			motd = []
 			f = open('motd.txt', 'r')
