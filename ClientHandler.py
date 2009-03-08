@@ -47,6 +47,7 @@ class ClientHandler:
 						try: select.select([s],[],[],0)
 						except: self._remove(s)
 					continue
+				if not self.running: continue
   
 				for s in inputready:
 					try:
