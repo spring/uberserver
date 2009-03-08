@@ -126,11 +126,13 @@ except:
 	_root.console_write('Deep error, exiting...')
 _root.console_write('Killing handlers.')
 for handler in _root.clienthandlers:
-	handler.running = False	
+	handler.running = False
 _root.console_write('Killing clients.')
 for client in dict(_root.clients):
-	conn = _root.clients[client].conn
-	if conn: conn.close()
+	try:
+		conn = _root.clients[client].conn
+		if conn: conn.close()
+	except: pass # for good measure
 server.close()
 
 while _root.console_buffer: time.sleep(0.5)
