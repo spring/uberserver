@@ -43,7 +43,7 @@ class MutexDict:
 			data = self.__class__.__missing__(self, key)
 		self.unlock(lock)
 		if data: return data
-		raise KeyError(key)
+		#raise KeyError(key)
 	
 	def __setitem__(self, key, item, lock=None):
 		lock = self.lock(lock)
