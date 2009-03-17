@@ -23,12 +23,9 @@ backlog = 100
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.setsockopt( socket.SOL_SOCKET, socket.SO_REUSEADDR,
 				server.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR) | 1 )
-				# we can restart uberserver and it will ignore TIME_WAIT :D
+				# fixes TIME_WAIT :D
 server.bind((host,port))
 server.listen(backlog)
-
-
-# _root.LAN = True # GAH
 
 natserver = NATServer(natport)
 thread.start_new_thread(natserver.start,())
@@ -56,7 +53,6 @@ _root.console_write('Listening for clients on port %i'%port)
 _root.console_write('Using %i client handling thread(s).'%_root.max_threads)
 
 running = 1
-#clients = {}
 
 def AddClient(client):
 	# start detection of handler with the least clients
@@ -79,16 +75,6 @@ def AddClient(client):
 	_root.clienthandlers[curthread].AddClient(client) # if we add the client before running the loop, we don't need to wait or do pending clients :/
 	if not _root.clienthandlers[curthread].running:
 		thread.start_new_thread(_root.clienthandlers[curthread].Run, ())
-#	clients[client] = curthread
-
-#def RemoveClient(client):
-#	threadnum = clients[client]
-#	_root.clienthandlers[threadnum].RemoveClient(client)
-
-#try:
-#        import Users
-#except:
-#        exit() # replace with a working fallback to lan mode
 
 try:
 	if web_addr:
@@ -122,7 +108,7 @@ try:
 		_root.session_id += 1
 		#if not _root.session_id % (_root.max_threads*2):
 		#	time.sleep(0.1)
-		#time.sleep(0.05) # just in case... # not sure what sleeping after connect is good for? remove it?
+		#time.sleep(0.05) # just in case... # not sure what sleeping after connect is good for? remove it? # maybe decreases load on database.
 except KeyboardInterrupt:
 	_root.console_write()
 	_root.console_write('Server killed by keyboard interrupt.')

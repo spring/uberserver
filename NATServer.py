@@ -5,11 +5,10 @@ class CustomUDPServer(SocketServer.UDPServer):
         self._root = root
 
     def finish_request(self, request, client_address):
-        """Finish one request by instantiating RequestHandlerClass."""
-	if hasattr(self, '_root'):
-	        self.RequestHandlerClass(request, client_address, self, self._root)
-	else:
-		pass # not bound to _root yet, no point in handling UDP
+		if '_root_' in dir(self):
+		        self.RequestHandlerClass(request, client_address, self, self._root)
+		else:
+			pass # not bound to _root yet, no point in handling UDP
 
 class handler(SocketServer.DatagramRequestHandler):
 	def __init__(self, request, client_address, server, root):

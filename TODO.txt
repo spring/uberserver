@@ -1,30 +1,3 @@
-should be fixed:
-ingame time is broken
-
-make everything configurable through DataHandler/_root and command-line options/config file
-reloading <-- needs fixed. see above
-transfer of ownership
-channel registering (set owner)
-working SQLite -- integrate SQLUsers.py and DataHandler.py << just force single thread
-mods the power to check account registration dates, also needs registration date saved in db
-
-go case-insensitive to do easier name checking
-make renaming to a different case of the same name possible - nevermind, you can just log in as any form of your name ^_^
-don't cater to scunthorpe (match swear words on registration and rename)
-
-locked channels hidden by default (hide, show, lock) -- locked channels are hidden from CHANNELS (/list)
-
-forgereversemsg is disabled in all cases.
-forgemsg is disabled for anyone but yourself
-redirect hook_SAYPRIVATE to $local/SERVERMSG - screw it, kill private sayhooks
-bot flood limit
-renames disabled until implemented properly
-userid is an optional sentence arg, tab split lobby name and search for ints afterward.
-user agreement (lol)
-fix ghosting, instead of ghosting, resend login data properly?
-
-session end recorded in logins table
-
 to fix/add:
 
 antispam - 'antispam':{'enabled':True, 'quiet':False, 'agressiveness':1, 'bonuslength':100, 'duration':900}
@@ -49,6 +22,8 @@ php wrapper with https login
 instead of using LOGIN, use WEBLOGIN
 
 webinterface returns raw html
+
+could also use mod_proxy and run another open port.
 
 thoughts:
 

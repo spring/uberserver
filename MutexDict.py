@@ -39,7 +39,7 @@ class MutexDict:
 		data = None
 		if key in self.data:
 			data = self.data[key]
-		if hasattr(self.__class__, "__missing__"):
+		if '__missing__' in dir(self.__class__):
 			data = self.__class__.__missing__(self, key)
 		self.unlock(lock)
 		if data: return data
@@ -125,7 +125,7 @@ class MutexDict:
 			pass
 		elif isinstance(dict, UserDict):
 			self.data.update(dict.data)
-		elif isinstance(dict, type({})) or not hasattr(dict, 'items'):
+		elif isinstance(dict, type({})) or not 'items' in dir(dict):
 			self.data.update(dict)
 		else:
 			for k, v in dict.items():

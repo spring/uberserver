@@ -167,9 +167,6 @@ class Protocol:
 		else:
 			command = msg
 		command = command.upper()
-		
-		if not hasattr(self, 'in_'+command):
-			return False
 
 		access = []
 		for level in client.accesslevels:
@@ -185,10 +182,10 @@ class Protocol:
 				return False
 		
 		command = 'in_%s' % command
-		if hasattr(self,command):
-			function = getattr(self,command)
+		if command in vars(self):
+			function = vars(self)['command']
 		else:
-			client.Send('SERVERMSG %s failed. Command does not exist.'%('_'.join(command.split('_')[1:])))
+			client.Send('SERVERMSG %s failed. Command does not exist.'%(command.split('_',1)[1]))
 			return False
 		function_info = inspect.getargspec(function)
 		total_args = len(function_info[0])-2
@@ -536,8 +533,7 @@ class Protocol:
 				if self._root.LAN and not oldclient.password == password:
 					client.Send('DENIED Would ghost old user, but we are in LAN mode and your password does not match.')
 					return
-				oldclient._protocol._remove(oldclient, 'Removing: Ghosted')
-				oldclient.Remove()
+				oldclient.Remove('Ghosted')
 				self._root.console_write('Handler %s: Old client inactive, ghosting user <%s> from session %s.'%(client.handler.num, username, client.session_id))
 				#client.Send('DENIED Ghosted old user, please relogin.') # relogin is automagic :D
 				self.in_LOGIN(client, username, password, cpu, local_ip, sentence_args) # kicks old user and logs in new user
@@ -1251,7 +1247,7 @@ class Protocol:
 
 	def in_GETLOBBYVERSION(self, client, user):
 		if user in self._root.usernames: # need to concatenate to a function liek user = _find_user(user), if user: do junk else: say there's no user or owait... i can return to way back by catching an exception :D
-			if hasattr(self._root.usernames[user], 'lobby_id'):
+			if 'lobby_id' in self._root.usernames[user]:
 				client.Send('SERVERMSG <%s> is using %s'%(user, self._root.usernames[user].lobby_id))
 	
 	def in_GETSENDBUFFERSIZE(self, client, username):
@@ -1374,7 +1370,8 @@ def make_docs():
 	cmdlist = dir(Protocol)
 	for cmd in cmdlist:
 		if cmd.find('in_') == 0:
-			docstr = getattr(Protocol, cmd).__doc__ or ''
+			
+			docstr = vars(Protocol)[cmd].__doc__ or ''
 			cmd = cmd.split('_',1)[1]
 			response.append('%s - %s' % (cmd, docstr))
 	return response

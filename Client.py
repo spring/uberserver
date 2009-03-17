@@ -94,8 +94,7 @@ class Client:
 					total += self.msglengthhistory[iter]
 			if total > (bytespersecond * seconds):
 				self.SendNow('SERVERMSG No flooding (over %s per second for %s seconds)'%(bytespersecond, seconds))
-				self._protocol._remove(self, 'Kicked for flooding')
-				self.Remove()
+				self.Remove('Kicked for flooding')
 				return
 		self.data += data
 		if self.data.count('\n') > 0:
@@ -120,7 +119,8 @@ class Client:
 			self.conn.shutdown(socket.SHUT_RDWR)
 			self.conn.close()
 		except socket.error: #socket shut down by itself ;) probably got a bad file descriptor
-			pass
+			try: self.conn.close()
+			except socket.error: pass # in case shutdown was called but not close.
 		self.handler.RemoveClient(self, reason)
 
 	def Send(self, msg):
@@ -130,7 +130,7 @@ class Client:
 		handled = False
 		cflocals = sys._getframe(2).f_locals    # this whole thing with cflocals is basically a complicated way of checking if this client
 		if 'self' in cflocals:                  # was called by its own handling thread, because other ones won't deal with its msg_id
-			if hasattr(cflocals['self'], 'handler'):
+			if 'handler' in dir(cflocals['self']):
 				if cflocals['self'].handler == self.handler:
 					self.sendbuffer.append(self.msg_id+'%s%s'%(msg,self.nl))
 					handled = True
