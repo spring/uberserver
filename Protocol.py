@@ -182,8 +182,8 @@ class Protocol:
 				return False
 		
 		command = 'in_%s' % command
-		if command in vars(self):
-			function = vars(self)['command']
+		if command in dir(self):
+			function = getattr(self, command)
 		else:
 			client.Send('SERVERMSG %s failed. Command does not exist.'%(command.split('_',1)[1]))
 			return False
@@ -1370,8 +1370,7 @@ def make_docs():
 	cmdlist = dir(Protocol)
 	for cmd in cmdlist:
 		if cmd.find('in_') == 0:
-			
-			docstr = vars(Protocol)[cmd].__doc__ or ''
+			docstr = getattr(Protocol, cmd).__doc__ or ''
 			cmd = cmd.split('_',1)[1]
 			response.append('%s - %s' % (cmd, docstr))
 	return response
