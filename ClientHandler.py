@@ -89,9 +89,9 @@ class ClientHandler:
 
 	def RemoveClient(self, client, reason='Quit'):
 		self.clients_num -= 1
-		if client.conn in self.input:
+		while client.conn in self.input:
 			self.input.remove(client.conn)
-		if client.conn in self.output:
+ 		while client.conn in self.output:
 			self.output.remove(client.conn)
 		if client in self.clients:
 			self.clients.remove(client)
