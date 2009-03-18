@@ -33,10 +33,10 @@ class ClientHandler:
 		#	os.mkdir('profiling')
 		#thread.start_new_thread(cProfile.runctx,('self.MainLoop()', globals(), locals(), os.path.join('profiling', '%s.log'%(self.num))))
 		# normal, no profiling
+		self.running = True
 		thread.start_new_thread(self.MainLoop,())
 	
 	def MainLoop(self):
-		self.running = True
 		while self.running:
 			while not self.input: time.sleep(0.1)
 			while self.running and self.input:
