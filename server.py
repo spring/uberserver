@@ -73,8 +73,6 @@ def AddClient(client):
 					break # end if it's at 0, we won't get much lower :>
 	# end detection -- this code places a new client in the handler with the least clients
 	_root.clienthandlers[curthread].AddClient(client) # if we add the client before running the loop, we don't need to wait or do pending clients :/
-	if not _root.clienthandlers[curthread].running:
-		thread.start_new_thread(_root.clienthandlers[curthread].Run, ())
 
 try:
 	if web_addr:
