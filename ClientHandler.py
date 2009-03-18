@@ -28,6 +28,7 @@ class ClientHandler:
 			client.Bind(protocol=Protocol.Protocol(self._root,self)) # allows client's protocol to be overridden with ease
 
 	def Run(self):
+		if self.running: return
 		# commented out to remove profiling
 		#if not os.path.isdir('profiling'):
 		#	os.mkdir('profiling')
