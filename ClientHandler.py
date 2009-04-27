@@ -13,6 +13,7 @@ class PollMultiplexer:
 		self.sockets = {}
 	def register(self, fd):
 		try:
+			fd.setblocking(0)
 			if not fd.fileno() in self.sockets: self.sockets[fd.fileno()] = fd
 			return self.poller.register(fd)
 		except socket.error: pass
@@ -44,28 +45,30 @@ class SelectMultiplexer:
 		self.outputs = []
 	def register(self, fd):
 		if not fd in self.inputs: self.inputs.append(fd)
+		print self.inputs
 	def unregister(self, fd):
 		if fd in self.inputs: self.inputs.remove(fd)
 		if fd in self.outputs: self.outputs.remove(fd)
-	def setoutputready(self, fd, ready=True):
-		if ready == True:
+	def setoutputready(self, fd, ready):
+		if not fd in self.inputs: self.inputs.append(fd)
+		if ready:
 			if fd in self.inputs and not fd in self.outputs: self.outputs.append(fd)
 		else:
 			if fd in self.outputs: self.outputs.remove(fd)
 	def poll(self):
-		if not self.sockets: return ([], [] ,[])
+		if not self.inputs: return ([], [] ,[])
 		try: return select.select(self.inputs, self.outputs, [], 0.1)
 		except select.error:
 			inputs = []; outputs = []; errors = []
-			for s in self.sockets:
+			for s in self.inputs:
 				try: select.select([s], [s], [], 0.01)
 				except:
 					errors.append(s)
 					self.unregister(s)
-			inputs, outputs, _ = select.select(self.sockets, self.sockets, [], 0.1)
+			inputs, outputs, _ = select.select(self.inputs, self.outputs, [], 0.1)
 			return inputs, outputs, errors
 	def empty(self):
-		if not self.sockets: return True
+		if not self.inputs: return True
 
 class ClientHandler:
 	'''This represents one client handler. Threading multiple instances is recommended - for performance on *nix, and for multiplexing past 512 sockets on Windows.'''
