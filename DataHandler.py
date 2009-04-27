@@ -193,7 +193,8 @@ class DataHandler:
 			self.motd = motd
 		if not self.log:
 			try:
-				self.output = open('server.log', 'a')
+				self.output = open('server.log', 'w')
+				print 'Logging enabled at: ./server.log'
 				self.log = True
 			except: pass
 
