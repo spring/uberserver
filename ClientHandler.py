@@ -29,7 +29,7 @@ class PollMultiplexer:
 		try: self.poller.register(fd, mask)
 		except socket.error: pass
 	def poll(self):
-		results = self.poller.poll(1)
+		results = self.poller.poll()
 		inputs = []; outputs = []; errors = []
 		for fd, mask in results:
 			if (mask & POLLIN) or (mask & POLLPRI):	inputs.append(self.sockets[fd])
@@ -94,12 +94,12 @@ class ClientHandler:
 
 	def Run(self):
 		if self.running: return
+		self.running = True
 		# commented out to remove profiling
 		#if not os.path.isdir('profiling'):
 		#	os.mkdir('profiling')
 		#thread.start_new_thread(cProfile.runctx,('self.MainLoop()', globals(), locals(), os.path.join('profiling', '%s.log'%(self.num))))
 		# normal, no profiling
-		self.running = True
 		thread.start_new_thread(self.MainLoop,())
 	
 	def MainLoop(self):
