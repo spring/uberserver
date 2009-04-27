@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-print 'Starting uberserver...'
-print
 
 import thread, socket, time, sys, traceback
 from urllib import urlopen
@@ -14,6 +12,7 @@ import ip2country
 import ChanServ
 
 _root = DataHandler()
+_root.console_write('Starting uberserver...\n')
 _root.parseArgv(sys.argv)
 
 host = ''
@@ -99,6 +98,8 @@ try:
 		
 		if _root.randomflags: country_code = ip2country.randomcc() # random flag
 		else: country_code = ip2country.lookup(address[0]) # actual flag
+		
+		connection.setblocking(0)
 		
 		client = Client(_root, connection, address, _root.session_id, country_code)
 		_root.clients[_root.session_id] = client

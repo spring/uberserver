@@ -60,13 +60,7 @@ class Client:
 		self.lastdata = now
 
 	def Bind(self, handler=None, protocol=None):
-		if handler:
-			self.handler = handler
-			if not self.conn in self.handler.input:
-				self.handler.input.append(self.conn)
-			if len(self.sendbuffer)>0:
-				if not self.conn in self.handler.output:
-					self.handler.output.append(self.conn)
+		if handler:	self.handler = handler
 		if protocol:
 			if not self._protocol:
 				protocol._new(self)
@@ -136,9 +130,8 @@ class Client:
 					handled = True
 		if not handled:
 			self.sendbuffer.append('%s%s'%(msg,self.nl))
-		if len(self.sendbuffer)>0 and self.handler:
-			if not self.conn in self.handler.output:
-				self.handler.output.append(self.conn)
+		if len(self.sendbuffer)>0:
+			self.handler.poller.setoutputready(self.conn, True)
 
 	def SendNow(self, msg):
 		if self.telnet:
@@ -146,9 +139,7 @@ class Client:
 		if not msg: return
 		try:
 			self.conn.send(msg+self.nl)
-		except socket.error:
-			if self.conn in self.handler.output:
-				self.handler._remove(self.conn)
+		except socket.error: self.handler._remove(self.conn)
 
 	def FlushBuffer(self):
 		if self.data and self.telnet: # don't send if the person is typing :)
@@ -163,9 +154,6 @@ class Client:
 		try:
 			sent = self.conn.send(senddata)
 			self.sendingmessage = self.sendingmessage[sent:] # only removes the number of bytes sent
-		except socket.error:
-			if self.conn in self.handler.output:
-				self.handler._remove(self.conn)
+		except socket.error: self.handler._remove(self.conn)
 		if len(self.sendbuffer) == 0 and not self.sendingmessage:
-			if self.conn in self.handler.output:
-				self.handler.output.remove(self.conn)
+			self.handler.poller.setoutputready(self.conn, False)

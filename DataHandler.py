@@ -191,6 +191,11 @@ class DataHandler:
 				for line in data.split('\n'):
 					motd.append(line.strip())
 			self.motd = motd
+		if not self.log:
+			try:
+				self.output = open('server.log', 'a')
+				self.log = True
+			except: pass
 
 	def mute_timer(self):
 		while 1:
