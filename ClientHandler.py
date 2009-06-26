@@ -10,68 +10,47 @@ import Protocol
 class PollMultiplexer:
 	def __init__(self):
 		self.poller = select.poll()
-		self.sockets = {}
 	def register(self, fd):
-		try:
-			fd.setblocking(0)
-			if not fd.fileno() in self.sockets: self.sockets[fd.fileno()] = fd
-			return self.poller.register(fd)
-		except socket.error: pass
+		if not fd in self.sockets: self.sockets[fd.fileno()] = fd
+		return self.poller.register(fd)
 	def unregister(self, fd):
-		try:
-			if fd.fileno() in self.sockets: del self.sockets[fd.fileno()]
-			self.poller.unregister(fd)
-		except socket.error: pass
-	def setoutputready(self, fd, ready=True):
-		mask = POLLIN | POLLPRI
-		if ready == True:
-			mask |= POLLOUT
-		try: self.poller.register(fd, mask)
-		except socket.error: pass
+		if fd in self.sockets: del self.sockets[fd]
+		return self.poller.unregister(fd)
 	def poll(self):
-		results = self.poller.poll()
-		inputs = []; outputs = []; errors = []
+		results = self.poller.poll(0.1)
+		inputs = outputs = errors = []
 		for fd, mask in results:
-			if (mask & POLLIN) or (mask & POLLPRI):	inputs.append(self.sockets[fd])
-			if mask & POLLOUT: outputs.append(self.sockets[fd])
-			if (mask & POLLERR) or (mask & POLLHUP) or (mask & POLLNVAL): errors.append(self.sockets[fd])
+			if mask & POLLIN == POLLIN or mask & POLLPRI == POLLPRI: inputs.append(self.sockets[fd])
+			if mask & POLLOUT == POLLOUT: outputs.append(self.sockets[fd])
+			if mask & POLLERR == POLLERR or mask & POLLHUP == POLLHUP or mask & POLLNVAL == POLLNVAL: errors.append(self.sockets[fd])
 		return inputs, outputs, errors
 	def empty(self):
 		if not self.sockets: return True
 
 class SelectMultiplexer:
 	def __init__(self):
-		self.inputs = []
-		self.outputs = []
+		self.sockets = []
 	def register(self, fd):
-		if not fd in self.inputs: self.inputs.append(fd)
-		print self.inputs
+		if not fd in self.sockets: self.sockets.append(fd)
 	def unregister(self, fd):
-		if fd in self.inputs: self.inputs.remove(fd)
-		if fd in self.outputs: self.outputs.remove(fd)
-	def setoutputready(self, fd, ready):
-		if not fd in self.inputs: self.inputs.append(fd)
-		if ready:
-			if fd in self.inputs and not fd in self.outputs: self.outputs.append(fd)
-		else:
-			if fd in self.outputs: self.outputs.remove(fd)
+		if fd in self.sockets: self.sockets.remove(fd)
 	def poll(self):
-		if not self.inputs: return ([], [] ,[])
-		try: return select.select(self.inputs, self.outputs, [], 0.1)
+		if not self.sockets: return ([], [] ,[])
+		try: return select.select(self.sockets, self.sockets, [], 0.1)
 		except select.error:
-			inputs = []; outputs = []; errors = []
-			for s in self.inputs:
+			inputs = outputs = errors = []
+			for s in self.sockets:
 				try: select.select([s], [s], [], 0.01)
 				except:
 					errors.append(s)
 					self.unregister(s)
-			inputs, outputs, _ = select.select(self.inputs, self.outputs, [], 0.1)
+			inputs, outputs, _ = select.select(self.sockets, self.sockets, [], 0.1)
 			return inputs, outputs, errors
 	def empty(self):
-		if not self.inputs: return True
+		if not self.sockets: return True
 
 class ClientHandler:
-	'''This represents one client handler. Threading multiple instances is recommended - for performance on *nix, and for multiplexing past 512 sockets on Windows.'''
+	'''This represents one client handler. Threading is recommended. Multiple copies work.'''
 	def __init__(self, root, num):
 		self.num = num
 		self._root = root
@@ -81,6 +60,7 @@ class ClientHandler:
 		self.socketmap = {}
 		self.clients = []
 		self.clients_num = 0
+		self.thread = 0
 		self.running = False
 
 	def _bind(self):
@@ -103,6 +83,7 @@ class ClientHandler:
 		thread.start_new_thread(self.MainLoop,())
 	
 	def MainLoop(self):
+		self.thread = thread.get_ident()
 		try:
 			self._root.console_write('Handler %s: Starting.'%self.num)
 			while self.running and not self.poller.empty():
@@ -123,6 +104,7 @@ class ClientHandler:
 								self.socketmap[s].Handle(data)
 						else:
 							self._remove(s)
+
 					for s in outputs:
 						try:
 							self.socketmap[s].FlushBuffer()

@@ -171,25 +171,27 @@ def _spam_rec(client, chan, msg):
 
 def _chan_msg_filter(self, client, chan, msg):
 	username = client.username
-	if username in self._root.channels[chan]['mutelist']: return '' # client is muted, no use doing anything else
-	antispam = self._root.channels[chan]['antispam']
-	if antispam['enabled']:
+	channel = self._root.channels[chan]
+	if username in channel.mutelist: return '' # client is muted, no use doing anything else
+	antispam = channel.antispam
+	if antispam.enabled:
 		_spam_rec(client, chan, msg)
-		if _spam_enum(client, chan, antispam['timeout'], antispam['bonus'], antispam['unique'], antispam['bonuslength']):
-			self._root.channels[chan]['mutelist'][username] = time.time() + antispam['duration']
-			if antispam['quiet']:
+		if _spam_enum(client, chan, antispam.timeout, antispam.bonus, antispam.unique, antispam.bonuslength):
+			channel.mutelist[username] = time.time() + antispam.duration
+			if antispam.quiet:
 				client.Send('CHANNELMESAGE %s You were quietly muted for spamming.'%chan)
 			else:
 				self._root.broadcast('CHANNELMESSAGE %s %s was muted for spamming.'%(chan, username), chan)
 			return ''
-	if self._root.channels[chan]['censor']:
+	if channel.censor:
 		msg = _word_censor(msg)
-	if self._root.channels[chan]['antishock']:
+	if channel.antishock:
 		msg = _site_censor(msg)
 	return msg
 
 def hook_SAY(self,client,chan,msg):
 	user = client.username
+	channel = self._root.channels[chan]
 	if client.hook and msg.startswith(client.hook):
 		access = []
 		
@@ -204,9 +206,9 @@ def hook_SAY(self,client,chan,msg):
 		if mod:
 			access.append('mod')
 			access.append('modchan')
-		if user == self._root.channels[chan]['owner'] or admin or mod:
+		if user == channel.owner or admin or mod:
 			access.append('chanowner')
-		if user in self._root.channels[chan]['admins'] or admin or mod:
+		if user in channel.admins or admin or mod:
 			access.append('chanadmin')
 		access.append('public')
 		access.append('chanpublic')
@@ -383,128 +385,141 @@ def public_commands(self,user,chan,rights):
 				_reply(self,chan,command)
 
 def chanpublic_info(self,user,chan,rights):
-	ops = self._root.channels[chan]['admins']
-	owner = self._root.channels[chan]['owner']
+	channel = self._root.channels[chan]
+	ops = channel.admins
+	owner = channel.owner
 	if owner:
-		owner = 'Owner is <%s>, '%self._root.channels[chan]['owner']
+		owner = 'Owner is <%s>, ' % owner
 	else:
 		owner = 'No owner is registered, '
 	if ops:
 		owner += '%i registered operators are <%s>'%(len(ops),'> <'.join(ops))
 	else: owner += 'no operators are registered.'
 	spam = 'off'
-	if self._root.channels[chan]['censor']: censor = 'on'
+	if channel.censor: censor = 'on'
 	else: censor = 'off'
-	if self._root.channels[chan]['antishock']: antishock = 'on'
+	if channel.antishock: antishock = 'on'
 	else: antishock = 'off'
-	_reply(self,chan,'#%s info: Protection status: (spam: %s, shock sites: %s, language: %s). %s'%(chan,spam,antishock,censor,owner))
+	_reply(self,chan,'#%s info: Protection status: (spam: %s, shock sites: %s, language: %s). %s'%(chan, spam, antishock, censor, owner))
 
-def chanowner_antishock(self,user,chan,rights,state=''):
+def chanowner_antishock(self, user, chan, rights, state=''):
 	'turn shock site filtering on/off'
-	if state.lower() == 'on': self._root.channels[chan]['antishock'] = True
-	elif state.lower() == 'off': self._root.channels[chan]['antishock'] = False
-	if self._root.channels[chan]['antishock']: state = 'enabled'
+	channel = self._root.channels[chan]
+	if state.lower() == 'on': channel.antishock = True
+	elif state.lower() == 'off': channel.antishock = False
+	if channel.antishock: state = 'enabled'
 	else: state = 'disabled'
-	_reply(self,chan,'Shock site censoring is %s.'%state)
+	_reply(self, chan, 'Shock site censoring is %s.' % state)
 
-def chanowner_censor(self,user,chan,rights,state=''):
+def chanowner_censor(self, user, chan, rights, state=''):
 	'turn language censoring on/off'
-	if state.lower() == 'on': self._root.channels[chan]['censor'] = True
-	elif state.lower() == 'off': self._root.channels[chan]['censor'] = False
-	if self._root.channels[chan]['censor']: state = 'enabled'
+	channel = self._root.channels[chan]
+	if state.lower() == 'on': channel.censor = True
+	elif state.lower() == 'off': channel.censor = False
+	if channel.censor: state = 'enabled'
 	else: state = 'disabled'
-	_reply(self,chan,'Language censoring is %s.'%state)
+	_reply(self, chan, 'Language censoring is %s.' % state)
 
-def chanowner_op(self,user,chan,rights,users):
+def chanowner_op(self, user, chan, rights, users):
 	'add user(s) to the channel admin list'
+	channel = self._root.channels[chan]
 	users = users.split(' ')
 	for user in users:
-		if user and not user in self._root.channels[chan]['admins']:
-			self._root.channels[chan]['admins'].append(user)
-			_reply(self,chan,'%s added to this channels admin list.')
+		if user and not user in channel.admins:
+			channel.admins.append(user)
+			_reply(self, chan, '%s added to this channels admin list.' % user)
 
-def chanowner_deop(self,user,chan,rights,users):
+def chanowner_deop(self, user, chan, rights, users):
 	'removes user(s) from the channel admin list'
+	channel = self._root.channels[chan]
 	users = users.split(' ')
 	for user in users:
-		if user and user in self._root.channels[chan]['admins']:
-			self._root.channels[chan]['admins'].remove(user)
-			_reply(self,chan,'%s removed from this channels admin list.')
+		if user and user in channel.admins:
+			channel.admins.remove(user)
+			_reply(self, chan, '%s removed from this channels admin list.' % user)
 
-def chanowner_register(self,user,chan,rights,owner=None):
+def chanowner_register(self, user, chan, rights, owner=None):
+	channel = self._root.channel[chan]
 	if owner == None: owner = user
-	if self._root.channels[chan]['owner'] == owner:
-		_reply(self,chan,'Channel #%s already belongs to #%s' % (chan,owner))
+	if channel.owner == owner:
+		_reply(self, chan, 'Channel #%s already belongs to #%s' % (chan, owner))
 		return
 	if 'ChanServ' in self._root.usernames: self._root.usernames['ChanServ'].Send('JOIN %s' % chan)
-	self._root.channels[chan]['owner'] = user
-	_reply(self,chan,'Channel #%s successfully registered to %s' % (chan,user))
+	channel.owner = user
+	_reply(self, chan, 'Channel #%s successfully registered to %s' % (chan, user))
 
-def chanowner_unregister(self,user,chan,rights):
-	if not self._root.channels[chan]['owner']:
+def chanowner_unregister(self, user, chan, rights):
+	chan = self._root.channels[chan]
+	if not channel.owner:
 		_reply(self,chan,'Channel #%s is not registered' % chan)
 		return
-	self._root.channels[chan]['owner'] = ''
-	_reply(self,chan,'Channel #%s successfully unregistered' % chan)
+	channel.owner = ''
+	_reply(self, chan, 'Channel #%s successfully unregistered' % chan)
 
-def chanadmin_topic(self,user,channel,rights,topic):
-	if user in self._root.channels[channel]['users']:
-		topicdict = {'user':user, 'text':topic, 'time':'%s'%(int(time.time())*1000)}
-		self._root.channels[channel]['topic'] = topicdict
-		self._root.broadcast('CHANNELMESSAGE %s Topic changed.'%channel, channel, user)
-		_reply(self,chan,'You have successfully changed the topic.')
-		self._root.broadcast('CHANNELTOPIC %s %s %s %s'%(channel, user, topicdict['time'], topic), channel)
+def chanadmin_topic(self, user, channel, rights, topic):
+	channel = self._root.channels[chan]
+	if user in channelusers:
+		topicdict = {'user':user, 'text':topic, 'time':'%s' % (int(time.time())*1000)}
+		channel.topic = topicdict
+		self._root.broadcast('CHANNELMESSAGE %s Topic changed.' % channel, channel, user)
+		_reply(self, chan, 'You have successfully changed the topic.')
+		self._root.broadcast('CHANNELTOPIC %s %s %s %s' % (channel, user, topicdict['time'], topic), channel)
 
-def chanadmin_kick(self,user,chan,rights,username,reason=''):
-	if reason: reason = '(%s)'%reason
-	users = self._root.channels[chan]['users']
+def chanadmin_kick(self, user, chan, rights, username, reason=''):
+	channel = self._root.channels[chan]
+	if reason: reason = '(%s)' % reason
+	users = channel.users
 	if username in users:
 		access = self._root.usernames[username].accesslevels
 		if not 'chanfounder' in rights and 'mod' in access or 'chanadmin' in access or 'admin' in access or 'chanfounder' in access:
-			_reply(self,chan,'You are not allowed to kick <%s> from the channel.'%username)
+			_reply(self,chan,'You are not allowed to kick <%s> from the channel.' % username)
 			return
-		self._root.usernames[username].Send(('FORCELEAVECHANNEL %s %s %s'%(chan,user,reason)).strip())
-		self._root.channels[chan]['users'].remove(username)
+		self._root.usernames[username].Send(('FORCELEAVECHANNEL %s %s %s'%(chan, user, reason)).strip())
+		channel.users.remove(username)
 		#self._root.broadcast('CHANNELMESSAGE %s %s kicked from channel by <%s>.'%(channel,username,client.username),channel)
-		_reply(self,chan,'You have kicked %s from the channel'%username)
-		self._root.broadcast('LEFT %s %s kicked from channel by <%s>'%(chan,username,user),chan)
+		_reply(self, chan, 'You have kicked %s from the channel' % username)
+		self._root.broadcast('LEFT %s %s kicked from channel by <%s>' % (chan, username, user), chan)
 
-def chanadmin_ban(self,user,chan,rights,username,reason=''):
+def chanadmin_ban(self, user, chan, rights, username, reason=''):
+	channel = self._root.channel[chan]
 	if reason: reason = '(%s)'%reason
-	users = self._root.channels[chan]['users']
+	users = channel.users
 	if username in users or username in self._root.usernames:
 		access = self._root.usernames[username].accesslevels
 		if not 'chanfounder' in rights:
-			if 'mod' in access or username in self._root.channels[chan]['admins'] or 'admin' in access or 'chanfounder' in access:
-				_reply(self,chan,'You are not allowed to ban <%s> from the channel.'%username)
+			if 'mod' in access or username in channel.admins or 'admin' in access or 'chanfounder' in access:
+				_reply(self, chan, 'You are not allowed to ban <%s> from the channel.' % username)
 				return
 		client = self._root.usernames[username]
-		client.Send(('FORCELEAVECHANNEL %s %s %s'%(chan,user,reason)).strip())
+		client.Send(('FORCELEAVECHANNEL %s %s %s'%(chan, user, reason)).strip())
 		client.current_channel = None
-		self._root.channels[chan]['ban'][username] = reason
-		self._root.channels[chan]['users'].remove(username)
+		channel.ban[username] = reason
+		channel.users.remove(username)
 		#self._root.broadcast('CHANNELMESSAGE %s %s banned from channel by <%s>.'%(channel,username,client.username),channel)
-		_reply(self,chan,'You have banned %s from the channel'%username)
-		self._root.broadcast(('LEFT %s %s banned from channel by <%s> %s'%(chan,username,user,reason)).strip(),chan)
+		_reply(self, chan, 'You have banned %s from the channel' % username)
+		self._root.broadcast(('LEFT %s %s banned from channel by <%s> %s' % (chan, username, user, reason)).strip(), chan)
 	else: _reply(self,chan,'User not found')
 
-def chanadmin_unban(self,user,chan,rights,username):
-	if username in self._root.channels[chan]['ban']:
-		del self._root.channels[chan]['ban'][username]
-		_reply(self,chan,'<%s> has been unbanned'%username)
+def chanadmin_unban(self, user, chan, rights, username):
+	channel = self._root.channels[chan]
+	if username in channel.ban:
+		del channel.ban[username]
+		_reply(self,chan,'<%s> has been unbanned' % username)
 	else:
-		_reply(self,chan,'<%s> in not in the banlist'%username)
+		_reply(self,chan,'<%s> in not in the banlist' % username)
 
-def chanadmin_allow(self,user,chan,rights,username):
-	if username in self._root.channels[chan]['allow']:
-		_reply(self,chan,'<%s> is already allowed'%username)
+def chanadmin_allow(self, user, chan, rights, username):
+	channel = self._root.channels[chan]
+	if username in channel.allow:
+		_reply(self, chan, '<%s> is already allowed' % username)
 	else:
-		self._root.channels[chan]['allow'].append(username)
-		_reply(self,chan,'<%s> added to the allow list'%username)
+		channel.allow.append(username)
+		_reply(self, chan, '<%s> added to the allow list' % username)
 
-def chanadmin_disallow(self,user,chan,rights,username):
-	if username in self._root.channels[chan]['allow']:
-		self._root.channels[chan]['allow'].remove(username)
+def chanadmin_disallow(self, user, chan, rights, username):
+	channel = self._root.channels[chan]
+	if username in channel.allow:
+		channel.allow.remove(username)
 		_reply(self,chan,'<%s> removed from the allow list'%username)
 	else:
 		_reply(self,chan,'<%s> is already not allowed'%username)
@@ -520,11 +535,11 @@ def modchan_alias(self,user,chan,rights,alias,args=None):
 		if 'nolock' in args: nolock = True
 		else: nolock = False
 	else: blind = nolock = False
-	if alias in self._root.channels and not self._root.channels['alias']['founder']:
-		_reply(self,chan,'Cannot alias #%s to #%s, #%s is a registered channel.'%(alias, chan, alias))
+	if alias in self._root.channels and self._root.channels[alias].founder:
+		_reply(self, chan, 'Cannot alias #%s to #%s, #%s is a registered channel.'%(alias, chan, alias))
 	else:
 		self._root.chan_alias[alias] = {'chan':chan, 'blind':blind, 'nolock':nolock}
-		_reply(self,chan,'Successfully aliased #%s to #%s.'%(alias, chan))
+		_reply(self, chan, 'Successfully aliased #%s to #%s.'%(alias, chan))
 
 def modchan_unalias(self,user,chan,rights,alias):
 	if alias and alias in self._root.chan_alias:
@@ -608,22 +623,24 @@ def public_aliaslist(self,user,chan,rights):
 
 def public_banlist(self,user,chan,rights):
 	channel = self._root.channels[chan]
-	if channel['ban']:
-		_reply(self,chan,'#%s ban list:'%chan)
-		for ban in dict(channel['ban']):
-			try: _reply(self,chan,'<%s> %s'%(ban, channel['ban'][ban]))
+	if channel.ban:
+		bans = dict(channel.ban)
+		_reply(self, chan,'#%s ban list:' % chan)
+		for ban in bans:
+			try: _reply(self,chan,'<%s> %s'%(ban, bans[ban]))
 			except: pass
 	else:
-		_reply(self,chan,'No users banned in #%s'%chan)
+		_reply(self,chan,'No users banned in #%s' % chan)
 
 def public_allowlist(self,user,chan,rights):
 	channel = self._root.channels[chan]
-	if channel['allow']:
-		_reply(self,chan,'#%s allow list:'%chan)
-		for allow in list(channel['allow']):
-			_reply(self,chan,'<%s>'%allow)
+	if channel.allow:
+		allows = list(channel.allow)
+		_reply(self,chan,'#%s allow list:' % chan)
+		for allow in allows:
+			_reply(self,chan,'<%s>' % allow)
 	else:
-		_reply(self,chan,'No users on the allowlist in #%s'%chan)
+		_reply(self,chan,'No users on the allowlist in #%s' % chan)
 
 def admin_reload(self,user,chan,rights):
 	'reload everything'

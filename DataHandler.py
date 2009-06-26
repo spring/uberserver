@@ -3,7 +3,7 @@ import md5, binascii, base64
 import traceback
 import time
 
-from MutexDict import MutexDict
+#from MutexDict import MutexDict
 
 separator = '-'*60
 
@@ -34,12 +34,12 @@ class DataHandler:
 		self.motd = None
 		
 		self.start_time = time.time()
-		self.channels = MutexDict()
-		self.chan_alias = MutexDict()
-		self.usernames = MutexDict()
-		self.clients = MutexDict()
-		self.battles = MutexDict()
-		#self.mapgrades = MutexDict()
+		self.channels = {} #MutexDict()
+		self.chan_alias = {} #MutexDict()
+		self.usernames = {} #MutexDict()
+		self.clients = {} #MutexDict()
+		self.battles = {} #MutexDict()
+		#self.mapgrades = {} #MutexDict()
 		thread.start_new_thread(self.mute_timer,()) # maybe make into a single thread
 		thread.start_new_thread(self.console_loop,())
 	
@@ -193,26 +193,27 @@ class DataHandler:
 			self.motd = motd
 		if not self.log:
 			try:
-				self.output = open('server.log', 'w')
-				print 'Logging enabled at: ./server.log'
+				self.output = open('server.log', 'a')
 				self.log = True
 			except: pass
 
 	def mute_timer(self):
-		while 1:
+		while True:
 			try:
 				now = time.time()
 				channels = dict(self.channels)
-				for channel in channels:
-					mutelist = dict(channels[channel]['mutelist'])
+				for chan in channels:
+					channel = channels[chan]
+					mutelist = dict(channel.mutelist)
 					for user in mutelist:
 						expiretime = mutelist[user]
 						if 0 <= expiretime and expiretime < now:
-							del self.channels[channel]['mutelist'][user]
-							self.broadcast('CHANNELMESSAGE %s <%s> has been unmuted (mute expired).'%(channel, user))
+							del chan.mutelist[user]
+							self.broadcast('CHANNELMESSAGE %s <%s> has been unmuted (mute expired).'%(chan, user))
 				time.sleep(1)
 			except:
 				self.error(traceback.format_exc())
+				time.sleep(5)
 
 	def error(self, error):
 		error = '%s\n%s\n%s'%(separator,error,separator)
@@ -250,36 +251,37 @@ class DataHandler:
 				print '-'*60
 		
 	def broadcast(self, msg, chan=None, ignore=[]):
-		if type(ignore) == str:# or type(ignore) == unicode:
-			ignore = [ignore]
-		if chan in self.channels:
-			if 'users' in self.channels[chan]:
-				if len(self.channels[chan]['users']) > 0:
-					users = list(self.channels[chan]['users'])
+		try:
+			if type(ignore) == str:# or type(ignore) == unicode:
+				ignore = [ignore]
+			if chan in self.channels:
+				channel = self.channels[chan]
+				if len(channel.users) > 0:
+					users = list(channel.users)
 					for user in users:
 						if user in self.usernames and not user in ignore:
 							try:
 								self.usernames[user].Send(msg)
 							except KeyError: pass # user was removed
-		else:
-			users = dict(self.usernames)
-			for user in users:
-				if not user in ignore:
-					try:
-						self.usernames[user].Send(msg)
-					except KeyError: pass # user was removed
+			else:
+				users = dict(self.usernames)
+				for user in users:
+					if not user in ignore:
+						try:
+							self.usernames[user].Send(msg)
+						except KeyError: pass # user was removed
+		except: self.error(traceback.format_exc())
 
 	def broadcast_battle(self, msg, battle_id, ignore=[]):
 		if type(ignore) == str:# or type(ignore) == unicode:
 			ignore = [ignore]
 		if battle_id in self.battles:
-			if 'users' in self.battles[battle_id]:
-				users = dict(self.battles[battle_id]['users'])
-				for user in users:
-					if user in self.battles[battle_id]['users'] and not user in ignore:
-						try:
-							self.usernames[user].Send(msg)
-						except KeyError: pass # user was removed
+			battle = self.battles[battle_id]
+			users = list(battle.users)
+			for user in users:
+				try:
+					self.usernames[user].Send(msg)
+				except KeyError: pass # user was removed
 
 	def admin_broadcast(self, msg):
 		for client in dict(self.usernames):
@@ -292,9 +294,11 @@ class DataHandler:
 			handler._rebind()
 
 	def reload(self):
+		self.console_write('Reloading...')
 		reload(sys.modules['SayHooks'])
 		reload(sys.modules['Protocol'])
 		reload(sys.modules['ChanServ'])
+		reload(sys.modules['Client'])
 		if 'SQLUsers' in sys.modules: reload(sys.modules['SQLUsers'])
 		self.SayHooks = __import__('SayHooks')
 		thread.start_new_thread(self._rebind_handlers, ()) # why should reloading block the thread? :)

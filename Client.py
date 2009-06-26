@@ -1,4 +1,4 @@
-import socket, time, sys
+import socket, time, sys, thread
 import Telnet
 
 
@@ -58,6 +58,11 @@ class Client:
 		self.last_login = now
 		self.register_date = now
 		self.lastdata = now
+		
+		self.users = [] # session_id
+		self.userqueue = {} # [session_id] = [{'type': ['message', 'remove'], 'data':['CLIENTSTATUS', '']}, etc]
+		self.battles = {} # [battle_id] = [user1, user2, user3, etc]
+		self.battlequeue = {} # [battle_id] = [{'type': ['message', 'remove'], 'data':['CLIENTBATTLESTATUS', '']}, etc]
 
 	def Bind(self, handler=None, protocol=None):
 		if handler:	self.handler = handler
@@ -121,17 +126,18 @@ class Client:
 		if self.telnet:
 			msg = Telnet.filter_out(self,msg)
 		if not msg: return
-		handled = False
-		cflocals = sys._getframe(2).f_locals    # this whole thing with cflocals is basically a complicated way of checking if this client
-		if 'self' in cflocals:                  # was called by its own handling thread, because other ones won't deal with its msg_id
-			if 'handler' in dir(cflocals['self']):
-				if cflocals['self'].handler == self.handler:
-					self.sendbuffer.append(self.msg_id+'%s%s'%(msg,self.nl))
-					handled = True
-		if not handled:
-			self.sendbuffer.append('%s%s'%(msg,self.nl))
-		if len(self.sendbuffer)>0:
-			self.handler.poller.setoutputready(self.conn, True)
+		if self.handler.thread == thread.get_ident():
+			self.sendbuffer.append(self.msg_id+'%s%s' % (msg, self.nl))
+		else:
+			self.sendbuffer.append('%s%s' % (msg, self.nl))
+#		cflocals = sys._getframe(2).f_locals    # this whole thing with cflocals is basically a complicated way of checking if this client
+#		if 'self' in cflocals:                  # was called by its own handling thread, because other ones won't deal with its msg_id
+#			if 'handler' in dir(cflocals['self']):
+#				if cflocals['self'].handler == self.handler:
+#					self.sendbuffer.append(self.msg_id+'%s%s'%(msg,self.nl))
+#					handled = True
+#		if not handled:
+#			self.sendbuffer.append('%s%s'%(msg,self.nl))
 
 	def SendNow(self, msg):
 		if self.telnet:
@@ -155,5 +161,81 @@ class Client:
 			sent = self.conn.send(senddata)
 			self.sendingmessage = self.sendingmessage[sent:] # only removes the number of bytes sent
 		except socket.error: self.handler._remove(self.conn)
-		if len(self.sendbuffer) == 0 and not self.sendingmessage:
-			self.handler.poller.setoutputready(self.conn, False)
+	
+	# Queuing
+	
+	def AddUser(self, user):
+		if type(user) == str:
+			try: user = self._root.usernames[user]
+			except: return
+		session_id = user.session_id
+		if session_id in self.users: return
+		self.users.append(session_id)
+		self._protocol.client_AddUser(self, user)
+		if session_id in self.userqueue:
+			while self.userqueue[session_id]:
+				item = self.userqueue[session_id].pop(0)
+				if item['type'] == 'remove':
+					del self.userqueue[session_id]
+					break
+				elif item['type'] == 'message':
+					self.Send(item['data'])
+	
+	def RemoveUser(self, user):
+		if type(user) == str:
+			try: user = self._root.usernames[user]
+			except: return
+		session_id = user.session_id
+		if session_id in self.users:
+			self.users.remove(session_id)
+			if session_id in self.userqueue:
+				del self.userqueue[session_id]
+			self._protocol.client_RemoveUser(self, user)
+		else:
+			self.userqueue[session_id] = [{'type':'remove'}]
+	
+	def SendUser(self, user, data):
+		if type(user) == str:
+			try: user = self._root.usernames[user]
+			except: return
+		session_id = user.session_id
+		if session_id in self.users:
+			self.Send(data)
+		else:
+			if not session_id in self.userqueue:
+				self.userqueue[session_id] = []
+			self.userqueue[session_id].append({'type':'message', 'data':data})
+	
+	
+	def AddBattle(self, battle):
+		battle_id = battle.id
+		if battle_id in self.battles: return
+		self.battles[battle_id] = []
+		self._protocol.client_AddBattle(self, battle)
+		if battle_id in self.battlequeue:
+			while self.battlequeue[battle_id]:
+				item = self.battlequeue[battle_id].pop(0)
+				if item['type'] == 'remove':
+					del self.battlequeue[battle_id]
+					break
+				elif item['type'] == 'message':
+					self.Send(item['data'])
+	
+	def RemoveBattle(self, battle):
+		battle_id = battle.id
+		if battle_id in self.battles:
+			del self.battles[battle_id]
+			if battle_id in self.battlequeue:
+				del self.battlequeue[battle_id]
+			self._protocol.client_RemoveBattle(self, battle)
+		else:
+			self.battlequeue[battle_id] = [{'type':'remove'}]
+	
+	def SendBattle(self, battle, data):
+		battle_id = battle.id
+		if battle_id in self.battles:
+			self.Send(data)
+		else:
+			if not battle_id in self.battlequeue:
+				self.battlequeue[battle_id] = []
+			self.battlequeue[battle_id].append({'type':'message', 'data':data})

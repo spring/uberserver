@@ -27,8 +27,6 @@ class UsersHandler:
 		#		User.access = 'admin'
 		#	else: return False, 'Bad username/password'
 		return True, User
-	
-	def end_session(self, *args, **kwargs): pass
 
 	def register_user(self, user, password, ip): # need to add better ban checks so it can check if an ip address is banned when registering an account :) << lolwut this is LAN server
 		good = user in self._root.usernames
@@ -40,3 +38,29 @@ class UsersHandler:
 
 	def get_registration_date(self, user):
 		return False, 'LAN mode and user not logged in.'
+
+	def save_user(self, *args, **kwargs): pass
+	def end_session(self, *args, **kwargs): pass
+	def get_ingame_time(self, *args, **kwargs):
+		return False, None
+	
+	def get_lastlogin(self, *args, **kwargs):
+		return False, None
+	
+	def get_account_info(self, *args, **kwargs):
+		return False, None
+	
+	def find_ip(self, *args, **kwargs):
+		return False, None
+	
+	def get_ip(self, *args, **kwargs):
+		return False, None
+	
+	def ban_user(self, *args, **kwargs):
+		return False
+	
+	def unban_user(self, *args, **kwargs):
+		return False
+	
+	def banlist(self, *args, **kwargs):
+		return []

@@ -99,8 +99,6 @@ try:
 		if _root.randomflags: country_code = ip2country.randomcc() # random flag
 		else: country_code = ip2country.lookup(address[0]) # actual flag
 		
-		connection.setblocking(0)
-		
 		client = Client(_root, connection, address, _root.session_id, country_code)
 		_root.clients[_root.session_id] = client
 		AddClient(client)
