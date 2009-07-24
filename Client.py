@@ -53,7 +53,6 @@ class Client:
 		self.debug = False
 		self.data = ''
 		
-		self._root.console_write('Client connected from %s, session ID %s.' % (self.ip_address, session_id))
 		now = time.time()
 		self.last_login = now
 		self.register_date = now
@@ -63,6 +62,8 @@ class Client:
 		self.userqueue = {} # [session_id] = [{'type': ['message', 'remove'], 'data':['CLIENTSTATUS', '']}, etc]
 		self.battles = {} # [battle_id] = [user1, user2, user3, etc]
 		self.battlequeue = {} # [battle_id] = [{'type': ['message', 'remove'], 'data':['CLIENTBATTLESTATUS', '']}, etc]
+		
+		self._root.console_write('Client connected from %s, session ID %s.' % (self.ip_address, session_id))
 
 	def Bind(self, handler=None, protocol=None):
 		if handler:	self.handler = handler
