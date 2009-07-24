@@ -209,7 +209,7 @@ class Protocol:
 	def _remove(self, client, reason='Quit'):
 		if client.username:
 			if client.removing: return
-			if client.static: return
+			if client.static: return # static clients don't disconnect
 			client.removing = True
 			user = client.username
 			if not user in self._root.usernames:

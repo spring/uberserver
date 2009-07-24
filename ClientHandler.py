@@ -55,7 +55,7 @@ class ClientHandler:
 		self.num = num
 		self._root = root
 		self._bind()
-		if 'poll' in dir(select): self.poller = PollMultiplexer()
+		if 'poll' in dir(select) and False: self.poller = PollMultiplexer()
 		else: self.poller = SelectMultiplexer()
 		self.socketmap = {}
 		self.clients = []
@@ -123,21 +123,28 @@ class ClientHandler:
 		if s in self.socketmap:
 			client = self.socketmap[s]
 			client.Remove()
-			try: del self.socketmap[s]
-			except: pass
+			self._removeSocket(s)
+	
+	def _removeSocket(self, s):
+		try: self.socketmap.remove(s)
+		except: pass
 
 	def AddClient(self, client):
 		self.clients_num += 1
-		self.socketmap[client.conn] = client
+		if not client.static: # static clients don't have a socket
+			self.socketmap[client.conn] = client
+			self.poller.register(client.conn)
 		
 		self.clients.append(client)
 		client.Bind(self, self.protocol)
-		self.poller.register(client.conn)
 		if not self.running: self.Run()
 
 	def RemoveClient(self, client, reason='Quit'):
+		if client.static: return # static clients don't disconnect
 		self.clients_num -= 1
-		self.poller.unregister(client.conn)
+		s = client.conn
+		self.poller.unregister(s)
+		self._removeSocket(s)
 		if client in self.clients:
 			self.clients.remove(client)
 		self._root.console_write('Client disconnected from %s, session ID was %s'%(client.ip_address, client.session_id))
