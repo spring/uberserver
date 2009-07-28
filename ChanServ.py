@@ -88,7 +88,6 @@ class ChanServ:
 				if msg.count(' ') >= 2:
 					splitmsg = msg.split(' ',2)
 					print splitmsg
-					print 'asdf'
 					cmd = splitmsg[0]
 					if splitmsg[1].startswith('#'):
 						cmd, chan, args = splitmsg
@@ -98,10 +97,8 @@ class ChanServ:
 				elif msg.count(' ') == 1:
 					splitmsg = msg.split(' ')
 					print splitmsg
-					print 'fef'
 					cmd = splitmsg[0]
 					if splitmsg[1].startswith('#'):
-						print 'asfe'
 						cmd, chan = splitmsg
 						chan = chan.lstrip('#')
 					else:
@@ -137,7 +134,7 @@ class ChanServ:
 			users = channel.users
 			antispam = 'on' if channel.antispam.enabled else 'off'
 			if not admins: mods = 'no operators are registered'
-			else: mods = '%i registered operators are %s' % (len(admins), ', '.join(admins))
+			else: mods = '%i registered operator(s) are <%s>' % (len(admins), '>, <'.join(admins))
 			if len(users) == 1: users = '1 user'
 			else: users = '%i users' % len(users)
 			return '#%s info: Anti-spam protection is %s. %s, %s. %s currently in the channel.' % (chan, antispam, founder, mods, users)
@@ -218,7 +215,7 @@ class ChanServ:
 		if cmd == 'deop':
 			if access in ['mod', 'founder']:
 				if not args: return '#%s: You must specify a user to deop' % chan
-				if not args in eslf._root.channels[chan].admins: return '#%s: <%s> was not an op' % (chan, args)
+				if not args in self._root.channels[chan].admins: return '#%s: <%s> was not an op' % (chan, args)
 				self._root.channels[chan].admins.remove(args)
 				self._root.broadcast('CHANNELMESSAGE %s <%s> removed from the operator list by <%s>' % (chan, args, user), chan)
 				return '#%s: <%s> removed from the operator list' % (chan, args)
@@ -236,8 +233,8 @@ class ChanServ:
 			if access in ['mod', 'founder', 'op']:
 				if not args: return '#%s: You must specify a channel key to lock a channel' % chan
 				self._root.channels[chan].key = args
-				self._root.broadcast('CHANNELMESSAGE %s Channel locked by <%s>' % user, chan)
-				return '#%s: Locked'
+				self._root.broadcast('CHANNELMESSAGE %s Channel locked by <%s>' % (chan, user), chan)
+				return '#%s: Locked' % chan
 			else:
 				return '#%s: You do not have permission to lock the channel' % chan
 		if cmd == 'unlock':
@@ -250,38 +247,51 @@ class ChanServ:
 		if cmd == 'kick':
 			if access in ['mod', 'founder', 'op']:
 				if not args: return '#%s: You must specify a user to kick from the channel' % chan
-				if args in self._root.channels[chan].users:
-					self._root.broadcast('CHANNELMESSAGE %s <%s> kicked from the channel by <%s>' % (chan, msg, arg, user), chan)
-					self._root.channels[channel]['users'].remove(username)
+				if args.count(' '): 
+					target, reason = args.split(' ', 1)
+					reason = '(reason: %s)' % reason
+				else:
+					target = args
+					reason = ''
+				if target in self._root.channels[chan].users:
+					self._root.broadcast('CHANNELMESSAGE %s <%s> kicked from the channel by <%s> %s' % (chan, target, user, reason), chan)
+					self._root.channels[chan].users.remove(target)
 					self._root.broadcast('LEFT %s %s kicked from channel.'%(chan, args), chan)
-				else: return '#%s: <%s> not in channel' % (chan, args)
-				return '#%s: <%s> kicked' % (chan, user)
+				else: return '#%s: <%s> not in channel' % (chan, target)
+				return '#%s: <%s> kicked' % (chan, target)
 			else:
 				return '#%s: You do not have permission to kick users from the channel' % chan
 		if cmd == 'mute':
 			if access in ['mod', 'founder', 'op']:
 				if not args: return '#%s: You must specify a user to mute' % chan
+				else:
+					if args.count(' '): target, duration = args.split(' ', 1)
+					else:
+						target = args
+						duration = -1
 				try:
 					duration = float(duration)*60
 					if duration < 1:
-						duration = -1
+						timeleft = -1
 					else:
-						duration = time.time() + duration
-				except ValueError: duration = -1
-				self._root.channels[chan].mutelist[user] = duration
+						timeleft = time.time() + duration
+				except ValueError:
+					return '#%s:  Duration must be an integer!' % chan
+				self._root.channels[chan].mutelist[target] = timeleft
 				if not user in self._root.channels[chan].mutelist:
-					if duration > 0: duration = 'for (%i) seconds' % duration
+					if duration > 0: duration = 'for %i seconds' % duration
 					else: duration = 'forever'
-					self._root.broadcast('CHANNELMESSAGE %s <%s> has muted <%s> %s'%(chan, user, args, duration), chan)
-					return '#%s: <%s> muted for (%i) seconds' % (chan, args)
+					self._root.broadcast('CHANNELMESSAGE %s <%s> has muted <%s> %s'%(chan, user, target, duration), chan)
+					return '#%s: <%s> muted %s' % (chan, target, duration)
 				else:
-					return '#%s: <%s> muted for (%i) seconds' % (chan, args)
+					return '#%s: <%s> muted for %i seconds' % (chan, args)
 			else:
 				return '#%s: You do not have permission to mute users' % chan
 		if cmd == 'unmute':
 			if access in ['mod', 'founder', 'op']:
 				if not args: return '#%s: You must specify a user to unmute' % chan
 				if args in self._root.channels[chan].mutelist:
+					del self._root.channels[chan].mutelist[args]
 					self._root.broadcast('CHANNELMESSAGE %s <%s> has unmuted <%s>' % (chan, user, args), chan)
 					return '#%s: <%s> unmuted' % (chan, args)
 				else: return '#%s: <%s> is not muted' % (chan, args)
@@ -289,16 +299,18 @@ class ChanServ:
 				return '#%s: You do not have permission to unmute users' % chan
 		if cmd == 'mutelist':
 			if len(self._root.channels[chan].mutelist):
-				return '#%s: Mute list is empty!' % chan
-			else:
 				mutelist = dict(self._root.channels[chan].mutelist)
-				muted = '#%s: Mute list (%i entries):\n'%(len(mutelist))
+				muted = '#%s: Mute list (%i entries):  '%(chan, len(mutelist))
 				for user in mutelist:
 					timeleft = mutelist[user]
 					if timeleft < 0:
 						timeleft = 'indefinite'
-					muted += '%s, %s time remaining\n'%(user, timeleft)
+					else:
+						timeleft = timeleft-time.time()
+					muted += '%s, %s seconds remaining; '%(user, timeleft)
 				return muted
+			else:
+				return '#%s: Mute list is empty!' % chan
 		return ''
 
 	
