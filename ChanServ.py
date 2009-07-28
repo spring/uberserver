@@ -74,44 +74,43 @@ class ChanServ:
 	def handleSAIDPRIVATE(self, msg):
 		user, msg = msg.split(' ', 1)
 		self.HandleMessage(None, user, msg)
-	
+
 	def HandleMessage(self, chan, user, msg):
-		cmd = msg
-		args = None
-		print msg
 		if msg.startswith('!'):
 			msg = msg.lstrip('!')
 			if msg.lower() == 'help':
 				help = self.Help(user)
 				self.Send(['SAYPRIVATE %s %s'%(user, s) for s in help.split('\n')])
 			else:
-				if msg.count(' ') >= 2:
+				if msg.count(' ') >= 2:	# case cmd blah blah+
 					splitmsg = msg.split(' ',2)
-					print splitmsg
 					cmd = splitmsg[0]
-					if splitmsg[1].startswith('#'):
+					if splitmsg[1].startswith('#'): # case cmd #chan arg+
 						cmd, chan, args = splitmsg
 						chan = chan.lstrip('#')
-					else:
+					else: # case cmd arg arg+
 						cmd, args = msg.split(' ',1)
-				elif msg.count(' ') == 1:
+				elif msg.count(' ') == 1: # case cmd arg
 					splitmsg = msg.split(' ')
-					print splitmsg
 					cmd = splitmsg[0]
-					if splitmsg[1].startswith('#'):
+					if splitmsg[1].startswith('#'): # case cmd #chan
 						cmd, chan = splitmsg
 						chan = chan.lstrip('#')
-					else:
+						args = None
+					else: # case cmd arg
 						cmd, args = splitmsg
+				else: # case cmd
+					cmd = msg
+					args = None
 				if not chan: return
 				response = self.HandleCommand(chan, user, cmd, args)
 				if response: self.Send('SAYPRIVATE %s %s ' % (user, response))
-	
+
 	def Help(self, user):
 		return 'Hello, %s!\nI am an automated channel service bot,\nfor the full list of commands, see http://taspring.clan-sy.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
 	
 	def HandleCommand(self, chan, user, cmd, args=None):
-		print chan, user, 'cmd:  %s !'%cmd, args
+		print chan, user, cmd, args
 		client = self._root.usernames[user]
 		if 'mod' in client.accesslevels:
 			access = 'mod'
@@ -126,6 +125,7 @@ class ChanServ:
 		cmd = cmd.lower()
 		
 		if cmd == 'info':
+			print chan, user, cmd, args
 			channel = self._root.channels[chan]
 			founder = channel.founder
 			if founder: founder = 'Founder is <%s>'%founder
@@ -156,14 +156,14 @@ class ChanServ:
 			if access == 'mod':
 				if not args: args = user
 				self.Send('JOIN %s' % chan)
-				self._root.channels[chan].founder = args
+				self._root.channels[chan].owner = args
 				self._root.broadcast('CHANNELMESSAGE %s Channel has been registered to <%s>' % (chan, args))
 				return '#%s: Successfully registered to <%s>' % (chan, args.split(' ',1)[0])
 			else:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to register a channel' % chan
 		if cmd == 'unregister':
 			if access in ['mod', 'founder']:
-				self._root.channels[chan].founder = ''
+				self._root.channels[chan].owner = ''
 				self._root.broadcast('CHANNELMESSAGE %s Channel has been unregistered' % chan)
 				self.Send('LEAVE %s' % chan)
 				return '#%s: Successfully unregistered.' % chan
@@ -172,7 +172,7 @@ class ChanServ:
 		if cmd == 'changefounder':
 			if access in ['mod', 'founder']:
 				if not args: return '#%s: You must specify a new founder' % chan
-				self._root.channels[chan].founder = args
+				self._root.channels[chan].owner = args
 				self._root.broadcast('CHANNELMESSAGE %s Founder has been changed to <%s>' % (chan, args))
 				return '#%s: Successfully changed founder to <%s>' % (chan, args)
 			else:
@@ -197,7 +197,8 @@ class ChanServ:
 		if cmd == 'spamsettings':
 			if access in ['mod', 'founder']:
 				antispam = self._root.channels[chan].antispam
-				spaces = args.count(' ')
+				if args: spaces = args.count(' ')
+				else: spaces = 0
 				if spaces == 4:
 					timeout, quiet, aggressiveness, bonuslength, duration = args.split(' ')
 					if ('%i%i%i%i' % (timeout, aggressiveness, bonuslength, duration)).isdigit() and quiet in ('on', 'off'):
@@ -312,7 +313,6 @@ class ChanServ:
 			else:
 				return '#%s: Mute list is empty!' % chan
 		return ''
-
 	
 	def Send(self, msg):
 		if type(msg) == list or type(msg) == tuple:
