@@ -241,3 +241,11 @@ class Client:
 			if not battle_id in self.battlequeue:
 				self.battlequeue[battle_id] = []
 			self.battlequeue[battle_id].append({'type':'message', 'data':data})
+	
+	def userMatch(self, matchObj):
+		if type(matchObj) in (unicode, str):
+			return matchObj == self.username
+		elif type(matchObj) in (int, float):
+			return abs(self.db_id - matchObj) < 0.001
+		elif type(matchObj) == list:
+			return (self.db_id in list) or (self.username in list)

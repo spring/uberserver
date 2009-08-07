@@ -205,7 +205,7 @@ class DataHandler:
 					channel = channels[chan]
 					mutelist = dict(channel.mutelist)
 					for user in mutelist:
-						expiretime = mutelist[user]
+						expiretime = mutelist[user]['expires']
 						if 0 <= expiretime and expiretime < now:
 							del chan.mutelist[user]
 							self.broadcast('CHANNELMESSAGE %s <%s> has been unmuted (mute expired).'%(chan, user))

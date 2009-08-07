@@ -30,17 +30,6 @@ restricted = {
 	'REMOVEBOT',
 	'REMOVESTARTRECT',
 	'RING',
-	#########
-	# channel
-	'CHANNELS',
-	'JOIN',
-	'LEAVE',
-	'MUTELIST',
-	'SAY',
-	'SAYHOOKED',
-	'SAYEX',
-	'SAYPRIVATE',
-	'SAYPRIVATEHOOKED',
 	'SAYBATTLE',
 	'SAYBATTLEHOOKED',
 	'SAYBATTLEEX',
@@ -51,6 +40,23 @@ restricted = {
 	'UPDATEBATTLEINFO',
 	'UPDATEBOT',
 	'UPDATEBATTLEDETAILS',
+	#########
+	# channel
+	'CHANNELMESSAGE',
+	'CHANNELS',
+	'CHANNELTOPIC',
+	'FORCELEAVECHANNEL',
+	'JOIN',
+	'LEAVE',
+	'MUTE',
+	'MUTELIST',
+	'SAY',
+	'SAYHOOKED',
+	'SAYEX',
+	'SAYPRIVATE',
+	'SAYPRIVATEHOOKED',
+	'SETCHANNELKEY',
+	'UNMUTE',
 	########
 	# meta
 	'CHANGEPASSWORD',
@@ -61,9 +67,9 @@ restricted = {
 	'MYSTATUS',
 	'PORTTEST',
 	'RENAMEACCOUNT'],
-	'mod':['BAN', 'BANUSER', 'BANIP', 'UNBAN', 'BANLIST','KICKUSER','FINDIP','GETIP',
-	'SETCHANNELKEY','CHANNELTOPIC','CHANNELMESSAGE','FORCECLOSEBATTLE','FORCELEAVECHANNEL','MUTE','SETBOTMODE','UNMUTE'],
-	'admin':[
+'mod':['BAN', 'BANUSER', 'BANIP', 'UNBAN', 'BANLIST','KICKUSER','FINDIP','GETIP',
+	'FORCECLOSEBATTLE','SETBOTMODE'],
+'admin':[
 	#########
 	# channel
 	'ALIAS','UNALIAS','ALIASLIST',
@@ -82,9 +88,6 @@ restricted = {
 restricted_list = []
 for level in restricted:
 	restricted_list += restricted[level]
-
-#from Users import UsersHandler
-#from Users import LANUsersHandler as UsersHandler # we're in LAN mode
 
 ipRegex = r"^([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])$"
 re_ip = re.compile(ipRegex)
@@ -155,7 +158,6 @@ class Battle(AutoDict):
 		self.locked = locked
 		self.__AutoDictInit__()
 
-
 class AntiSpam(AutoDict):
 	def __init__(self, enabled=False, quiet=False, aggressiveness=1, bonuslength=100, duration=900):
 		self.enabled = enabled
@@ -184,6 +186,9 @@ class Channel(AutoDict):
 		self.topic = topic
 		self.key = key
 		self.__AutoDictInit__()
+	
+	def isOP(self, client):
+		return 'mod' in client.accesslevels or client.userMatch(self.admins) or client.userMatch(self.owner)
 
 class Protocol:
 	def __init__(self, root, handler):
@@ -257,7 +262,7 @@ class Protocol:
 				msg_id = ''
 		else:
 			msg_id = ''
-		client.msg_id = msg_id # works since handling is done in order for each ClientHandler thread ^_^
+		client.msg_id = msg_id # client.Send() prepends client.msg_id if the current thread is the same thread as the client's handler... this works because handling is done in order for each ClientHandler thread, so we can be sure client.Send() was performed in the client's own handling code.
 		numspaces = msg.count(' ')
 		if numspaces:
 			command,args = msg.split(' ',1)
@@ -286,15 +291,15 @@ class Protocol:
 			return False
 		function_info = inspect.getargspec(function)
 		total_args = len(function_info[0])-2
-		#if there are no arguments, just call the function
+		# if there are no arguments, just call the function
 		if not total_args:
 			function(client)
 			return True
-		#check for optional arguments
+		# check for optional arguments
 		optional_args = 0
 		if function_info[3]:
 			optional_args = len(function_info[3])
-		#check if we've got enough words for filling the required args
+		# check if we've got enough words for filling the required args
 		required_args = total_args - optional_args
 		if numspaces < required_args:
 			client.Send('SERVERMSG %s failed. Incorrect arguments.'%('_'.join(command.split('_')[1:])))
@@ -302,7 +307,7 @@ class Protocol:
 		if required_args == 0 and numspaces == 0:
 			function(client)
 			return True
-		#bunch the last words together if there are too many of them
+		# bunch the last words together if there are too many of them
 		if numspaces > total_args-1:
 			arguments = args.split(' ',total_args-1)
 		else:
@@ -401,7 +406,7 @@ class Protocol:
 		return status
 	
 	def _new_channel(self, chan, **kwargs):
-		# probably make a SQL query here # nevermind, I'll just load channels at the beginning
+		# probably make a SQL query here # nevermind, I'll just load channels at the beginning... nobody touches the sql database directly - they will need to do it through the server's web interface, which can update live data in the server when changes are made.
 		try:
 			if not kwargs: raise KeyError
 			channel = Channel(chan, **kwargs)
@@ -726,11 +731,11 @@ class Protocol:
 				msg = self.SayHooks.hook_SAY(self, client, chan, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel # nevermind, i just need to add inchan :>
 				if not msg: return
 				if user in channel.mutelist:
-					mute = channel.mutelist[user]
-					if mute == 0:
+					m = channel.mutelist[user]
+					if m['expires'] == 0:
 						self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan)
 					else:
-						client.Send('CHANNELMESSAGE %s You are muted for the next %s.'%(chan, self._format_time(mute)))
+						client.Send('CHANNELMESSAGE %s You are muted for the next %s.'%(chan, self._format_time(m['expires'])))
 				else:
 					self._root.broadcast('SAID %s %s %s' % (chan, client.username ,msg), chan)
 
@@ -743,10 +748,10 @@ class Protocol:
 				msg = self.SayHooks.hook_SAYEX(self, client, chan, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel
 				if user in channel.mutelist:
 					mute = channel.mutelist[user]
-					if mute == 0:
+					if m['expires'] == 0:
 						self._root.broadcast('SAIDEX %s %s %s' % (chan,client.username,msg),chan)
 					else:
-						client.Send('CHANNELMESSAGE %s You are muted for the next %s.'%(chan, self._format_time(mute)))
+						client.Send('CHANNELMESSAGE %s You are muted for the next %s.'%(chan, self._format_time(m['expires'])))
 				else:
 					self._root.broadcast('SAIDEX %s %s %s' % (chan,client.username,msg),chan)
 
@@ -758,45 +763,46 @@ class Protocol:
 			self._root.usernames[user].Send('SAIDPRIVATE %s %s'%(client.username, msg))
 
 	def in_MUTE(self, client, chan, user, duration=None, args=''):
-		ip = False
-		quiet = False
-		if args:
-			for arg in args.lower().split(' '):
-				if arg == 'ip':
-					ip = True
-				elif arg == 'quiet':
-					quiet = True
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
-			if user in channel.users:
-				if not quiet:
-					self._root.broadcast('CHANNELMESSAGE %s <%s> has muted <%s>.'%(chan, client.username, user), chan)
-				try:
-					duration = float(duration)*60
-					if duration < 1:
-						duration = -1
-					else:
-						duration = time.time() + duration
-				except: duration = -1
-				channel.mutelist[user] = duration
+			if channel.isOP(client):
+				ip = False
+				quiet = False
+				if args:
+					for arg in args.lower().split(' '):
+						if arg == 'ip':
+							ip = True
+						elif arg == 'quiet':
+							quiet = True
+				if user in channel.users:
+					if not quiet:
+						self._root.broadcast('CHANNELMESSAGE %s <%s> has muted <%s>.'%(chan, client.username, user), chan)
+					try:
+						duration = float(duration)*60
+						if duration < 1:
+							duration = -1
+						else:
+							duration = time.time() + duration
+					except: duration = -1
+					channel.mutelist[user] = {'expires':duration, 'ip':ip, 'quiet':quiet}
 
-	def in_UNMUTE(self, client, chan, user, quiet=''):
-		quiet = (quiet.lower()=='quiet')
+	def in_UNMUTE(self, client, chan, user):
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
-			if user in channel.mutelist:
-				if not quiet: self._root.broadcast('CHANNELMESSAGE %s <%s> has unmuted <%s>.'%(chan, client.username, user), chan)
-				del channel.mutelist[user]
+			if channel.isOP(client):
+				if user in channel.mutelist:
+					if not channel.mutelist[user]['quiet']: self._root.broadcast('CHANNELMESSAGE %s <%s> has unmuted <%s>.'%(chan, client.username, user), chan)
+					del channel.mutelist[user]
 
 	def in_MUTELIST(self, client, chan):
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			mutelist = dict(channel.mutelist)
 			client.Send('MUTELISTBEGIN %s' % chan)
-			for mute in mutelist:
-				print self._format_time(mutelist[mute])
-				message = self._format_time(mutelist[mute])
-				client.Send('MUTELIST %s, %s' % (mute, message))
+			for user in mutelist:
+				m = mutelist[user].copy()
+				message = self._format_time(m['expires']) + ' by IP.' if m['ip'] else '.'
+				client.Send('MUTELIST %s, %s' % (user, message))
 			client.Send('MUTELISTEND')
 
 	def in_JOIN(self, client, chan, key=None):
@@ -859,15 +865,15 @@ class Protocol:
 			client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topic['time'], topic['text']))
 	
 	def in_SETCHANNELKEY(self, client, chan, key='*'):
-		if key == '*':
-			key = None
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
-			channel.key = key
-			if key == None:
-				self._root.broadcast('CHANNELMESSAGE %s Channel unlocked by <%s>' % (chan, client.username), chan)
-			else:
-				self._root.broadcast('CHANNELMESSAGE %s Channel locked by <%s>' % (chan, client.username), chan)
+			if channel.isOP(client):
+				if key == '*':
+					self._root.broadcast('CHANNELMESSAGE %s Channel unlocked by <%s>' % (chan, client.username), chan)
+					channel.key = None
+				else:
+					self._root.broadcast('CHANNELMESSAGE %s Channel locked by <%s>' % (chan, client.username), chan)
+					channel.key = key
 	
 	def in_LEAVE(self, client, chan):
 		user = client.username
@@ -1127,7 +1133,7 @@ class Protocol:
 	def in_CHANNELTOPIC(self, client, chan, topic):
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
-			if client.username in channel.users:
+			if client.username in channel.users and channel.isOP(client):
 				if topic == '*':
 					self._root.broadcast('CHANNELMESSAGE %s Topic disabled.'%channel, channel)
 					topicdict = {}
@@ -1139,16 +1145,18 @@ class Protocol:
 
 	def in_CHANNELMESSAGE(self, client, chan, message):
 		if chan in self._root.channels:
-			self._root.broadcast('CHANNELMESSAGE %s %s'%(chan, message), chan)
+			if self._root.channels[chan].isOP(client):
+				self._root.broadcast('CHANNELMESSAGE %s %s'%(chan, message), chan)
 
 	def in_FORCELEAVECHANNEL(self, client, chan, username, reason=''):
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
-			if username in channel.users:
-				self._root.usernames[username].Send('FORCELEAVECHANNEL %s %s %s' % (chan, client.username, reason))
-				channel.users.remove(username)
-				self._root.broadcast('CHANNELMESSAGE %s %s kicked from channel by <%s>.' % (channel, username, client.username), chan)
-				self._root.broadcast('LEFT %s %s kicked from channel.' % (chan, username), chan)
+			if channel.isOP(client):
+				if username in channel.users:
+					self._root.usernames[username].Send('FORCELEAVECHANNEL %s %s %s' % (chan, client.username, reason))
+					channel.users.remove(username)
+					self._root.broadcast('CHANNELMESSAGE %s %s kicked from channel by <%s>.' % (channel, username, client.username), chan)
+					self._root.broadcast('LEFT %s %s kicked from channel.' % (chan, username), chan)
 
 	def in_RING(self, client, username):
 		if username in self._root.usernames:

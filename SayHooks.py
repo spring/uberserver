@@ -177,7 +177,7 @@ def _chan_msg_filter(self, client, chan, msg):
 	if antispam.enabled:
 		_spam_rec(client, chan, msg)
 		if _spam_enum(client, chan, antispam.timeout, antispam.bonus, antispam.unique, antispam.bonuslength):
-			channel.mutelist[username] = time.time() + antispam.duration
+			channel.mutelist[username]['expires'] = time.time() + antispam.duration
 			if antispam.quiet:
 				client.Send('CHANNELMESAGE %s You were quietly muted for spamming.'%chan)
 			else:
