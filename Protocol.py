@@ -598,6 +598,7 @@ class Protocol:
 				self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s.'%(client.handler.num, username, client.session_id))
 				self._root.usernames[username] = client
 				
+				client.db_id = (reason.id or client.session_id)
 				client.ingame_time = int(reason.ingame_time)
 				client.bot = reason.bot
 				client.last_login = reason.last_login

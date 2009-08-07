@@ -14,6 +14,7 @@ class Client:
 		self.port = address[1]
 		self.country_code = country_code
 		self.session_id = session_id
+		self.db_id = session_id
 		
 		self.handler = None
 		self.static = False

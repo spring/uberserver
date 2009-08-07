@@ -5,8 +5,6 @@ except: import md5
 import traceback
 import time
 
-#from MutexDict import MutexDict
-
 separator = '-'*60
 
 class DataHandler:
@@ -36,12 +34,11 @@ class DataHandler:
 		self.motd = None
 		
 		self.start_time = time.time()
-		self.channels = {} #MutexDict()
-		self.chan_alias = {} #MutexDict()
-		self.usernames = {} #MutexDict()
-		self.clients = {} #MutexDict()
-		self.battles = {} #MutexDict()
-		#self.mapgrades = {} #MutexDict()
+		self.channels = {}
+		self.chan_alias = {}
+		self.usernames = {}
+		self.clients = {}
+		self.battles = {}
 		thread.start_new_thread(self.mute_timer,()) # maybe make into a single thread
 		thread.start_new_thread(self.console_loop,())
 	

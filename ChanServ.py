@@ -32,9 +32,9 @@ class ChanServ:
 				help = self.Help(user)
 				self.Send(['SAYPRIVATE %s %s'%(user, s) for s in help.split('\n')])
 			else:
+				args = None
 				if msg.count(' ') >= 2:	# case cmd blah blah+
 					splitmsg = msg.split(' ',2)
-					cmd = splitmsg[0]
 					if splitmsg[1].startswith('#'): # case cmd #chan arg+
 						cmd, chan, args = splitmsg
 						chan = chan.lstrip('#')
@@ -42,16 +42,13 @@ class ChanServ:
 						cmd, args = msg.split(' ',1)
 				elif msg.count(' ') == 1: # case cmd arg
 					splitmsg = msg.split(' ')
-					cmd = splitmsg[0]
 					if splitmsg[1].startswith('#'): # case cmd #chan
 						cmd, chan = splitmsg
 						chan = chan.lstrip('#')
-						args = None
 					else: # case cmd arg
 						cmd, args = splitmsg
 				else: # case cmd
 					cmd = msg
-					args = None
 				if not chan: return
 				response = self.HandleCommand(chan, user, cmd, args)
 				if response: self.Send('SAYPRIVATE %s %s ' % (user, response))
