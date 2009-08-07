@@ -8,7 +8,6 @@ import time
 separator = '-'*60
 
 class DataHandler:
-	
 	def __init__(self):
 		self.local_ip = None
 		self.online_ip = None
@@ -68,7 +67,7 @@ class DataHandler:
 				print '  -n, --natport number'
 				print '      { Server will use this port for NAT transversal (default is 8201) }'
 				print '  -l, --lan'
-				print '      { Users do not need to be registered to login }'
+				print '      { Users do not need to be registered to login - breaks rudimentary features like channel ops/founders, channel/battle bans, etc. }'
 				print '  -a, --lanadmin username password [hash] }'
 				print '      { Hardcoded admin account for LAN. If third arg reads "hash" it will apply the standard hash algorithm to the supplied password }'
 				print '  -g, --loadargs filename'
@@ -181,6 +180,7 @@ class DataHandler:
 				print traceback.format_exc()
 				print 'Error importing SQL - reverting to LAN'
 				self.UsersHandler = __import__('LANUsers').UsersHandler
+		if self.LAN: print 'Warning: LAN mode enabled - many user-specific features will be broken.'
 		if os.path.isfile('motd.txt'):
 			motd = []
 			f = open('motd.txt', 'r')
