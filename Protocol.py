@@ -793,6 +793,7 @@ class Protocol:
 			mutelist = dict(channel.mutelist)
 			client.Send('MUTELISTBEGIN %s' % chan)
 			for mute in mutelist:
+				print self._format_time(mutelist[mute])
 				message = self._format_time(mutelist[mute])
 				client.Send('MUTELIST %s, %s' % (mute, message))
 			client.Send('MUTELISTEND')

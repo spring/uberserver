@@ -79,9 +79,9 @@ try:
 	elif local_addr:
 		address = (local_addr, 0)
 	country_code = ip2country.lookup(address[0]) # actual flag
-	#chanserv = ChanServ.Client(_root, address, _root.session_id, country_code)
-	#_root.clients[_root.session_id] = chanserv
-	#AddClient(chanserv)
+	chanserv = ChanServ.Client(_root, address, _root.session_id, country_code)
+	_root.clients[_root.session_id] = chanserv
+	AddClient(chanserv)
 	_root.session_id += 1
 	while running:
 		try: connection, address = server.accept()

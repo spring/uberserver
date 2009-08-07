@@ -17,55 +17,95 @@ class ChanServ:
 			if cmd == 'SAIDPRIVATE':
 				self.handleSAIDPRIVATE(args)
 				
+	# def handleSAID(self, msg):
+	# 	chan, user, msg = msg.split(' ',2)
+	# 	if msg.startswith('!'):
+	# 		msg = msg.lstrip('!')
+	# 		if msg.lower() == 'help':
+	# 			help = self.Help(user)
+	# 			hlist = []
+	# 			for s in help.split('\n'):
+	# 				hlist.append('SAYPRIVATE %s %s' % (user, s))
+	# 			self.Send(hlist)
+	# 		else:
+	# 			args = None
+	# 			if msg.count(' ') >= 2:
+	# 				cmd, chan, args = msg.split(' ',2)
+	# 				chan = chan.lstrip('#')
+	# 			if msg.startswith('#'): # wtf was I thinking
+	# 				if msg.count(' '):
+	# 					chan, msg = msg.lstrip('#').split(' ')
+	# 					if msg.count(' '): msg = msg.split(' ',1)[0]
+	# 					msg = user
+	# 				else:
+	# 					chan = msg.lstrip('#')
+	# 					msg = user
+	# 			self.Send('SAYPRIVATE %s %s' % (user, self.HandleCommand(chan, user, msg, args)))
+	
+	# def handleSAIDPRIVATE(self, msg):
+	# 	user, msg = msg.split(' ', 1)
+	# 	if msg.startswith('!'):
+	# 		msg = msg.lstrip('!')
+	# 		if msg.lower() == 'help':
+	# 			help = self.Help(user)
+	# 			hlist = []
+	# 			for s in help.split('\n'):
+	# 				hlist.append('SAYPRIVATE %s %s' % (user, s) )
+	# 			self.Send( hlist )
+	# 		else:
+	# 			response = ''
+	# 			if msg.count(' ') >= 2:
+	# 				cmd, chan, msg = msg.split(' ',2)
+	# 				chan = chan.lstrip('#')
+	# 				response = self.HandleCommand(chan, user, cmd, msg)
+	# 			elif msg.count(' '):
+	# 				cmd, chan = msg.split(' ',1)
+	# 				chan = chan.lstrip('#')
+	# 				msg = user
+	# 				reponse = self.HandleCommand(chan, user, msg)
+	# 			else:
+	# 				response = 'Error: Invalid params'
+	# 			if response: self.Send('SAYPRIVATE %s %s' % (user, response))
+	
 	def handleSAID(self, msg):
 		chan, user, msg = msg.split(' ',2)
-		if msg.startswith('!'):
-			msg = msg.lstrip('!')
-			if msg.lower() == 'help':
-				help = self.Help(user)
-				hlist = []
-				for s in help.split('\n'):
-					hlist.append('SAYPRIVATE %s %s' % (user, s))
-				self.Send(hlist)
-			else:
-				if msg.count(' ') >= 2:
-					cmd, chan, args = msg.split(' ',2)
-					chan = chan.lstrip('#')
-				#if msg.startswith('#'): # wtf was I thinking
-				#	if msg.count(' '):
-				#		chan, msg = msg.lstrip('#').split(' ')
-				#		if msg.count(' '): msg = msg.split(' ',1)[0]
-				#		msg = user
-				#	else:
-				#		chan = msg.lstrip('#')
-				#		msg = user
-				self.Send('SAYPRIVATE %s %s' % (user, self.HandleCommand(chan, user, msg)))
-	
+		self.HandleMessage(chan, user, msg)
+
 	def handleSAIDPRIVATE(self, msg):
 		user, msg = msg.split(' ', 1)
+		self.HandleMessage(None, user, msg)
+
+	def HandleMessage(self, chan, user, msg):
 		if msg.startswith('!'):
 			msg = msg.lstrip('!')
 			if msg.lower() == 'help':
 				help = self.Help(user)
-				hlist = []
-				for s in help.split('\n'):
-					hlist.append('SAYPRIVATE %s %s' % (user, s) )
-				self.Send( hlist )
+				self.Send(['SAYPRIVATE %s %s'%(user, s) for s in help.split('\n')])
 			else:
-				response = ''
-				if msg.count(' ') >= 2:
-					cmd, chan, msg = msg.split(' ',2)
-					chan = chan.lstrip('#')
-					response = self.HandleCommand(chan, user, cmd, msg)
-				elif msg.count(' '):
-					cmd, chan = msg.split(' ',1)
-					chan = chan.lstrip('#')
-					msg = user
-					reponse = self.HandleCommand(chan, user, msg)
-				else:
-					response = 'Error: Invalid params'
-				if response: self.Send('SAYPRIVATE %s %s' % (user, response))
-	
+				if msg.count(' ') >= 2:	# case cmd blah blah+
+					splitmsg = msg.split(' ',2)
+					cmd = splitmsg[0]
+					if splitmsg[1].startswith('#'): # case cmd #chan arg+
+						cmd, chan, args = splitmsg
+						chan = chan.lstrip('#')
+					else: # case cmd arg arg+
+						cmd, args = msg.split(' ',1)
+				elif msg.count(' ') == 1: # case cmd arg
+					splitmsg = msg.split(' ')
+					cmd = splitmsg[0]
+					if splitmsg[1].startswith('#'): # case cmd #chan
+						cmd, chan = splitmsg
+						chan = chan.lstrip('#')
+						args = None
+					else: # case cmd arg
+						cmd, args = splitmsg
+				else: # case cmd
+					cmd = msg
+					args = None
+				if not chan: return
+				response = self.HandleCommand(chan, user, cmd, args)
+				if response: self.Send('SAYPRIVATE %s %s ' % (user, response))
+
 	def Help(self, user):
 		return 'Hello, %s!\nI am an automated channel service bot,\nfor the full list of commands, see http://taspring.clan-sy.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
 	
@@ -74,94 +114,101 @@ class ChanServ:
 		client = self._root.usernames[user]
 		if 'mod' in client.accesslevels:
 			access = 'mod'
-		elif user == self._root.channels[chan]['owner']:
+		elif not chan in self._root.channels: 
+			return '#%s is not registered.' % chan
+		elif user == self._root.channels[chan].owner:
 			access = 'founder'
-		elif user in self._root.channels[chan]['admins']:
+		elif user in self._root.channels[chan].admins:
 			access = 'op'
 		else:
 			access = 'normal'
 		cmd = cmd.lower()
 		
 		if cmd == 'info':
+			print chan, user, cmd, args
 			channel = self._root.channels[chan]
-			founder = channel['founder']
-			if founder: founder = 'Founder is <%s>'
+			founder = channel.founder
+			if founder: founder = 'Founder is <%s>'%founder
 			else: founder = 'No founder is registered'
-			admins = channel['admins']
-			users = channel['users']
-			antispam = channel['antispam']['enabled']
+			admins = channel.admins
+			users = channel.users
+			antispam = 'on' if channel.antispam.enabled else 'off'
 			if not admins: mods = 'no operators are registered'
-			else: mods = '%i registered operators are %s' % (len(admins), ', '.join(admins))
+			else: mods = '%i registered operator(s) are <%s>' % (len(admins), '>, <'.join(admins))
 			if len(users) == 1: users = '1 user'
 			else: users = '%i users' % len(users)
-			return '%#s info: Anti-spam protection is %s. <%s>, %s. %s currently in the channel.' % (chan, antispam, founder, mods, users)
+			return '#%s info: Anti-spam protection is %s. %s, %s. %s currently in the channel.' % (chan, antispam, founder, mods, users)
 		if cmd == 'topic':
-			if not args:
-				self._root.channels[chan]['topic'] = None
-				self._root.broadcast('CHANNELMESSAGE %s Topic disabled.')
-				return '%#s: Topic disabled' % chan
+			if access in ['mod', 'founder', 'op']:
+				if not args:
+					self._root.channels[chan].topic = None
+					self._root.broadcast('CHANNELMESSAGE %s Topic disabled.')
+					return '#%s: Topic disabled' % chan
+				else:
+					topicdict = {'user':client.username, 'text':args, 'time':'%s'%(int(time.time())*1000)}
+					self._root.broadcast('CHANNELMESSAGE %s Topic changed.')
+					self._root.broadcast('CHANNELTOPIC %s %s %s %s'%(chan, user, topicdict['time'], topicdict['text']), chan)
+					return '#%s: Topic changed' % chan
 			else:
-				topicdict = {'user':client.username, 'text':args, 'time':'%s'%(int(time.time())*1000)}
-				self._root.broadcast('CHANNELMESSAGE %s Topic changed.')
-				self._root.broadcast('CHANNELTOPIC %s %s %s %s'%(chan, user, topicdict['time'], topicdict['text']), chan)
-				return '%#s: Topic changed' % topic
+				return '#%s: You do not have permission to set the topic' % chan
 		if cmd == 'register':
 			print 'register', access, args
 			if access == 'mod':
 				if not args: args = user
-				self._root.channels[chan]['founder'] = args
 				self.Send('JOIN %s' % chan)
+				self._root.channels[chan].owner = args
 				self._root.broadcast('CHANNELMESSAGE %s Channel has been registered to <%s>' % (chan, args))
 				return '#%s: Successfully registered to <%s>' % (chan, args.split(' ',1)[0])
 			else:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to register a channel' % chan
 		if cmd == 'unregister':
 			if access in ['mod', 'founder']:
-				self._root.channels[chan]['founder'] = ''
+				self._root.channels[chan].owner = ''
 				self._root.broadcast('CHANNELMESSAGE %s Channel has been unregistered' % chan)
-				self.client.Send('LEAVE %s' % chan)
+				self.Send('LEAVE %s' % chan)
 				return '#%s: Successfully unregistered.' % chan
 			else:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to unregister a channel' % chan
 		if cmd == 'changefounder':
 			if access in ['mod', 'founder']:
 				if not args: return '#%s: You must specify a new founder' % chan
-				self._root.channels[chan]['founder'] = args
+				self._root.channels[chan].owner = args
 				self._root.broadcast('CHANNELMESSAGE %s Founder has been changed to <%s>' % (chan, args))
 				return '#%s: Successfully changed founder to <%s>' % (chan, args)
 			else:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to change the founder' % chan
 		if cmd == 'spamprotection':
 			if access in ['mod', 'founder']:
-				antispam = self._root.channels[chan]['antispam']
-				if antispam['quiet']: antispam['quiet'] = 'on'
-				else: antispam['quiet'] = 'off'
-				status = 'on (settings: timeout:%(timeout)i, quiet:%(quiet)s, aggressiveness:%(aggressiveness)i, bonuslength:%(bonuslength)i, duration:%(duration)i)' % antispam
+				antispam = self._root.channels[chan].antispam
+				if antispam.quiet: antispam.quiet = 'on'
+				else: antispam.quiet = 'off'
+				status = 'on (settings: timeout:%(timeout)i, quiet:%(quiet)s, aggressiveness:%(aggressiveness)i, bonuslength:%(bonuslength)i, duration:%(duration)i)' % antispam.copy()
 				if args == 'on':
-					self._root.channels[chan]['antispam']['enabled'] = True
-					antispam = self._root.channels[chan]['antispam']
+					self._root.channels[chan].antispam.enabled = True
+					antispam = self._root.channels[chan].antispam
 					self._root.broadcast('CHANNELMESSAGE %s Anti-spam protection was enabled by <%s>' % (chan, args, user))
 					return '#%s: Anti-spam protection is %s' % (chan, status)
 				elif args == 'off':
-					self._root.channels[chan]['antispam']['enabled'] = False
+					self._root.channels[chan].antispam.enabled = False
 					self._root.broadcast('CHANNELMESSAGE %s Anti-spam protection was disabled by <%s>' % (chan, args, user))
 					return '#%s: Anti-spam protection is off' % chan
-			if not antispam['enabled']: status = 'off'
+			if not antispam.enabled: status = 'off'
 			return '#%s: Anti-spam protection is %s' % (chan, status)
 		if cmd == 'spamsettings':
 			if access in ['mod', 'founder']:
-				antispam = self._root.channels[chan]['antispam']
-				spaces = args.count(' ')
+				antispam = self._root.channels[chan].antispam
+				if args: spaces = args.count(' ')
+				else: spaces = 0
 				if spaces == 4:
 					timeout, quiet, aggressiveness, bonuslength, duration = args.split(' ')
 					if ('%i%i%i%i' % (timeout, aggressiveness, bonuslength, duration)).isdigit() and quiet in ('on', 'off'):
-						self._root.channels[chan]['antispam'].update({'timeout':int(timeout), 'aggressiveness':int(aggressiveness), 'bonuslength':int(bonuslength), 'duration':int(duration), 'quiet':(quiet=='on')})
+						self._root.channels[chan].antispam.update({'timeout':int(timeout), 'aggressiveness':int(aggressiveness), 'bonuslength':int(bonuslength), 'duration':int(duration), 'quiet':(quiet=='on')})
 				return '#%s: Error: Invalid args for spamsettings. Valid syntax is "!spamsettings <timeout> <quiet> <agressiveness> <bonuslength> <duration>". All args but quiet are integers, which is "on" or "off".' % chan
 		if cmd == 'op':
 			if access in ['mod', 'founder']:
 				if not args: return '#%s: You must specify a user to op' % chan
-				if args in self._root.channels[chan]['admins']: return '#%s: <%s> was already an op' % (chan, args)
-				self._root.channels[chan]['admins'].append(args)
+				if args in self._root.channels[chan].admins: return '#%s: <%s> was already an op' % (chan, args)
+				self._root.channels[chan].admins.append(args)
 				self._root.broadcast('CHANNELMESSAGE %s <%s> added to the operator list by <%s>' % (chan, args, user), chan)
 				return '#%s: <%s> added to the operator list' % (chan, args)
 			else:
@@ -169,8 +216,8 @@ class ChanServ:
 		if cmd == 'deop':
 			if access in ['mod', 'founder']:
 				if not args: return '#%s: You must specify a user to deop' % chan
-				if not args in eslf._root.channels[chan]['admins']: return '#%s: <%s> was not an op' % (chan, args)
-				self._root.channels[chan]['admins'].remove(args)
+				if not args in self._root.channels[chan].admins: return '#%s: <%s> was not an op' % (chan, args)
+				self._root.channels[chan].admins.remove(args)
 				self._root.broadcast('CHANNELMESSAGE %s <%s> removed from the operator list by <%s>' % (chan, args, user), chan)
 				return '#%s: <%s> removed from the operator list' % (chan, args)
 			else:
@@ -186,14 +233,14 @@ class ChanServ:
 		if cmd == 'lock':
 			if access in ['mod', 'founder', 'op']:
 				if not args: return '#%s: You must specify a channel key to lock a channel' % chan
-				self._root.channels[chan]['key'] = args
-				self._root.broadcast('CHANNELMESSAGE %s Channel locked by <%s>' % user, chan)
-				return '#%s: Locked'
+				self._root.channels[chan].key = args
+				self._root.broadcast('CHANNELMESSAGE %s Channel locked by <%s>' % (chan, user), chan)
+				return '#%s: Locked' % chan
 			else:
 				return '#%s: You do not have permission to lock the channel' % chan
 		if cmd == 'unlock':
 			if access in ['mod', 'founder', 'op']:
-				self._root.channels[chan]['key'] = None
+				self._root.channels[chan].key = None
 				self._root.broadcast('CHANNELMESSAGE %s Channel unlocked by <%s>' % (chan, user), chan)
 				return '#%s: Unlocked' % chan
 			else:
@@ -201,51 +248,71 @@ class ChanServ:
 		if cmd == 'kick':
 			if access in ['mod', 'founder', 'op']:
 				if not args: return '#%s: You must specify a user to kick from the channel' % chan
-				if args in self._root.channels[chan]['users']:
-					self._root.broadcast('CHANNELMESSAGE %s <%s> kicked from the channel by <%s>' % (chan, msg, arg, user), chan)
-					self._root.channels[channel]['users'].remove(username)
+				if args.count(' '): 
+					target, reason = args.split(' ', 1)
+					reason = '(reason: %s)' % reason
+				else:
+					target = args
+					reason = ''
+				if target in self._root.channels[chan].users:
+					self._root.broadcast('CHANNELMESSAGE %s <%s> kicked from the channel by <%s> %s' % (chan, target, user, reason), chan)
+					self._root.channels[chan].users.remove(target)
 					self._root.broadcast('LEFT %s %s kicked from channel.'%(chan, args), chan)
-				else: return '#%s: <%s> not in channel' % (chan, args)
-				return '#%s: <%s> kicked' % (chan, user)
+				else: return '#%s: <%s> not in channel' % (chan, target)
+				return '#%s: <%s> kicked' % (chan, target)
 			else:
 				return '#%s: You do not have permission to kick users from the channel' % chan
 		if cmd == 'mute':
 			if access in ['mod', 'founder', 'op']:
 				if not args: return '#%s: You must specify a user to mute' % chan
+				else:
+					if args.count(' '): target, duration = args.split(' ', 1)
+					else:
+						target = args
+						duration = -1
 				try:
 					duration = float(duration)*60
 					if duration < 1:
-						duration = -1
+						timeleft = -1
 					else:
-						duration = time.time() + duration
-				except ValueError: duration = -1
-				self._root.channels[chan]['mutelist'][user] = duration
-				if not user in self._root.channels[chan]['mutelist']:
-					if duration > 0: duration = 'for (%i) seconds' % duration
+						timeleft = time.time() + duration
+				except ValueError:
+					return '#%s:  Duration must be an integer!' % chan
+				self._root.channels[chan].mutelist[target] = timeleft
+				if not user in self._root.channels[chan].mutelist:
+					if duration > 0: duration = 'for %i seconds' % duration
 					else: duration = 'forever'
-					self._root.broadcast('CHANNELMESSAGE %s <%s> has muted <%s> %s'%(chan, user, args, duration), chan)
-					return '#%s: <%s> muted for (%i) seconds' % (chan, args)
+					self._root.broadcast('CHANNELMESSAGE %s <%s> has muted <%s> %s'%(chan, user, target, duration), chan)
+					return '#%s: <%s> muted %s' % (chan, target, duration)
 				else:
-					return '#%s: <%s> muted for (%i) seconds' % (chan, args)
+					return '#%s: <%s> muted for %i seconds' % (chan, args)
 			else:
 				return '#%s: You do not have permission to mute users' % chan
 		if cmd == 'unmute':
 			if access in ['mod', 'founder', 'op']:
 				if not args: return '#%s: You must specify a user to unmute' % chan
-				if args in self._root.channels[chan]['mutelist']:
+				if args in self._root.channels[chan].mutelist:
+					del self._root.channels[chan].mutelist[args]
 					self._root.broadcast('CHANNELMESSAGE %s <%s> has unmuted <%s>' % (chan, user, args), chan)
 					return '#%s: <%s> unmuted' % (chan, args)
 				else: return '#%s: <%s> is not muted' % (chan, args)
 			else:
 				return '#%s: You do not have permission to unmute users' % chan
 		if cmd == 'mutelist':
-			if True:
-				'#%s: Mute list is empty!' % chan
+			if len(self._root.channels[chan].mutelist):
+				mutelist = dict(self._root.channels[chan].mutelist)
+				muted = '#%s: Mute list (%i entries):  '%(chan, len(mutelist))
+				for user in mutelist:
+					timeleft = mutelist[user]
+					if timeleft < 0:
+						timeleft = 'indefinite'
+					else:
+						timeleft = timeleft-time.time()
+					muted += '%s, %s seconds remaining; '%(user, timeleft)
+				return muted
 			else:
-				'#%s: Mute list (%i entries):'
-				'Cranburry, indefinite time remaining'
+				return '#%s: Mute list is empty!' % chan
 		return ''
-
 	
 	def Send(self, msg):
 		if type(msg) == list or type(msg) == tuple:

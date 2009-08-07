@@ -21,11 +21,11 @@ class UsersHandler:
 		name = user
 		User = LANUser(name, user, password, ip)
 		lanadmin = self._root.lanadmin
-		#if name == lanadmin['username'].lower():
-		#	if password == lanadmin['password']:
-		#		User.casename = lanadmin['username']
-		#		User.access = 'admin'
-		#	else: return False, 'Bad username/password'
+		if name.lower() == lanadmin['username'].lower():
+			if password == lanadmin['password']:
+				User.casename = lanadmin['username']
+				User.access = 'admin'
+			else: return False, 'Bad username/password'
 		return True, User
 
 	def register_user(self, user, password, ip): # need to add better ban checks so it can check if an ip address is banned when registering an account :) << lolwut this is LAN server
