@@ -1,5 +1,7 @@
 import inspect, time, re
-import md5, base64, binascii
+import base64
+try: from hashlib import md5
+except: import md5
 import traceback, sys, os
 
 restricted = {
@@ -569,7 +571,7 @@ class Protocol:
 		if client.hashpw:
 			m = md5.new()
 			m.update(password)
-			password = base64.b64encode(binascii.a2b_hex(m.hexdigest()))
+			password = base64.b64encode(m.digest())
 		good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 		if not self._root.LAN and good: username = reason.casename
 		if not username in self._root.usernames:
