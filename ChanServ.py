@@ -16,56 +16,6 @@ class ChanServ:
 				self.handleSAID(args)
 			if cmd == 'SAIDPRIVATE':
 				self.handleSAIDPRIVATE(args)
-				
-	# def handleSAID(self, msg):
-	# 	chan, user, msg = msg.split(' ',2)
-	# 	if msg.startswith('!'):
-	# 		msg = msg.lstrip('!')
-	# 		if msg.lower() == 'help':
-	# 			help = self.Help(user)
-	# 			hlist = []
-	# 			for s in help.split('\n'):
-	# 				hlist.append('SAYPRIVATE %s %s' % (user, s))
-	# 			self.Send(hlist)
-	# 		else:
-	# 			args = None
-	# 			if msg.count(' ') >= 2:
-	# 				cmd, chan, args = msg.split(' ',2)
-	# 				chan = chan.lstrip('#')
-	# 			if msg.startswith('#'): # wtf was I thinking
-	# 				if msg.count(' '):
-	# 					chan, msg = msg.lstrip('#').split(' ')
-	# 					if msg.count(' '): msg = msg.split(' ',1)[0]
-	# 					msg = user
-	# 				else:
-	# 					chan = msg.lstrip('#')
-	# 					msg = user
-	# 			self.Send('SAYPRIVATE %s %s' % (user, self.HandleCommand(chan, user, msg, args)))
-	
-	# def handleSAIDPRIVATE(self, msg):
-	# 	user, msg = msg.split(' ', 1)
-	# 	if msg.startswith('!'):
-	# 		msg = msg.lstrip('!')
-	# 		if msg.lower() == 'help':
-	# 			help = self.Help(user)
-	# 			hlist = []
-	# 			for s in help.split('\n'):
-	# 				hlist.append('SAYPRIVATE %s %s' % (user, s) )
-	# 			self.Send( hlist )
-	# 		else:
-	# 			response = ''
-	# 			if msg.count(' ') >= 2:
-	# 				cmd, chan, msg = msg.split(' ',2)
-	# 				chan = chan.lstrip('#')
-	# 				response = self.HandleCommand(chan, user, cmd, msg)
-	# 			elif msg.count(' '):
-	# 				cmd, chan = msg.split(' ',1)
-	# 				chan = chan.lstrip('#')
-	# 				msg = user
-	# 				reponse = self.HandleCommand(chan, user, msg)
-	# 			else:
-	# 				response = 'Error: Invalid params'
-	# 			if response: self.Send('SAYPRIVATE %s %s' % (user, response))
 	
 	def handleSAID(self, msg):
 		chan, user, msg = msg.split(' ',2)
