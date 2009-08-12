@@ -1,7 +1,7 @@
 import thread, time, sys, os
 import base64
 try: from hashlib import md5
-except: import md5
+except: md5 = __import__('md5').new
 import traceback
 import time
 
@@ -118,9 +118,8 @@ class DataHandler:
 			if arg in ['a', 'lanadmin']:
 				try:
 					if len(argp) > 2:
-						if argp[2] == 'hash':							
-							m = md5.new()
-							m.update(argp[1])
+						if argp[2] == 'hash':
+							m = md5(argp[1]))
 							argp[1] = base64.b64encode(m.digest())
 					self.lanadmin = {'username':argp[0], 'password':argp[1]}
 				except: print 'Invalid LAN admin specified'
