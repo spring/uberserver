@@ -167,7 +167,7 @@ class Client:
 	# Queuing
 	
 	def AddUser(self, user):
-		if type(user) == str:
+		if type(user) in (str, unicode):
 			try: user = self._root.usernames[user]
 			except: return
 		session_id = user.session_id
@@ -184,7 +184,7 @@ class Client:
 					self.Send(item['data'])
 	
 	def RemoveUser(self, user):
-		if type(user) == str:
+		if type(user) in (str, unicode):
 			try: user = self._root.usernames[user]
 			except: return
 		session_id = user.session_id
@@ -197,7 +197,7 @@ class Client:
 			self.userqueue[session_id] = [{'type':'remove'}]
 	
 	def SendUser(self, user, data):
-		if type(user) == str:
+		if type(user) in (str, unicode):
 			try: user = self._root.usernames[user]
 			except: return
 		session_id = user.session_id
