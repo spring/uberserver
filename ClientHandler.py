@@ -32,10 +32,10 @@ class PollMultiplexer:
 
 class SelectMultiplexer:
 	def __init__(self):
-		self.sockets = []
-		self.output = []
+		self.sockets = set([])
+		self.output = set([])
 	def register(self, fd):
-		if not fd in self.sockets: self.sockets.append(fd)
+		self.sockets.add(fd)
 	def unregister(self, fd):
 		if fd in self.sockets:
 			self.sockets.remove(fd)
@@ -43,17 +43,14 @@ class SelectMultiplexer:
 				self.output.remove(fd)
 		
 	def setoutput(self, fd, ready=True):
-		print 'setoutput', fd, ready
 		# this if structure means it only scans output once.
-		if socket in self.output:
-			if not ready:
-				self.output.remove(fd)
+		if not ready and socket in self.output:
+			self.output.remove(fd)
 		elif ready:
-			self.output.append(fd)
+			self.output.add(fd)
 			
 	def poll(self):
 		if not self.sockets: return ([], [] ,[])
-		print self.output
 		try: return select.select(self.sockets, self.output, [], 0.1)
 		except select.error:
 			inputs = outputs = errors = []
