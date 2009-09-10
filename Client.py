@@ -132,7 +132,7 @@ class Client:
 			self.sendbuffer.append(self.msg_id+'%s%s' % (msg, self.nl))
 		else:
 			self.sendbuffer.append('%s%s' % (msg, self.nl))
-		self.handler.poller.setoutput(self.conn)
+		self.handler.poller.setoutput(self.conn, True)
 #		cflocals = sys._getframe(2).f_locals    # this whole thing with cflocals is basically a complicated way of checking if this client
 #		if 'self' in cflocals:                  # was called by its own handling thread, because other ones won't deal with its msg_id
 #			if 'handler' in dir(cflocals['self']):

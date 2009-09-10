@@ -36,15 +36,16 @@ class SelectMultiplexer:
 		self.output = set([])
 	def register(self, fd):
 		self.sockets.add(fd)
+		
 	def unregister(self, fd):
 		if fd in self.sockets:
 			self.sockets.remove(fd)
 			if fd in self.output:
 				self.output.remove(fd)
 		
-	def setoutput(self, fd, ready=True):
+	def setoutput(self, fd, ready):
 		# this if structure means it only scans output once.
-		if not ready and socket in self.output:
+		if not ready and fd in self.output:
 			self.output.remove(fd)
 		elif ready:
 			self.output.add(fd)
