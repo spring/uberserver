@@ -132,6 +132,7 @@ class Client:
 			self.sendbuffer.append(self.msg_id+'%s%s' % (msg, self.nl))
 		else:
 			self.sendbuffer.append('%s%s' % (msg, self.nl))
+		self.handler.poller.setoutput(self.conn)
 #		cflocals = sys._getframe(2).f_locals    # this whole thing with cflocals is basically a complicated way of checking if this client
 #		if 'self' in cflocals:                  # was called by its own handling thread, because other ones won't deal with its msg_id
 #			if 'handler' in dir(cflocals['self']):
@@ -155,7 +156,9 @@ class Client:
 		if not self.sendingmessage:
 			message = ''
 			while not message:
-				if not self.sendbuffer: return
+				if not self.sendbuffer: # just in case, since it returns before going to the end...
+					self.handler.poller.setoutput(self.conn, False)
+					return
 				message = self.sendbuffer.pop(0)
 			self.sendingmessage = message
 		senddata = self.sendingmessage[:64] # smaller chunks interpolate better, maybe base this off of number of clients?
@@ -163,6 +166,9 @@ class Client:
 			sent = self.conn.send(senddata)
 			self.sendingmessage = self.sendingmessage[sent:] # only removes the number of bytes sent
 		except socket.error: self.handler._remove(self.conn)
+		
+		if not self.sendbuffer:
+			self.handler.poller.setoutput(self.conn, False)
 	
 	# Queuing
 	
