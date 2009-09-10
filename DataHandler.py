@@ -119,7 +119,7 @@ class DataHandler:
 				try:
 					if len(argp) > 2:
 						if argp[2] == 'hash':
-							m = md5(argp[1]))
+							m = md5(argp[1])
 							argp[1] = base64.b64encode(m.digest())
 					self.lanadmin = {'username':argp[0], 'password':argp[1]}
 				except: print 'Invalid LAN admin specified'
