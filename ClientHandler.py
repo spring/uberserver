@@ -43,6 +43,7 @@ class SelectMultiplexer:
 				self.output.remove(fd)
 		
 	def setoutput(self, fd, ready=True):
+		print 'setoutput', fd, ready
 		# this if structure means it only scans output once.
 		if socket in self.output:
 			if not ready:
@@ -52,6 +53,7 @@ class SelectMultiplexer:
 			
 	def poll(self):
 		if not self.sockets: return ([], [] ,[])
+		print self.output
 		try: return select.select(self.sockets, self.output, [], 0.1)
 		except select.error:
 			inputs = outputs = errors = []
