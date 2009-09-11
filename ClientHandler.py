@@ -142,8 +142,8 @@ class ClientHandler:
 			self._removeSocket(s)
 	
 	def _removeSocket(self, s):
-		try: self.socketmap.remove(s)
-		except: pass
+		try: del self.socketmap[s]
+		except KeyError: pass
 
 	def AddClient(self, client):
 		self.clients_num += 1

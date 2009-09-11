@@ -212,17 +212,14 @@ class Protocol:
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), lan))
 		#login_string = '%s %s %s %s %s'% (self._root.server, self._root.server_version, self._root.latestspringversion, self._root.natport, lan)
 		client.Send(login_string)
-
+		
 	def _remove(self, client, reason='Quit'):
-		if client.username:
+		if client.username and client.username in self._root.usernames:
 			if client.removing: return
 			if client.static: return # static clients don't disconnect
 			client.removing = True
 			user = client.username
-			if not user in self._root.usernames:
-				return
-			if not client == self._root.usernames[user]:
-				return
+			if not client == self._root.usernames[user]: return
 			self.userdb.end_session(user)
 			channels = list(client.channels)
 			bots = dict(client.battle_bots)
@@ -250,7 +247,7 @@ class Protocol:
 								self.broadcast_SendBattle(battle, 'REMOVEBOT %s %s'%(battle_id, bot))
 						self.broadcast_SendBattle(battle, 'LEFTBATTLE %s %s' % (battle_id, user))
 			self.broadcast_RemoveUser(client)
-		if client in self._root.clients: del self._root.clients[client.session_id]
+		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
 
 	def _handle(self,client,msg):
 		if msg.startswith('#'):

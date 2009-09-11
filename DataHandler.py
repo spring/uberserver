@@ -233,20 +233,22 @@ class DataHandler:
 		self.console_buffer += lines
 
 	def console_loop(self):
-		while True:
-			try:
-				if self.console_buffer:
-					line = self.console_buffer.pop(0)
-					print line
-					if self.log:
-						self.output.write(line+'\n')
-						self.output.flush()
-				else:
-					time.sleep(0.1)
-			except:
-				print '-'*60
-				print traceback.format_exc()
-				print '-'*60
+		try:
+			while True:
+				try:
+					if self.console_buffer:
+						line = self.console_buffer.pop(0)
+						print line
+						if self.log:
+							self.output.write(line+'\n')
+							self.output.flush()
+					else:
+						time.sleep(0.1)
+				except:
+					print '-'*60
+					print traceback.format_exc()
+					print '-'*60
+		except: print traceback.format_exc()
 		
 	def broadcast(self, msg, chan=None, ignore=[]):
 		try:
