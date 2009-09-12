@@ -228,7 +228,7 @@ class Channel(AutoDict):
 			return (self.isOp(client) or (client.db_id not in self.ban)) or self.ban[client.db_id]
 	
 	def changeFounder(self, client, target):
-		self.founder = client.db_id
+		self.owner = client.db_id
 		self.channelMessage("<%s> has just been set as this channel's founder by <%s>" % (target.username, client.username))
 	
 	def opUser(self, client, target):
