@@ -278,10 +278,10 @@ class Channel(AutoDict):
 			try:
 				duration = float(duration)*60
 				if duration < 1:
-					duration = -1
+					duration = 0
 				else:
 					duration = time.time() + duration
-			except: duration = -1
+			except: duration = 0
 			self.mutelist[target.db_id] = {'expires':duration, 'ip':ip, 'quiet':quiet}
 	
 	def unmuteUser(self, client, target):
@@ -321,7 +321,7 @@ class Protocol:
 			bots = dict(client.battle_bots)
 			#del self._root.clients[client.session_id]
 			del self._root.usernames[user]
-			del self._root.db_ids[user]
+			del self._root.db_ids[client.db_id]
 			
 			for chan in channels:
 				channel = self._root.channels[chan]
@@ -899,7 +899,7 @@ class Protocol:
 			for user in mutelist:
 				m = mutelist[user].copy()
 				user = self.clientFromID(user).username
-				message = self._format_time(m['expires']) + ' by IP.' if m['ip'] else '.'
+				message = self._format_time(m['expires']) + (' by IP.' if m['ip'] else '.')
 				client.Send('MUTELIST %s, %s' % (user, message))
 			client.Send('MUTELISTEND')
 

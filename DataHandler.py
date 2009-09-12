@@ -212,8 +212,8 @@ class DataHandler:
 					mutelist = dict(channel.mutelist)
 					for user in mutelist:
 						expiretime = mutelist[user]['expires']
-						if 0 <= expiretime and expiretime < now:
-							del chan.mutelist[user]
+						if 0 < expiretime and expiretime < now:
+							del channel.mutelist[user]
 							self.broadcast('CHANNELMESSAGE %s <%s> has been unmuted (mute expired).'%(chan, user))
 				time.sleep(1)
 			except:
@@ -291,8 +291,8 @@ class DataHandler:
 				except KeyError: pass # user was removed
 
 	def admin_broadcast(self, msg):
-		for client in dict(self.usernames):
-			client = self.clients[client]
+		for user in dict(self.usernames):
+			client = self.usernames[user]
 			if 'admin' in client.accesslevels:
 				client.Send('SERVERMSG Admin broadcast: %s'%msg)
 
@@ -301,6 +301,7 @@ class DataHandler:
 			handler._rebind()
 
 	def reload(self):
+		self.admin_broadcast('Reloading...')
 		self.console_write('Reloading...')
 		reload(sys.modules['SayHooks'])
 		reload(sys.modules['Protocol'])
@@ -318,3 +319,5 @@ class DataHandler:
 				for line in data.split('\n'):
 					motd.append(line.strip())
 			self.motd = motd
+		self.admin_broadcast('Done reloading.')
+		self.console_write('Done reloading.')

@@ -209,6 +209,17 @@ mapper(AggregateBan, aggregatebans_table)
 
 #metadata.create_all(engine)
 
+class OfflineClient:
+	def __init__(self, sqluser):
+		self.db_id = sqluser.id
+		self.username = sqluser.casename
+		self.password = sqluser.password
+		self.ingame_time = sqluser.ingame_time
+		self.bot = sqluser.bot
+		self.last_login = sqluser.last_login
+		self.register_date = sqluser.register_date
+		self.hook = sqluser.hook_chars
+
 class UsersHandler:
 	def __init__(self, root, engine):
 		self._root = root
@@ -216,10 +227,18 @@ class UsersHandler:
 		self.sessionmaker = sessionmaker(bind=engine, autoflush=True, transactional=True)
 	
 	def clientFromID(self, db_id):
-		pass
+		session = self.sessionmaker()
+		entry = session.query(User).filter(User.id==db_id).first()
+		session.close()
+		if not entry: return None
+		return OfflineClient(entry)
 	
 	def clientFromUsername(self, username):
-		pass
+		session = self.sessionmaker()
+		entry = session.query(User).filter(User.name==username.lower()).first()
+		session.close()
+		if not entry: return None
+		return OfflineClient(entry)
 	
 	def check_ban(self, user=None, ip=None, userid=None):
 		return
