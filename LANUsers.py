@@ -16,7 +16,13 @@ class LANUser:
 class UsersHandler:
 	def __init__(self, root, engine=None):
 		self._root = root
-		
+	
+	def clientFromID(self, db_id):
+		pass
+	
+	def clientFromUsername(self, username):
+		pass
+	
 	def login_user(self, user, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		#name = user.lower()
 		name = user

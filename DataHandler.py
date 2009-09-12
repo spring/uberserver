@@ -200,7 +200,7 @@ class DataHandler:
 		if db_id in self.db_ids: return self.db_ids[db_id]
 	
 	def clientFromUsername(self, username):
-		if username in self._root.usernames: return self.usernames[username]
+		if username in self.usernames: return self.usernames[username]
 
 	def mute_timer(self):
 		while True:

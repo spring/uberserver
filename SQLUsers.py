@@ -215,6 +215,12 @@ class UsersHandler:
 		metadata.create_all(engine)
 		self.sessionmaker = sessionmaker(bind=engine, autoflush=True, transactional=True)
 	
+	def clientFromID(self, db_id):
+		pass
+	
+	def clientFromUsername(self, username):
+		pass
+	
 	def check_ban(self, user=None, ip=None, userid=None):
 		return
 		session = self.sessionmaker()

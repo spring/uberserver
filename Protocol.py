@@ -131,7 +131,8 @@ class AutoDict:
 				setattr(self, key, new)
 
 class Battle(AutoDict):
-	def __init__(self, id, type, natType, password, port, maxplayers, hashcode, rank, maphash, map, title, modname, passworded, host, users, spectators=0, startrects={}, disabled_units=[], bots={}, script_tags={}, replay_script={}, replay=False, sending_replay_script=False, locked=False):
+	def __init__(self, root, id, type, natType, password, port, maxplayers, hashcode, rank, maphash, map, title, modname, passworded, host, users, spectators=0, startrects={}, disabled_units=[], bots={}, script_tags={}, replay_script={}, replay=False, sending_replay_script=False, locked=False):
+		self._root = root
 		self.id = id
 		self.type = type
 		self.natType = natType
@@ -168,7 +169,8 @@ class AntiSpam(AutoDict):
 		self.__AutoDictInit__()
 
 class Channel(AutoDict):
-	def __init__(self, chan, users=[], blindusers=[], admins=[], ban={}, allow=[], autokick='ban', chanserv=False, owner='', mutelist={}, antispam={'enabled':False, 'quiet':False, 'aggressiveness':1, 'bonuslength':100, 'duration':900}, censor=False, antishock=False, topic=None, key=None):
+	def __init__(self, root, chan, users=[], blindusers=[], admins=[], ban={}, allow=[], autokick='ban', chanserv=False, owner='', mutelist={}, antispam={'enabled':False, 'quiet':False, 'aggressiveness':1, 'bonuslength':100, 'duration':900}, censor=False, antishock=False, topic=None, key=None):
+		self._root = root
 		self.chan = chan
 		self.users = users
 		self.blindusers = blindusers
@@ -188,9 +190,9 @@ class Channel(AutoDict):
 		self.__AutoDictInit__()
 	
 	def broadcast(self, message):
-		for user in self.users:
+		for user in list(self.users):
 			if user in self._root.usernames:
-				user.send(message) # might need to add special code for blind users or use a different broadcast method
+				self._root.usernames[user].Send(message) # might need to add special code for blind users or use a different broadcast method
 	
 	def channelMessage(self, message):
 		self.broadcast('CHANNELMESSAGE %s %s' % (self.chan, message))
@@ -280,7 +282,7 @@ class Channel(AutoDict):
 				else:
 					duration = time.time() + duration
 			except: duration = -1
-			channel.mutelist[target.db_id] = {'expires':duration, 'ip':ip, 'quiet':quiet}
+			self.mutelist[target.db_id] = {'expires':duration, 'ip':ip, 'quiet':quiet}
 	
 	def unmuteUser(self, client, target):
 		if target.db_id in self.mutelist:
@@ -309,12 +311,18 @@ class Protocol:
 			if client.static: return # static clients don't disconnect
 			client.removing = True
 			user = client.username
-			if not client == self._root.usernames[user]: return
+			if not client == self._root.usernames[user]:
+				client.removing = False # cause we really aren't anymore
+				return
+				
 			self.userdb.end_session(user)
+			
 			channels = list(client.channels)
 			bots = dict(client.battle_bots)
 			#del self._root.clients[client.session_id]
 			del self._root.usernames[user]
+			del self._root.db_ids[user]
+			
 			for chan in channels:
 				channel = self._root.channels[chan]
 				if user in channel.users:
@@ -496,8 +504,8 @@ class Protocol:
 		# probably make a SQL query here # nevermind, I'll just load channels at the beginning... nobody touches the sql database directly - they will need to do it through the server's web interface, which can update live data in the server when changes are made.
 		try:
 			if not kwargs: raise KeyError
-			channel = Channel(chan, **kwargs)
-		except: channel = Channel(chan)
+			channel = Channel(self._root, chan, **kwargs)
+		except: channel = Channel(self._root, chan)
 		return channel
 
 	def _format_time(self, seconds):
@@ -695,6 +703,8 @@ class Protocol:
 				self._root.usernames[username] = client
 				
 				client.db_id = (reason.id or client.session_id)
+				self._root.db_ids[client.db_id] = client
+				
 				client.ingame_time = int(reason.ingame_time)
 				client.bot = reason.bot
 				client.last_login = reason.last_login
@@ -821,8 +831,8 @@ class Protocol:
 			if user in channel.users:
 				msg = self.SayHooks.hook_SAY(self, client, chan, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel # nevermind, i just need to add inchan :>
 				if not msg: return
-				if user in channel.mutelist:
-					m = channel.mutelist[user]
+				if client.db_id in channel.mutelist:
+					m = channel.mutelist[client.db_id]
 					if m['expires'] == 0:
 						self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan)
 					else:
@@ -837,8 +847,8 @@ class Protocol:
 			user  = client.username
 			if user in channel.users:
 				msg = self.SayHooks.hook_SAYEX(self, client, chan, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel
-				if user in channel.mutelist:
-					mute = channel.mutelist[user]
+				if client.db_id in channel.mutelist:
+					mute = channel.mutelist[client.db_id]
 					if m['expires'] == 0:
 						self._root.broadcast('SAIDEX %s %s %s' % (chan,client.username,msg),chan)
 					else:
@@ -866,16 +876,15 @@ class Protocol:
 							ip = True
 						elif arg == 'quiet':
 							quiet = True
-				target = self.getClientFromUsername(user)
+				target = self.clientFromUsername(user)
 				if target:
-					target = self._root.usernames[target]
 					channel.muteUser(client, target, duration, quiet, ip)
 
 	def in_UNMUTE(self, client, chan, user):
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			if channel.isOp(client):
-				target = self.getClientFromUsername(user)
+				target = self.clientFromUsername(user)
 				if target:
 					channel.unmuteUser(client, target)
 					#if user in channel.mutelist:
@@ -889,7 +898,7 @@ class Protocol:
 			client.Send('MUTELISTBEGIN %s' % chan)
 			for user in mutelist:
 				m = mutelist[user].copy()
-				user = self.getClientFromID(user).username
+				user = self.clientFromID(user).username
 				message = self._format_time(m['expires']) + ' by IP.' if m['ip'] else '.'
 				client.Send('MUTELIST %s, %s' % (user, message))
 			client.Send('MUTELISTEND')
@@ -999,7 +1008,7 @@ class Protocol:
 		clients = dict(self._root.clients)
 		#battle_id = str(battle_id)
 		host = client.username
-		battle = Battle(id=battle_id, type=type, natType=int(natType), password=password, port=port, maxplayers=maxplayers, hashcode=hashcode, rank=rank, maphash=maphash, map=map, title=title, modname=modname, passworded=passworded, host=host, users=[host])
+		battle = Battle(root=self._root, id=battle_id, type=type, natType=int(natType), password=password, port=port, maxplayers=maxplayers, hashcode=hashcode, rank=rank, maphash=maphash, map=map, title=title, modname=modname, passworded=passworded, host=host, users=[host])
 		self.broadcast_AddBattle(battle)
 		self._root.battles[battle_id] = battle
 		client.Send('OPENBATTLE %s'%battle_id)
