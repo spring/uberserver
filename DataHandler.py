@@ -37,6 +37,7 @@ class DataHandler:
 		self.chan_alias = {}
 		self.usernames = {}
 		self.clients = {}
+		self.db_ids = {}
 		self.battles = {}
 		thread.start_new_thread(self.mute_timer,()) # maybe make into a single thread
 		thread.start_new_thread(self.console_loop,())
@@ -194,6 +195,12 @@ class DataHandler:
 				self.output = open('server.log', 'a')
 				self.log = True
 			except: pass
+	
+	def clientFromID(self, db_id):
+		if db_id in self.db_ids: return self.db_ids[db_id]
+	
+	def clientFromUsername(self, username):
+		if username in self._root.usernames: return self.usernames[username]
 
 	def mute_timer(self):
 		while True:

@@ -292,14 +292,7 @@ class Protocol:
 		LAN = root.LAN
 		self._root = root
 		self.handler = handler
-		if LAN or not root.engine:
-			self.userdb = __import__('LANUsers').UsersHandler(root) # maybe make an import request to datahandler, then have it reload it too. less hardcoded-ness
-		else:
-			try: self.userdb = __import__('SQLUsers').UsersHandler(root, root.engine)
-			except:
-				print traceback.format_exc()
-				print 'Error importing SQL - reverting to LAN'
-				self.userdb = __import__('LANUsers').UsersHandler(root)
+		self.userdb = root.UsersHandler(root, root.engine)
 		self.SayHooks = root.SayHooks
 		self.dir = dir(self)
 
@@ -560,6 +553,11 @@ class Protocol:
 			message = '%0.0f second(s)'%(float(seconds))
 		return message
 
+	def clientFromID(self, db_id):
+		return self._root.clientFromID(db_id) or self.userdb.clientFromID(db_id)
+	
+	def clientFromUsername(self, username):
+		return self._root.clientFromUsername(username) or self.userdb.clientFromUsername(username)
 
 	def broadcast_AddBattle(self, battle):
 		users = dict(self._root.usernames)
@@ -868,7 +866,8 @@ class Protocol:
 							ip = True
 						elif arg == 'quiet':
 							quiet = True
-				if user in self._root.usernames: # fallback to db if not
+				target = self.getClientFromUsername(user)
+				if target:
 					target = self._root.usernames[target]
 					channel.muteUser(client, target, duration, quiet, ip)
 
@@ -876,9 +875,12 @@ class Protocol:
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			if channel.isOp(client):
-				if user in channel.mutelist:
-					if not channel.mutelist[user]['quiet']: self._root.broadcast('CHANNELMESSAGE %s <%s> has unmuted <%s>.'%(chan, client.username, user), chan)
-					del channel.mutelist[user]
+				target = self.getClientFromUsername(user)
+				if target:
+					channel.unmuteUser(client, target)
+					#if user in channel.mutelist:
+					#	if not channel.mutelist[user]['quiet']: self._root.broadcast('CHANNELMESSAGE %s <%s> has unmuted <%s>.'%(chan, client.username, user), chan)
+					#	del channel.mutelist[user]
 
 	def in_MUTELIST(self, client, chan):
 		if chan in self._root.channels:
@@ -887,6 +889,7 @@ class Protocol:
 			client.Send('MUTELISTBEGIN %s' % chan)
 			for user in mutelist:
 				m = mutelist[user].copy()
+				user = self.getClientFromID(user).username
 				message = self._format_time(m['expires']) + ' by IP.' if m['ip'] else '.'
 				client.Send('MUTELIST %s, %s' % (user, message))
 			client.Send('MUTELISTEND')
