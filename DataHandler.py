@@ -296,9 +296,14 @@ class DataHandler:
 			if 'admin' in client.accesslevels:
 				client.Send('SERVERMSG Admin broadcast: %s'%msg)
 
-	def _rebind_handlers(self):
+	def _rebind_slow(self):
 		for handler in self.clienthandlers:
 			handler._rebind()
+			
+		for channel in dict(self.channels): # hack, but I guess reloading is all a hack :P
+			chan = self.channels[channel].copy()
+			del chan['chan'] # 'cause we're passing it ourselves
+			self.channels[channel] = sys.modules['Protocol'].Channel(self, channel, **chan)
 
 	def reload(self):
 		self.admin_broadcast('Reloading...')
@@ -309,7 +314,7 @@ class DataHandler:
 		reload(sys.modules['Client'])
 		if 'SQLUsers' in sys.modules: reload(sys.modules['SQLUsers'])
 		self.SayHooks = __import__('SayHooks')
-		thread.start_new_thread(self._rebind_handlers, ()) # why should reloading block the thread? :)
+		thread.start_new_thread(self._rebind_slow, ()) # why should reloading block the thread? :)
 		if os.path.isfile('motd.txt'):
 			motd = []
 			f = open('motd.txt', 'r')

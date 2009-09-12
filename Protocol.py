@@ -169,7 +169,7 @@ class AntiSpam(AutoDict):
 		self.__AutoDictInit__()
 
 class Channel(AutoDict):
-	def __init__(self, root, chan, users=[], blindusers=[], admins=[], ban={}, allow=[], autokick='ban', chanserv=False, owner='', mutelist={}, antispam={'enabled':False, 'quiet':False, 'aggressiveness':1, 'bonuslength':100, 'duration':900}, censor=False, antishock=False, topic=None, key=None):
+	def __init__(self, root, chan, users=[], blindusers=[], admins=[], ban={}, allow=[], autokick='ban', chanserv=False, owner='', mutelist={}, antispam={'enabled':False, 'quiet':False, 'aggressiveness':1, 'bonuslength':100, 'duration':900}, censor=False, antishock=False, topic=None, key=None, **kwargs):
 		self._root = root
 		self.chan = chan
 		self.users = users
@@ -227,7 +227,29 @@ class Channel(AutoDict):
 		elif self.autokick == 'ban':
 			return (self.isOp(client) or (client.db_id not in self.ban)) or self.ban[client.db_id]
 	
-	def changeFounder(self, client, target):
+	def setTopic(self, client, topic):
+		self.topic = topic
+		
+		if topic in ('*', None):
+			if self.topic:
+				self.channelMessage('Topic disabled.')
+				topicdict = {}
+		else:
+			self.channelMessage('Topic changed.')
+			topicdict = {'user':client.username, 'text':topic, 'time':'%s'%(int(time.time())*1000)}
+			self.broadcast('CHANNELTOPIC %s %s %s %s'%(self.chan, client.username, topicdict['time'], topic))
+		self.topic = topicdict
+	
+	def setKey(self, client, key):
+		if key in ('*', None):
+			if self.key:
+				self.key = None
+				self.channelMessage('<%s> unlocked this channel' % client.username)
+		else:
+			self.key = key
+			self.channelMessage('<%s> locked this channel with a password' % client.username)
+	
+	def setFounder(self, client, target):
 		self.owner = client.db_id
 		self.channelMessage("<%s> has just been set as this channel's founder by <%s>" % (target.username, client.username))
 	
@@ -966,12 +988,7 @@ class Protocol:
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			if channel.isOp(client):
-				if key == '*':
-					self._root.broadcast('CHANNELMESSAGE %s Channel unlocked by <%s>' % (chan, client.username), chan)
-					channel.key = None
-				else:
-					self._root.broadcast('CHANNELMESSAGE %s Channel locked by <%s>' % (chan, client.username), chan)
-					channel.key = key
+				channel.setKey(client, key)
 	
 	def in_LEAVE(self, client, chan):
 		user = client.username
@@ -1231,20 +1248,14 @@ class Protocol:
 	def in_CHANNELTOPIC(self, client, chan, topic):
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
-			if client.username in channel.users and channel.isOp(client):
-				if topic == '*':
-					self._root.broadcast('CHANNELMESSAGE %s Topic disabled.'%channel, channel)
-					topicdict = {}
-				else:
-					self._root.broadcast('CHANNELMESSAGE %s Topic changed.'%channel, channel)
-					topicdict = {'user':client.username, 'text':topic, 'time':'%s'%(int(time.time())*1000)}
-					self._root.broadcast('CHANNELTOPIC %s %s %s %s'%(channel, client.username, topicdict['time'], topic), channel)
-				channel.topic = topicdict
+			if channel.isOp(client):
+				channel.setTopic(client, topic)
 
 	def in_CHANNELMESSAGE(self, client, chan, message):
 		if chan in self._root.channels:
-			if self._root.channels[chan].isOp(client):
-				self._root.broadcast('CHANNELMESSAGE %s %s'%(chan, message), chan)
+			channel = self._root.channels[chan]
+			if channel.isOp(client):
+				channel.channelMessage(message)
 
 	def in_FORCELEAVECHANNEL(self, client, chan, username, reason=''):
 		if chan in self._root.channels:
