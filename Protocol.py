@@ -187,8 +187,105 @@ class Channel(AutoDict):
 		self.key = key
 		self.__AutoDictInit__()
 	
-	def isOP(self, client):
-		return 'mod' in client.accesslevels or client.userMatch(self.admins) or client.userMatch(self.owner)
+	def broadcast(self, message):
+		for user in self.users:
+			if user in self._root.usernames:
+				user.send(message) # might need to add special code for blind users or use a different broadcast method
+	
+	def channelMessage(self, message):
+		self.broadcast('CHANNELMESSAGE %s %s' % (self.chan, message))
+	
+	def addUser(self, client):
+		username = client.username
+		if not username in self.users:
+			self.users.append(username)
+			self.broadcast('JOINED %s %s' % (self.chan, username))
+	
+	def removeUser(self, client, reason=''):
+		username = client.username
+		if username in self.users:
+			self.users.remove(username)
+			self.broadcast('LEFT %s %s%s' % (self.chan, username, (' '+reason if reason else '')))
+	
+	def isFounder(self, client):
+		return client.isMod() or (client.db_id == self.owner)
+	
+	def isOp(self, client):
+		return self.isFounder(client) or (client.db_id in self.admins)
+	
+	def getAccess(self, client): # return this client's security clearance
+		return 'mod' if client.isMod() else\
+				('founder' if self.isFounder(client) else\
+				('op' if self.isOp(client) else\
+				'normal'))
+	
+	def isAllowed(self, client):
+		if self.autokick == 'allow':
+			return (self.isOp(client) or (client.db_id in self.allow)) or 'not allowed here'
+		elif self.autokick == 'ban':
+			return (self.isOp(client) or (client.db_id not in self.ban)) or self.ban[client.db_id]
+	
+	def changeFounder(self, client, target):
+		self.founder = client.db_id
+		self.channelMessage("<%s> has just been set as this channel's founder by <%s>" % (target.username, client.username))
+	
+	def opUser(self, client, target):
+		if not client.db_id in self.admins:
+			self.admins.append(client.db_id)
+			self.channelMessage("<%s> has just been added to this channel's operator list by <%s>" % (target.username, client.username))
+	
+	def deopUser(self, client, target):
+		if client.db_id in self.admins:
+			self.admins.remove(client.db_id)
+			self.channelMessage("<%s> has just been removed from this channel's operator list by <%s>" % (target.username, client.username))
+	
+	def kickUser(self, client, target, reason=''):
+		if target.username in self.users:
+			self.users.remove(target.username)
+			target.Send('FORCELEAVECHANNEL %s %s %s' % (self.chan, client.username, reason))
+			self.channelMessage('<%s> has kicked <%s> from the channel%s' % (client.username, target.username, (' (%s)'%reason if reason else '')))
+			self.removeUser(username, 'kicked from channel%s' % (' '+reason if reason else ''))
+	
+	def banUser(self, client, target, reason=''):
+		if not client.db_id in self.bans:
+			self.bans[client.db_id] = reason
+			self.kickUser(client, target, reason)
+			self.channelMessage('<%s> has been banned from this channel by <%s>' % (target.username, client.username))
+	
+	def unbanUser(self, client, target):
+		if client.db_id in self.admins:
+			del self.bans[client.db_id]
+			self.channelMessage('<%s> has been unbanned from this channel by <%s>' % (target.username, client.username))
+	
+	def allowUser(self, client, target):
+		if not client.db_id in self.allow:
+			self.allow.append(client.db_id)
+			self.channelMessage('<%s> has been allowed in this channel by <%s>' % (target.username, client.username))
+	
+	def disallowUser(self, client, target):
+		if client.db_id in self.allow:
+			self.allow.remove(client.db_id)
+			self.channelMessage('<%s> has been disallowed in this channel by <%s>' % (target.username, client.username))
+	
+	def muteUser(self, client, target, duration=0, ip=False, quiet=False):
+		if not client.db_id in self.mutelist:
+			self.mutelist[client.db_id] = duration
+			
+			if not quiet:
+				self.channelMessage('<%s> has muted <%s>' % (client.username, target.username))
+			try:
+				duration = float(duration)*60
+				if duration < 1:
+					duration = -1
+				else:
+					duration = time.time() + duration
+			except: duration = -1
+			channel.mutelist[target.db_id] = {'expires':duration, 'ip':ip, 'quiet':quiet}
+	
+	def unmuteUser(self, client, target):
+		if target.db_id in self.mutelist:
+			del self.mutelist[target.db_id]
+			self.channelMessage('<%s> has unmuted <%s>' % (client.username, target.username))
 
 class Protocol:
 	def __init__(self, root, handler):
@@ -249,7 +346,7 @@ class Protocol:
 			self.broadcast_RemoveUser(client)
 		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
 
-	def _handle(self,client,msg):
+	def _handle(self, client, msg):
 		if msg.startswith('#'):
 			test = msg.split(' ')[0][1:]
 			if test.isdigit():
@@ -758,10 +855,11 @@ class Protocol:
 			client.Send('SAYPRIVATE %s %s'%(user, msg))
 			self._root.usernames[user].Send('SAIDPRIVATE %s %s'%(client.username, msg))
 
+
 	def in_MUTE(self, client, chan, user, duration=None, args=''):
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
-			if channel.isOP(client):
+			if channel.isOp(client):
 				ip = False
 				quiet = False
 				if args:
@@ -770,22 +868,14 @@ class Protocol:
 							ip = True
 						elif arg == 'quiet':
 							quiet = True
-				if user in channel.users:
-					if not quiet:
-						self._root.broadcast('CHANNELMESSAGE %s <%s> has muted <%s>.'%(chan, client.username, user), chan)
-					try:
-						duration = float(duration)*60
-						if duration < 1:
-							duration = -1
-						else:
-							duration = time.time() + duration
-					except: duration = -1
-					channel.mutelist[user] = {'expires':duration, 'ip':ip, 'quiet':quiet}
+				if user in self._root.usernames: # fallback to db if not
+					target = self._root.usernames[target]
+					channel.muteUser(client, target, duration, quiet, ip)
 
 	def in_UNMUTE(self, client, chan, user):
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
-			if channel.isOP(client):
+			if channel.isOp(client):
 				if user in channel.mutelist:
 					if not channel.mutelist[user]['quiet']: self._root.broadcast('CHANNELMESSAGE %s <%s> has unmuted <%s>.'%(chan, client.username, user), chan)
 					del channel.mutelist[user]
@@ -863,7 +953,7 @@ class Protocol:
 	def in_SETCHANNELKEY(self, client, chan, key='*'):
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
-			if channel.isOP(client):
+			if channel.isOp(client):
 				if key == '*':
 					self._root.broadcast('CHANNELMESSAGE %s Channel unlocked by <%s>' % (chan, client.username), chan)
 					channel.key = None
@@ -1129,7 +1219,7 @@ class Protocol:
 	def in_CHANNELTOPIC(self, client, chan, topic):
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
-			if client.username in channel.users and channel.isOP(client):
+			if client.username in channel.users and channel.isOp(client):
 				if topic == '*':
 					self._root.broadcast('CHANNELMESSAGE %s Topic disabled.'%channel, channel)
 					topicdict = {}
@@ -1141,18 +1231,14 @@ class Protocol:
 
 	def in_CHANNELMESSAGE(self, client, chan, message):
 		if chan in self._root.channels:
-			if self._root.channels[chan].isOP(client):
+			if self._root.channels[chan].isOp(client):
 				self._root.broadcast('CHANNELMESSAGE %s %s'%(chan, message), chan)
 
 	def in_FORCELEAVECHANNEL(self, client, chan, username, reason=''):
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
-			if channel.isOP(client):
-				if username in channel.users:
-					self._root.usernames[username].Send('FORCELEAVECHANNEL %s %s %s' % (chan, client.username, reason))
-					channel.users.remove(username)
-					self._root.broadcast('CHANNELMESSAGE %s %s kicked from channel by <%s>.' % (channel, username, client.username), chan)
-					self._root.broadcast('LEFT %s %s kicked from channel.' % (chan, username), chan)
+			if channel.isOp(client):
+				channel.kickUser(client, username, reason)
 
 	def in_RING(self, client, username):
 		if username in self._root.usernames:
@@ -1364,6 +1450,8 @@ class Protocol:
 				else:
 					client.Send('SERVERMSG <%s> was recently bound to %s at %s' % (entry.casename, address, time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(entry.lastlogin))))
 		else: client.Send('SERVERMSG Database returned error when finding ip for <%s> (%s)' % (username, data))
+	
+	def in_GETLASTIP(self, client, username): return self.in_GETIP(self, client, username)
 	
 	def in_GETIP(self, client, username):
 		if username in self._root.usernames:
