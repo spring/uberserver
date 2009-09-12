@@ -1378,7 +1378,7 @@ class Protocol:
 	def in_ADDBOT(self, client, name, battlestatus, teamcolor, AIDLL):
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
-			battle = self._root.battles[battle]
+			battle = self._root.battles[battle_id]
 			if not name in battle.bots:
 				client.battle_bots[name] = battle_id
 				battle.bots[name] = {'owner':client.username, 'battlestatus':battlestatus, 'teamcolor':teamcolor, 'AIDLL':AIDLL}
