@@ -64,6 +64,9 @@ class Client:
 		self.battles = {} # [battle_id] = [user1, user2, user3, etc]
 		self.battlequeue = {} # [battle_id] = [{'type': ['message', 'remove'], 'data':['CLIENTBATTLESTATUS', '']}, etc]
 		
+		self.newest_user = -1
+		self.newest_battle = -1
+		
 		self._root.console_write('Client connected from %s, session ID %s.' % (self.ip_address, session_id))
 
 	def Bind(self, handler=None, protocol=None):
@@ -178,6 +181,7 @@ class Client:
 			except: return
 		session_id = user.session_id
 		if session_id in self.users: return
+		self.newest_user = max(session_id, self.newest_user)
 		self.users.append(session_id)
 		self._protocol.client_AddUser(self, user)
 		if session_id in self.userqueue:
@@ -210,14 +214,15 @@ class Client:
 		if session_id in self.users:
 			self.Send(data)
 		else:
+			if session_id < self.newest_user: return
 			if not session_id in self.userqueue:
 				self.userqueue[session_id] = []
 			self.userqueue[session_id].append({'type':'message', 'data':data})
 	
-	
 	def AddBattle(self, battle):
 		battle_id = battle.id
 		if battle_id in self.battles: return
+		self.newest_battle = max(battle_id, self.newest_battle)
 		self.battles[battle_id] = []
 		self._protocol.client_AddBattle(self, battle)
 		if battle_id in self.battlequeue:

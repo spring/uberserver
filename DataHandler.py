@@ -192,7 +192,7 @@ class DataHandler:
 			self.motd = motd
 		if not self.log:
 			try:
-				self.output = open('server.log', 'a')
+				self.output = open('server.log', 'w')
 				self.log = True
 			except: pass
 	

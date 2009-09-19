@@ -197,6 +197,9 @@ class Channel(AutoDict):
 	def channelMessage(self, message):
 		self.broadcast('CHANNELMESSAGE %s %s' % (self.chan, message))
 	
+	def register(self, client, owner):
+		self.owner = owner.db_id
+	
 	def addUser(self, client):
 		username = client.username
 		if not username in self.users:
