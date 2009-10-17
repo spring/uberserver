@@ -9,6 +9,7 @@ class BaseMultiplexer:
 		self.output = set([])
 	
 	def register(self, fd):
+		#fd.setblocking(0)
 		self.sockets.add(fd)
 		self.pollRegister(fd)
 	
@@ -27,6 +28,9 @@ class BaseMultiplexer:
 		elif ready and fd in self.sockets:
 			self.output.add(fd)
 			self.pollSetoutput(fd, ready)
+	
+	def poll(self):
+		return self.sockets, self.outputs, []
 	
 	def empty(self):
 		if not self.sockets: return True
@@ -64,12 +68,14 @@ class KqueueMultiplexer(BaseMultiplexer):
 
 
 class BasePollMultiplexer(BaseMultiplexer):
-	inMask = 0
-	outMask = 0
-	errMask = 0
-	args = []
 	
-	def __init__(self): self.__poll_init__()
+	def __init__(self):
+		self.inMask = 0
+		self.outMask = 0
+		self.errMask = 0
+		self.args = []
+		
+		self.__poll_init__()
 	
 	def __poll_init__(self):
 		self.filenoToSocket = {}
@@ -80,7 +86,7 @@ class BasePollMultiplexer(BaseMultiplexer):
 		fileno = fd.fileno()
 		self.filenoToSocket[fileno] = fd
 		self.socketToFileno[fd] = fileno # gotta maintain this because fileno() lookups aren't possible on closed sockets
-		self.poller.register(fileno, self.inMask | self.errMask | self.outMask)
+		self.poller.register(fileno, self.inMask | self.errMask)
 		
 	def pollUnregister(self, fd):
 		fileno = self.socketToFileno[fd]
@@ -91,35 +97,40 @@ class BasePollMultiplexer(BaseMultiplexer):
 	def pollSetoutput(self, fd, ready):
 		if not fd in self.socketToFileno: return
 		eventmask = self.inMask | self.errMask | (self.outMask if ready else 0)
-		self.poller.modify(fd, eventmask) # not valid before python 2.6, might need to replace with register() in this context
+		self.poller.modify(fd, eventmask) # not valid for select.poll before python 2.6, might need to replace with register() in this context
 		
 	def poll(self):
 		results = self.poller.poll(*self.args) # oh eff, those are milliseconds
 		inputs = []
 		outputs = []
 		errors = []
+		
+		inMask = self.inMask
+		outMask = self.outMask
+		errMask = self.errMask
 		for fd, mask in results:
-			if mask & self.inMask: inputs.append(self.filenoToSocket[fd])
-			if mask & self.outMask: outputs.append(self.filenoToSocket[fd])
-			if mask & self.errMask: errors.append(self.filenoToSocket[fd])
+			if mask & inMask: inputs.append(self.filenoToSocket[fd])
+			if mask & outMask: outputs.append(self.filenoToSocket[fd])
+			if mask & errMask: errors.append(self.filenoToSocket[fd])
 		return inputs, outputs, errors
 	
 class EpollMultiplexer(BasePollMultiplexer):
-	inMask = EPOLLIN | EPOLLPRI
-	outMask = EPOLLOUT
-	errMask = EPOLLERR | EPOLLHUP
-	
 	def __init__(self):
+		self.inMask = EPOLLIN | EPOLLPRI
+		self.outMask = EPOLLOUT
+		self.errMask = EPOLLERR | EPOLLHUP
+		
 		self.poller = epoll()
 		self.__poll_init__()
 
 class PollMultiplexer(BasePollMultiplexer):
-	inMask = POLLIN | POLLPRI
-	outMask = POLLOUT
-	errMask = POLLERR | POLLHUP | POLLNVAL
-	args = [250]
-	
 	def __init__(self):
+		self.inMask = POLLIN | POLLPRI
+		self.outMask = POLLOUT
+		self.errMask = POLLERR | POLLHUP | POLLNVAL
+		
+		self.args = [250]
+		
 		self.poller = poll()
 		self.__poll_init__()
 
