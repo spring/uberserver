@@ -624,7 +624,10 @@ class Protocol:
 			users[name].SendUser(user, data)
 
 	def client_AddUser(self, client, user):
-		client.Send('ADDUSER %s %s %s' % (user.username, user.country_code, user.cpu))
+		if client.compat_accountIDs:
+			client.Send('ADDUSER %s %s %s 0' % (user.username, user.country_code, user.cpu))
+		else:
+			client.Send('ADDUSER %s %s %s' % (user.username, user.country_code, user.cpu))
 	
 	def client_RemoveUser(self, client, user):
 		client.Send('REMOVEUSER %s' % user.username)
@@ -688,6 +691,15 @@ class Protocol:
 		if not validateIP(local_ip): local_ip = client.ip_address
 		if '\t' in sentence_args:
 			lobby_id, user_id = sentence_args.split('\t',1)
+			if '\t' in user_id:
+				user_id, compFlags = user_id.split('\t', 1)
+				flags = compFlags.split(' ')
+				for flag in flags:
+					if flag == 'a':
+						client.compat_accountIDs = True
+					elif flag == 'b':
+						pass
+						
 			if user_id.replace('-','',1).isdigit():
 				user_id = int(user_id)
 			else: user_id = None

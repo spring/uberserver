@@ -55,6 +55,8 @@ class Client:
 		self.debug = False
 		self.data = ''
 		
+		self.compat_accountIDs = False
+		
 		now = time.time()
 		self.last_login = now
 		self.register_date = now
