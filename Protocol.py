@@ -1278,6 +1278,7 @@ class Protocol:
 	def in_REMOVESTARTRECT(self, client, allyno):
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
+			battle = self._root.battles[battle_id]
 			if battle.host == client.username:
 				del battle.startrects[allyno]
 				self._root.broadcast_battle('REMOVESTARTRECT %s'%allyno,client.current_battle)
