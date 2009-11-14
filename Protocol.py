@@ -210,7 +210,7 @@ class Channel(AutoDict):
 		username = client.username
 		if username in self.users:
 			self.users.remove(username)
-			self.broadcast('LEFT %s %s%s' % (self.chan, username, (' '+reason if reason else '')))
+			self.broadcast('LEFT %s %s %s' % (self.chan, username, (' '+reason if reason else '')))
 	
 	def isFounder(self, client):
 		return client.isMod() or (client.db_id == self.owner)
@@ -258,20 +258,20 @@ class Channel(AutoDict):
 	
 	def opUser(self, client, target):
 		if not client.db_id in self.admins:
-			self.admins.append(client.db_id)
+			self.admins.append(target.db_id)
 			self.channelMessage("<%s> has just been added to this channel's operator list by <%s>" % (target.username, client.username))
 	
 	def deopUser(self, client, target):
 		if client.db_id in self.admins:
-			self.admins.remove(client.db_id)
+			self.admins.remove(target.db_id)
 			self.channelMessage("<%s> has just been removed from this channel's operator list by <%s>" % (target.username, client.username))
 	
 	def kickUser(self, client, target, reason=''):
+		if self.isFounder(target): return
 		if target.username in self.users:
-			self.users.remove(target.username)
 			target.Send('FORCELEAVECHANNEL %s %s %s' % (self.chan, client.username, reason))
-			self.channelMessage('<%s> has kicked <%s> from the channel%s' % (client.username, target.username, (' (%s)'%reason if reason else '')))
-			self.removeUser(username, 'kicked from channel%s' % (' '+reason if reason else ''))
+			self.channelMessage('<%s> has kicked <%s> from the channel%s' % (client.username, target.username, (' (reason: %s)'%reason if reason else '')))
+			self.removeUser(target, 'kicked from channel%s' % (' '+reason if reason else ''))
 	
 	def banUser(self, client, target, reason=''):
 		if not client.db_id in self.bans:
@@ -296,8 +296,6 @@ class Channel(AutoDict):
 	
 	def muteUser(self, client, target, duration=0, ip=False, quiet=False):
 		if not client.db_id in self.mutelist:
-			self.mutelist[client.db_id] = duration
-			
 			if not quiet:
 				self.channelMessage('<%s> has muted <%s>' % (client.username, target.username))
 			try:
@@ -363,7 +361,7 @@ class Protocol:
 					del self._root.battles[battle_id]
 				else:
 					if user in battle.users:
-						del battle.users[user]
+						battle.users.remove(user)
 						for bot in bots:
 							if bot in battle.bots:
 								del battle.bots[bot]
@@ -605,9 +603,8 @@ class Protocol:
 	def broadcast_SendBattle(self, battle, data):
 		users = list(battle.users)
 		for name in users:
-			if user in self._root.usernames:
+			if name in self._root.usernames:
 				self._root.usernames[name].SendBattle(battle, data)
-	
 	
 	def broadcast_AddUser(self, user):
 		users = dict(self._root.usernames)
@@ -626,7 +623,6 @@ class Protocol:
 		for name in users:
 			users[name].SendUser(user, data)
 
-
 	def client_AddUser(self, client, user):
 		client.Send('ADDUSER %s %s %s' % (user.username, user.country_code, user.cpu))
 	
@@ -635,19 +631,19 @@ class Protocol:
 	
 	def client_AddBattle(self, client, battle):
 		ubattle = battle.copy()
-		if self._root.usernames[battle.host].ip_address == client.ip_address: # translates the ip to always be compatible with the client
-			if client.local_ip == self._root.usernames[battle.host].local_ip:
+		host = self._root.usernames[battle.host]
+		if host.ip_address == client.ip_address: # translates the ip to always be compatible with the client
+			if client.local_ip == host.local_ip:
 				translated_ip = '127.0.0.1'
 			else:
-				translated_ip = client.local_ip
+				translated_ip = host.local_ip
 		else:
-			translated_ip = client.ip_address
+			translated_ip = host.ip_address
 		ubattle.update({'ip':translated_ip})
 		client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
 	
 	def client_RemoveBattle(self, client, battle):
 		client.Send('BATTLECLOSED %s' % battle.id)
-
 
 	def in_PING(self, client, args=None):
 		if args:
@@ -725,7 +721,6 @@ class Protocol:
 					for line in agreement: client.Send(line)
 					return
 				self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s.'%(client.handler.num, username, client.session_id))
-				self._root.usernames[username] = client
 				
 				client.db_id = (reason.id or client.session_id)
 				self._root.db_ids[client.db_id] = client
@@ -747,6 +742,7 @@ class Protocol:
 				client.lobby_id = lobby_id
 				client.teamcolor = '0'
 				client.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
+				self._root.usernames[username] = client
 				client.Send('ACCEPTED %s'%username)
 				
 				client.Send('MOTD Welcome, %s!' % username)
@@ -1162,7 +1158,7 @@ class Protocol:
 				client.hostport = 8542
 				del self._root.battles[battle_id]
 			elif client.username in battle.users:
-				del battle.users[client.username]
+				battle.users.remove(client.username)
 				battle_bots = dict(client.battle_bots)
 				for bot in battle_bots:
 					del client.battle_bots[bot]
@@ -1383,7 +1379,7 @@ class Protocol:
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
-			if client.username == battles.host:
+			if client.username == battle.host:
 				if username in battle.users:
 					client = self._root.usernames[username]
 					client.battlestatus['mode'] = '0'

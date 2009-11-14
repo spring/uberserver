@@ -25,6 +25,7 @@ class Client:
 		self.sendingmessage = ''
 		self.logged_in = False
 		self.status = '12'
+		self.cpu = 0
 		self.access = 'fresh'
 		self.accesslevels = ['fresh','everyone']
 		self.channels = []
@@ -59,13 +60,8 @@ class Client:
 		self.register_date = now
 		self.lastdata = now
 		
-		self.users = [] # session_id
-		self.userqueue = {} # [session_id] = [{'type': ['message', 'remove'], 'data':['CLIENTSTATUS', '']}, etc]
-		self.battles = {} # [battle_id] = [user1, user2, user3, etc]
-		self.battlequeue = {} # [battle_id] = [{'type': ['message', 'remove'], 'data':['CLIENTBATTLESTATUS', '']}, etc]
-		
-		self.newest_user = -1
-		self.newest_battle = -1
+		self.users = set([]) # session_id
+		self.battles = set([]) # [battle_id] = [user1, user2, user3, etc]
 		
 		self._root.console_write('Client connected from %s, session ID %s.' % (self.ip_address, session_id))
 
@@ -131,11 +127,15 @@ class Client:
 		if self.telnet:
 			msg = Telnet.filter_out(self,msg)
 		if not msg: return
+		
+		#msg = msg + self.nl
 		if self.handler.thread == thread.get_ident():
-			self.sendbuffer.append(self.msg_id+'%s%s' % (msg, self.nl))
-		else:
-			self.sendbuffer.append('%s%s' % (msg, self.nl))
-		self.handler.poller.setoutput(self.conn, True)
+			msg = self.msg_id + msg
+		self.SendNow(msg)
+		
+		#self.sendbuffer.append(msg)
+		#self.handler.poller.setoutput(self.conn, True)
+
 #		cflocals = sys._getframe(2).f_locals    # this whole thing with cflocals is basically a complicated way of checking if this client
 #		if 'self' in cflocals:                  # was called by its own handling thread, because other ones won't deal with its msg_id
 #			if 'handler' in dir(cflocals['self']):
@@ -164,14 +164,13 @@ class Client:
 					return
 				message = self.sendbuffer.pop(0)
 			self.sendingmessage = message
-		senddata = self.sendingmessage[:64] # smaller chunks interpolate better, maybe base this off of number of clients?
+		senddata = self.sendingmessage# [:64] # smaller chunks interpolate better, maybe base this off of number of clients?
 		try:
 			sent = self.conn.send(senddata)
 			self.sendingmessage = self.sendingmessage[sent:] # only removes the number of bytes sent
 		except socket.error: self.handler._remove(self.conn)
 		
-		if not self.sendbuffer:
-			self.handler.poller.setoutput(self.conn, False)
+		self.handler.poller.setoutput(self.conn, bool(self.sendbuffer or self.sendingmessage))
 	
 	# Queuing
 	
@@ -181,17 +180,8 @@ class Client:
 			except: return
 		session_id = user.session_id
 		if session_id in self.users: return
-		self.newest_user = max(session_id, self.newest_user)
-		self.users.append(session_id)
+		self.users.add(session_id)
 		self._protocol.client_AddUser(self, user)
-		if session_id in self.userqueue:
-			while self.userqueue[session_id]:
-				item = self.userqueue[session_id].pop(0)
-				if item['type'] == 'remove':
-					del self.userqueue[session_id]
-					break
-				elif item['type'] == 'message':
-					self.Send(item['data'])
 	
 	def RemoveUser(self, user):
 		if type(user) in (str, unicode):
@@ -200,11 +190,7 @@ class Client:
 		session_id = user.session_id
 		if session_id in self.users:
 			self.users.remove(session_id)
-			if session_id in self.userqueue:
-				del self.userqueue[session_id]
 			self._protocol.client_RemoveUser(self, user)
-		else:
-			self.userqueue[session_id] = [{'type':'remove'}]
 	
 	def SendUser(self, user, data):
 		if type(user) in (str, unicode):
@@ -213,45 +199,23 @@ class Client:
 		session_id = user.session_id
 		if session_id in self.users:
 			self.Send(data)
-		else:
-			if session_id < self.newest_user: return
-			if not session_id in self.userqueue:
-				self.userqueue[session_id] = []
-			self.userqueue[session_id].append({'type':'message', 'data':data})
 	
 	def AddBattle(self, battle):
 		battle_id = battle.id
 		if battle_id in self.battles: return
-		self.newest_battle = max(battle_id, self.newest_battle)
-		self.battles[battle_id] = []
+		self.battles.add(battle_id)
 		self._protocol.client_AddBattle(self, battle)
-		if battle_id in self.battlequeue:
-			while self.battlequeue[battle_id]:
-				item = self.battlequeue[battle_id].pop(0)
-				if item['type'] == 'remove':
-					del self.battlequeue[battle_id]
-					break
-				elif item['type'] == 'message':
-					self.Send(item['data'])
 	
 	def RemoveBattle(self, battle):
 		battle_id = battle.id
 		if battle_id in self.battles:
-			del self.battles[battle_id]
-			if battle_id in self.battlequeue:
-				del self.battlequeue[battle_id]
+			self.battles.remove(battle_id)
 			self._protocol.client_RemoveBattle(self, battle)
-		else:
-			self.battlequeue[battle_id] = [{'type':'remove'}]
 	
 	def SendBattle(self, battle, data):
 		battle_id = battle.id
 		if battle_id in self.battles:
 			self.Send(data)
-		else:
-			if not battle_id in self.battlequeue:
-				self.battlequeue[battle_id] = []
-			self.battlequeue[battle_id].append({'type':'message', 'data':data})
 	
 	def isAdmin(self):
 		return ('admin' in self.accesslevels)

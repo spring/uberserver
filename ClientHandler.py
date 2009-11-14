@@ -30,12 +30,13 @@ class ClientHandler:
 	def Run(self):
 		if self.running: return
 		self.running = True
-		# commented out to remove profiling
-		#if not os.path.isdir('profiling'):
-		#	os.mkdir('profiling')
-		#thread.start_new_thread(cProfile.runctx,('self.MainLoop()', globals(), locals(), os.path.join('profiling', '%s.log'%(self.num))))
-		# normal, no profiling
-		thread.start_new_thread(self.MainLoop,())
+		profiling = True
+		if profiling:
+			if not os.path.isdir('profiling'):
+				os.mkdir('profiling')
+			thread.start_new_thread(cProfile.runctx,('self.MainLoop()', globals(), locals(), os.path.join('profiling', '%s.log'%(self.num))))
+		else:
+			thread.start_new_thread(self.MainLoop,())
 	
 	def MainLoop(self):
 		self.thread = thread.get_ident()
@@ -44,6 +45,7 @@ class ClientHandler:
 			while self.running and not self.poller.empty():
 				try:
 					inputs, outputs, errors = self.poller.poll()
+					#time.sleep(0.01)
 					if not self.running: continue
 
 					for s in inputs:
@@ -69,7 +71,8 @@ class ClientHandler:
 				except:	self._root.error(traceback.format_exc())
 			self.running = False
 			self._root.console_write('Handler %s: Stopping.'%self.num)
-		except: self._root.error(traceback.format_exc())
+		except:
+			self._root.error(traceback.format_exc())
 
 	def _remove(self, s):
 		self.poller.unregister(s)

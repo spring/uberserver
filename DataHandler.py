@@ -232,10 +232,10 @@ class DataHandler:
 			except KeyError: pass # the user was removed
 
 	def console_write(self, lines=''):
-		if type(lines) == str or type(lines) == unicode:
+		if type(lines) in(str, unicode):
 			lines = lines.split('\n')
-		elif not type(lines) == list:
-			try: lines = lines.__repr__()
+		elif not type(lines) in (list, tuple, set):
+			try: lines = [lines.__repr__()]
 			except: lines = ['Failed to print lines of type %s'%type(lines)]
 		self.console_buffer += lines
 
@@ -313,6 +313,7 @@ class DataHandler:
 		reload(sys.modules['ChanServ'])
 		reload(sys.modules['Client'])
 		if 'SQLUsers' in sys.modules: reload(sys.modules['SQLUsers'])
+		elif 'LANUsers' in sys.modules: reload(sys.modules['LANUsers'])
 		self.SayHooks = __import__('SayHooks')
 		thread.start_new_thread(self._rebind_slow, ()) # why should reloading block the thread? :)
 		if os.path.isfile('motd.txt'):

@@ -116,6 +116,8 @@ class BasePollMultiplexer(BaseMultiplexer):
 	
 class EpollMultiplexer(BasePollMultiplexer):
 	def __init__(self):
+		self.args = []
+		
 		self.inMask = EPOLLIN | EPOLLPRI
 		self.outMask = EPOLLOUT
 		self.errMask = EPOLLERR | EPOLLHUP

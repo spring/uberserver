@@ -457,13 +457,7 @@ def chanowner_unregister(self, user, chan, rights):
 	_reply(self, chan, 'Channel #%s successfully unregistered' % chan)
 
 def chanadmin_topic(self, user, channel, rights, topic):
-	channel = self._root.channels[chan]
-	if user in channelusers:
-		topicdict = {'user':user, 'text':topic, 'time':'%s' % (int(time.time())*1000)}
-		channel.topic = topicdict
-		self._root.broadcast('CHANNELMESSAGE %s Topic changed.' % channel, channel, user)
-		_reply(self, chan, 'You have successfully changed the topic.')
-		self._root.broadcast('CHANNELTOPIC %s %s %s %s' % (channel, user, topicdict['time'], topic), channel)
+	channel = self._root.channels[channel].setTopic(self, topic)
 
 def chanadmin_kick(self, user, chan, rights, username, reason=''):
 	channel = self._root.channels[chan]

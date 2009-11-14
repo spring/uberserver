@@ -43,10 +43,9 @@ for line in data.split('\n'):
 		mapgrades = ' '.join(line[8:])
 
 		accss = _bin2dec(access)
-		ingame = _bin2dec(access[-23:21])
-		if accss & 16777216: bot = True
+		ingame = _bin2dec(access[-23:-3])
+		if accss & 16777216 == : bot = True
 		else: bot = False
-		if bot: ingame = ingame*2
 
 		if accss == 1: access = 'agreement'
 		elif accss&3 == 3: access = 'admin'

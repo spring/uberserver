@@ -124,6 +124,7 @@ for client in dict(_root.clients):
 server.close()
 
 while _root.console_buffer: time.sleep(0.5)
+time.sleep(5)
 
 memdebug = False
 if memdebug:
