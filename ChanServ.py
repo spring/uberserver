@@ -300,6 +300,8 @@ class Client:
 		self._root.usernames[self.username] = self
 		self._root.console_write('Successfully logged in static user <%s> on session %s.'%(self.username, self.session_id))
 		
+		self.compat_accountIDs = False
+		
 		now = time.time()
 		self.last_login = now
 		self.register_date = now
