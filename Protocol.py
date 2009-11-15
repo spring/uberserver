@@ -695,7 +695,9 @@ class Protocol:
 				user_id, compFlags = user_id.split('\t', 1)
 				if 'a' in compFlags:
 					client.compat_accountIDs = True
-				elif 'b' in compFlags:
+				else:
+					client.compat_accountIDs = False
+				if 'b' in compFlags:
 					pass
 						
 			if user_id.replace('-','',1).isdigit():
