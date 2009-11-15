@@ -693,12 +693,10 @@ class Protocol:
 			lobby_id, user_id = sentence_args.split('\t',1)
 			if '\t' in user_id:
 				user_id, compFlags = user_id.split('\t', 1)
-				flags = compFlags.split(' ')
-				for flag in flags:
-					if flag == 'a':
-						client.compat_accountIDs = True
-					elif flag == 'b':
-						pass
+				if 'a' in compFlags:
+					client.compat_accountIDs = True
+				elif 'b' in compFlags:
+					pass
 						
 			if user_id.replace('-','',1).isdigit():
 				user_id = int(user_id)
