@@ -1209,11 +1209,11 @@ class Protocol:
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
 			if battle.host == client.username:
-				updated = {'id':battle_id, 'spectators':int(SpectatorCount), 'locked':int(locked), 'maphash':maphash, 'mapname':mapname}
+				updated = {'id':battle_id, 'spectators':int(SpectatorCount), 'locked':int(locked), 'maphash':maphash, 'map':mapname}
 				old = battle.copy()
 				battle.update(**updated)
 				if old == battle.copy(): return # nothing changed # apparently broken
-				self._root.broadcast('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(mapname)s'%updated)
+				self._root.broadcast('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s'%updated)
 
 	def in_MYSTATUS(self, client, status):
 		if not status.isdigit():
