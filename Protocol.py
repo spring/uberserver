@@ -96,11 +96,19 @@ def validateIP(ipAddress):
 	return re_ip.match(ipAddress)
 
 class AutoDict:
+# method 1
+#	def __getitem__(self, item):
+#		return self.__getattribute__(item)
+#	
+#	def __setitem__(self, item, value):
+#		return self.__setattr__(item, value)
+	
+# method 2
 #	def __getitem__(self, item):
 #		item = str(item)
 #		if not '__' in item and hasattr(self, item):
 #			return getattr(self, item)
-		
+#
 #	def __setitem__(self, item, value):
 #		item = str(item)
 #		if not '__' in item and hasattr(self, item):
@@ -131,7 +139,7 @@ class AutoDict:
 				setattr(self, key, new)
 
 class Battle(AutoDict):
-	def __init__(self, root, id, type, natType, password, port, maxplayers, hashcode, rank, maphash, map, title, modname, passworded, host, users, spectators=0, startrects={}, disabled_units=[], bots={}, script_tags={}, replay_script={}, replay=False, sending_replay_script=False, locked=False):
+	def __init__(self, root, id, type, natType, password, port, maxplayers, hashcode, rank, maphash, map, title, modname, passworded, host, users, spectators=0, startrects={}, disabled_units=[], pending_users=set(), bots={}, script_tags={}, replay_script={}, replay=False, sending_replay_script=False, locked=False):
 		self._root = root
 		self.id = id
 		self.type = type
@@ -151,6 +159,7 @@ class Battle(AutoDict):
 		self.host = host
 		self.startrects = startrects
 		self.disabled_units = disabled_units
+		self.pending_users = pending_users
 		self.bots = bots
 		self.script_tags = script_tags
 		self.replay_script = replay_script
@@ -218,7 +227,7 @@ class Channel(AutoDict):
 	def isOp(self, client):
 		return self.isFounder(client) or (client.db_id in self.admins)
 	
-	def getAccess(self, client): # return this client's security clearance
+	def getAccess(self, client): # return client's security clearance
 		return 'mod' if client.isMod() else\
 				('founder' if self.isFounder(client) else\
 				('op' if self.isOp(client) else\
@@ -693,12 +702,8 @@ class Protocol:
 			lobby_id, user_id = sentence_args.split('\t',1)
 			if '\t' in user_id:
 				user_id, compFlags = user_id.split('\t', 1)
-				if 'a' in compFlags:
-					client.compat_accountIDs = True
-				else:
-					client.compat_accountIDs = False
-				if 'b' in compFlags:
-					pass
+				client.compat_accountIDs = ('a' in compFlags)
+				client.compat_battleAuth = ('b' in compFlags)
 						
 			if user_id.replace('-','',1).isdigit():
 				user_id = int(user_id)
@@ -1058,7 +1063,27 @@ class Protocol:
 			battle = self._root.battles[battle_id]
 			self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg))
 
-	def in_JOINBATTLE(self, client, battle_id, password=None):
+	def in_JOINBATTLEACCEPT(self, client, username):
+		battle_id = client.current_battle
+		if battle_id in self._root.battles:
+			battle = self._root.battles[battle_id]
+			if not client.username == battle.host: return
+			if username in battle.pending_users:
+				battle.pending_users.remove(username)
+				user = self._root.clientFromUsername(username)
+				self.in_JOINBATTLE(user, battle_id, authed=True)
+	
+	def in_JOINBATTLEDENY(self, client, username, reason=None):
+		battle_id = client.current_battle
+		if battle_id in self._root.battles:
+			battle = self._root.battles[battle_id]
+			if not client.username == battle.host: return
+			if username in battle.pending_users:
+				battle.pending_users.remove(username)
+				user = self._root.clientFromUsername(username)
+				user.Send('JOINBATTLEFAILED %s%s' % ('Denied by host%s', (' ('+reason+')' if reason else '')))
+
+	def in_JOINBATTLE(self, client, battle_id, password=None, authed=False):
 		username = client.username
 		if client.current_battle in self._root.battles:
 			client.Send('JOINBATTLEFAILED You are already in a battle.')
@@ -1071,9 +1096,14 @@ class Protocol:
 			if battle.locked:
 				client.Send('JOINBATTLEFAILED Battle is locked.')
 				return
+			host = self._root.clientFromUsername(battle.host)
 			if not username in battle.users:
-				if username in client.battle_bans:
-					client.Send('JOINBATTLEFAILED <%s> has banned you from his/her battles.' % battle.host)
+				if username in host.battle_bans:
+					client.Send('JOINBATTLEFAILED <%s> has banned you from their battles.' % battle.host)
+					return
+				if host.compat_battleAuth and not authed:
+					battle.pending_users.add(username)
+					host.Send('JOINBATTLEREQUEST %s' % username)
 					return
 				battle_users = battle.users
 				battle_bots = battle.bots

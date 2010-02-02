@@ -1,6 +1,7 @@
 import socket, time, sys, thread
 import Telnet
 
+# apply any changes here also to the ChanServ client class in ChanServ.py to maintain compatibility, maybe do a superclass....
 
 class Client:
 	'this object represents one connected client'
@@ -56,6 +57,7 @@ class Client:
 		self.data = ''
 		
 		self.compat_accountIDs = False
+		self.compat_battleAuth = False
 		
 		now = time.time()
 		self.last_login = now
@@ -130,22 +132,9 @@ class Client:
 			msg = Telnet.filter_out(self,msg)
 		if not msg: return
 		
-		#msg = msg + self.nl
 		if self.handler.thread == thread.get_ident():
 			msg = self.msg_id + msg
 		self.SendNow(msg)
-		
-		#self.sendbuffer.append(msg)
-		#self.handler.poller.setoutput(self.conn, True)
-
-#		cflocals = sys._getframe(2).f_locals    # this whole thing with cflocals is basically a complicated way of checking if this client
-#		if 'self' in cflocals:                  # was called by its own handling thread, because other ones won't deal with its msg_id
-#			if 'handler' in dir(cflocals['self']):
-#				if cflocals['self'].handler == self.handler:
-#					self.sendbuffer.append(self.msg_id+'%s%s'%(msg,self.nl))
-#					handled = True
-#		if not handled:
-#			self.sendbuffer.append('%s%s'%(msg,self.nl))
 
 	def SendNow(self, msg):
 		if self.telnet:
