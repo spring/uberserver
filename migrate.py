@@ -44,7 +44,7 @@ for line in data.split('\n'):
 
 		accss = _bin2dec(access)
 		ingame = _bin2dec(access[-23:-3])
-		if accss & 16777216 == : bot = True
+		if accss & 16777216 == 16777216: bot = True
 		else: bot = False
 
 		if accss == 1: access = 'agreement'

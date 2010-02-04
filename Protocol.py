@@ -4,6 +4,8 @@ try: from hashlib import md5
 except: md5 = __import__('md5').new
 import traceback, sys, os
 
+ranks = (5, 15, 30, 100, 300, 1000, 3000, 10000)
+
 restricted = {
 'everyone':['TOKENIZE','TELNET','HASH','EXIT','PING'],
 'fresh':['LOGIN','REGISTER'],
@@ -506,20 +508,12 @@ class Protocol:
 			access = 0
 		bot = int(client.bot)
 		ingame_time = float(client.ingame_time/60) # hours
-		if ingame_time >= 1000: # make this into a list
-			rank = 6
-		elif ingame_time >= 300:
-			rank = 5
-		elif ingame_time >= 100:
-			rank = 4
-		elif ingame_time >= 30:
-			rank = 3
-		elif ingame_time >= 15:
-			rank = 2
-		elif ingame_time >= 5:
-			rank = 1
-		else:
-			rank = 0
+		
+		rank = 0
+		for t in ranks:
+			if ingame_time >= t:
+				rank += 1
+		
 		rank1, rank2, rank3 = self._dec2bin(rank, 3)
 		client.is_ingame = (ingame == '1')
 		client.away = (away == '1')

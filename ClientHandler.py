@@ -30,7 +30,7 @@ class ClientHandler:
 	def Run(self):
 		if self.running: return
 		self.running = True
-		profiling = True
+		profiling = False
 		if profiling:
 			if not os.path.isdir('profiling'):
 				os.mkdir('profiling')
