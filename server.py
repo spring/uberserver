@@ -11,8 +11,10 @@ import ip2country # just to make sure it's downloaded
 import ChanServ
 
 _root = DataHandler()
-_root.console_write('Starting uberserver...\n')
 _root.parseArgv(sys.argv)
+
+_root.console_write('-'*40)
+_root.console_write('Starting uberserver...\n')
 
 host = ''
 port = _root.port
