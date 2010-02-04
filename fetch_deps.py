@@ -1,4 +1,4 @@
-import urllib, zipfile, sys, os
+import urllib, zipfile, sys, os, ip2country
 
 # url = 'http://public.zjt3.com/uberserver/deps.zip' # site down
 url = 'http://lunixbochs.googlepages.com/deps.zip'

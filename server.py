@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-
 import thread, socket, time, sys, traceback
 from urllib import urlopen
 from ClientHandler import ClientHandler
 from DataHandler import DataHandler
 from Client import Client
 from NATServer import NATServer
-import ip2country
+import ip2country # just to make sure it's downloaded
 import ChanServ
 
 _root = DataHandler()
@@ -78,8 +77,7 @@ try:
 		address = (web_addr, 0)
 	elif local_addr:
 		address = (local_addr, 0)
-	country_code = ip2country.lookup(address[0]) # actual flag
-	chanserv = ChanServ.Client(_root, address, _root.session_id, country_code)
+	chanserv = ChanServ.ChanServClient(_root, address, _root.session_id)
 	_root.clients[_root.session_id] = chanserv
 	AddClient(chanserv)
 	_root.session_id += 1
@@ -96,10 +94,7 @@ try:
 			elif local_addr:
 				address = (local_addr, address[1])
 		
-		if _root.randomflags: country_code = ip2country.randomcc() # random flag
-		else: country_code = ip2country.lookup(address[0]) # actual flag
-		
-		client = Client(_root, connection, address, _root.session_id, country_code)
+		client = Client(_root, connection, address, _root.session_id)
 		_root.clients[_root.session_id] = client
 		AddClient(client)
 		_root.session_id += 1

@@ -751,7 +751,6 @@ class Protocol:
 				client.password = password
 				client.cpu = cpu
 				client.local_ip = None
-				client.went_ingame = 0
 				if local_ip.startswith('127.') or not validateIP(local_ip):
 					client.local_ip = client.ip_address
 				else:

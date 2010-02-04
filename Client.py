@@ -1,19 +1,21 @@
-import socket, time, sys, thread
+import socket, time, sys, thread, ip2country
 import Telnet
-
-# apply any changes here also to the ChanServ client class in ChanServ.py to maintain compatibility, maybe do a superclass....
 
 class Client:
 	'this object represents one connected client'
 
-	def __init__(self, root, connection, address, session_id, country_code):
+	def __init__(self, root, connection, address, session_id):
 		'initial setup for the connected client'
 		self._root = root
 		self.conn = connection
 		self.ip_address = address[0]
 		self.local_ip = address[0]
 		self.port = address[1]
+		
+		if root.randomflags: country_code = ip2country.randomcc()
+		else: country_code = ip2country.lookup(self.ip_address)
 		self.country_code = country_code
+		
 		self.session_id = session_id
 		self.db_id = session_id
 		
@@ -36,6 +38,7 @@ class Client:
 		self.username = ''
 		self.password = ''
 		self.ingame_time = 0
+		self.went_ingame = 0
 		self.hostport = 8452
 		self.udpport = 0
 		self.bot = 0
