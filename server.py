@@ -3,10 +3,10 @@
 
 import thread, socket, time, sys, traceback
 from urllib import urlopen
-from ClientHandler import ClientHandler
 from DataHandler import DataHandler
 from Client import Client
 from NATServer import NATServer
+from Dispatcher import Dispatcher
 import ip2country # just to make sure it's downloaded
 import ChanServ
 
@@ -27,9 +27,12 @@ server.setsockopt( socket.SOL_SOCKET, socket.SO_REUSEADDR,
 server.bind((host,port))
 server.listen(backlog)
 
-natserver = NATServer(natport)
-thread.start_new_thread(natserver.start,())
-natserver.bind(_root)
+try:
+	natserver = NATServer(natport)
+	thread.start_new_thread(natserver.start,())
+	natserver.bind(_root)
+except socket.error:
+	print 'Error: Could not start NAT server - hole punching will be unavailable.'
 
 _root.console_write()
 _root.console_write('Detecting local IP:')
@@ -52,63 +55,23 @@ _root.online_ip = web_addr
 _root.console_write('Listening for clients on port %i'%port)
 _root.console_write('Using %i client handling thread(s).'%_root.max_threads)
 
-running = 1
+dispatcher = Dispatcher(_root, server)
 
-def AddClient(client):
-	# start detection of handler with the least clients
-	curthread = 0
-	lowlen = -1
-	# allows for on-the-fly increasing of threads
-	if _root.max_threads > len(_root.clienthandlers):
-		i = len(_root.clienthandlers)
-		_root.clienthandlers.append( ClientHandler(_root, i) )
-		curthread = i
-	else:
-		for i in range(len(_root.clienthandlers)):
-			curtest = _root.clienthandlers[i].clients_num
-			if curtest < lowlen or lowlen == -1:
-				lowlen = curtest
-				curthread = i
-				if lowlen == 0:
-					break # end if it's at 0, we won't get much lower :>
-	# end detection -- this code places a new client in the handler with the least clients
-	_root.clienthandlers[curthread].AddClient(client) # if we add the client before running the loop, we don't need to wait or do pending clients :/
+chanserv = True
+if chanserv:
+	address = ((web_addr or local_addr), 0)
+	chanserv = ChanServ.ChanServClient(_root, address, _root.session_id)
+	dispatcher.addClient(chanserv)
 
 try:
-	if web_addr:
-		address = (web_addr, 0)
-	elif local_addr:
-		address = (local_addr, 0)
-	chanserv = ChanServ.ChanServClient(_root, address, _root.session_id)
-	_root.clients[_root.session_id] = chanserv
-	AddClient(chanserv)
-	_root.session_id += 1
-	while running:
-		try: connection, address = server.accept()
-		except socket.error, e:
-			if e[0] == 24: # ulimit maxfiles
-				_root.console_write('Maximum files reached, refused new connection.')
-			else:
-				raise socket.error, e
-		if address[0].startswith('127.'): # detects if the connection is from this computer
-			if web_addr:
-				address = (web_addr, address[1])
-			elif local_addr:
-				address = (local_addr, address[1])
-		
-		client = Client(_root, connection, address, _root.session_id)
-		_root.clients[_root.session_id] = client
-		AddClient(client)
-		_root.session_id += 1
-		#if not _root.session_id % (_root.max_threads*2):
-		#	time.sleep(0.1)
-		#time.sleep(0.05) # just in case... # not sure what sleeping after connect is good for? remove it? # maybe decreases load on database.
+	dispatcher.pump()
 except KeyboardInterrupt:
 	_root.console_write()
 	_root.console_write('Server killed by keyboard interrupt.')
 except:
 	_root.error(traceback.format_exc())
 	_root.console_write('Deep error, exiting...')
+
 _root.console_write('Killing handlers.')
 for handler in _root.clienthandlers:
 	handler.running = False

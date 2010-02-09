@@ -8,6 +8,14 @@ class Client:
 		'initial setup for the connected client'
 		self._root = root
 		self.conn = connection
+		
+		# detects if the connection is from this computer
+		if address[0].startswith('127.'):
+			if root.online_ip:
+				address = (root.online_ip, address[1])
+			elif root.local_ip:
+				address = (root.local_ip, address[1])
+		
 		self.ip_address = address[0]
 		self.local_ip = address[0]
 		self.port = address[1]
@@ -128,7 +136,8 @@ class Client:
 		except socket.error: #socket shut down by itself ;) probably got a bad file descriptor
 			try: self.conn.close()
 			except socket.error: pass # in case shutdown was called but not close.
-		self.handler.RemoveClient(self, reason)
+		except AttributeError: pass # already closed
+		self.handler.removeClient(self, reason, False)
 
 	def Send(self, msg):
 		if self.telnet:

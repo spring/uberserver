@@ -31,7 +31,12 @@ class BaseMultiplexer:
 	
 	def poll(self):
 		return self.sockets, self.outputs, []
-	
+
+	def pump(self, callback):
+		while True:
+			inputs, outputs, errors = self.poll()
+			callback(inputs, outputs, errors)
+
 	def empty(self):
 		if not self.sockets: return True
 	

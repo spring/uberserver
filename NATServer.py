@@ -5,7 +5,7 @@ class CustomUDPServer(SocketServer.UDPServer):
         self._root = root
 
     def finish_request(self, request, client_address):
-		if '_root_' in dir(self):
+		if '_root' in dir(self):
 		        self.RequestHandlerClass(request, client_address, self, self._root)
 		else:
 			pass # not bound to _root yet, no point in handling UDP

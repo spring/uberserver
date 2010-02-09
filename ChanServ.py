@@ -269,8 +269,6 @@ class ChanServClient(Client):
 		self.logged_in = True
 		self.access = 'admin'
 		self.accesslevels = ['admin', 'mod', 'user', 'everyone']
-
-		self._root.console_write( 'ChanServ connected from %s, session ID %s.' % (self.ip_address, session_id) )
 		
 		self.bot = 1
 		self.username = 'ChanServ'
