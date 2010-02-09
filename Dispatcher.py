@@ -24,7 +24,7 @@ class Dispatcher:
 					conn, addr = self.server.accept()
 				except socket.error, e:
 					if e[0] == 24: # ulimit maxfiles, need to raise ulimit
-						_root.console_write('Maximum files reached, refused new connection.')
+						self._root.console_write('Maximum files reached, refused new connection.')
 					else:
 						raise socket.error, e
 				client = Client.Client(self._root, conn, addr, self._root.session_id)

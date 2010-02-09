@@ -31,6 +31,7 @@ class Client:
 		self.static = False
 		self._protocol = None
 		self.removing = False
+		self.sendError = False
 		self.msg_id = ''
 		self.sendbuffer = []
 		self.sendingmessage = ''
@@ -136,8 +137,8 @@ class Client:
 		except socket.error: #socket shut down by itself ;) probably got a bad file descriptor
 			try: self.conn.close()
 			except socket.error: pass # in case shutdown was called but not close.
-		except AttributeError: pass # already closed
-		self.handler.removeClient(self, reason, False)
+		except AttributeError: pass
+		self.handler.removeClient(self, reason)
 
 	def Send(self, msg):
 		if self.telnet:
@@ -149,12 +150,15 @@ class Client:
 		self.SendNow(msg)
 
 	def SendNow(self, msg):
+		if self.sendError: return
 		if self.telnet:
 			msg = Telnet.filter_out(msg)
 		if not msg: return
 		try:
 			self.conn.send(msg+self.nl)
-		except socket.error: self.handler._remove(self.conn)
+		except socket.error:
+			self.sendError = True
+			self.Remove()
 
 	def FlushBuffer(self):
 		if self.data and self.telnet: # don't send if the person is typing :)

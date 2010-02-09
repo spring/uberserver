@@ -5,7 +5,6 @@ class ChanServ:
 	def __init__(self, client, root):
 		self.client = client
 		self._root = root
-		
 	
 	def onLogin(self):
 		self.client.status = self.client._protocol._calc_status(self.client, 0)
