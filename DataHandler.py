@@ -256,39 +256,38 @@ class DataHandler:
 					print traceback.format_exc()
 					print '-'*60
 		except: print traceback.format_exc()
+	
+	def multicast(self, clients, msg, ignore=()):
+		if type(ignore) in (str, unicode): ignore = [ignore]
+		static = []
+		for client in clients:
+			if client and not client.username in ignore:
+				if client.static: static.append(client)
+				else: client.Send(msg)
 		
-	def broadcast(self, msg, chan=None, ignore=[]):
+		# this is so static clients don't respond before other people even receive the message
+		for client in static:
+			client.Send(msg)
+	
+	def broadcast(self, msg, chan=None, ignore=()):
+		if type(ignore) in (str, unicode): ignore = [ignore]
 		try:
-			if type(ignore) == str:# or type(ignore) == unicode:
-				ignore = [ignore]
 			if chan in self.channels:
 				channel = self.channels[chan]
 				if len(channel.users) > 0:
-					users = list(channel.users)
-					for user in users:
-						if user in self.usernames and not user in ignore:
-							try:
-								self.usernames[user].Send(msg)
-							except KeyError: pass # user was removed
+					clients = [self.clientFromUsername(user) for user in list(channel.users)]
+					self.multicast(clients, msg, ignore)
 			else:
-				users = dict(self.usernames)
-				for user in users:
-					if not user in ignore:
-						try:
-							self.usernames[user].Send(msg)
-						except KeyError: pass # user was removed
+				clients = [self.clientFromUsername(user) for user in list(self.usernames)]
+				self.multicast(clients, msg, ignore)
 		except: self.error(traceback.format_exc())
 
 	def broadcast_battle(self, msg, battle_id, ignore=[]):
-		if type(ignore) == str:# or type(ignore) == unicode:
-			ignore = [ignore]
+		if type(ignore) in (str, unicode): ignore = [ignore]
 		if battle_id in self.battles:
 			battle = self.battles[battle_id]
-			users = list(battle.users)
-			for user in users:
-				try:
-					self.usernames[user].Send(msg)
-				except KeyError: pass # user was removed
+			clients = [self.clientFromUsername(user) for user in list(battle.users)]
+			self.multicast(clients, msg, ignore)
 
 	def admin_broadcast(self, msg):
 		for user in dict(self.usernames):

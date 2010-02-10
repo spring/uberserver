@@ -264,7 +264,7 @@ class Channel(AutoDict):
 			self.channelMessage('<%s> locked this channel with a password' % client.username)
 	
 	def setFounder(self, client, target):
-		self.owner = client.db_id
+		self.owner = target.db_id
 		self.channelMessage("<%s> has just been set as this channel's founder by <%s>" % (target.username, client.username))
 	
 	def opUser(self, client, target):

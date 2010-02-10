@@ -42,7 +42,10 @@ _root.console_write(local_addr)
 
 _root.console_write('Detecting online IP:')
 try:
+	timeout = socket.getdefaulttimeout()
+	socket.setdefaulttimeout(5)
 	web_addr = urlopen('http://whatismyip.com/automation/n09230945.asp').read()
+	socket.setdefaulttimeout(timeout)
 	_root.console_write(web_addr)
 except:
 	web_addr = local_addr

@@ -58,8 +58,6 @@ class ChanServ:
 		return 'Hello, %s!\nI am an automated channel service bot,\nfor the full list of commands, see http://taspring.clan-sy.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
 	
 	def HandleCommand(self, chan, user, cmd, args=None):
-		#print chan, user, cmd, args
-		
 		client = self.client._protocol.clientFromUsername(user)
 		cmd = cmd.lower()
 		
@@ -67,18 +65,17 @@ class ChanServ:
 			channel = self._root.channels[chan]
 			access = channel.getAccess(client)
 			if cmd == 'info':
-				#print chan, user, cmd, args
 				founder = channel.owner
-				if founder: founder = 'Founder is <%s>'%founder
+				if founder: founder = 'Founder is <%s>' % self.client._protocol.clientFromID(founder).username
 				else: founder = 'No founder is registered'
-				admins = channel.admins
+				admins = [self.client._protocol.clientFromID(admin) for admin in channel.admins]
 				users = channel.users
 				antispam = 'on' if channel.antispam.enabled else 'off'
 				if not admins: mods = 'no operators are registered'
 				else: mods = '%i registered operator(s) are <%s>' % (len(admins), '>, <'.join(admins))
 				if len(users) == 1: users = '1 user'
 				else: users = '%i users' % len(users)
-				return '#%s info: Anti-spam protection is %s. %s, %s. %s currently in the channel.' % (chan, antispam, founder, mods, users)
+				return '#%s info: Anti-spam protection is %s. %s, %s. %s are currently in the channel.' % (chan, antispam, founder, mods, users)
 			if cmd == 'topic':
 				if access in ['mod', 'founder', 'op']:
 					channel.setTopic(client, args)
@@ -229,7 +226,6 @@ class ChanServ:
 					return '#%s: Mute list is empty!' % chan
 		if client.isMod():
 			if cmd == 'register':
-				#print 'register', args
 				if not args: args = user
 				self.Send('JOIN %s' % chan)
 				channel = self._root.channels[chan]

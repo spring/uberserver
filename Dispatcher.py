@@ -58,17 +58,27 @@ class Dispatcher:
 			self.socketmap[client.conn] = client
 			self.poller.register(client.conn)
 	
-	def removeClient(self, client, reason='Quit', remove=True):
-		if client.static: return # static clients don't disconnect
-		self.removeSocket(client.conn, remove)
-		self._root.console_write('Client disconnected from %s, session ID was %s'%(client.ip_address, client.session_id))
-		client._protocol._remove(client, reason)
+	def removeClient(self, client, reason='Quit'):
+		client.Remove()
 	
-	def removeSocket(self, s, remove=True):
-		self.poller.unregister(s)
+	def removeSocket(self, s):
 		if s in self.socketmap:
-			client = self.socketmap[s]
-			del self.socketmap[s]
-			if remove: client.Remove()
-		try: sock.close()
-		except: pass
+			self.socketmap[s].Remove()
+	
+	def finishRemove(self, client, reason='Quit'):
+		if client.static: return # static clients don't disconnect
+		client._protocol._remove(client, reason)
+		
+		s = client.conn
+		if s in self.socketmap: del self.socketmap[s]
+		self.poller.unregister(s)
+		
+		try:
+			self.conn.shutdown(socket.SHUT_RDWR)
+			self.conn.close()
+		except socket.error: #socket shut down by itself ;) probably got a bad file descriptor
+			try: self.conn.close()
+			except socket.error: pass # in case shutdown was called but not close.
+		except AttributeError: pass
+		
+		self._root.console_write('Client disconnected from %s, session ID was %s'%(client.ip_address, client.session_id))

@@ -131,14 +131,7 @@ class Client:
 						self._protocol._handle(self,cmd)
 
 	def Remove(self, reason='Quit'):
-		try:
-			self.conn.shutdown(socket.SHUT_RDWR)
-			self.conn.close()
-		except socket.error: #socket shut down by itself ;) probably got a bad file descriptor
-			try: self.conn.close()
-			except socket.error: pass # in case shutdown was called but not close.
-		except AttributeError: pass
-		self.handler.removeClient(self, reason)
+		self.handler.finishRemove(self, reason)
 
 	def Send(self, msg):
 		if self.telnet:
