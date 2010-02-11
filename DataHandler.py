@@ -12,7 +12,7 @@ class DataHandler:
 		self.local_ip = None
 		self.online_ip = None
 		self.session_id = 0
-		self.clienthandlers = []
+		self.dispatcher = None
 		self.console_buffer = []
 		self.port = 8200
 		self.natport = self.port+1
@@ -296,13 +296,15 @@ class DataHandler:
 				client.Send('SERVERMSG Admin broadcast: %s'%msg)
 
 	def _rebind_slow(self):
-		for handler in self.clienthandlers:
-			handler._rebind()
-			
-		for channel in dict(self.channels): # hack, but I guess reloading is all a hack :P
-			chan = self.channels[channel].copy()
-			del chan['chan'] # 'cause we're passing it ourselves
-			self.channels[channel] = sys.modules['Protocol'].Channel(self, channel, **chan)
+		try:
+			self.dispatcher.rebind()
+				
+			for channel in dict(self.channels): # hack, but I guess reloading is all a hack :P
+				chan = self.channels[channel].copy()
+				del chan['chan'] # 'cause we're passing it ourselves
+				self.channels[channel] = sys.modules['Protocol'].Channel(self, channel, **chan)
+		except:
+			self.error(traceback.format_exc())
 
 	def reload(self):
 		self.admin_broadcast('Reloading...')

@@ -50,6 +50,11 @@ class Dispatcher:
 			except socket.error:
 				self.removeSocket(s)
 
+	def rebind(self):
+		self.protocol = Protocol.Protocol(self._root, self)
+		for client in self._root.clients.values():
+			client.Bind(protocol=self.protocol)
+
 	def addClient(self, client):
 		self._root.clients[self._root.session_id] = client
 		self._root.session_id += 1

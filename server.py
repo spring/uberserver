@@ -59,6 +59,7 @@ _root.console_write('Listening for clients on port %i'%port)
 _root.console_write('Using %i client handling thread(s).'%_root.max_threads)
 
 dispatcher = Dispatcher(_root, server)
+_root.dispatcher = dispatcher
 
 chanserv = True
 if chanserv:
@@ -75,9 +76,9 @@ except:
 	_root.error(traceback.format_exc())
 	_root.console_write('Deep error, exiting...')
 
-_root.console_write('Killing handlers.')
-for handler in _root.clienthandlers:
-	handler.running = False
+# _root.console_write('Killing handlers.')
+# for handler in _root.clienthandlers:
+# 	handler.running = False
 _root.console_write('Killing clients.')
 for client in dict(_root.clients):
 	try:

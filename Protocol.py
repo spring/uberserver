@@ -336,7 +336,6 @@ class Protocol:
 		if self._root.LAN: lan = '1'
 		else: lan = '0'
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), lan))
-		#login_string = '%s %s %s %s %s'% (self._root.server, self._root.server_version, self._root.latestspringversion, self._root.natport, lan)
 		client.Send(login_string)
 		
 	def _remove(self, client, reason='Quit'):
@@ -353,7 +352,6 @@ class Protocol:
 			
 			channels = list(client.channels)
 			bots = dict(client.battle_bots)
-			#del self._root.clients[client.session_id]
 			del self._root.usernames[user]
 			del self._root.db_ids[client.db_id]
 			
