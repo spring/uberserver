@@ -96,7 +96,7 @@ class UsersHandler:
 			last_id = user.id
 			line = f.readline().rstrip()
 		
-		self.last_id = last_id
+		self.last_id = int(last_id)
 		f.close()
 	
 	def writeAccounts(self):
