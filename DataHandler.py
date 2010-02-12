@@ -16,19 +16,21 @@ class DataHandler:
 		self.console_buffer = []
 		self.port = 8200
 		self.natport = self.port+1
-		self.LAN = False
+		self.dbtype = 'lan'
 		self.lanadmin = {'username':'', 'password':''}
 		self.latestspringversion = '*'
 		self.log = False
 		self.server = 'TASServer'
 		self.server_version = 0.35
+		
+		self.userdb = None
 		self.engine = None
+		
 		self.max_threads = 25
 		self.sqlurl = 'sqlite:///sqlite.txt'
 		self.randomflags = False
 		self.nextbattle = 0
 		self.SayHooks = __import__('SayHooks')
-		self.UsersHandler = None
 		self.censor = True
 		self.motd = None
 		
@@ -85,7 +87,10 @@ class DataHandler:
 				print '      { Uses SQL database at the url specified }'
 				print '  -c, --no-censor'
 				print '      { Disables censoring of #main, #newbies, and usernames (default is to censor) }'
-				print
+				print '  --accounts /path/to/accounts.txt'
+				print '      { Path to accounts.txt. For using the legacy tasserver account database. }'
+				print '  --channels /path/to/chanserv.xml'
+				print '      { Path to chanserv.xml. For using the legacy chanserv channel database. }'
 				print 'SQLURL Examples:'
 				#print '  "sqlite:///:memory:" or "sqlite:///"'
 				#print '     { both make a temporary database in memory }'
@@ -111,12 +116,12 @@ class DataHandler:
 			if arg in ['p', 'port']:
 				try: self.port = int(argp[0])
 				except: print 'Invalid port specification'
-			if arg in ['n', 'natport']:
+			elif arg in ['n', 'natport']:
 				try: self.natport = int(argp[0])
 				except: print 'Invalid NAT port specification'
-			if arg in ['l', 'lan']:
-				self.LAN = True
-			if arg in ['a', 'lanadmin']:
+			elif arg in ['l', 'lan']:
+				self.dbtype = 'lan'
+			elif arg in ['a', 'lanadmin']:
 				try:
 					if len(argp) > 2:
 						if argp[2] == 'hash':
@@ -124,63 +129,82 @@ class DataHandler:
 							argp[1] = base64.b64encode(m.digest())
 					self.lanadmin = {'username':argp[0], 'password':argp[1]}
 				except: print 'Invalid LAN admin specified'
-			if arg in ['g', 'loadargs']:
+			elif arg in ['g', 'loadargs']:
 				try:
 					f = file(argp[0], 'r')
 					data = file.read().split('\n')
 					f.close()
 					for line in data: self.parseArgv(line)
 				except: print 'Error opening file with command-line args'
-			if arg in ['r', 'randomcc']:
+			elif arg in ['r', 'randomcc']:
 				try: self.randomflags = True
 				except: print 'Error enabling random flags. (weird)'
-			if arg in ['o', 'output']:
+			elif arg in ['o', 'output']:
 				try:
 					self.output = file(argp[0], 'w')
 					print 'Logging enabled at: %s' % argp[0]
 					self.log = True
 				except: print 'Error specifying log location'
-			if arg in ['v', 'latestspringversion']:
+			elif arg in ['v', 'latestspringversion']:
 				try: self.latestspringversion = argp[0] # ' '.join(argp) # shouldn't have spaces
 				except: print 'Error specifying latest spring version'
-			if arg in ['m', 'maxthreads']:
+			elif arg in ['m', 'maxthreads']:
 				try: self.max_threads = int(argp[0])
 				except: print 'Error specifing max threads'
-			if arg in ['s', 'sqlurl']:
-				try: self.sqlurl = argp[0]
-				except: print 'Error specifying SQL URL'
-			if arg in ['c', 'no-censor']:
+			elif arg in ['s', 'sqlurl']:
+				try:
+					self.sqlurl = argp[0]
+					self.dbtype = 'sql'
+				except:
+					print 'Error specifying SQL URL'
+			elif arg in ['c', 'no-censor']:
 				self.censor = False
-		if self.sqlurl == 'sqlite:///:memory:' or self.sqlurl == 'sqlite:///':
-			print 'In-memory sqlite databases are not supported.'
-			print 'Falling back to LAN mode.'
-			print
-			self.LAN = True
-		if not self.LAN:
+			elif arg == 'accounts':
+				try:
+					self.engine = argp[0]
+					open(self.engine, 'r')
+					self.userdb = 'legacy'
+				except:
+					print 'Error opening legacy accounts.txt database.'
+		if self.dbtype == 'sql':
+			if self.sqlurl == 'sqlite:///:memory:' or self.sqlurl == 'sqlite:///':
+				print 'In-memory sqlite databases are not supported.'
+				print 'Falling back to LAN mode.'
+				print
+				self.dbtype = 'lan'
+			else:
+				try:
+					sqlalchemy = __import__('sqlalchemy')
+					self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.max_threads*2, pool_recycle=300) # hopefully no thread will open more than two sql connections :/
+					if self.sqlurl.startswith('sqlite'):
+						print 'Multiple threads are not supported with sqlite, forcing a single thread'
+						print 'Please note the server performance will not be optimal'
+						print 'You might want to install a real database server or use LAN mode'
+						print
+						self.max_threads = 1
+				except ImportError:
+					print 'sqlalchemy not found or invalid SQL URL, falling back to LAN mode.'
+					self.dbtype = 'lan'
+		
+		if self.dbtype == 'legacy':
 			try:
-				sqlalchemy = __import__('sqlalchemy')
-				self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.max_threads*2, pool_recycle=300) # hopefully no thread will open more than two sql connections :/
-				if self.sqlurl.startswith('sqlite'):
-					print 'Multiple threads are not supported with sqlite, forcing a single thread'
-					print 'Please note the server performance will not be optimal'
-					print 'You might want to install a real database server or use LAN mode'
-					print
-					self.max_threads = 1
-			except ImportError:
-				print 'sqlalchemy not found or invalid SQL URL, reverting to LAN mode'
-				self.LAN = True
-		if self.LAN or not self.engine:
-				self.UsersHandler = __import__('LANUsers').UsersHandler # maybe make an import request to datahandler, then have it reload it too. less hardcoded-ness
-		else:
-			try:
-				self.UsersHandler = __import__('SQLUsers').UsersHandler
-				testhandler = self.UsersHandler(self, self.engine)
+				self.userdb = __import__('LegacyUsers').UsersHandler(self, self.engine)
 			except:
-				self.LAN = True
+				print 'Error loading accounts.txt database, falling back to LAN mode.'
+				self.dbtype = 'lan'
+		elif self.dbtype == 'sql':
+			try:
+				self.userdb = __import__('SQLUsers').UsersHandler
+				self.userdb(self, self.engine)
+			except:
+				self.dbtype = 'lan'
 				print traceback.format_exc()
-				print 'Error importing SQL - reverting to LAN'
-				self.UsersHandler = __import__('LANUsers').UsersHandler
-		if self.LAN: print 'Warning: LAN mode enabled - many user-specific features will be broken.'
+				print 'Error importing SQL - falling back to LAN mode.'
+		
+		if self.dbtype == 'lan':
+			self.userdb = __import__('LANUsers').UsersHandler(self)
+			print 'Warning: LAN mode enabled - many user-specific features will be broken.'
+		
 		if os.path.isfile('motd.txt'):
 			motd = []
 			f = open('motd.txt', 'r')
@@ -195,6 +219,12 @@ class DataHandler:
 				self.output = open('server.log', 'w')
 				self.log = True
 			except: pass
+	
+	def getUserDB(self):
+		if self.dbtype in ('legacy', 'lan'):
+			return self.userdb
+		elif self.dbtype == 'sql':
+			return self.userdb(self, self.engine)
 	
 	def clientFromID(self, db_id):
 		if db_id in self.db_ids: return self.db_ids[db_id]

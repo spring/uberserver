@@ -1,4 +1,5 @@
 import sqlalchemy, time, sys
+from LegacyUsers import User
 
 if not len(sys.argv) == 3:
 	print 'usage: migrate.py [/path/to/accounts.txt] [dburl]'
@@ -29,30 +30,12 @@ accounts = {}
 
 for line in data.split('\n'):
 	if line:
-		line = line.split()
-		if len(line) < 8: continue
-
-		username = line[0]
-		password = line[1]
-		access = line[2]
-		uid = line[3]
-		lastlogin = int(line[4])/1000
-		ip = line[5]
-		dunno = line[6]
-		country = line[7]
-		mapgrades = ' '.join(line[8:])
-
-		accss = _bin2dec(access)
-		ingame = _bin2dec(access[-23:-3])
-		if accss & 16777216 == 16777216: bot = True
-		else: bot = False
-
-		if accss == 1: access = 'agreement'
-		elif accss&3 == 3: access = 'admin'
-		elif accss&2 == 2: access = 'mod'
-		else: access = 'user'
-		
-		accounts[username] = {'user':username, 'pass':password, 'ingame':ingame, 'lastlogin':lastlogin, 'uid':uid, 'ip':ip, 'country':country, 'bot':bot, 'mapgrades':mapgrades, 'access':access}
+		user = User.fromAccountLine(line)
+		accounts[user.casename] = {
+			'user':user.casename, 'pass':user.password, 'ingame':user.ingame_time,
+			'last_login':user.last_login, 'register_date':user.register_date, 'uid':user.uid,
+			'last_ip':user.last_ip, 'country':user.country, 'bot':user.bot, 'access':user.access,
+			}
 
 print
 print 'writing accounts to database'

@@ -1,9 +1,9 @@
 import time
 
 class LANUser:
-	def __init__(self, user, casename, password, ip):
+	def __init__(self, user, password, ip):
 		self.user = user
-		self.casename = casename
+		self.casename = user
 		self.ingame_time = 0
 		self.access = 'user'
 		self.last_login = int(time.time())
@@ -24,11 +24,9 @@ class UsersHandler:
 		pass
 	
 	def login_user(self, user, password, ip, lobby_id, user_id, cpu, local_ip, country):
-		#name = user.lower()
-		name = user
-		User = LANUser(name, user, password, ip)
+		User = LANUser(user, password, ip)
 		lanadmin = self._root.lanadmin
-		if name.lower() == lanadmin['username'].lower():
+		if user.lower() == lanadmin['username'].lower():
 			if password == lanadmin['password']:
 				User.casename = lanadmin['username']
 				User.access = 'admin'

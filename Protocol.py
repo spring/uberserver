@@ -325,15 +325,14 @@ class Channel(AutoDict):
 
 class Protocol:
 	def __init__(self, root, handler):
-		LAN = root.LAN
 		self._root = root
 		self.handler = handler
-		self.userdb = root.UsersHandler(root, root.engine)
+		self.userdb = root.getUserDB()
 		self.SayHooks = root.SayHooks
 		self.dir = dir(self)
 
 	def _new(self, client):
-		if self._root.LAN: lan = '1'
+		if self._root.dbtype == 'lan': lan = '1'
 		else: lan = '0'
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), lan))
 		client.Send(login_string)
@@ -707,9 +706,8 @@ class Protocol:
 			m = md5(password)
 			password = base64.b64encode(m.digest())
 		good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
-		if not self._root.LAN and good: username = reason.casename
+		if good: username = reason.casename
 		if not username in self._root.usernames:
-			#good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 			if good:
 				client.access = reason.access
 				self._calc_access(client)
@@ -731,7 +729,10 @@ class Protocol:
 					return
 				self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s.'%(client.handler.num, username, client.session_id))
 				
-				client.db_id = (reason.id or client.session_id)
+				if reason.id == False:
+					client.db_id = client.session_id
+				else:
+					client.db_id = reason.id
 				self._root.db_ids[client.db_id] = client
 				
 				client.ingame_time = int(reason.ingame_time)
@@ -1507,7 +1508,7 @@ class Protocol:
 					client.Send('SERVERMSG <%s> was recently bound to %s at %s' % (entry.casename, address, time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(entry.lastlogin))))
 		else: client.Send('SERVERMSG Database returned error when finding ip for <%s> (%s)' % (username, data))
 	
-	def in_GETLASTIP(self, client, username): return self.in_GETIP(self, client, username)
+	def in_GETLASTIP(self, client, username): return self.in_GETIP(client, username)
 	
 	def in_GETIP(self, client, username):
 		if username in self._root.usernames:
