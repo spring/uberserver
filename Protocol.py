@@ -1529,7 +1529,9 @@ class Protocol:
 	def in_RENAMEACCOUNT(self, client, newname):
 	#	return
 		user = client.username
-		if user == newname: return
+		if user == newname:
+			client.Send('SERVERMSG You already have that username.')
+			return
 		good, reason = self.userdb.rename_user(user, newname)
 		if good:
 			client.SendNow('SERVERMSG Your account has been renamed to <%s>. Reconnect with the new username (you will now be automatically disconnected).' % newname)
