@@ -93,7 +93,13 @@ _root.console_print_step()
 if _root.dbtype == 'legacy':
 	print 'Writing account database to file...'
 	try:
-		_root.userdb.writeAccounts()
+		while True:
+			try:
+				_root.userdb.writeAccounts()
+				print 'Accounts written.'
+				break
+			except KeyboardInterrupt:
+				print 'You probably shouldn\'t interrupt this, starting account dump over.'
 	except:
 		print '-'*60
 		print traceback.format_exc()
