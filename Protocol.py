@@ -1198,7 +1198,7 @@ class Protocol:
 					del client.battle_bots[bot]
 					if bot in battle.bots:
 						del battle.bots[bot]
-						self._root.broadcast_battle('REMOVEBOT %s' % bot, battle_id)
+						self._root.broadcast_battle('REMOVEBOT %s %s' % (battle_id, bot), battle_id)
 				self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, client.username))
 		client.current_battle = None
 
