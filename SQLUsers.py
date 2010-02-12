@@ -290,7 +290,7 @@ class UsersHandler:
 		session.commit()
 		session.close()
 
-	def register_user(self, user, password, ip): # need to add better ban checks so it can check if an ip address is banned when registering an account :)
+	def register_user(self, user, password, ip, country): # need to add better ban checks so it can check if an ip address is banned when registering an account :)
 		if len(user)>20: return False, 'Username too long'
 		session = self.sessionmaker()
 		if self._root.censor:

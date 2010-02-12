@@ -142,7 +142,7 @@ class UsersHandler:
 
 	def end_session(self, username): pass
 	
-	def register_user(self, username, password, ip):
+	def register_user(self, username, password, ip, country):
 		if len(username) > 20: return False, 'Username too long'
 		if self._root.censor:
 			if not self._root.SayHooks._nasty_word_censor(username):
@@ -154,7 +154,7 @@ class UsersHandler:
 			return False, 'Username already exists.'
 		
 		now = int(time.time()*1000)
-		user = User(username, password, 0, None, 'user', now, ip, None, now, country, self.last_id+1)
+		user = User(username, password, 0, None, 'user', now, ip, None, now, '??', self.last_id+1)
 		self.last_id += 1
 		self.accounts[name] = user
 		return True, 'Account registered successfully.'

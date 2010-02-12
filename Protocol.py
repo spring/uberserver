@@ -661,7 +661,7 @@ class Protocol:
 		sock.sendto('Port testing...', (host, port))
 
 	def in_REGISTER(self, client, username, password):
-		good, reason = self.userdb.register_user(username, password, client.ip_address)
+		good, reason = self.userdb.register_user(username, password, client.ip_address, client.country_code)
 		if good:
 			self._root.console_write('Handler %s: Successfully registered user <%s> on session %s.'%(client.handler.num, username, client.session_id))
 			client.Send('REGISTRATIONACCEPTED')
