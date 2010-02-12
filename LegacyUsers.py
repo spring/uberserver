@@ -154,7 +154,7 @@ class UsersHandler:
 			return False, 'Username already exists.'
 		
 		now = int(time.time()*1000)
-		user = User(username, password, 0, None, 'user', now, ip, None, now, '??', self.last_id+1)
+		user = User(username, password, 0, False, 'user', now, ip, None, now, '??', self.last_id+1)
 		self.last_id += 1
 		self.accounts[name] = user
 		return True, 'Account registered successfully.'
