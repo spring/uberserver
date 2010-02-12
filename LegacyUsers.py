@@ -149,6 +149,7 @@ class UsersHandler:
 				return False, 'Name failed to pass profanity filter.'
 		
 		name = username.lower()
+		lanadmin = self._root.lanadmin
 		if name == lanadmin['username'].lower() or name in self.accounts:
 			return False, 'Username already exists.'
 		
