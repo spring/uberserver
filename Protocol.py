@@ -352,7 +352,8 @@ class Protocol:
 			channels = list(client.channels)
 			bots = dict(client.battle_bots)
 			del self._root.usernames[user]
-			del self._root.db_ids[client.db_id]
+			if client.db_id in self._root.db_ids:
+				del self._root.db_ids[client.db_id]
 			
 			for chan in channels:
 				channel = self._root.channels[chan]
