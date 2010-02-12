@@ -163,7 +163,7 @@ class DataHandler:
 				try:
 					self.engine = argp[0]
 					open(self.engine, 'r')
-					self.userdb = 'legacy'
+					self.dbtype = 'legacy'
 				except:
 					print 'Error opening legacy accounts.txt database.'
 		if self.dbtype == 'sql':
@@ -190,6 +190,7 @@ class DataHandler:
 			try:
 				self.userdb = __import__('LegacyUsers').UsersHandler(self, self.engine)
 			except:
+				print traceback.format_exc()
 				print 'Error loading accounts.txt database, falling back to LAN mode.'
 				self.dbtype = 'lan'
 		elif self.dbtype == 'sql':

@@ -11,7 +11,7 @@ class LANUser:
 		self.last_ip = ip
 		self.bot = False
 		self.hook_chars = ''
-		self.id = False
+		self.id = None
 
 class UsersHandler:
 	def __init__(self, root, engine=None):

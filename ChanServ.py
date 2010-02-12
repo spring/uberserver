@@ -11,12 +11,15 @@ class ChanServ:
 		self.Send('JOIN main')
 	
 	def Handle(self, msg):
-		if msg.count(' '):
-			cmd, args = msg.split(' ', 1)
-			if cmd == 'SAID':
-				self.handleSAID(args)
-			if cmd == 'SAIDPRIVATE':
-				self.handleSAIDPRIVATE(args)
+		try:
+			if msg.count(' '):
+				cmd, args = msg.split(' ', 1)
+				if cmd == 'SAID':
+					self.handleSAID(args)
+				if cmd == 'SAIDPRIVATE':
+					self.handleSAIDPRIVATE(args)
+		except:
+			self._root.error(traceback.format_exc())
 	
 	def handleSAID(self, msg):
 		chan, user, msg = msg.split(' ',2)
@@ -52,7 +55,12 @@ class ChanServ:
 					cmd = msg
 				if not chan: return
 				response = self.HandleCommand(chan, user, cmd, args)
-				if response: self.Send('SAYPRIVATE %s %s ' % (user, response))
+				if response:
+					if type(response) in (str, unicode):
+						self.Send('SAYPRIVATE %s %s ' % (user, response))
+					if type(response) in (list, tuple, set):
+						for msg in response:
+							self.Send('SAYPRIVATE %s %s'%(user, msg))
 
 	def Help(self, user):
 		return 'Hello, %s!\nI am an automated channel service bot,\nfor the full list of commands, see http://taspring.clan-sy.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
@@ -192,13 +200,9 @@ class ChanServ:
 							target = args
 							duration = -1
 					try:
-						duration = float(duration)*60
-						if duration < 1:
-							timeleft = -1
-						else:
-							timeleft = time.time() + duration
+						duration = float(duration)
 					except ValueError:
-						return '#%s:  Duration must be an integer!' % chan
+						return '#%s: Duration must be an integer!' % chan
 					target = self.client._protocol.clientFromUsername(target)
 					channel.muteUser(client, target, duration)
 				else:
@@ -211,16 +215,14 @@ class ChanServ:
 				else:
 					return '#%s: You do not have permission to unmute users' % chan
 			if cmd == 'mutelist':
-				if len(channel.mutelist):
+				if channel.mutelist:
 					mutelist = dict(channel.mutelist)
-					muted = '#%s: Mute list (%i entries):  '%(chan, len(mutelist))
+					muted = ['#%s: Mute list (%i entries):  '%(chan, len(mutelist))]
 					for user in mutelist:
-						timeleft = mutelist[user]
-						if timeleft < 0:
-							timeleft = 'indefinite'
-						else:
-							timeleft = timeleft-time.time()
-						muted += '%s, %s seconds remaining; '%(user, timeleft)
+						m = mutelist[user].copy()
+						user = self.client._protocol.clientFromID(user).username
+						message = self.client._protocol._format_time(m['expires']) + (' by IP.' if m['ip'] else '.')
+						muted.append('%s, %s' % (user, message))
 					return muted
 				else:
 					return '#%s: Mute list is empty!' % chan

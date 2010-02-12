@@ -33,7 +33,7 @@ for line in data.split('\n'):
 		user = User.fromAccountLine(line)
 		accounts[user.casename] = {
 			'user':user.casename, 'pass':user.password, 'ingame':user.ingame_time,
-			'last_login':user.last_login, 'register_date':user.register_date, 'uid':user.uid,
+			'last_login':user.last_login, 'register_date':user.register_date, 'uid':user.last_id,
 			'last_ip':user.last_ip, 'country':user.country, 'bot':user.bot, 'access':user.access,
 			}
 

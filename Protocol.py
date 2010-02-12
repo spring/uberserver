@@ -310,7 +310,7 @@ class Channel(AutoDict):
 			if not quiet:
 				self.channelMessage('<%s> has muted <%s>' % (client.username, target.username))
 			try:
-				duration = float(duration)*60
+				duration = duration*60.0
 				if duration < 1:
 					duration = 0
 				else:
@@ -729,7 +729,7 @@ class Protocol:
 					return
 				self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s.'%(client.handler.num, username, client.session_id))
 				
-				if reason.id == False:
+				if reason.id == None:
 					client.db_id = client.session_id
 				else:
 					client.db_id = reason.id
@@ -864,7 +864,7 @@ class Protocol:
 				if client.db_id in channel.mutelist:
 					m = channel.mutelist[client.db_id]
 					if m['expires'] == 0:
-						self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan)
+						client.Send('CHANNELMESSAGE %s You are muted forever.' % chan)
 					else:
 						client.Send('CHANNELMESSAGE %s You are muted for the next %s.'%(chan, self._format_time(m['expires'])))
 				else:
@@ -880,7 +880,7 @@ class Protocol:
 				if client.db_id in channel.mutelist:
 					mute = channel.mutelist[client.db_id]
 					if m['expires'] == 0:
-						self._root.broadcast('SAIDEX %s %s %s' % (chan,client.username,msg),chan)
+						client.Send('CHANNELMESSAGE %s You are muted forever.' % chan)
 					else:
 						client.Send('CHANNELMESSAGE %s You are muted for the next %s.'%(chan, self._format_time(m['expires'])))
 				else:

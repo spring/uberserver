@@ -11,8 +11,8 @@ class User(object):
 		self.name = name
 		self.casename = casename
 		self.password = password
-		self.last_login = int(time.time())
-		self.register_date = int(time.time())
+		self.last_login = int(time.time()*1000)
+		self.register_date = int(time.time()*1000)
 		self.last_ip = last_ip
 		self.ingame_time = 0
 		self.bot = 0
@@ -41,7 +41,7 @@ class Rename(object):
 	def __init__(self, original, new):
 		self.original = original
 		self.new = new
-		self.time = int(time.time())
+		self.time = int(time.time()*1000)
 		
 	def __repr__(self):
 		return "<Rename('%s')>" % self.ip_address
@@ -112,7 +112,7 @@ users_table = Table('users', metadata,
 	Column('casename', String(40)),
 	Column('password', String(32)),
 	Column('register_date', Integer),
-	Column('last_login', Integer), # use seconds since unix epoch # should replace these with last_session or just remove them
+	Column('last_login', Integer), # use milliseconds since unix epoch # should replace these with last_session or just remove them
 	Column('last_ip', String(15)), # would need update for ipv6   # 
 	Column('last_id', String(128)),
 	Column('ingame_time', Integer),
@@ -253,12 +253,11 @@ class UsersHandler:
 	def login_user(self, user, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		session = self.sessionmaker()
 		name = user.lower()
-		lanadmin = self._root.lanadmin
 		if user == lanadmin['username'] and password == lanadmin['password']:
-			sqluser = User(name, lanadmin['username'], password, ip, 'admin')
-			return True, sqluser
+		 	sqluser = User(name, lanadmin['username'], password, ip, 'admin')
+		 	return True, sqluser
 		good = True
-		now = int(time.time())
+		now = int(time.time()*1000)
 		entry = session.query(User).filter(User.name==name).first() # should only ever be one user with each name so we can just grab the first one :)
 		reason = entry
 		if not entry:
@@ -287,7 +286,7 @@ class UsersHandler:
 		session = self.sessionmaker()
 		name = username.lower()
 		entry = session.query(User).filter(User.name==name).first()
-		if not entry.logins[-1].end: entry.logins[-1].end = time.time()
+		if not entry.logins[-1].end: entry.logins[-1].end = int(time.time()*1000)
 		session.commit()
 		session.close()
 
@@ -323,7 +322,7 @@ class UsersHandler:
 		session = self.sessionmaker()
 		name = username.lower()
 		entry = session.query(User).filter(User.name==name).first()
-		end_time = int(time.time()) + duration
+		end_time = int(time.time()*1000) + int(duration*1000)
 		ban = Ban(reason, end_time)
 		session.save(ban)
 		ban.entries.append(AggregateBan('user', name))
@@ -405,7 +404,7 @@ class UsersHandler:
 		entry = session.query(User).filter(User.name==name).first()
 		session.close()
 		if entry: return True, entry.last_login
-		else: return False, 'user not found in database'
+		else: return False, 'User not found.'
 	
 	def get_registration_date(self, username):
 		session = self.sessionmaker()
@@ -434,14 +433,13 @@ class UsersHandler:
 			return True, data
 		else: return False, 'user not found in database'
 	
-	def find_ip(self, username):
+	def find_ip(self, ip):
 		session = self.sessionmaker()
-		name = username.lower()
 		results = session.query(User).filter(User.last_ip==ip)
 		session.close()
 		return results
 		
-	def get_ip(self, usenrame):
+	def get_ip(self, username):
 		session = self.sessionmaker()
 		name = username.lower()
 		entry = session.query(User).filter(User.name==name).first()
@@ -509,7 +507,6 @@ class UsersHandler:
 	def inject_users(self, accounts):
 		session = self.sessionmaker()
 		count = 0
-		start = time.time()
 		for user in accounts:
 			count += 1
 			if not count % 500:
