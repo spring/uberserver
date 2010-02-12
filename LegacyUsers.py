@@ -163,7 +163,7 @@ class UsersHandler:
 	def banlist(self): return []
 	
 	def rename_user(self, username, newname):
-		if self._root.censor and self._root.SayHooks._nasty_word_censor(newname):
+		if self._root.censor and not self._root.SayHooks._nasty_word_censor(newname):
 			return False, 'New username failed to pass profanity filter.'
 		user = self.clientFromUsername(username)
 		if user:
