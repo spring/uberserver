@@ -143,7 +143,7 @@ class UsersHandler:
 	def end_session(self, username): pass
 	
 	def register_user(self, username, password, ip):
-		if len(user)>20: return False, 'Username too long'
+		if len(username) > 20: return False, 'Username too long'
 		if self._root.censor:
 			if not self._root.SayHooks._nasty_word_censor(user):
 				return False, 'Name failed to pass profanity filter.'
