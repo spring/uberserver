@@ -145,7 +145,7 @@ class UsersHandler:
 	def register_user(self, username, password, ip):
 		if len(username) > 20: return False, 'Username too long'
 		if self._root.censor:
-			if not self._root.SayHooks._nasty_word_censor(user):
+			if not self._root.SayHooks._nasty_word_censor(username):
 				return False, 'Name failed to pass profanity filter.'
 		
 		name = username.lower()
