@@ -1,5 +1,5 @@
 import Multiplexer, Protocol, Client
-import socket, thread
+import socket, thread, traceback
 
 class Dispatcher:
 	def __init__(self, root, server):
@@ -18,37 +18,39 @@ class Dispatcher:
 		self.poller.pump(self.callback)
 	
 	def callback(self, inputs, outputs, errors):
-		for s in inputs:
-			if s == self.server:
-				try:
-					conn, addr = self.server.accept()
-				except socket.error, e:
-					if e[0] == 24: # ulimit maxfiles, need to raise ulimit
-						self._root.console_write('Maximum files reached, refused new connection.')
-					else:
-						raise socket.error, e
-				client = Client.Client(self._root, conn, addr, self._root.session_id)
-				self.addClient(client)
-			else:
-				try:
-					data = s.recv(1024)
-					if data:
-						if s in self.socketmap: # for threading, just need to pass this to a worker thread... remember to fix the problem for any calls to handler, and fix msg ids (handler.thread)
-							self.socketmap[s].Handle(data)
+		try:
+			for s in inputs:
+				if s == self.server:
+					try:
+						conn, addr = self.server.accept()
+					except socket.error, e:
+						if e[0] == 24: # ulimit maxfiles, need to raise ulimit
+							self._root.console_write('Maximum files reached, refused new connection.')
 						else:
-							print 'Problem, sockets are not being cleaned up properly.'
-					else:
-						raise socket.error, 'Connection closed.'
+							raise socket.error, e
+					client = Client.Client(self._root, conn, addr, self._root.session_id)
+					self.addClient(client)
+				else:
+					try:
+						data = s.recv(1024)
+						if data:
+							if s in self.socketmap: # for threading, just need to pass this to a worker thread... remember to fix the problem for any calls to handler, and fix msg ids (handler.thread)
+									self.socketmap[s].Handle(data)
+							else:
+								print 'Problem, sockets are not being cleaned up properly.'
+						else:
+							raise socket.error, 'Connection closed.'
+					except socket.error:
+						self.removeSocket(s)
+			
+			for s in outputs:
+				try:
+					self.socketmap[s].FlushBuffer()
+				except KeyError:
+					self.removeSocket(s)
 				except socket.error:
 					self.removeSocket(s)
-		
-		for s in outputs:
-			try:
-				self.socketmap[s].FlushBuffer()
-			except KeyError:
-				self.removeSocket(s)
-			except socket.error:
-				self.removeSocket(s)
+		except: self._root.error(traceback.format_exc())
 
 	def rebind(self):
 		self.protocol = Protocol.Protocol(self._root, self)

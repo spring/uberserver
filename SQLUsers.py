@@ -361,7 +361,7 @@ class UsersHandler:
 		session = self.sessionmaker()
 		if self._root.censor:
 			if not self._root.SayHooks._nasty_word_censor(user):
-				return False, 'Name failed to pass profanity filter.'
+				return False, 'New username failed to pass profanity filter.'
 		lnewname = newname.lower()
 		if not lnewname == user.lower(): # this makes it so people can rename to a different case of the same name
 			results = session.query(User).filter(User.name==lnewname).first()

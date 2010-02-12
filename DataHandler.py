@@ -33,6 +33,7 @@ class DataHandler:
 		self.SayHooks = __import__('SayHooks')
 		self.censor = True
 		self.motd = None
+		self.running = True
 		
 		self.start_time = time.time()
 		self.channels = {}
@@ -41,8 +42,7 @@ class DataHandler:
 		self.clients = {}
 		self.db_ids = {}
 		self.battles = {}
-		thread.start_new_thread(self.mute_timer,()) # maybe make into a single thread
-		thread.start_new_thread(self.console_loop,())
+		thread.start_new_thread(self.event_loop, ())
 	
 	def parseArgv(self, argv):
 		'parses command-line options'
@@ -162,7 +162,7 @@ class DataHandler:
 			elif arg == 'accounts':
 				try:
 					self.engine = argp[0]
-					open(self.engine, 'r')
+					open(self.engine, 'r').close()
 					self.dbtype = 'legacy'
 				except:
 					print 'Error opening legacy accounts.txt database.'
@@ -233,23 +233,55 @@ class DataHandler:
 	def clientFromUsername(self, username):
 		if username in self.usernames: return self.usernames[username]
 
-	def mute_timer(self):
-		while True:
+	def event_loop(self):
+		start = time.time()
+		while self.running:
+			loopstart = time.time()
+			seconds = int(loopstart - start)
 			try:
-				now = time.time()
-				channels = dict(self.channels)
-				for chan in channels:
-					channel = channels[chan]
-					mutelist = dict(channel.mutelist)
-					for user in mutelist:
-						expiretime = mutelist[user]['expires']
-						if 0 < expiretime and expiretime < now:
-							del channel.mutelist[user]
-							self.broadcast('CHANNELMESSAGE %s <%s> has been unmuted (mute expired).'%(chan, user))
-				time.sleep(1)
+				if seconds % 1800 == 0: # save every 30 minutes
+					if self.dbtype == 'legacy' and self.userdb:
+						print 'Writing account database to file.',
+						start = time.time()
+						self.userdb.writeAccounts()
+						print '..took %0.2f seconds.' % (time.time() - start)
+					
+				if seconds % 1 == 0:
+					self.mute_timeout_step()
+				
+				self.console_print_step()
 			except:
-				self.error(traceback.format_exc())
-				time.sleep(5)
+				self.error(traceback.format_exc())	
+				
+			time.sleep(max(0.1, 1 - (time.time() - loopstart)))
+
+	def mute_timeout_step(self):
+		try:
+			now = time.time()
+			channels = dict(self.channels)
+			for chan in channels:
+				channel = channels[chan]
+				mutelist = dict(channel.mutelist)
+				for user in mutelist:
+					expiretime = mutelist[user]['expires']
+					if 0 < expiretime and expiretime < now:
+						del channel.mutelist[user]
+						self.broadcast('CHANNELMESSAGE %s <%s> has been unmuted (mute expired).'%(chan, user))
+		except:
+			self.error(traceback.format_exc())
+
+	def console_print_step(self):
+		try:
+			while self.console_buffer:
+				line = self.console_buffer.pop(0)
+				print line
+				if self.log:
+					self.output.write(line+'\n')
+					self.output.flush()
+		except:
+			print '-'*60
+			print traceback.format_exc()
+			print '-'*60
 
 	def error(self, error):
 		error = '%s\n%s\n%s'%(separator,error,separator)
@@ -269,24 +301,6 @@ class DataHandler:
 			try: lines = [lines.__repr__()]
 			except: lines = ['Failed to print lines of type %s'%type(lines)]
 		self.console_buffer += lines
-
-	def console_loop(self):
-		try:
-			while True:
-				try:
-					if self.console_buffer:
-						line = self.console_buffer.pop(0)
-						print line
-						if self.log:
-							self.output.write(line+'\n')
-							self.output.flush()
-					else:
-						time.sleep(0.1)
-				except:
-					print '-'*60
-					print traceback.format_exc()
-					print '-'*60
-		except: print traceback.format_exc()
 	
 	def multicast(self, clients, msg, ignore=()):
 		if type(ignore) in (str, unicode): ignore = [ignore]

@@ -1268,13 +1268,20 @@ class Protocol:
 		self._root.broadcast('CLIENTSTATUS %s %s'%(client.username, client.status))
 
 	def in_CHANNELS(self, client):
-		for chan in self._root.channels:
-			channel = self._root.channels[chan]
-			if not channel.owner or channel.key: return # only list unlocked registered channels
-			chaninfo = '%s %s'%(channel, len(channel.users))
+		channels = []
+		for channel in self._root.channels.values():
+			if channel.owner and not channel.key:
+				channels.append(channel)
+		
+		if not channels:
+			client.Send('SERVERMSG No channels are currently visible (they must be registered and unlocked).')
+			return
+		
+		for channel in channels:
+			chaninfo = '%s %s'%(channel.chan, len(channel.users))
 			topic = channel.topic
 			if topic:
-				chaninfo = '%s %s'%(chaninfo, topic['text'])
+				chaninfo = '%s %s'%(chaninfo, topic['text']) # TASClient doesn't show the topic in CHANNELS unless it has a space, by the way.
 			client.Send('CHANNEL %s'%chaninfo)
 		client.Send('ENDOFCHANNELS')
 

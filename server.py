@@ -87,8 +87,17 @@ for client in dict(_root.clients):
 	except: pass # for good measure
 server.close()
 
-while _root.console_buffer: time.sleep(0.5)
-time.sleep(5)
+_root.running = False
+_root.console_print_step()
+
+if _root.dbtype == 'legacy':
+	print 'Writing account database to file...'
+	try:
+		_root.userdb.writeAccounts()
+	except:
+		print '-'*60
+		print traceback.format_exc()
+		print '-'*60
 
 memdebug = False
 if memdebug:

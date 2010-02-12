@@ -1,4 +1,4 @@
-import time
+import time, os
 
 def dec2bin(i, bits=None):
 	i = int(i)
@@ -100,11 +100,13 @@ class UsersHandler:
 		f.close()
 	
 	def writeAccounts(self):
-		f = open(self.accountstxt, 'w')
+		f = open(self.accountstxt+'.tmp', 'w')
 		
-		for user in self.accounts:
+		for user in self.accounts.values():
 			f.write(user.toAccountLine()+'\n')
 		f.close()
+		
+		os.rename(self.accountstxt+'.tmp', self.accountstxt)
 		
 	def clientFromID(self, db_id):
 		if db_id in self.idToAccount:
@@ -115,8 +117,7 @@ class UsersHandler:
 		if name in self.accounts:
 			return self.accounts[name]
 	
-	def check_ban(self, user=None, ip=None, userid=None):
-		return
+	def check_ban(self, user=None, ip=None, userid=None): return
 	
 	def login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		name = username.lower()
@@ -127,7 +128,6 @@ class UsersHandler:
 			return True, user
 		elif name == lanadmin['username'].lower():
 			return False, 'Invalid password.'
-		
 		
 		user = self.clientFromUsername(name)
 		if not user:
@@ -162,8 +162,20 @@ class UsersHandler:
 	def unban_user(self, username): pass
 	def banlist(self): return []
 	
-	def rename_user(self, user, newname):
-		pass
+	def rename_user(self, username, newname):
+		if self._root.censor and self._root.SayHooks._nasty_word_censor(newname):
+			return False, 'New username failed to pass profanity filter.'
+		user = self.clientFromUsername(username)
+		if user:
+			name = newname.lower()
+			if name in self.accounts:
+				return False, 'Username already exists.'
+			else:
+				user.name = name
+				user.casename = newname
+				self.accounts[name] = user
+				del self.accounts[username.lower()]
+				return True, 'Account renamed successfully.'
 	
 	def save_user(self, client):
 		user = self.clientFromUsername(client.username)
