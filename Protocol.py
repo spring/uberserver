@@ -1095,7 +1095,7 @@ class Protocol:
 					return
 				if host.compat_battleAuth and not authed:
 					battle.pending_users.add(username)
-					host.Send('JOINBATTLEREQUEST %s' % username)
+					host.Send('JOINBATTLEREQUEST %s %s' % (username, client.ip_address))
 					return
 				battle_users = battle.users
 				battle_bots = battle.bots
