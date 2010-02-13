@@ -1,9 +1,12 @@
+import xml.dom.minidom as minidom
 import thread, time, sys, os
+
 import base64
 try: from hashlib import md5
 except: md5 = __import__('md5').new
+
 import traceback
-import time
+from Protocol import Channel
 
 separator = '-'*60
 
@@ -23,8 +26,10 @@ class DataHandler:
 		self.server = 'TASServer'
 		self.server_version = 0.35
 		
+		self.chanserv = None
 		self.userdb = None
 		self.engine = None
+		self.channelfile = None
 		
 		self.max_threads = 25
 		self.sqlurl = 'sqlite:///sqlite.txt'
@@ -89,8 +94,8 @@ class DataHandler:
 				print '      { Disables censoring of #main, #newbies, and usernames (default is to censor) }'
 				print '  --accounts /path/to/accounts.txt'
 				print '      { Path to accounts.txt. For using the legacy tasserver account database. }'
-				print '  --channels /path/to/chanserv.xml'
-				print '      { Path to chanserv.xml. For using the legacy chanserv channel database. }'
+				print '  --channels /path/to/settings.xml'
+				print '      { Path to ChanServ\'s settings.xml. For using the legacy ChanServ channel database. }'
 				print 'SQLURL Examples:'
 				#print '  "sqlite:///:memory:" or "sqlite:///"'
 				#print '     { both make a temporary database in memory }'
@@ -166,6 +171,11 @@ class DataHandler:
 					self.dbtype = 'legacy'
 				except:
 					print 'Error opening legacy accounts.txt database.'
+			elif arg == 'channels':
+				try:
+					self.channelfile = argp[0]
+				except:
+					print 'Error parsing settings.xml filename.'
 		if self.dbtype == 'sql':
 			if self.sqlurl == 'sqlite:///:memory:' or self.sqlurl == 'sqlite:///':
 				print 'In-memory sqlite databases are not supported.'
@@ -205,6 +215,29 @@ class DataHandler:
 		if self.dbtype == 'lan':
 			self.userdb = __import__('LANUsers').UsersHandler(self)
 			print 'Warning: LAN mode enabled - many user-specific features will be broken.'
+		
+		if self.channelfile:
+			settings = minidom.parse(self.channelfile)
+			channels = settings.getElementsByTagName('channel')
+			chans = {}
+			userdb = self.getUserDB()
+			for channel in channels:
+				op_ids = []
+				ops = channel.getElementsByTagName('operator')
+				owner = None
+				for op in ops:
+					client = userdb.clientFromUsername(str(op.getAttribute('name')))
+					if client and client.id: op_ids.append(client.id)
+				founder = str(channel.getAttribute('founder'))
+				owner = userdb.clientFromUsername(founder)
+				if owner: owner = owner.id
+				chans[channel.getAttribute('name')] = {'owner':str(owner), 'key':str(channel.getAttribute('key')), 'topic':channel.getAttribute('topic'), 'antispam':(str(channel.getAttribute('antispam')) == 'yes'), 'admins':op_ids}
+			for chan in chans:
+				channel = chans[chan]
+				self.channels[chan] = Channel(self, chan, chanserv=bool(channel['owner']), owner=channel['owner'], admins=channel['admins'], key=channel['key'], antispam=channel['antispam'], topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time()*1000)})
+			if self.chanserv:
+				for chan in chans:
+					self.chanserv.client._protocol._handle(self.chanserv.client, 'JOIN %s' % chan)
 		
 		if os.path.isfile('motd.txt'):
 			motd = []

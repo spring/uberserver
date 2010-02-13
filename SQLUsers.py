@@ -7,9 +7,9 @@ from sqlalchemy.orm import mapper, sessionmaker, relation
 metadata = MetaData()
 
 class User(object):
-	def __init__(self, name, casename, password, last_ip, access='agreement'):
-		self.name = name
-		self.casename = casename
+	def __init__(self, name, username, password, last_ip, access='agreement'):
+		self.lowername = name
+		self.username = username
 		self.password = password
 		self.last_login = int(time.time()*1000)
 		self.register_date = int(time.time()*1000)
@@ -21,7 +21,7 @@ class User(object):
 		self.mapgrades = ''
 
 	def __repr__(self):
-		return "<User('%s', '%s')>" % (self.name, self.password)
+		return "<User('%s', '%s')>" % (self.lowername, self.password)
 
 class Login(object):
 	def __init__(self, now, ip_address, lobby_id, user_id, cpu, local_ip, country):
@@ -47,9 +47,9 @@ class Rename(object):
 		return "<Rename('%s')>" % self.ip_address
 
 class Channel(object):
-	def __init__(self, name, password='', chanserv=False, owner='', topic='', topic_time=0, topic_owner='', antispam='', admins='', autokick='ban', censor=False, antishock=False):
-		self.name = name
-		self.password = password
+	def __init__(self, name, key='', chanserv=False, owner='', topic='', topic_time=0, topic_owner='', antispam=False, admins='', autokick='ban', censor=False, antishock=False):
+		self.lowername = name
+		self.key = password
 		self.chanserv = chanserv
 		self.owner = owner
 		self.topic = topic
@@ -63,11 +63,11 @@ class Channel(object):
 		self.antishock = antishock
 
 	def __repr__(self):
-		return "<Channel('%s')>" % self.name
+		return "<Channel('%s')>" % self.lowername
 
 class ChanUser(object):
 	def __init__(self, name, channel, admin=False, banned='', allowed=False, mute=0):
-		self.name = name
+		self.lowername = name
 		self.channel = channel
 		self.admin = admin
 		self.banned = banned
@@ -75,20 +75,7 @@ class ChanUser(object):
 		self.mute = mute
 
 	def __repr__(self):
-		return "<ChanUser('%s')>" % self.name
-
-class Antispam(object):
-	def __init__(self, enabled, quiet, duration, timeout, bonus, unique, bonuslength):
-		self.enabled = enabled
-		self.quiet = quiet
-		self.duration = duration
-		self.timeout = timeout
-		self.bonus = bonus
-		self.unique = unique
-		self.bonuslength = bonuslength
-
-	def __repr__(self):
-		return "<Antispam('%s')>" % self.channel
+		return "<ChanUser('%s')>" % self.lowername
 
 class Ban(object):
 	def __init__(self, reason, end_time):
@@ -108,8 +95,8 @@ class AggregateBan(object):
 
 users_table = Table('users', metadata,
 	Column('id', Integer, primary_key=True),
-	Column('name', String(40)),
-	Column('casename', String(40)),
+	Column('lowername', String(40)),
+	Column('username', String(40)),
 	Column('password', String(32)),
 	Column('register_date', Integer),
 	Column('last_login', Integer), # use milliseconds since unix epoch # should replace these with last_session or just remove them
@@ -146,12 +133,12 @@ renames_table = Table('renames', metadata,
 channels_table = Table('channels', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('name', String(40)),
-	Column('password', String(32)),
+	Column('key', String(32)),
 	Column('owner', String(40)),
 	Column('topic', Integer),
 	Column('topic_time', Integer),
 	Column('topic_owner', String(40)),
-	Column('antispam_id', Integer, ForeignKey('antispam.id')),
+	Column('antispam', Boolean),
 	Column('autokick', String(5)),
 	Column('censor', Boolean),
 	Column('antishock', Boolean),
@@ -165,17 +152,6 @@ chanuser_table = Table('chanuser', metadata,
 	Column('banned', Boolean),
 	Column('allowed', Boolean),
 	Column('mute', Integer),
-	)
-
-antispam_table = Table('antispam', metadata,
-	Column('id', Integer, primary_key=True),
-	Column('enabled', Boolean),
-	Column('quiet', Boolean),
-	Column('duration', Integer),
-	Column('timeout', Integer),
-	Column('bonus', Integer),
-	Column('unique', Integer),
-	Column('bonuslength', Integer),
 	)
 
 bans_table = Table('ban_groups', metadata, # server bans
@@ -197,11 +173,8 @@ mapper(User, users_table, properties={
 	})
 mapper(Login, logins_table)
 mapper(Rename, renames_table)
-mapper(Channel, channels_table, properties={
-	'antispam':relation(Antispam, backref='channel', cascade="all, delete, delete-orphan"),
-	})
+mapper(Channel, channels_table)
 mapper(ChanUser, chanuser_table)
-mapper(Antispam, antispam_table)
 mapper(Ban, bans_table, properties={
 	'entries':relation(AggregateBan, backref='ban', cascade="all, delete, delete-orphan"),
 	})
@@ -212,7 +185,7 @@ mapper(AggregateBan, aggregatebans_table)
 class OfflineClient:
 	def __init__(self, sqluser):
 		self.db_id = sqluser.id
-		self.username = sqluser.casename
+		self.username = sqluser.username
 		self.password = sqluser.password
 		self.ingame_time = sqluser.ingame_time
 		self.bot = sqluser.bot
@@ -235,7 +208,7 @@ class UsersHandler:
 	
 	def clientFromUsername(self, username):
 		session = self.sessionmaker()
-		entry = session.query(User).filter(User.name==username.lower()).first()
+		entry = session.query(User).filter(User.lowername==username.lower()).first()
 		session.close()
 		if not entry: return None
 		return OfflineClient(entry)
@@ -258,7 +231,7 @@ class UsersHandler:
 		 	return True, sqluser
 		good = True
 		now = int(time.time()*1000)
-		entry = session.query(User).filter(User.name==name).first() # should only ever be one user with each name so we can just grab the first one :)
+		entry = session.query(User).filter(User.lowername==name).first() # should only ever be one user with each name so we can just grab the first one :)
 		reason = entry
 		if not entry:
 			return False, 'No user named %s'%user
@@ -285,7 +258,7 @@ class UsersHandler:
 	def end_session(self, username):
 		session = self.sessionmaker()
 		name = username.lower()
-		entry = session.query(User).filter(User.name==name).first()
+		entry = session.query(User).filter(User.lowername==name).first()
 		if not entry.logins[-1].end: entry.logins[-1].end = int(time.time()*1000)
 		session.commit()
 		session.close()
@@ -297,7 +270,7 @@ class UsersHandler:
 			if not self._root.SayHooks._nasty_word_censor(user):
 				return False, 'Name failed to pass profanity filter.'
 		name = user.lower()
-		results = session.query(User).filter(User.name==name).first()
+		results = session.query(User).filter(User.lowername==name).first()
 		lanadmin = self._root.lanadmin
 		if name == lanadmin['username'].lower():
 			if password == lanadmin['password']: # if you register a lanadmin account with the right user and pass combo, it makes it into a normal admin account
@@ -321,7 +294,7 @@ class UsersHandler:
 	def ban_user(self, username, duration, reason):
 		session = self.sessionmaker()
 		name = username.lower()
-		entry = session.query(User).filter(User.name==name).first()
+		entry = session.query(User).filter(User.lowername==name).first()
 		end_time = int(time.time()*1000) + int(duration*1000)
 		ban = Ban(reason, end_time)
 		session.save(ban)
@@ -364,14 +337,14 @@ class UsersHandler:
 				return False, 'New username failed to pass profanity filter.'
 		lnewname = newname.lower()
 		if not lnewname == user.lower(): # this makes it so people can rename to a different case of the same name
-			results = session.query(User).filter(User.name==lnewname).first()
+			results = session.query(User).filter(User.lowername==lnewname).first()
 			if results:
 				return False, 'Username already exists.'
-		entry = session.query(User).filter(User.name==user.lower()).first()
+		entry = session.query(User).filter(User.lowername==user.lower()).first()
 		if not entry: return False, 'You don\'t seem to exist anymore. Contact an admin or moderator.'
 		entry.renames.append(Rename(user, newname))
-		entry.name = lnewname
-		entry.casename = newname
+		entry.lowername = lnewname
+		entry.username = newname
 		session.commit()
 		session.close()
 		# need to iterate through channels and rename junk there...
@@ -381,7 +354,7 @@ class UsersHandler:
 	def save_user(self, client):
 		session = self.sessionmaker()
 		name = client.username.lower()
-		entry = session.query(User).filter(User.name==name).first()
+		entry = session.query(User).filter(User.lowername==name).first()
 		if entry:
 			entry.ingame_time = client.ingame_time
 			entry.access = client.access
@@ -393,7 +366,7 @@ class UsersHandler:
 	def confirm_agreement(self, client):
 		session = self.sessionmaker()
 		name = client.username.lower()
-		entry = session.query(User).filter(User.name==name).first()
+		entry = session.query(User).filter(User.lowername==name).first()
 		if entry: entry.access = 'user'
 		session.commit()
 		session.close()
@@ -401,7 +374,7 @@ class UsersHandler:
 	def get_lastlogin(self, username):
 		session = self.sessionmaker()
 		name = username.lower()
-		entry = session.query(User).filter(User.name==name).first()
+		entry = session.query(User).filter(User.lowername==name).first()
 		session.close()
 		if entry: return True, entry.last_login
 		else: return False, 'User not found.'
@@ -409,7 +382,7 @@ class UsersHandler:
 	def get_registration_date(self, username):
 		session = self.sessionmaker()
 		name = username.lower()
-		entry = session.query(User).filter(User.name==name).first()
+		entry = session.query(User).filter(User.lowername==name).first()
 		session.close()
 		if entry: return True, entry.register_date
 		else: return False, 'user not found in database'
@@ -417,7 +390,7 @@ class UsersHandler:
 	def get_ingame_time(self, username):
 		session = self.sessionmaker()
 		name = username.lower()
-		entry = session.query(User).filter(User.name==name).first()
+		entry = session.query(User).filter(User.lowername==name).first()
 		session.close()
 		if entry: return True, entry.ingame_time
 		else: return False, 'user not found in database'
@@ -425,11 +398,10 @@ class UsersHandler:
 	def get_account_info(self, username):
 		session = self.sessionmaker()
 		name = username.lower()
-		entry = session.query(User).filter(User.name==name).first()
+		entry = session.query(User).filter(User.lowername==name).first()
 		session.close()
 		if entry:
-			data = '%s %s %s %s %s %s %s %s %s %s %s' % (entry.name, entry.casename, entry.password, entry.register_date, entry.last_login, entry.last_ip, entry.last_id, entry.access, entry.bot, entry.hook_chars, entry.mapgrades)
-			#data = '%s %s %s %s %s %s %s %s %s %s %s' % (entry.name, entry.casename, entry.password, entry.access, entry.register_date, entry.last_login, entry.last_ip, entry.last_id, entry.access, entry.bot, entry.hook_chars)
+			data = '%s %s %s %s %s %s %s %s %s %s %s' % (entry.lowername, entry.username, entry.password, entry.register_date, entry.last_login, entry.last_ip, entry.last_id, entry.access, entry.bot, entry.hook_chars)
 			return True, data
 		else: return False, 'user not found in database'
 	
@@ -442,14 +414,14 @@ class UsersHandler:
 	def get_ip(self, username):
 		session = self.sessionmaker()
 		name = username.lower()
-		entry = session.query(User).filter(User.name==name).first()
+		entry = session.query(User).filter(User.lowername==name).first()
 		ip = entry.ip
 		session.close()
 		return entry.ip
 
 	def remove_user(self, user):
 		session = self.sessionmaker()
-		entry = session.query(User).filter(User.name==user).first()
+		entry = session.query(User).filter(User.lowername==user).first()
 		if not entry:
 			return False, 'User not found.'
 		session.delete(entry)
@@ -468,10 +440,10 @@ class UsersHandler:
 	def save_channel(self, channel):
 		session = self.sessionmaker()
 		entry = session.query(Channel)
-		entry.password = channel['password']
-		entry.chanserv = channel['chanserv']
-		entry.owner = channel['owner']
-		topic = channel['topic']
+		entry.key = channel.key
+		entry.chanserv = channel.chanserv
+		entry.owner = channel.owner
+		topic = channel.topic
 		if topic:
 			topic = topic['text']
 			topic_time = topic['time']
@@ -481,10 +453,10 @@ class UsersHandler:
 		entry.topic = topic
 		entry.topic_time = topic_time
 		entry.topic_owner = topic_owner
-		#entry.antispam = channel[]
-		entry.autokick = channel['autokick']
-		entry.censor = channel['censor']
-		entry.antishock = channel['antishock']
+		entry.antispam = channel.antispam
+		entry.autokick = channel.autokick
+		entry.censor = channel.censor
+		entry.antishock = channel.antishock
 		session.save(entry)
 		session.commit()
 		session.close()

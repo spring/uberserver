@@ -173,8 +173,7 @@ def _chan_msg_filter(self, client, chan, msg):
 	username = client.username
 	channel = self._root.channels[chan]
 	if username in channel.mutelist: return '' # client is muted, no use doing anything else
-	antispam = channel.antispam
-	if antispam.enabled:
+	if channel.antispam and False: # implement antispam here
 		_spam_rec(client, chan, msg)
 		if _spam_enum(client, chan, antispam.timeout, antispam.bonus, antispam.unique, antispam.bonuslength):
 			channel.mutelist[username]['expires'] = time.time() + antispam.duration

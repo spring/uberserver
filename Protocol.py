@@ -170,17 +170,8 @@ class Battle(AutoDict):
 		self.locked = locked
 		self.__AutoDictInit__()
 
-class AntiSpam(AutoDict):
-	def __init__(self, enabled=False, quiet=False, aggressiveness=1, bonuslength=100, duration=900):
-		self.enabled = enabled
-		self.quiet = quiet
-		self.aggressiveness = aggressiveness
-		self.bonuslength = bonuslength
-		self.duration = duration
-		self.__AutoDictInit__()
-
 class Channel(AutoDict):
-	def __init__(self, root, chan, users=[], blindusers=[], admins=[], ban={}, allow=[], autokick='ban', chanserv=False, owner='', mutelist={}, antispam={'enabled':False, 'quiet':False, 'aggressiveness':1, 'bonuslength':100, 'duration':900}, censor=False, antishock=False, topic=None, key=None, **kwargs):
+	def __init__(self, root, chan, users=[], blindusers=[], admins=[], ban={}, allow=[], autokick='ban', chanserv=False, owner='', mutelist={}, antispam=False, censor=False, antishock=False, topic=None, key=None, **kwargs):
 		self._root = root
 		self.chan = chan
 		self.users = users
@@ -192,13 +183,15 @@ class Channel(AutoDict):
 		self.chanserv = chanserv
 		self.owner = owner
 		self.mutelist = mutelist
-		try: self.antispam = AntiSpam(**antispam)
-		except: self.antispam = AntiSpam()
+		self.antispam = antispam
 		self.censor = censor
 		self.antishock = antishock
 		self.topic = topic
 		self.key = key
 		self.__AutoDictInit__()
+		
+		if chanserv and self._root.chanserv:
+			self._root.chanserv.Send('JOIN %s'%channel.chan)
 	
 	def broadcast(self, message):
 		for user in list(self.users):
@@ -707,7 +700,7 @@ class Protocol:
 			m = md5(password)
 			password = base64.b64encode(m.digest())
 		good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
-		if good: username = reason.casename
+		if good: username = reason.username
 		if not username in self._root.usernames:
 			if good:
 				client.access = reason.access
@@ -1145,7 +1138,7 @@ class Protocol:
 				for tagpair in scripttags.split('\t'):
 					if not '=' in tagpair:
 						continue # this fails; tag isn't split by anything
-					(tag, value) = tagpair.split('=')
+					(tag, value) = tagpair.split('=',1)
 					setscripttags.update({tag:value})
 				scripttags = []
 				for tag in setscripttags:
@@ -1510,10 +1503,10 @@ class Protocol:
 		good, data = self.userdb.find_ip(address)
 		if good:
 			for entry in results:
-				if entry.casename in self._root.usernames:
-					client.Send('SERVERMSG <%s> is currently bound to %s.' % (entry.casename, address))
+				if entry.username in self._root.usernames:
+					client.Send('SERVERMSG <%s> is currently bound to %s.' % (entry.username, address))
 				else:
-					client.Send('SERVERMSG <%s> was recently bound to %s at %s' % (entry.casename, address, time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(entry.lastlogin))))
+					client.Send('SERVERMSG <%s> was recently bound to %s at %s' % (entry.username, address, time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(entry.lastlogin))))
 		else: client.Send('SERVERMSG Database returned error when finding ip for <%s> (%s)' % (username, data))
 	
 	def in_GETLASTIP(self, client, username): return self.in_GETIP(client, username)

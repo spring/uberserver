@@ -1,4 +1,4 @@
-import time
+import time, traceback
 from Client import Client
 
 class ChanServ:
@@ -8,7 +8,8 @@ class ChanServ:
 	
 	def onLogin(self):
 		self.client.status = self.client._protocol._calc_status(self.client, 0)
-		self.Send('JOIN main')
+		for channel in self._root.channels.values():
+			self.Send('JOIN %s' % str(channel.chan))
 	
 	def Handle(self, msg):
 		try:
@@ -73,17 +74,20 @@ class ChanServ:
 			channel = self._root.channels[chan]
 			access = channel.getAccess(client)
 			if cmd == 'info':
-				founder = channel.owner
-				if founder: founder = 'Founder is <%s>' % self.client._protocol.clientFromID(founder).username
+				founder = self.client._protocol.clientFromID(channel.owner)
+				if founder: founder = 'Founder is <%s>' % founder.username
 				else: founder = 'No founder is registered'
-				admins = [self.client._protocol.clientFromID(admin) for admin in channel.admins]
+				admins = []
+				for admin in channel.admins:
+					client = self.client._protocol.clientFromID(admin)
+					if client: admins.append(client.username)
 				users = channel.users
-				antispam = 'on' if channel.antispam.enabled else 'off'
+				antispam = 'on' if channel.antispam else 'off'
 				if not admins: mods = 'no operators are registered'
 				else: mods = '%i registered operator(s) are <%s>' % (len(admins), '>, <'.join(admins))
-				if len(users) == 1: users = '1 user'
-				else: users = '%i users' % len(users)
-				return '#%s info: Anti-spam protection is %s. %s, %s. %s are currently in the channel.' % (chan, antispam, founder, mods, users)
+				if len(users) == 1: users = '1 user is'
+				else: users = '%i users are' % len(users)
+				return '#%s info: Anti-spam protection is %s. %s, %s. %s currently in the channel.' % (chan, antispam, founder, mods, users)
 			if cmd == 'topic':
 				if access in ['mod', 'founder', 'op']:
 					channel.setTopic(client, args)
@@ -110,31 +114,16 @@ class ChanServ:
 					return '#%s: You must contact one of the server moderators or the owner of the channel to change the founder' % chan
 			if cmd == 'spamprotection':
 				if access in ['mod', 'founder']:
-					antispam = channel.antispam
-					if antispam.quiet: antispam.quiet = 'on'
-					else: antispam.quiet = 'off'
-					status = 'on (settings: timeout:%(timeout)i, quiet:%(quiet)s, aggressiveness:%(aggressiveness)i, bonuslength:%(bonuslength)i, duration:%(duration)i)' % antispam.copy()
 					if args == 'on':
-						channel.antispam.enabled = True
-						antispam = channel.antispam
+						channel.antispam = True
 						channel.channelMessage('%s Anti-spam protection was enabled by <%s>' % (chan, args, user))
-						return '#%s: Anti-spam protection is %s' % (chan, status)
+						return '#%s: Anti-spam protection is on.' % chan
 					elif args == 'off':
-						channel.antispam.enabled = False
+						channel.antispam = False
 						channel.channelMessage('%s Anti-spam protection was disabled by <%s>' % (chan, args, user))
-						return '#%s: Anti-spam protection is off' % chan
-				if not antispam.enabled: status = 'off'
+						return '#%s: Anti-spam protection is off.' % chan
+				if not channel.antispam: status = 'off'
 				return '#%s: Anti-spam protection is %s' % (chan, status)
-			if cmd == 'spamsettings':
-				if access in ['mod', 'founder']:
-					antispam = channel.antispam
-					if args: spaces = args.count(' ')
-					else: spaces = 0
-					if spaces == 4:
-						timeout, quiet, aggressiveness, bonuslength, duration = args.split(' ')
-						if ('%i%i%i%i' % (timeout, aggressiveness, bonuslength, duration)).isdigit() and quiet in ('on', 'off'):
-							channel.antispam.update({'timeout':int(timeout), 'aggressiveness':int(aggressiveness), 'bonuslength':int(bonuslength), 'duration':int(duration), 'quiet':(quiet=='on')})
-					return '#%s: Error: Invalid args for spamsettings. Valid syntax is "!spamsettings <timeout> <quiet> <agressiveness> <bonuslength> <duration>". All args but quiet are integers, which is "on" or "off".' % chan
 			if cmd == 'op':
 				if access in ['mod', 'founder']:
 					if not args: return '#%s: You must specify a user to op' % chan
@@ -220,9 +209,12 @@ class ChanServ:
 					muted = ['#%s: Mute list (%i entries):  '%(chan, len(mutelist))]
 					for user in mutelist:
 						m = mutelist[user].copy()
-						user = self.client._protocol.clientFromID(user).username
+						client = self.client._protocol.clientFromID(user)
+						if not client:
+							del mutelist[user]
+							continue
 						message = self.client._protocol._format_time(m['expires']) + (' by IP.' if m['ip'] else '.')
-						muted.append('%s, %s' % (user, message))
+						muted.append('%s, %s' % (client.username, message))
 					return muted
 				else:
 					return '#%s: Mute list is empty!' % chan

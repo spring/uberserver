@@ -1,4 +1,5 @@
-import time, os
+import time, os, codecs
+from xml.sax.saxutils import escape, quoteattr
 
 def dec2bin(i, bits=None):
 	i = int(i)
@@ -46,8 +47,8 @@ class User(object):
 		return cls(username, password, ingame_time, bot, access, uid, last_login, last_ip, register_date, country, account_id)
 	
 	def __init__(self, username, password, ingame_time, bot, access, uid, last_login, last_ip, register_date, country, account_id):
-		self.name = username.lower()
-		self.casename = username
+		self.lowername = username.lower()
+		self.username = username
 		self.password = password
 		self.ingame_time = ingame_time
 		self.bot = bot
@@ -71,7 +72,7 @@ class User(object):
 		return (bot + agreement + dec2bin(self.ingame_time, 20) + dec2bin(access, 3)).lstrip('0') or '0'
 	
 	def toAccountLine(self):
-		return ' '.join((self.casename, self.password, self.getAccess(), str(self.last_id), str(int(self.last_login*1000)), self.last_ip, str(int(self.register_date*1000)), self.country, str(self.id)))
+		return ' '.join((self.username, self.password, self.getAccess(), str(self.last_id), str(int(self.last_login*1000)), self.last_ip, str(int(self.register_date*1000)), self.country, str(self.id)))
 
 class UsersHandler:
 	def __init__(self, root, accountstxt):
@@ -92,8 +93,9 @@ class UsersHandler:
 		line = f.readline().rstrip()
 		while line:
 			user = User.fromAccountLine(line)
-			self.accounts[user.name] = user
+			self.accounts[user.lowername] = user
 			last_id = user.id
+			self.idToAccount[last_id] = user
 			line = f.readline().rstrip()
 		
 		self.last_id = int(last_id)
@@ -107,6 +109,23 @@ class UsersHandler:
 		f.close()
 		
 		os.rename(self.accountstxt+'.tmp', self.accountstxt)
+		
+		f = codecs.open('channels.xml.tmp', 'w', 'utf-8')
+		f.write('<channels>\n')
+		for channel in self._root.channels.values():
+			owner = self.clientFromID(channel.owner)
+			if owner:
+				topic = channel.topic
+				if topic: topic = topic['text']
+				else: topic = '*'
+				f.write('\t<channel antispam="%s" name="%s" founder="%s" topic=%s key=%s>\n' % (('yes' if channel.antispam else 'no'), channel.chan, owner.username, escape(quoteattr(topic)), escape(quoteattr(channel.key or '*'))))
+				for admin in channel.admins:
+					f.write('\t\t<operator name="%s" />\n' % self.clientFromID(admin).username)
+				f.write('\t</channel>\n')
+		f.write('</channels>\n')
+		f.close()
+		
+		os.rename('channels.xml.tmp', 'channels.xml')
 		
 	def clientFromID(self, db_id):
 		if db_id in self.idToAccount:
@@ -158,6 +177,7 @@ class UsersHandler:
 		user = User(username, password, 0, False, 'user', None, now, ip, now, country, self.last_id+1)
 		self.last_id += 1
 		self.accounts[name] = user
+		self.idToAccount[user.id] = user
 		return True, 'Account registered successfully.'
 	
 	def ban_user(self, username, duration, reason): pass
@@ -173,8 +193,8 @@ class UsersHandler:
 			if name in self.accounts:
 				return False, 'Username already exists.'
 			else:
-				user.name = name
-				user.casename = newname
+				user.lowername = name
+				user.username = newname
 				self.accounts[name] = user
 				del self.accounts[username.lower()]
 				return True, 'Account renamed successfully.'
@@ -190,31 +210,31 @@ class UsersHandler:
 	def confirm_agreement(self, client):
 		user = self.clientFromUsername(client.username)
 		if user:
-			self.accounts[user.name].access = 'user'
+			self.accounts[user.lowername].access = 'user'
 	
 	def get_lastlogin(self, username):
-		user = self.clientFromUsername(client.username)
+		user = self.clientFromUsername(username)
 		if user:
 			return True, user.last_login
 		else:
 			return False, 'User not found.'
 	
 	def get_registration_date(self, username):
-		user = self.clientFromUsername(client.username)
+		user = self.clientFromUsername(username)
 		if user:
 			return True, user.registration_date
 		else:
 			return False, 'User not found.'
 	
 	def get_ingame_time(self, username):
-		user = self.clientFromUsername(client.username)
+		user = self.clientFromUsername(username)
 		if user:
 			return True, user.ingame_time
 		else:
 			return False, 'User not found.'
 	
 	def get_account_info(self, username):
-		user = self.clientFromUsername(client.username)
+		user = self.clientFromUsername(username)
 		if user:
 			return True, user.toAccountLine()
 		else:

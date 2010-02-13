@@ -66,6 +66,7 @@ if chanserv:
 	address = ((web_addr or local_addr), 0)
 	chanserv = ChanServ.ChanServClient(_root, address, _root.session_id)
 	dispatcher.addClient(chanserv)
+	_root.chanserv = chanserv
 
 try:
 	dispatcher.pump()
