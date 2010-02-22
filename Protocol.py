@@ -789,7 +789,7 @@ class Protocol:
 		else:
 			oldclient = self._root.usernames[username]
 			if time.time() - oldclient.lastdata > 15:
-				if self._root.LAN and not oldclient.password == password:
+				if self._root.dbtype == 'lan' and not oldclient.password == password:
 					client.Send('DENIED Would ghost old user, but we are in LAN mode and your password does not match.')
 					return
 				oldclient.Remove('Ghosted')
