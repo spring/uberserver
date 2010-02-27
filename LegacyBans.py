@@ -44,7 +44,7 @@ class BanHandler:
 		self.engine = create_engine(dburl, pool_size=root.max_threads*2, pool_recycle=300)
 		self.sessionmaker = sessionmaker(bind=self.engine, autoflush=True, transactional=True)
 	
-	def check_ban(username=None, ip=None, userid=None):
+	def check_ban(self, username=None, ip=None, userid=None):
 		if not username and not ip and not userid: return
 		session = self.sessionmaker()
 		
