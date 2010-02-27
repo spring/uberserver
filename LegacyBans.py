@@ -21,7 +21,7 @@ class Ban(object):
 	def __repr__(self):
 		return "<Ban('%s', '%s')>" % (self.Username, self.ExpirationDate)
 
-bans_table = Table('ban_groups', metadata, # server bans
+bans_table = Table('BanEntries', metadata, # server bans
 	Column('ID', Integer, primary_key=True),
 	Column('Enabled', Boolean),
 	Column('Owner', VARCHAR(30)),
