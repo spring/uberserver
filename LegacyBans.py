@@ -50,12 +50,12 @@ class BanHandler:
 		
 		entry = None
 		if username:
-			entry = session.query(User).filter(Ban.username==username).first()
+			entry = session.query(Ban).filter(Ban.username==username).first()
 		if not entry and userid: # ban priority is username > userid > ip # skips these if statements when we find a ban
-			entry = session.query(User).filter(Ban.userID==userid).first()
+			entry = session.query(Ban).filter(Ban.userID==userid).first()
 		if not entry and ip:
 			longip = ip2long(ip)
-			entry = session.query(User).filter(Ban.IP_start<=longip).filter(Ban.IP_end>=IP_end).first()
+			entry = session.query(Ban).filter(Ban.IP_start<=longip).filter(Ban.IP_end>=IP_end).first()
 		
 		if entry:
 			return False, entry.PublicReason
