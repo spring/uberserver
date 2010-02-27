@@ -223,7 +223,17 @@ class DataHandler:
 			print 'Warning: LAN mode enabled - many user-specific features will be broken.'
 		
 		if self.channelfile:
-			settings = minidom.parse(self.channelfile)
+			## fix chanserv's stupid xml entity that doesn't exist (&#3;)
+			f = open(self.channelfile, 'r')
+			data = f.read()
+			f.close()
+			data = data.replace('&#3;', '\x03')
+			f = open(self.channelfile, 'w')
+			f.write(data)
+			f.close()
+			## end fix
+			
+			settings = minidom.parseString(self.channelfile)
 			channels = settings.getElementsByTagName('channel')
 			chans = {}
 			userdb = self.getUserDB()
