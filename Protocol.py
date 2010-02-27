@@ -190,8 +190,8 @@ class Channel(AutoDict):
 		self.key = key
 		self.__AutoDictInit__()
 		
-		if chanserv and self._root.chanserv:
-			self._root.chanserv.Send('JOIN %s'%channel.chan)
+		if chanserv and self._root.chanserv and not chan in self._root.channels:
+			self._root.chanserv.Send('JOIN %s' % self.chan)
 	
 	def broadcast(self, message):
 		for user in list(self.users):
@@ -227,6 +227,19 @@ class Channel(AutoDict):
 				('founder' if self.isFounder(client) else\
 				('op' if self.isOp(client) else\
 				'normal'))
+	
+	def isMuted(self, client):
+		return client.db_id in self.mutelist
+	
+	def getMuteMessage(self, client):
+		if self.isMuted(client):
+			m = self.mutelist[client.db_id]
+			if m['expires'] == 0:
+				return 'muted forever'
+			else:
+				return 'muted for the next %s.' % (client._protocol._format_time(m['expires'])) # TODO: move format_time, bin2dec, etc to a utilities class or module
+		else:
+			return 'not muted'
 	
 	def isAllowed(self, client):
 		if self.autokick == 'allow':
@@ -278,6 +291,7 @@ class Channel(AutoDict):
 			self.removeUser(target, 'kicked from channel%s' % (' '+reason if reason else ''))
 	
 	def banUser(self, client, target, reason=''):
+		if self.isFounder(target): return
 		if not client.db_id in self.bans:
 			self.bans[client.db_id] = reason
 			self.kickUser(client, target, reason)
@@ -299,11 +313,12 @@ class Channel(AutoDict):
 			self.channelMessage('<%s> has been disallowed in this channel by <%s>' % (target.username, client.username))
 	
 	def muteUser(self, client, target, duration=0, ip=False, quiet=False):
+		if self.isFounder(target): return
 		if not client.db_id in self.mutelist:
 			if not quiet:
 				self.channelMessage('<%s> has muted <%s>' % (client.username, target.username))
 			try:
-				duration = duration*60.0
+				duration = float(duration)*60
 				if duration < 1:
 					duration = 0
 				else:
@@ -855,14 +870,10 @@ class Protocol:
 			if user in channel.users:
 				msg = self.SayHooks.hook_SAY(self, client, chan, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel # nevermind, i just need to add inchan :>
 				if not msg: return
-				if client.db_id in channel.mutelist:
-					m = channel.mutelist[client.db_id]
-					if m['expires'] == 0:
-						client.Send('CHANNELMESSAGE %s You are muted forever.' % chan)
-					else:
-						client.Send('CHANNELMESSAGE %s You are muted for the next %s.'%(chan, self._format_time(m['expires'])))
+				if channel.isMuted(client):
+					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 				else:
-					self._root.broadcast('SAID %s %s %s' % (chan, client.username ,msg), chan)
+					self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan)
 
 	def in_SAYEX(self, client, chan, msg):
 		if not msg: return
@@ -871,14 +882,10 @@ class Protocol:
 			user  = client.username
 			if user in channel.users:
 				msg = self.SayHooks.hook_SAYEX(self, client, chan, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel
-				if client.db_id in channel.mutelist:
-					mute = channel.mutelist[client.db_id]
-					if m['expires'] == 0:
-						client.Send('CHANNELMESSAGE %s You are muted forever.' % chan)
-					else:
-						client.Send('CHANNELMESSAGE %s You are muted for the next %s.'%(chan, self._format_time(m['expires'])))
+				if channel.isMuted(client):
+					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 				else:
-					self._root.broadcast('SAIDEX %s %s %s' % (chan,client.username,msg),chan)
+					self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan)
 
 	def in_SAYPRIVATE(self, client, user, msg):
 		if not msg: return

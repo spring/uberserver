@@ -46,10 +46,10 @@ def _update_lists():
 	except:
 		print 'Error parsing shock site list. It might not exist. Try running fetch_deps.py'
 
-def public_raw(self,user,chan,rights,msg):
+def public_raw(self, user, chan, rights, msg):
 	self._protocol._handle(self, msg)
 
-def public_help(self,user,chan,rights,command=None):
+def public_help(self, user, chan, rights, command=None):
 	'show command specific help.'
 	if not command:
 		public_commands(self,user,chan,rights)
@@ -66,7 +66,7 @@ def public_help(self,user,chan,rights,command=None):
 			_reply(self,chan,'"<arg>" means the argument is required')
 			_reply(self,chan,'"[arg]" means the argument is optional')
 
-def public_commands(self,user,chan,rights):
+def public_commands(self, user, chan, rights):
 	'shows all commands available to you'
 	l = filter(lambda x:not x.startswith('_'),globals())
 	_reply(self,chan,'Available commands for level %s:'%rights[0])
@@ -147,48 +147,67 @@ def _site_censor(msg):
 			return # 'I think I can post shock sites, but I am wrong.'
 	return msg
 
-def _spam_enum(client, chan, timeout, repeated, unique, bonuslength): # make unique negate bonuslength
-	return False
+def _spam_enum(client, chan):
 	now = time.time()
-	counter = 0
-	bonus = False
-	bonuslengthbonus = False ## work on this later
+	bonus = 0
 	already = []
+	times = [now]
 	for when in dict(client.lastsaid[chan]):
-		if float(when) > now-timeout:
-			message = client.lastsaid[chan][when]
-			if message in already: bonus = True
-			if len(message) > bonuslength: bonusbonuslengthbonus = True
-			counter += 1
+		t = float(when)
+		if t > now-5: # check the last five seconds # can check a longer period of time if old bonus decay is included, good for 2-3 second spam, which is still spam.
+			for message in client.lastsaid[chan][when]:
+				times.append(t)
+				if message in already:
+					bonus += 2 * already.count(message) # repeated message
+				if len(message) > 50:
+					bonus += max(len(message), 200) * 0.01 # long message: 0-2 bonus points based linearly on length 0-200+
+				bonus += 1 # something was said
+				already.append(message)
 		else: del client.lastsaid[chan][when]
-	if bonus and bonuslengthbonus and counter >= repeated or counter >= unique: return True
+	
+	times.sort()
+	last_time = None
+	for t in times:
+		if last_time:
+			diff = t - last_time
+			if diff < 1:
+				bonus += (1 - diff) * 1.5
+		last_time = t
+	
+	if bonus > 7: return True
 	else: return False
 
 def _spam_rec(client, chan, msg):
 	now = str(time.time())
 	if not chan in client.lastsaid: client.lastsaid[chan] = {}
-	client.lastsaid[chan][now] = msg
+	if not now in client.lastsaid[chan]:
+		client.lastsaid[chan][now] = [msg]
+	else:
+		client.lastsaid[chan][now].append(msg)
 
 def _chan_msg_filter(self, client, chan, msg):
 	username = client.username
 	channel = self._root.channels[chan]
-	if username in channel.mutelist: return '' # client is muted, no use doing anything else
-	if channel.antispam and False: # implement antispam here
+	
+	if channel.isMuted(client): return msg # client is muted, no use doing anything else
+	if channel.antispam: # implement antispam here
 		_spam_rec(client, chan, msg)
-		if _spam_enum(client, chan, antispam.timeout, antispam.bonus, antispam.unique, antispam.bonuslength):
-			channel.mutelist[username]['expires'] = time.time() + antispam.duration
-			if antispam.quiet:
-				client.Send('CHANNELMESAGE %s You were quietly muted for spamming.'%chan)
-			else:
-				self._root.broadcast('CHANNELMESSAGE %s %s was muted for spamming.'%(chan, username), chan)
-			return ''
+		if _spam_enum(client, chan):
+			channel.muteUser(self._root.chanserv, client, 30, ip=True, quiet=True)
+			# this next line is necessary, because users aren't always muted i.e. you can't mute channel founders or moderators
+			if channel.isMuted(client):
+				channel.channelMessage('%s was muted for spamming.' % username)
+				#if quiet: # maybe make quiet a channel-wide setting, so mute/kick/op/etc would be silent
+				#	client.Send('CHANNELMESAGE %s You were quietly muted for spamming.'%chan)
+				return ''
+			
 	if channel.censor:
 		msg = _word_censor(msg)
 	if channel.antishock:
 		msg = _site_censor(msg)
 	return msg
 
-def hook_SAY(self,client,chan,msg):
+def hook_SAY(self, client, chan, msg):
 	user = client.username
 	channel = self._root.channels[chan]
 	if client.hook and msg.startswith(client.hook):

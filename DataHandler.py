@@ -6,7 +6,7 @@ try: from hashlib import md5
 except: md5 = __import__('md5').new
 
 import traceback
-from Protocol import Channel
+from Protocol import Channel, Protocol
 
 separator = '-'*60
 
@@ -30,6 +30,7 @@ class DataHandler:
 		self.userdb = None
 		self.engine = None
 		self.channelfile = None
+		self.protocol = None
 		
 		self.max_threads = 25
 		self.sqlurl = 'sqlite:///sqlite.txt'
@@ -253,6 +254,8 @@ class DataHandler:
 				self.output = open('server.log', 'w')
 				self.log = True
 			except: pass
+		
+		self.protocol = Protocol(self, None)
 	
 	def getUserDB(self):
 		if self.dbtype in ('legacy', 'lan'):
@@ -295,11 +298,11 @@ class DataHandler:
 			for chan in channels:
 				channel = channels[chan]
 				mutelist = dict(channel.mutelist)
-				for user in mutelist:
-					expiretime = mutelist[user]['expires']
+				for db_id in mutelist:
+					expiretime = mutelist[db_id]['expires']
 					if 0 < expiretime and expiretime < now:
-						del channel.mutelist[user]
-						self.broadcast('CHANNELMESSAGE %s <%s> has been unmuted (mute expired).'%(chan, user))
+						del channel.mutelist[db_id]
+						channel.channelMessage('<%s> has been unmuted (mute expired).' % self.protocol.clientFromID(db_id).username)
 		except:
 			self.error(traceback.format_exc())
 
@@ -380,7 +383,9 @@ class DataHandler:
 			for channel in dict(self.channels): # hack, but I guess reloading is all a hack :P
 				chan = self.channels[channel].copy()
 				del chan['chan'] # 'cause we're passing it ourselves
-				self.channels[channel] = sys.modules['Protocol'].Channel(self, channel, **chan)
+				self.channels[channel] = Channel(self, channel, **chan)
+			
+			self.protocol = Protocol(self, None)
 		except:
 			self.error(traceback.format_exc())
 
