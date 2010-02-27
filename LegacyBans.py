@@ -41,7 +41,7 @@ class BanHandler:
 	def __init__(self, root, dburl):
 		self._root = root
 		self.dburl = dburl
-		self.engine = sqlalchemy.create_engine(dburl, pool_size=root.max_threads*2, pool_recycle=300)
+		self.engine = create_engine(dburl, pool_size=root.max_threads*2, pool_recycle=300)
 		self.sessionmaker = sessionmaker(bind=self.engine, autoflush=True, transactional=True)
 	
 	def check_ban(username=None, ip=None, userid=None):
