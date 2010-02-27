@@ -1,6 +1,12 @@
 import time, os, codecs
 from xml.sax.saxutils import escape, quoteattr
 
+try:
+	from LegacyBans import BanHandler
+except:
+	print 'Error importing LegacyBans.'
+	BanHandler = None
+
 def dec2bin(i, bits=None):
 	i = int(i)
 	b = ''
@@ -79,6 +85,10 @@ class UsersHandler:
 		self._root = root
 		self.accountstxt = accountstxt
 		
+		if root.tsbanurl and BanHandler:
+			self.bandb = BanHandler(root, root.tsbanurl)
+		else: self.bandb = None
+		
 		self.accounts = {}
 		self.idToAccount = {}
 		self.lock = None
@@ -136,7 +146,10 @@ class UsersHandler:
 		if name in self.accounts:
 			return self.accounts[name]
 	
-	def check_ban(self, user=None, ip=None, userid=None): return
+	def check_ban(self, username=None, ip=None, userid=None):
+		if self.bandb:
+			return self.bandb.check_ban(username, ip, userid)
+		else: return True, None
 	
 	def login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		name = username.lower()
@@ -151,6 +164,11 @@ class UsersHandler:
 		user = self.clientFromUsername(name)
 		if not user:
 			return False, 'No user named %s.'%username
+		
+		good, reason = self.check_ban(user.username, ip, user_id)
+		if not good:
+			return False, 'Banned: %s' % reason
+		
 		if not password == user.password:
 			return False, 'Invalid password.'
 		
@@ -162,6 +180,9 @@ class UsersHandler:
 	def end_session(self, username): pass
 	
 	def register_user(self, username, password, ip, country):
+		good, reason = check_ban(ip=ip)
+		if not good: return False, 'Banned: %s' % reason
+		
 		if len(username) > 20: return False, 'Username too long'
 		if self._root.censor:
 			if not self._root.SayHooks._nasty_word_censor(username):

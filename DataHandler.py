@@ -29,6 +29,7 @@ class DataHandler:
 		self.chanserv = None
 		self.userdb = None
 		self.engine = None
+		self.tsbanurl = None
 		self.channelfile = None
 		self.protocol = None
 		
@@ -90,13 +91,15 @@ class DataHandler:
 				print '  -m, --maxthreads number'
 				print '      { Uses the specified number of threads for handling clients }'
 				print '  -s, --sqlurl SQLURL'
-				print '      { Uses SQL database at the url specified }'
+				print '      { Uses SQL database at the specified sqlurl for user, channel, and ban storage. }'
 				print '  -c, --no-censor'
 				print '      { Disables censoring of #main, #newbies, and usernames (default is to censor) }'
 				print '  --accounts /path/to/accounts.txt'
-				print '      { Path to accounts.txt. For using the legacy tasserver account database. }'
+				print '      { Path to accounts.txt. For using the legacy TASServer account database. }'
+				print '  --tsbans SQLURL'
+				print '      { Uses SQL database at the specified sqlurl as a legacy TASServer ban database. } '
 				print '  --channels /path/to/settings.xml'
-				print '      { Path to ChanServ\'s settings.xml. For using the legacy ChanServ channel database. }'
+				print '      { Path to ChanServ\'s settings.xml, for using the legacy ChanServ channel database. }'
 				print 'SQLURL Examples:'
 				#print '  "sqlite:///:memory:" or "sqlite:///"'
 				#print '     { both make a temporary database in memory }'
@@ -172,6 +175,8 @@ class DataHandler:
 					self.dbtype = 'legacy'
 				except:
 					print 'Error opening legacy accounts.txt database.'
+			elif arg == 'tsbans':
+				self.tsbanurl = argp[0]
 			elif arg == 'channels':
 				try:
 					self.channelfile = argp[0]

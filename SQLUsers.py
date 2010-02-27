@@ -214,7 +214,7 @@ class UsersHandler:
 		return OfflineClient(entry)
 	
 	def check_ban(self, user=None, ip=None, userid=None):
-		return
+		return True, None
 		session = self.sessionmaker()
 		results = session.query(AggregateBan)
 		subnetbans = results.filter(AggregateBan.type=='subnet')
