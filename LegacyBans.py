@@ -15,6 +15,8 @@ def ip2long(ip):
 	return struct.unpack("!L", packed)[0]
 ## end helper
 
+metadata = MetaData()
+
 class Ban(object):
 	def __repr__(self):
 		return "<Ban('%s', '%s')>" % (self.Username, self.ExpirationDate)
