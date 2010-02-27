@@ -233,7 +233,7 @@ class DataHandler:
 			f.close()
 			## end fix
 			
-			settings = minidom.parseString(self.channelfile)
+			settings = minidom.parse(self.channelfile)
 			channels = settings.getElementsByTagName('channel')
 			chans = {}
 			userdb = self.getUserDB()
