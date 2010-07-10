@@ -141,7 +141,7 @@ class AutoDict:
 				setattr(self, key, new)
 
 class Battle(AutoDict):
-	def __init__(self, root, id, type, natType, password, port, maxplayers, hashcode, rank, maphash, map, title, modname, passworded, host, users, spectators=0, startrects={}, disabled_units=[], pending_users=set(), bots={}, script_tags={}, replay_script={}, replay=False, sending_replay_script=False, locked=False):
+	def __init__(self, root, id, type, natType, password, port, maxplayers, hashcode, rank, maphash, map, title, modname, passworded, host, users, spectators=0, startrects={}, disabled_units=[], pending_users=set(), authed_users=set(), bots={}, script_tags={}, replay_script={}, replay=False, sending_replay_script=False, locked=False):
 		self._root = root
 		self.id = id
 		self.type = type
@@ -161,7 +161,10 @@ class Battle(AutoDict):
 		self.host = host
 		self.startrects = startrects
 		self.disabled_units = disabled_units
+		
 		self.pending_users = pending_users
+		self.authed_users = authed_users
+		
 		self.bots = bots
 		self.script_tags = script_tags
 		self.replay_script = replay_script
@@ -702,8 +705,23 @@ class Protocol:
 			lobby_id, user_id = sentence_args.split('\t',1)
 			if '\t' in user_id:
 				user_id, compFlags = user_id.split('\t', 1)
-				client.compat_accountIDs = ('a' in compFlags)
-				client.compat_battleAuth = ('b' in compFlags)
+				
+				flags = set()
+				
+				for flag in compFlags.split(' '):
+					if flag in ('ab', 'ba'):
+						flags.add('a')
+						flags.add('b')
+					else:
+						flags.add(flag)
+				
+				for flag in flags:
+					if flag == 'a':
+						client.compat_accountIDs = True
+					elif flag == 'b':
+						client.compat_battleAuth = True
+					elif flag == 'sp':
+						client.compat_scriptPassword = True
 						
 			if user_id.replace('-','',1).isdigit():
 				user_id = int(user_id)
@@ -1063,8 +1081,9 @@ class Protocol:
 			if not client.username == battle.host: return
 			if username in battle.pending_users:
 				battle.pending_users.remove(username)
+				battle.authed_users.add(username)
 				user = self._root.clientFromUsername(username)
-				self.in_JOINBATTLE(user, battle_id, authed=True)
+				self.in_JOINBATTLE(user, battle_id)
 	
 	def in_JOINBATTLEDENY(self, client, username, reason=None):
 		battle_id = client.current_battle
@@ -1076,7 +1095,9 @@ class Protocol:
 				user = self._root.clientFromUsername(username)
 				user.Send('JOINBATTLEFAILED %s%s' % ('Denied by host%s', (' ('+reason+')' if reason else '')))
 
-	def in_JOINBATTLE(self, client, battle_id, password=None, authed=False):
+	def in_JOINBATTLE(self, client, battle_id, password=None, scriptPassword=None):
+		if scriptPassword: client.scriptPassword = scriptPassword
+		
 		username = client.username
 		if client.current_battle in self._root.battles:
 			client.Send('JOINBATTLEFAILED You are already in a battle.')
@@ -1094,7 +1115,7 @@ class Protocol:
 				if username in host.battle_bans:
 					client.Send('JOINBATTLEFAILED <%s> has banned you from their battles.' % battle.host)
 					return
-				if host.compat_battleAuth and not authed:
+				if host.compat_battleAuth and not username in battle.authed_users:
 					battle.pending_users.add(username)
 					host.Send('JOINBATTLEREQUEST %s %s' % (username, client.ip_address))
 					return
@@ -1110,7 +1131,14 @@ class Protocol:
 				client.Send('SETSCRIPTTAGS %s'%'\t'.join(scripttags))
 				if battle.disabled_units:
 					client.Send('DISABLEUNITS %s' % ' '.join(battle.disabled_units))
-				self._root.broadcast('JOINEDBATTLE %s %s'%(battle_id,username))
+				self._root.broadcast('JOINEDBATTLE %s %s' % (battle_id, username), ignore=battle.host)
+				
+				scriptPassword = client.scriptPassword
+				if host.compat_scriptPassword and scriptPassword:
+					host.Send('JOINEDBATTLE %s %s %s' % (battle_id, username, scriptPassword))
+				else:
+					host.Send('JOINEDBATTLE %s %s' % (battle_id, username))
+				
 				if battle.natType > 0:
 					host = battle.host
 					if host == username:
@@ -1185,6 +1213,8 @@ class Protocol:
 					battle.sending_replay_script = False
 
 	def in_LEAVEBATTLE(self, client):
+		client.scriptPassword = None
+		
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]

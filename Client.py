@@ -70,6 +70,7 @@ class Client:
 		
 		self.compat_accountIDs = False
 		self.compat_battleAuth = False
+		self.compat_scriptPassword = False
 		
 		now = time.time()
 		self.last_login = now
