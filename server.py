@@ -98,6 +98,11 @@ if _root.dbtype == 'legacy':
 			try:
 				_root.userdb.writeAccounts()
 				print 'Accounts written.'
+				if _root.channelfile:
+					print 'Writing channels...'
+					__import__('tasserver').LegacyChannels.Writer().dump(_root.channels, _root.getUserDB().clientFromID)
+					print 'Channels written.'
+					_root.channelfile = None
 				break
 			except KeyboardInterrupt:
 				print 'You probably shouldn\'t interrupt this, starting account dump over.'

@@ -1,8 +1,8 @@
 import xml.dom.minidom as minidom
-from xml.sax.saxutils import unescape
+from xml.sax.saxutils import escape, unescape, quoteattr
 import binascii
 
-import re, codecs
+import os, re, codecs
 
 class Parser:
 	topicRe = re.compile(r'''<channel[^>]*name\s*=\s*(["'])(?P<name>.*?)\1[^>]*topic\s*=\s*(["'])(?P<topic>.+?)\3[^>]*>''')
@@ -78,7 +78,7 @@ class Parser:
 			if name in topics:
 				topic = topics[name].decode('utf-8').encode('raw_unicode_escape') # chanserv writes double-encoded utf-8, this decodes it
 				
-			chans[name] = {'owner':str(owner), 'key':str(channel.getAttribute('key')) or None, 'topic':topic, 'antispam':(str(channel.getAttribute('antispam')) == 'yes'), 'admins':chanops}
+			chans[name] = {'owner':str(owner), 'key':str(channel.getAttribute('key')) or None, 'topic':topic or '', 'antispam':(str(channel.getAttribute('antispam')) == 'yes'), 'admins':chanops}
 		
 		return chans
 	
@@ -98,9 +98,10 @@ class Writer:
 		f.write('<channels>\n')
 		for channel in channels.values():
 			owner = clientFromID(channel.owner)
+			
 			if owner:
 				topic = channel.topic
-				if topic: topic = topic['text'].decode('raw_unicode_escape').encode('utf-8')
+				if topic and topic['text']: topic = topic['text'].decode('raw_unicode_escape')
 				else: topic = '*'
 				f.write('\t<channel antispam="%s" name="%s" founder="%s" topic=%s key=%s>\n' % (('yes' if channel.antispam else 'no'), channel.chan, owner.username, escape(quoteattr(topic)), escape(quoteattr(channel.key or '*'))))
 				for admin in channel.admins:

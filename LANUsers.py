@@ -18,10 +18,10 @@ class UsersHandler:
 		self._root = root
 	
 	def clientFromID(self, db_id):
-		pass
+		return self._root.clientFromID(db_id)
 	
 	def clientFromUsername(self, username):
-		pass
+		return self._root.clientFromUsername(username)
 	
 	def login_user(self, user, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		User = LANUser(user, password, ip)

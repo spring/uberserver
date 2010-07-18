@@ -1,4 +1,3 @@
-import xml.dom.minidom as minidom
 import thread, time, sys, os
 
 import base64
@@ -182,8 +181,10 @@ class DataHandler:
 			elif arg == 'channels':
 				try:
 					self.channelfile = argp[0]
+					open(self.channelfile, 'r').close()
 				except:
-					print 'Error parsing settings.xml filename.'
+					print 'Error opening ChanServ settings.xml.'
+					self.channelfile = None
 		if self.dbtype == 'sql':
 			if self.sqlurl == 'sqlite:///:memory:' or self.sqlurl == 'sqlite:///':
 				print 'In-memory sqlite databases are not supported.'
@@ -239,6 +240,7 @@ class DataHandler:
 				if client and client.id: owner = client.id
 				
 				for user in channel['admins']:
+					client = userdb.clientFromUsername(user)
 					if client and client.id:
 						admins.append(client.id)
 				
@@ -273,9 +275,13 @@ class DataHandler:
 	
 	def clientFromID(self, db_id):
 		if db_id in self.db_ids: return self.db_ids[db_id]
+		elif self.userdb:
+			return self.userdb.clientFromID(db_id)
 	
 	def clientFromUsername(self, username):
 		if username in self.usernames: return self.usernames[username]
+		elif self.userdb:
+			return self.userdb.clientFromUsername[username]
 
 	def event_loop(self):
 		start = time.time()

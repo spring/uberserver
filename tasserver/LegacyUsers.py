@@ -105,11 +105,14 @@ class UsersHandler:
 		
 		last_id = 0
 		line = f.readline().rstrip()
+		
 		while line:
 			user = User.fromAccountLine(line)
-			self.accounts[user.lowername] = user
-			last_id = user.id
-			self.idToAccount[last_id] = user
+			if user:
+				self.accounts[user.lowername] = user
+				last_id = user.id
+				self.idToAccount[last_id] = user
+				
 			line = f.readline().rstrip()
 		
 		self.last_id = int(last_id)
@@ -170,7 +173,7 @@ class UsersHandler:
 	def end_session(self, username): pass
 	
 	def register_user(self, username, password, ip, country):
-		good, reason = check_ban(ip=ip)
+		good, reason = self.check_ban(ip=ip)
 		if not good: return False, 'Banned: %s' % reason
 		
 		if len(username) > 20: return False, 'Username too long'
