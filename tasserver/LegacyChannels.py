@@ -93,7 +93,7 @@ class Parser:
 		return self._parse(string)
 
 class Writer:
-	def dump(self, channels, clientFromID=lambda x:x):
+	def dump(self, channels, clientFromID):
 		f = codecs.open('channels.xml.tmp', 'w', 'utf-8')
 		f.write('<channels>\n')
 		for channel in channels.values():

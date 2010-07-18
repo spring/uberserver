@@ -275,13 +275,9 @@ class DataHandler:
 	
 	def clientFromID(self, db_id):
 		if db_id in self.db_ids: return self.db_ids[db_id]
-		elif self.userdb:
-			return self.userdb.clientFromID(db_id)
 	
 	def clientFromUsername(self, username):
 		if username in self.usernames: return self.usernames[username]
-		elif self.userdb:
-			return self.userdb.clientFromUsername[username]
 
 	def event_loop(self):
 		start = time.time()
@@ -296,7 +292,7 @@ class DataHandler:
 						self.userdb.writeAccounts()
 						if self.channelfile:
 							writer = LegacyChannels.Writer()
-							writer.dump(self.channels)
+							writer.dump(self.channels, self.getUserDB().clientFromID)
 						print '..took %0.2f seconds.' % (time.time() - start)
 					
 				if seconds % 1 == 0:
