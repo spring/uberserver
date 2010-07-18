@@ -1,3 +1,10 @@
+# if this is running from the scripts folder, move up a folder.
+import os, sys
+if not 'server.py' in os.listdir('.') and 'scripts' in os.listdir('..'):
+	os.chdir('..')
+
+sys.path.append('.')
+
 import urllib, zipfile, sys, os, ip2country
 
 # url = 'http://public.zjt3.com/uberserver/deps.zip' # site down
@@ -60,3 +67,5 @@ zipdb.close()
 os.remove('deps.zip')
 
 print '\nDone.'
+
+import ip2country

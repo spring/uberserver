@@ -1,10 +1,14 @@
 import time, os, codecs
 from xml.sax.saxutils import escape, quoteattr
 
+import traceback
 try:
 	from LegacyBans import BanHandler
 except:
-	print 'Error importing LegacyBans.'
+	print '-'*60
+	print traceback.format_exc()
+	print '-'*60
+	print 'Error importing LegacyBans. You might lack sqlalchemy, which you can get from running scripts/fetch_deps.py'
 	BanHandler = None
 
 def dec2bin(i, bits=None):
@@ -112,30 +116,16 @@ class UsersHandler:
 		f.close()
 	
 	def writeAccounts(self):
-		f = open(self.accountstxt+'.tmp', 'w')
+		tmpname = self.accountstxt+'.tmp'
+		f = open(tmpname, 'w')
 		
 		for user in self.accounts.values():
 			f.write(user.toAccountLine()+'\n')
 		f.close()
 		
-		os.rename(self.accountstxt+'.tmp', self.accountstxt)
-		
-		f = codecs.open('channels.xml.tmp', 'w', 'utf-8')
-		f.write('<channels>\n')
-		for channel in self._root.channels.values():
-			owner = self.clientFromID(channel.owner)
-			if owner:
-				topic = channel.topic
-				if topic: topic = topic['text']
-				else: topic = '*'
-				f.write('\t<channel antispam="%s" name="%s" founder="%s" topic=%s key=%s>\n' % (('yes' if channel.antispam else 'no'), channel.chan, owner.username, escape(quoteattr(topic)), escape(quoteattr(channel.key or '*'))))
-				for admin in channel.admins:
-					f.write('\t\t<operator name="%s" />\n' % self.clientFromID(admin).username)
-				f.write('\t</channel>\n')
-		f.write('</channels>\n')
-		f.close()
-		
-		os.rename('channels.xml.tmp', 'channels.xml')
+		if os.path.exists(self.accountstxt):
+			os.remove(self.accountstxt)
+		os.rename(tmpname, self.accountstxt)
 		
 	def clientFromID(self, db_id):
 		if db_id in self.idToAccount:

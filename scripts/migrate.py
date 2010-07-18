@@ -1,5 +1,13 @@
-import sqlalchemy, time, sys
-from LegacyUsers import User
+# if this is running from the scripts folder, move up a folder.
+import os, sys
+if not 'server.py' in os.listdir('.') and 'scripts' in os.listdir('..'):
+	os.chdir('..')
+
+sys.path.append('.')
+
+import time, sys
+import traceback
+from tasserver.LegacyUsers import User
 
 if not len(sys.argv) == 3:
 	print 'usage: migrate.py [/path/to/accounts.txt] [dburl]'
@@ -15,7 +23,17 @@ dburl = sys.argv[2]
 def _bin2dec(s): return int(s, 2)
 
 print 'opening database'
-engine = sqlalchemy.create_engine(dburl, pool_size=512, pool_recycle=300)
+try:
+	import sqlalchemy
+	engine = sqlalchemy.create_engine(dburl, pool_size=512, pool_recycle=300)
+except:
+	print '-'*60
+	print traceback.format_exc()
+	print '-'*60
+	print
+	print 'could not import sqlalchemy module, try running scripts/fetch_deps.py'
+	sys.exit()
+
 UsersHandler = __import__('SQLUsers').UsersHandler
 db = UsersHandler(None, engine)
 

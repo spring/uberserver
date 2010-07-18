@@ -8,6 +8,8 @@ except: md5 = __import__('md5').new
 import traceback
 from Protocol import Channel, Protocol
 
+from tasserver import LegacyChannels, LegacyUsers
+
 separator = '-'*60
 
 class DataHandler:
@@ -204,7 +206,7 @@ class DataHandler:
 		
 		if self.dbtype == 'legacy':
 			try:
-				self.userdb = __import__('LegacyUsers').UsersHandler(self, self.engine)
+				self.userdb = LegacyUsers.UsersHandler(self, self.engine)
 			except:
 				print traceback.format_exc()
 				print 'Error loading accounts.txt database, falling back to LAN mode.'
@@ -223,37 +225,28 @@ class DataHandler:
 			print 'Warning: LAN mode enabled - many user-specific features will be broken.'
 		
 		if self.channelfile:
-			## fix chanserv's stupid xml entity that doesn't exist (&#3;)
-			f = open(self.channelfile, 'r')
-			data = f.read()
-			f.close()
-			data = data.replace('&#3;', '\x03')
-			f = open(self.channelfile, 'w')
-			f.write(data)
-			f.close()
-			## end fix
+			parser = LegacyChannels.Parser()
+			channels = parser.parse(self.channelfile)
 			
-			settings = minidom.parse(self.channelfile)
-			channels = settings.getElementsByTagName('channel')
-			chans = {}
 			userdb = self.getUserDB()
-			for channel in channels:
-				op_ids = []
-				ops = channel.getElementsByTagName('operator')
+			for name in channels:
+				channel = channels[name]
+				
 				owner = None
-				for op in ops:
-					client = userdb.clientFromUsername(str(op.getAttribute('name')))
-					if client and client.id: op_ids.append(client.id)
-				founder = str(channel.getAttribute('founder'))
-				owner = userdb.clientFromUsername(founder)
-				if owner: owner = owner.id
-				chans[channel.getAttribute('name')] = {'owner':str(owner), 'key':str(channel.getAttribute('key')), 'topic':channel.getAttribute('topic'), 'antispam':(str(channel.getAttribute('antispam')) == 'yes'), 'admins':op_ids}
-			for chan in chans:
-				channel = chans[chan]
-				self.channels[chan] = Channel(self, chan, chanserv=bool(channel['owner']), owner=channel['owner'], admins=channel['admins'], key=channel['key'], antispam=channel['antispam'], topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time()*1000)})
+				admins = []
+				
+				client = userdb.clientFromUsername(channel['owner'])
+				if client and client.id: owner = client.id
+				
+				for user in channel['admins']:
+					if client and client.id:
+						admins.append(client.id)
+				
+				self.channels[name] = Channel(self, name, chanserv=bool(owner), owner=owner, admins=admins, key=channel['key'], antispam=channel['antispam'], topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time()*1000)})
+			
 			if self.chanserv:
-				for chan in chans:
-					self.chanserv.client._protocol._handle(self.chanserv.client, 'JOIN %s' % chan)
+				for name in channels:
+					self.chanserv.client._protocol._handle(self.chanserv.client, 'JOIN %s' % name)
 		
 		if os.path.isfile('motd.txt'):
 			motd = []
@@ -295,6 +288,9 @@ class DataHandler:
 						print 'Writing account database to file.',
 						start = time.time()
 						self.userdb.writeAccounts()
+						if self.channelfile:
+							writer = LegacyChannels.Writer()
+							writer.dump(self.channels)
 						print '..took %0.2f seconds.' % (time.time() - start)
 					
 				if seconds % 1 == 0:
@@ -330,9 +326,9 @@ class DataHandler:
 					self.output.write(line+'\n')
 					self.output.flush()
 		except:
-			print '-'*60
+			print separator
 			print traceback.format_exc()
-			print '-'*60
+			print separator
 
 	def error(self, error):
 		error = '%s\n%s\n%s'%(separator,error,separator)
