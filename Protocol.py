@@ -637,7 +637,7 @@ class Protocol:
 
 	def client_AddUser(self, client, user):
 		if client.compat_accountIDs:
-			client.Send('ADDUSER %s %s %s 0' % (user.username, user.country_code, user.cpu))
+			client.Send('ADDUSER %s %s %s %i' % (user.username, user.country_code, user.cpu, user.db_id))
 		else:
 			client.Send('ADDUSER %s %s %s' % (user.username, user.country_code, user.cpu))
 	
