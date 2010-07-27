@@ -257,7 +257,7 @@ class UsersHandler:
 	def get_account_access(self, username):
 		user = self.clientFromUsername(username)
 		if user:
-			return True, '%s (%s)' % (user.getAccess(), user.access)
+			return True, '%s (%s)' % (int(user.getAccess(), 2), user.access)
 		else:
 			return False, 'User not found.'
 	
