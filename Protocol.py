@@ -197,9 +197,7 @@ class Channel(AutoDict):
 			self._root.chanserv.Send('JOIN %s' % self.chan)
 	
 	def broadcast(self, message):
-		for user in list(self.users):
-			if user in self._root.usernames:
-				self._root.usernames[user].Send(message) # might need to add special code for blind users or use a different broadcast method
+		self._root.multicast(self.users, message)
 	
 	def channelMessage(self, message):
 		self.broadcast('CHANNELMESSAGE %s %s' % (self.chan, message))
@@ -1586,27 +1584,30 @@ class Protocol:
 	#	if user in self._root.usernames:
 	#		self._handle(self._root.usernames[user], msg)
 
-	def in_GETLOBBYVERSION(self, client, user):
-		if user in self._root.usernames: # need to concatenate to a function liek user = _find_user(user), if user: do junk else: say there's no user or owait... i can return to way back by catching an exception :D
-			if 'lobby_id' in self._root.usernames[user]:
-				client.Send('SERVERMSG <%s> is using %s'%(user, self._root.usernames[user].lobby_id))
+	def in_GETLOBBYVERSION(self, client, username):
+		user = self.clientFromUsername(username)
+		if user and 'lobby_id' in dir(user):
+			client.Send('SERVERMSG <%s> is using %s'%(user, user.lobby_id))
 	
 	def in_GETSENDBUFFERSIZE(self, client, username):
 		if username in self._root.usernames:
 			client.Send('SERVERMSG <%s> has a sendbuffer size of %s'%(username, len(self._root.usernames[username].sendbuffer)))
 
-	def in_SETINGAMETIME(self, client, user, minutes):
-		if user in self._root.usernames:
-			client = self._root.usernames[user]
-			client.ingame_time = int(minutes)
-			self.userdb.save_user(client)
+	def in_SETINGAMETIME(self, client, username, minutes):
+		user = self.clientFromUsername(username)
+		if user:
+			user.ingame_time = int(minutes)
+			self.userdb.save_user(user)
+			client.Send('SERVERMSG You have successfully set the ingame time for <%s>.')
+			self.in_GETINGAMETIME(client, username)
 
-	def in_SETBOTMODE(self, client, user, mode):
-		if user in self._root.usernames:
+	def in_SETBOTMODE(self, client, username, mode):
+		user = self.clientFromUsername(username)
+		if user:
 			bot = (mode.lower() in ('true', 'yes', '1'))
-			self._root.usernames[user].bot = bot
-			client.Send('SERVERMSG is <%s> a bot? %s' % (user, bot))
-			self.userdb.save_user(self._root.usernames[user])
+			user.bot = bot
+			client.Send('SERVERMSG botmode for <%s> set to: %s' % (username, bot))
+			self.userdb.save_user(user)
 	
 	def in_BROADCAST(self, client, msg):
 		self._root.broadcast('SERVERMSG %s'%msg)
@@ -1681,26 +1682,30 @@ class Protocol:
 			client.Send('SERVERMSG %s'%('-'*20))
 			#self._root.error(traceback.format_exc())
 
-	def in_MOD(self, client, user):
-		changeuser = self._root.usernames[user]
-		changeuser.access = 'mod'
-		changeuser.accesslevels = ['mod', 'user']
-		self._calc_access(changeuser)
-		self._root.broadcast('CLIENTSTATUS %s %s'%(user,changeuser.status))
-		self.userdb.save_user(changeuser)
+	def in_MOD(self, client, username):
+		user = self.clientFromUsername(username)
+		if user:
+			user.access = 'mod'
+			user.accesslevels = ['mod', 'user']
+			self._calc_access(user)
+			self._root.broadcast('CLIENTSTATUS %s %s'%(user, user.status))
+			self.userdb.save_user(user)
 
 	def in_ADMIN(self, client, user):
-		changeuser = self._root.usernames[user]
-		changeuser.access = 'admin'
-		changeuser.accesslevels = ['admin', 'mod', 'user']
-		self._calc_access(changeuser)
-		self._root.broadcast('CLIENTSTATUS %s %s'%(user,changeuser.status))
-		self.userdb.save_user(changeuser)
+		user = self.clientFromUsername(username)
+		if user:
+			user.access = 'admin'
+			user.accesslevels = ['admin', 'mod', 'user']
+			self._calc_access(user)
+			self._root.broadcast('CLIENTSTATUS %s %s'%(user, user.status))
+			self.userdb.save_user(user)
 
 	def in_DEBUG(self, client, enabled=None):
 		if enabled == 'on':	client.debug = True
 		elif enabled == 'off': client.debug = False
 		else: client.debug = not client.debug
+		
+		client.Send('SERVERMSG Debug messages: %s' % ('on' and client.debug or 'off'))
 		
 	def in_RELOAD(self, client):
 		'Reloads Protocol, SayHooks, Telnet, UserHandler, and ChanServ'
