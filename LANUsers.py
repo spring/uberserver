@@ -55,6 +55,9 @@ class UsersHandler:
 	def get_account_info(self, *args, **kwargs):
 		return False, None
 	
+	def get_account_access(self, *args, **kwargs):
+		return False, None
+	
 	def find_ip(self, *args, **kwargs):
 		return False, None
 	

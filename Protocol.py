@@ -1496,16 +1496,16 @@ class Protocol:
 		if username and 'mod' in client.accesslevels:
 			if username in self._root.usernames: # maybe abstract in the datahandler to automatically query SQL for users not logged in.
 				ingame_time = int(self._root.usernames[username].ingame_time)
-				client.Send('SERVERMSG %s has an in-game time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
+				client.Send('SERVERMSG <%s> has an ingame time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
 			else:
 				good, data = self.userdb.get_ingame_time(username)
 				if good:
 					ingame_time = int(data)
-					client.Send('SERVERMSG %s has an in-game time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
+					client.Send('SERVERMSG <%s> has an ingame time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
 				else: client.Send('SERVERMSG Database returned error when retrieving ingame time for <%s> (%s)' % (username, data))
 		elif not username:
 			ingame_time = int(client.ingame_time)
-			client.Send('SERVERMSG Your in-game time is %d minutes (%d hours).'%(ingame_time, ingame_time / 60))
+			client.Send('SERVERMSG Your ingame time is %d minutes (%d hours).'%(ingame_time, ingame_time / 60))
 		else:
 			client.Send('SERVERMSG You can\'t get the ingame time of other users.')
 	
@@ -1531,8 +1531,15 @@ class Protocol:
 	def in_GETACCOUNTINFO(self, client, username):
 		good, data = self.userdb.get_account_info(username)
 		if good:
-			client.Send('SERVERMSG %s' % data)
+			client.Send('SERVERMSG Account info for <%s>: %s' % (username, data))
 		else: client.Send('SERVERMSG Database returned error when retrieving account info for <%s> (%s)' % (username, data))
+	
+	def in_GETACCOUNTACCESS(self, client, username):
+		good, data = self.userdb.get_account_access(username)
+		if good:
+			client.Send('SERVERMSG Account access for <%s>: %s' % (username, data))
+		else:
+			client.Send('SERVERMSG Database returned error when retrieving account access for <%s> (%s)' % (username, data))
 	
 	def in_FINDIP(self, client, address):
 		good, data = self.userdb.find_ip(address)
@@ -1598,7 +1605,7 @@ class Protocol:
 		if user:
 			user.ingame_time = int(minutes)
 			self.userdb.save_user(user)
-			client.Send('SERVERMSG You have successfully set the ingame time for <%s>.')
+			client.Send('SERVERMSG You have successfully set the ingame time for <%s>.' % username)
 			self.in_GETINGAMETIME(client, username)
 
 	def in_SETBOTMODE(self, client, username, mode):

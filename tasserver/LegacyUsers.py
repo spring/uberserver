@@ -254,6 +254,13 @@ class UsersHandler:
 		else:
 			return False, 'User not found.'
 	
+	def get_account_access(self, username):
+		user = self.clientFromUsername(username)
+		if user:
+			return True, '%s (%s)' % (user.getAccess(), user.access)
+		else:
+			return False, 'User not found.'
+	
 	def find_ip(self, ip):
 		users = []
 		if ':' in ip: # IPv6 - needs to account for ::: vs 00, ambiguous notation

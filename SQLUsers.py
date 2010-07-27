@@ -401,8 +401,17 @@ class UsersHandler:
 		entry = session.query(User).filter(User.lowername==name).first()
 		session.close()
 		if entry:
-			data = '%s %s %s %s %s %s %s %s %s %s %s' % (entry.lowername, entry.username, entry.password, entry.register_date, entry.last_login, entry.last_ip, entry.last_id, entry.access, entry.bot, entry.hook_chars)
+			data = '%s %s %s %s %s %s %s %s %s %s %s %s %s' % (entry.lowername, entry.username, entry.password, entry.register_date, entry.last_login, entry.last_ip, entry.ingame_time, entry.last_id, entry.access, entry.bot, entry.access, entry.hook_chars)
 			return True, data
+		else: return False, 'user not found in database'
+	
+	def get_account_access(self, username):
+		session = self.sessionmaker()
+		name = username.lower()
+		entry = session.query(User).filter(User.lowername==name).first()
+		session.close()
+		if entry:
+			return True, entry.access
 		else: return False, 'user not found in database'
 	
 	def find_ip(self, ip):
