@@ -9,7 +9,7 @@ class BaseMultiplexer:
 		self.output = set([])
 	
 	def register(self, fd):
-		#fd.setblocking(0)
+		fd.setblocking(0)
 		self.sockets.add(fd)
 		self.pollRegister(fd)
 	
