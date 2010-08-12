@@ -1,4 +1,4 @@
-import socket, time, sys, thread, ip2country
+import socket, time, sys, thread, ip2country, errno
 import Telnet
 
 class Client:
@@ -138,11 +138,14 @@ class Client:
 	def Send(self, msg):
 		if self.telnet:
 			msg = Telnet.filter_out(self,msg)
-		if not msg: return
 		
+		if not msg: return
+
+
 		if self.handler.thread == thread.get_ident():
 			msg = self.msg_id + msg
-		self.SendNow(msg)
+			
+		self.sendbuffer.append(msg)
 
 	def SendNow(self, msg):
 		if self.sendError: return
@@ -170,7 +173,10 @@ class Client:
 		try:
 			sent = self.conn.send(senddata)
 			self.sendingmessage = self.sendingmessage[sent:] # only removes the number of bytes sent
-		except socket.error: self.handler._remove(self.conn)
+		except socket.error, e:
+			if e == errno.EAGAIN:
+				return
+			self.handler._remove(self.conn)
 		
 		self.handler.poller.setoutput(self.conn, bool(self.sendbuffer or self.sendingmessage))
 	
