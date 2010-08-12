@@ -1217,7 +1217,7 @@ class Protocol:
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
 			if battle.host == client.username:
-				self._root.broadcast('BATTLECLOSED %s' % battle_id)
+				self.broadcast_RemoveBattle(battle)
 				client.hostport = 8542
 				del self._root.battles[battle_id]
 			elif client.username in battle.users:
@@ -1412,7 +1412,7 @@ class Protocol:
 					self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, username), ignore=username)
 					battle.users.remove(username)
 					if username == battle.host:
-						self._root.broadcast('BATTLECLOSED %s'%battle_id)
+						self.broadcast_RemoveBattle(battle)
 			else:
 				client.Send('SERVERMSG You must be the battle host to kick from a battle.')
 
@@ -1575,7 +1575,7 @@ class Protocol:
 		else:
 			client.Send('SERVERMSG Failed to rename to <%s>: %s' % (newname, reason))
 	
-	def in_CHANGEPASSWORD(self, oldpassword, newpassword):
+	def in_CHANGEPASSWORD(self, client, oldpassword, newpassword):
 		client.Send('SERVERMSG Changing password is currently disabled.')
 
 	def in_FORGEMSG(self, client, user, msg):
