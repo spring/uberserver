@@ -477,10 +477,10 @@ class Protocol:
 				client.Send('UDPSOURCEPORT %i'%udpport)
 				battle_id = client.current_battle
 				if not battle_id in self._root.battles: return
-				if battle_id:
+				battle = self._root.battles[battle_id]
+				if battle:
 					client.udpport = udpport
 					client.hostport = udpport
-					battle = self._root.battles[battle_id]
 					host = battle.host
 					if not host == username:
 						self._root.usernames[host].SendBattle(battle, 'CLIENTIPPORT %s %s %s'%(username, ip, udpport))
@@ -1220,7 +1220,7 @@ class Protocol:
 			battle = self._root.battles[battle_id]
 			if battle.host == client.username:
 				self.broadcast_RemoveBattle(battle)
-				client.hostport = 8542
+				client.hostport = None
 				del self._root.battles[battle_id]
 			elif client.username in battle.users:
 				battle.users.remove(client.username)
@@ -1283,7 +1283,7 @@ class Protocol:
 				if len(battle.users) > 1:
 					client.went_ingame = time.time()
 				if client.username == host:
-					if not client.hostport == 8542:
+					if client.hostport:
 						self._root.broadcast_battle('HOSTPORT %i' % client.hostport, battle_id, host)
 					if battle.replay:
 						self._root.broadcast_battle('SCRIPTSTART', battle_id, client.username)

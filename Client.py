@@ -48,7 +48,7 @@ class Client:
 		self.password = ''
 		self.ingame_time = 0
 		self.went_ingame = 0
-		self.hostport = 8452
+		self.hostport = None
 		self.udpport = 0
 		self.bot = 0
 		self.hook = ''
