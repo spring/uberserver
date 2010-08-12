@@ -384,7 +384,7 @@ class Protocol:
 							if bot in battle.bots:
 								del battle.bots[bot]
 								self.broadcast_SendBattle(battle, 'REMOVEBOT %s %s'%(battle_id, bot))
-						self.broadcast_SendBattle(battle, 'LEFTBATTLE %s %s' % (battle_id, user))
+						self.broadcast_SendUser(client, 'LEFTBATTLE %s %s' % (battle_id, user))
 			self.broadcast_RemoveUser(client)
 		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
 

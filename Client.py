@@ -141,7 +141,6 @@ class Client:
 		
 		if not msg: return
 
-
 		if self.handler.thread == thread.get_ident():
 			msg = self.msg_id + msg
 			
