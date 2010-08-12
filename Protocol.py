@@ -1129,7 +1129,7 @@ class Protocol:
 				client.Send('SETSCRIPTTAGS %s'%'\t'.join(scripttags))
 				if battle.disabled_units:
 					client.Send('DISABLEUNITS %s' % ' '.join(battle.disabled_units))
-				self._root.broadcast('JOINEDBATTLE %s %s' % (battle_id, username), ignore=battle.host)
+				self._root.broadcast('JOINEDBATTLE %s %s' % (battle_id, username), ignore=username)
 				
 				scriptPassword = client.scriptPassword
 				if host.compat_scriptPassword and scriptPassword:
