@@ -404,8 +404,14 @@ def public_commands(self,user,chan,rights):
 
 def chanpublic_info(self,user,chan,rights):
 	channel = self._root.channels[chan]
-	ops = channel.admins
-	owner = channel.owner
+	
+	ops = []
+	for admin in list(channel.admins):
+		client = self.client._protocol.clientFromID(admin)
+		if client: ops.append(client.username)
+		
+	owner = self.client._protocol.clientFromID(channel.owner)
+	
 	if owner:
 		owner = 'Owner is <%s>, ' % owner
 	else:
@@ -493,7 +499,7 @@ def chanadmin_kick(self, user, chan, rights, username, reason=''):
 		self._root.broadcast('LEFT %s %s kicked from channel by <%s>' % (chan, username, user), chan)
 
 def chanadmin_ban(self, user, chan, rights, username, reason=''):
-	channel = self._root.channel[chan]
+	channel = self._root.channels[chan]
 	if reason: reason = '(%s)'%reason
 	users = channel.users
 	if username in users or username in self._root.usernames:
