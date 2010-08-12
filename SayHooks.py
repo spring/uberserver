@@ -413,7 +413,7 @@ def chanpublic_info(self,user,chan,rights):
 	owner = self._protocol.clientFromID(channel.owner)
 	
 	if owner:
-		owner = 'Owner is <%s>, ' % owner
+		owner = 'Owner is <%s>, ' % owner.username
 	else:
 		owner = 'No owner is registered, '
 	if ops:
