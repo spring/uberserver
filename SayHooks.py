@@ -407,10 +407,10 @@ def chanpublic_info(self,user,chan,rights):
 	
 	ops = []
 	for admin in list(channel.admins):
-		client = self.client._protocol.clientFromID(admin)
+		client = self._protocol.clientFromID(admin)
 		if client: ops.append(client.username)
 		
-	owner = self.client._protocol.clientFromID(channel.owner)
+	owner = self._protocol.clientFromID(channel.owner)
 	
 	if owner:
 		owner = 'Owner is <%s>, ' % owner
