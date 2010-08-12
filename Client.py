@@ -145,7 +145,8 @@ class Client:
 		if self.handler.thread == thread.get_ident():
 			msg = self.msg_id + msg
 			
-		self.sendbuffer.append(msg)
+		self.sendbuffer.append(msg+self.nl)
+		self.handler.poller.setoutput(self.conn, True)
 
 	def SendNow(self, msg):
 		if self.sendError: return

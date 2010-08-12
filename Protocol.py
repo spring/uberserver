@@ -344,7 +344,7 @@ class Protocol:
 		if self._root.dbtype == 'lan': lan = '1'
 		else: lan = '0'
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), lan))
-		client.Send(login_string)
+		client.SendNow(login_string)
 		
 	def _remove(self, client, reason='Quit'):
 		if client.username and client.username in self._root.usernames:
@@ -1129,13 +1129,15 @@ class Protocol:
 				client.Send('SETSCRIPTTAGS %s'%'\t'.join(scripttags))
 				if battle.disabled_units:
 					client.Send('DISABLEUNITS %s' % ' '.join(battle.disabled_units))
-				self._root.broadcast('JOINEDBATTLE %s %s' % (battle_id, username), ignore=battle.host)
+				self._root.broadcast('JOINEDBATTLE %s %s' % (battle_id, username), ignore=(battle.host, username))
 				
 				scriptPassword = client.scriptPassword
 				if host.compat_scriptPassword and scriptPassword:
 					host.Send('JOINEDBATTLE %s %s %s' % (battle_id, username, scriptPassword))
+					client.Send('JOINEDBATTLE %s %s %s' % (battle_id, username, scriptPassword))
 				else:
 					host.Send('JOINEDBATTLE %s %s' % (battle_id, username))
+					client.Send('JOINEDBATTLE %s %s' % (battle_id, username))
 				
 				if battle.natType > 0:
 					host = battle.host
