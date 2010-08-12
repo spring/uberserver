@@ -73,7 +73,7 @@ class Dispatcher:
 			self.socketmap[s].Remove()
 	
 	def finishRemove(self, client, reason='Quit'):
-		if client.static: return # static clients don't disconnect
+		if client.static or not client._protocol: return # static clients don't disconnect
 		client._protocol._remove(client, reason)
 		
 		s = client.conn
