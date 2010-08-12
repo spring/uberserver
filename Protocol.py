@@ -197,7 +197,7 @@ class Channel(AutoDict):
 			self._root.chanserv.Send('JOIN %s' % self.chan)
 	
 	def broadcast(self, message):
-		self._root.multicast(self.users, message)
+		self._root.broadcast(message, self.chan)
 	
 	def channelMessage(self, message):
 		self.broadcast('CHANNELMESSAGE %s %s' % (self.chan, message))
