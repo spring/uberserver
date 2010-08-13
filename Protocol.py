@@ -675,6 +675,13 @@ class Protocol:
 		sock.sendto('Port testing...', (host, port))
 
 	def in_REGISTER(self, client, username, password):
+		for char in username:
+			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
+				client.Send('REGISTRATIONDENIED Unicode names are currently disallowed.')
+				return
+		if len(username) > 20:
+			client.Send('REGISTRATIONDENIED Username is too long.')
+			return
 		good, reason = self.userdb.register_user(username, password, client.ip_address, client.country_code)
 		if good:
 			self._root.console_write('Handler %s: Successfully registered user <%s> on session %s.'%(client.handler.num, username, client.session_id))
@@ -1588,6 +1595,14 @@ class Protocol:
 	
 	def in_RENAMEACCOUNT(self, client, newname):
 	#	return
+		for char in username:
+			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
+				client.Send('REGISTRATIONDENIED Unicode names are currently disallowed.')
+				return
+		if len(username) > 20:
+			client.Send('REGISTRATIONDENIED Username is too long.')
+			return
+			
 		user = client.username
 		if user == newname:
 			client.Send('SERVERMSG You already have that username.')
