@@ -1595,11 +1595,11 @@ class Protocol:
 	
 	def in_RENAMEACCOUNT(self, client, newname):
 	#	return
-		for char in username:
+		for char in newname:
 			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
 				client.Send('REGISTRATIONDENIED Unicode names are currently disallowed.')
 				return
-		if len(username) > 20:
+		if len(newname) > 20:
 			client.Send('REGISTRATIONDENIED Username is too long.')
 			return
 			
