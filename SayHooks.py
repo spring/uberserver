@@ -444,6 +444,15 @@ def chanowner_censor(self, user, chan, rights, state=''):
 	else: state = 'disabled'
 	_reply(self, chan, 'Language censoring is %s.' % state)
 
+def chanowner_allowmode(self, user, chan, rights, allowmode):
+	'set the allow mode to allow or ban for whitelist or blacklist'
+	chan = self._root.channels[chan]
+	allowmode = allowmode.lower()
+	if allowmode in ('ban', 'allow'):
+		chan.autokick = allowmode
+	
+	_reply(self, chan, 'Allow mode is: %s' % chan.autokick)
+
 def chanowner_op(self, user, chan, rights, users):
 	'add user(s) to the channel admin list'
 	channel = self._root.channels[chan]
@@ -479,16 +488,6 @@ def chanowner_unregister(self, user, chan, rights):
 		return
 	channel.owner = ''
 	_reply(self, chan, 'Channel #%s successfully unregistered' % chan)
-
-def chanowner_allowmode(self, user, chan, rights, allowmode):
-	'set the allow mode to allow or ban for whitelist or blacklist'
-	chan = self._root.channels[chan]
-	allowmode = allowmode.lower()
-	if allowmode in ('ban', 'allow'):
-		chan.autokick = allowmode
-		_reply(self, chan, 'Allow mode set to: %s' % chan.autokick)
-	else:
-		_reply(self, chan, 'Allow mode must be "ban" or "allow"')
 
 def chanadmin_topic(self, user, channel, rights, topic):
 	self._root.channels[channel].setTopic(self, topic)
