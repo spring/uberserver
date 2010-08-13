@@ -480,8 +480,17 @@ def chanowner_unregister(self, user, chan, rights):
 	channel.owner = ''
 	_reply(self, chan, 'Channel #%s successfully unregistered' % chan)
 
+def chanowner_allowmode(self, user, chan, rights, allowmode):
+	'set the allow mode to allow or ban for whitelist or blacklist'
+	chan = self._root.channels[chan]
+	if allowmode in 'ban', 'allow':
+		chan.autokick = allowmode
+		_reply(self, chan, 'Allow mode set to: %s' % chan.autokick)
+	else:
+		_reply(self, chan, 'Allow mode must be "ban" or "allow"')
+
 def chanadmin_topic(self, user, channel, rights, topic):
-	channel = self._root.channels[channel].setTopic(self, topic)
+	self._root.channels[channel].setTopic(self, topic)
 
 def chanadmin_kick(self, user, chan, rights, username, reason=''):
 	channel = self._root.channels[chan]
@@ -546,6 +555,7 @@ def chanadmin_chanmsg(self,user,chan,rights,message):
 	self._root.broadcast('CHANNELMESSAGE %s %s'%(chan, message), chan)
 
 def modchan_alias(self,user,chan,rights,alias,args=None):
+	'args can be "blind" or "nolock"'
 	if args:
 		args = args.lower()
 		if 'blind' in args: blind = True
