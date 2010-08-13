@@ -306,8 +306,6 @@ class DataHandler:
 						self.updates[name][version] = {}
 						
 					self.updates[name][version] = right
-			
-			print self.updates
 	
 	def getUserDB(self):
 		if self.dbtype in ('legacy', 'lan'):

@@ -267,7 +267,7 @@ class UsersHandler:
 			return ['IPv6 not implemented']
 		else: # IPv4
 			ip = ip.split('.', 3)
-			for user in self.accounts:
+			for user in self.accounts.values():
 				user_ip = user.last_ip.split('.', 3)
 				for i in xrange(len(ip)):
 					if ip[i] != '*' and not ip[i] == user_ip[i]:
