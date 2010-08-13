@@ -1665,7 +1665,9 @@ class Protocol:
 			kickeduser.Remove('Kicked from server')
 	
 	def in_KILLALL(self, client):
-		client.Remove('Idiot')
+		for client in self._root.clients.values():
+			if not client.isAdmin():
+				client.Remove('all clients killed')
 	
 	def in_TESTLOGIN(self, client, username, password):
 		good, reason = self.userdb.login_user(username, password, client.ip_address)
