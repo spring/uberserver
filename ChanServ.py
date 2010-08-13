@@ -116,11 +116,11 @@ class ChanServ:
 				if access in ['mod', 'founder']:
 					if args == 'on':
 						channel.antispam = True
-						channel.channelMessage('%s Anti-spam protection was enabled by <%s>' % (chan, args, user))
+						channel.channelMessage('%s Anti-spam protection was enabled by <%s>' % (chan, user))
 						return '#%s: Anti-spam protection is on.' % chan
 					elif args == 'off':
 						channel.antispam = False
-						channel.channelMessage('%s Anti-spam protection was disabled by <%s>' % (chan, args, user))
+						channel.channelMessage('%s Anti-spam protection was disabled by <%s>' % (chan, user))
 						return '#%s: Anti-spam protection is off.' % chan
 				if not channel.antispam: status = 'off'
 				return '#%s: Anti-spam protection is %s' % (chan, status)
