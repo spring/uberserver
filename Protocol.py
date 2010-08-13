@@ -1516,7 +1516,7 @@ class Protocol:
 			client.Send('SERVERMSG You can\'t get the ingame time of other users.')
 	
 	def in_UPTIME(self, client):
-		client.Send('SERVERMSG Server uptime is %i.' % self._time_since(self._root.start_time))
+		client.Send('SERVERMSG Server uptime is %s.' % self._time_since(self._root.start_time))
 	
 	def in_GETLASTLOGINTIME(self, client, username):
 		if username:
