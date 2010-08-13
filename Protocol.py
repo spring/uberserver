@@ -1424,6 +1424,7 @@ class Protocol:
 					kickuser.Send('FORCEQUITBATTLE')
 					self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, username), ignore=username)
 					battle.users.remove(username)
+					client.current_battle = None
 					if username == battle.host:
 						self.broadcast_RemoveBattle(battle)
 			else:

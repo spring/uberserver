@@ -190,7 +190,7 @@ def _chan_msg_filter(self, client, chan, msg):
 	channel = self._root.channels[chan]
 	
 	if channel.isMuted(client): return msg # client is muted, no use doing anything else
-	if channel.antispam or channel.isOp(client): # don't apply antispam to ops
+	if channel.antispam and not channel.isOp(client): # don't apply antispam to ops
 		_spam_rec(client, chan, msg)
 		if _spam_enum(client, chan):
 			channel.muteUser(self._root.chanserv, client, 30, ip=True, quiet=True)
