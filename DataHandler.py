@@ -33,6 +33,7 @@ class DataHandler:
 		self.tsbanurl = None
 		self.channelfile = None
 		self.protocol = None
+		self.updatefile = None
 		
 		self.max_threads = 25
 		self.sqlurl = 'sqlite:///sqlite.txt'
@@ -41,6 +42,7 @@ class DataHandler:
 		self.SayHooks = __import__('SayHooks')
 		self.censor = True
 		self.motd = None
+		self.updates = {}
 		self.running = True
 		
 		self.start_time = time.time()
@@ -100,7 +102,9 @@ class DataHandler:
 				print '  --tsbans SQLURL'
 				print '      { Uses SQL database at the specified sqlurl as a legacy TASServer ban database. } '
 				print '  --channels /path/to/settings.xml'
-				print '      { Path to ChanServ\'s settings.xml, for using the legacy ChanServ channel database. }'
+				print '      { Path to ChanServ settings.xml, for using the legacy ChanServ channel database. }'
+				print ' --updates /path/to/updates.txt'
+				print '     { Path to updates.txt, for using Spring update system. }'
 				print 'SQLURL Examples:'
 				#print '  "sqlite:///:memory:" or "sqlite:///"'
 				#print '     { both make a temporary database in memory }'
@@ -120,7 +124,7 @@ class DataHandler:
 				print '     { requires the kinterbasdb module }'
 				print
 				print 'Usage example (this is what the test server uses at the moment):'
-				print ' server.py -p 8300 -n 8301 -s sqlite:///:memory:'
+				print ' server.py -p 8300 -n 8301'
 				print
 				exit()
 			if arg in ['p', 'port']:
@@ -185,6 +189,14 @@ class DataHandler:
 				except:
 					print 'Error opening ChanServ settings.xml.'
 					self.channelfile = None
+			elif arg == 'updates':
+				try:
+					self.updatefile = argp[0]
+					open(self.updatefile, 'r').close()
+				except:
+					print 'Error opening legacy updates.xml.'
+					self.updatefile = None
+					
 		if self.dbtype == 'sql':
 			if self.sqlurl == 'sqlite:///:memory:' or self.sqlurl == 'sqlite:///':
 				print 'In-memory sqlite databases are not supported.'
@@ -250,6 +262,17 @@ class DataHandler:
 				for name in channels:
 					self.chanserv.client._protocol._handle(self.chanserv.client, 'JOIN %s' % name)
 		
+		if not self.log:
+			try:
+				self.output = open('server.log', 'w')
+				self.log = True
+			except: pass
+		
+		self.parseFiles()
+		
+		self.protocol = Protocol(self, None)
+	
+	def parseFiles(self):
 		if os.path.isfile('motd.txt'):
 			motd = []
 			f = open('motd.txt', 'r')
@@ -259,13 +282,32 @@ class DataHandler:
 				for line in data.split('\n'):
 					motd.append(line.strip())
 			self.motd = motd
-		if not self.log:
-			try:
-				self.output = open('server.log', 'w')
-				self.log = True
-			except: pass
 		
-		self.protocol = Protocol(self, None)
+		if self.updatefile:
+			self.updates = {}
+			f = open(self.updatefile, 'r')
+			data = f.read()
+			f.close()
+			if data:
+				for line in data.split('\n'):
+					if not ':' in line: continue
+					left, right = line.split(':', 1)
+					
+					left = left.lower()
+					if ' ' in left:
+						name, version = left.rsplit(' ',1)
+					else:
+						name, version = left, 'default'
+					
+					if not name in self.updates:
+						self.updates[name] = {}
+					
+					if not version in self.updates[name]:
+						self.updates[name][version] = {}
+						
+					self.updates[name][version] = right
+			
+			print self.updates
 	
 	def getUserDB(self):
 		if self.dbtype in ('legacy', 'lan'):
@@ -391,6 +433,11 @@ class DataHandler:
 
 	def _rebind_slow(self):
 		try:
+			self.parseFiles()
+		except:
+			self.error(traceback.format_exc())
+		
+		try:
 			self.dispatcher.rebind()
 				
 			for channel in dict(self.channels): # hack, but I guess reloading is all a hack :P
@@ -401,6 +448,9 @@ class DataHandler:
 			self.protocol = Protocol(self, None)
 		except:
 			self.error(traceback.format_exc())
+			
+		self.admin_broadcast('Done reloading.')
+		self.console_write('Done reloading.')
 
 	def reload(self):
 		self.admin_broadcast('Reloading...')
@@ -413,14 +463,3 @@ class DataHandler:
 		elif 'LANUsers' in sys.modules: reload(sys.modules['LANUsers'])
 		self.SayHooks = __import__('SayHooks')
 		thread.start_new_thread(self._rebind_slow, ()) # why should reloading block the thread? :)
-		if os.path.isfile('motd.txt'):
-			motd = []
-			f = open('motd.txt', 'r')
-			data = f.read()
-			f.close()
-			if data:
-				for line in data.split('\n'):
-					motd.append(line.strip())
-			self.motd = motd
-		self.admin_broadcast('Done reloading.')
-		self.console_write('Done reloading.')
