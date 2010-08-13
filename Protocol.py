@@ -1625,7 +1625,13 @@ class Protocol:
 			client.Send('SERVERMSG Failed to rename to <%s>: %s' % (newname, reason))
 	
 	def in_CHANGEPASSWORD(self, client, oldpassword, newpassword):
-		client.Send('SERVERMSG Changing password is currently disabled.')
+		user = self.userdb.clientFromUsername(username)
+		if user:
+			if user.password == oldpass:
+				user.password = newpass
+				client.Send('SERVERMSG Password changed successfully.')
+			else:
+				client.Send('SERVERMSG Incorrect password.')
 
 	def in_FORGEMSG(self, client, user, msg):
 		if user == client.username:

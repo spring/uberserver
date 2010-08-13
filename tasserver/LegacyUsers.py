@@ -213,6 +213,14 @@ class UsersHandler:
 				del self.accounts[username.lower()]
 				return True, 'Account renamed successfully.'
 	
+	def change_password(self, username, oldpass, newpass):
+		user = self.clientFromUsername(username)
+		if user:
+			if user.password == oldpass:
+				user.password = newpass
+			else:
+				return False, 'Incorrect password'
+	
 	def save_user(self, client):
 		user = self.clientFromUsername(client.username)
 		if user:
