@@ -88,13 +88,13 @@ class ChanServ:
 				if len(users) == 1: users = '1 user is'
 				else: users = '%i users are' % len(users)
 				return '#%s info: Anti-spam protection is %s. %s, %s. %s currently in the channel.' % (chan, antispam, founder, mods, users)
-			if cmd == 'topic':
+			elif cmd == 'topic':
 				if access in ['mod', 'founder', 'op']:
 					channel.setTopic(client, args)
 					return '#%s: Topic changed' % chan
 				else:
 					return '#%s: You do not have permission to set the topic' % chan
-			if cmd == 'unregister':
+			elif cmd == 'unregister':
 				if access in ['mod', 'founder']:
 					channel.owner = ''
 					channel.channelMessage('#%s has been unregistered'%chan)
@@ -102,7 +102,7 @@ class ChanServ:
 					return '#%s: Successfully unregistered.' % chan
 				else:
 					return '#%s: You must contact one of the server moderators or the owner of the channel to unregister a channel' % chan
-			if cmd == 'changefounder':
+			elif cmd == 'changefounder':
 				if access in ['mod', 'founder']:
 					if not args: return '#%s: You must specify a new founder' % chan
 					target = self.client._protocol.clientFromUsername(args)
@@ -112,7 +112,7 @@ class ChanServ:
 					return '#%s: Successfully changed founder to <%s>' % (chan, args)
 				else:
 					return '#%s: You must contact one of the server moderators or the owner of the channel to change the founder' % chan
-			if cmd == 'spamprotection':
+			elif cmd == 'spamprotection':
 				if access in ['mod', 'founder']:
 					if args == 'on':
 						channel.antispam = True
@@ -124,7 +124,7 @@ class ChanServ:
 						return '#%s: Anti-spam protection is off.' % chan
 				if not channel.antispam: status = 'off'
 				return '#%s: Anti-spam protection is %s' % (chan, status)
-			if cmd == 'op':
+			elif cmd == 'op':
 				if access in ['mod', 'founder']:
 					if not args: return '#%s: You must specify a user to op' % chan
 					target = self.client._protocol.clientFromUsername(args)
@@ -132,7 +132,7 @@ class ChanServ:
 					channel.opUser(client, target)
 				else:
 					return '#%s: You do not have permission to op users' % chan
-			if cmd == 'deop':
+			elif cmd == 'deop':
 				if access in ['mod', 'founder']:
 					if not args: return '#%s: You must specify a user to deop' % chan
 					target = self.client._protocol.clientFromUsername(args)
@@ -140,7 +140,7 @@ class ChanServ:
 					channel.deopUser(client, target)
 				else:
 					return '#%s: You do not have permission to deop users' % chan
-			if cmd == 'chanmsg':
+			elif cmd == 'chanmsg':
 				if access in ['mod', 'founder', 'op']:
 					if not args: return '#%s: You must specify a channel message' % chan
 					target = self.client._protocol.clientFromUsername(args)
@@ -149,7 +149,7 @@ class ChanServ:
 					return #return '#%s: insert chanmsg here'
 				else:
 					return '#%s: You do not have permission to issue a channel message' % chan
-			if cmd == 'lock':
+			elif cmd == 'lock':
 				if access in ['mod', 'founder', 'op']:
 					if not args: return '#%s: You must specify a channel key to lock a channel' % chan
 					channel.setKey(client, args)
@@ -157,13 +157,13 @@ class ChanServ:
 					return '#%s: Locked' % chan
 				else:
 					return '#%s: You do not have permission to lock the channel' % chan
-			if cmd == 'unlock':
+			elif cmd == 'unlock':
 				if access in ['mod', 'founder', 'op']:
 					channel.setKey(client, '*')
 					return '#%s: Unlocked' % chan
 				else:
 					return '#%s: You do not have permission to unlock the channel' % chan
-			if cmd == 'kick':
+			elif cmd == 'kick':
 				if access in ['mod', 'founder', 'op']:
 					if not args: return '#%s: You must specify a user to kick from the channel' % chan
 					
@@ -180,7 +180,7 @@ class ChanServ:
 					else: return '#%s: <%s> not in channel' % (chan, target)
 				else:
 					return '#%s: You do not have permission to kick users from the channel' % chan
-			if cmd == 'mute':
+			elif cmd == 'mute':
 				if access in ['mod', 'founder', 'op']:
 					if not args: return '#%s: You must specify a user to mute' % chan
 					else:
@@ -196,14 +196,14 @@ class ChanServ:
 					channel.muteUser(client, target, duration)
 				else:
 					return '#%s: You do not have permission to mute users' % chan
-			if cmd == 'unmute':
+			elif cmd == 'unmute':
 				if access in ['mod', 'founder', 'op']:
 					if not args: return '#%s: You must specify a user to unmute' % chan
 					target = self.client._protocol.clientFromUsername(args)
 					channel.unmuteUser(client, target)
 				else:
 					return '#%s: You do not have permission to unmute users' % chan
-			if cmd == 'mutelist':
+			elif cmd == 'mutelist':
 				if channel.mutelist:
 					mutelist = dict(channel.mutelist)
 					muted = ['#%s: Mute list (%i entries):  '%(chan, len(mutelist))]
@@ -218,8 +218,9 @@ class ChanServ:
 					return muted
 				else:
 					return '#%s: Mute list is empty!' % chan
-		if client.isMod():
-			if cmd == 'register':
+		
+		if cmd == 'register':
+			if client.isMod():
 				if not args: args = user
 				self.Send('JOIN %s' % chan)
 				channel = self._root.channels[chan]
@@ -229,10 +230,8 @@ class ChanServ:
 					return '#%s: Successfully registered to <%s>' % (chan, args.split(' ',1)[0])
 				else:
 					return '#%s: User <%s> does not exist.' % (chan, args)
-		elif not chan in self._root.channels:
+			elif not chan in self._root.channels:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to register a channel' % chan
-		else:
-			return '#%s is not registered.' % chan
 		return ''
 	
 	def Send(self, msg):
