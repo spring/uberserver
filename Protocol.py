@@ -648,6 +648,7 @@ class Protocol:
 	
 	def client_AddBattle(self, client, battle):
 		ubattle = battle.copy()
+		if not battle.host in self._root.usernames: return
 		host = self._root.usernames[battle.host]
 		if host.ip_address == client.ip_address: # translates the ip to always be compatible with the client
 			if client.local_ip == host.local_ip:
