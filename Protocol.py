@@ -964,10 +964,10 @@ class Protocol:
 	def in_JOIN(self, client, chan, key=None):
 		for char in chan:
 			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
-				client.Send('JOINFAILED Unicode channels are not allowed.')
+				client.Send('JOINFAILED %s Unicode channels are not allowed.' % chan)
 				return
-		if len(newname) > 20:
-			client.Send('JOINFAILED Channel name is too long.')
+		if len(chan) > 20:
+			client.Send('JOINFAILED %s Channel name is too long.' % chan)
 			return
 		
 		alreadyaliased = []
