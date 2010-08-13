@@ -24,6 +24,8 @@ restricted = {
 	'FORCETEAMNO',
 	'HANDICAP',
 	'JOINBATTLE',
+	'JOINBATTLEACCEPT',
+	'JOINBATTLEDENY',
 	'KICKFROMBATTLE',
 	'LEAVEBATTLE',
 	'MAPGRADES',
@@ -68,6 +70,7 @@ restricted = {
 	'KILLALL',
 	'MYSTATUS',
 	'PORTTEST',
+	'UPTIME',
 	'RENAMEACCOUNT'],
 'mod':['BAN', 'BANUSER', 'BANIP', 'UNBAN', 'BANLIST','KICKUSER','FINDIP','GETIP',
 	'FORCECLOSEBATTLE','SETBOTMODE'],
@@ -83,6 +86,7 @@ restricted = {
 	'FORGEMSG','FORGEREVERSEMSG',
 	'GETLOBBYVERSION', 'GETSENDBUFFERSIZE',
 	'GETACCOUNTINFO', 'GETLASTLOGINTIME', 'GETREGISTRATIONDATE',
+	'GETACCOUNTACCESS', 
 	'ADMIN','MOD','DEBUG','PYTHON',
 	'TESTLOGIN','SETINGAMETIME',],
 }
@@ -1510,6 +1514,9 @@ class Protocol:
 			client.Send('SERVERMSG Your ingame time is %d minutes (%d hours).'%(ingame_time, ingame_time / 60))
 		else:
 			client.Send('SERVERMSG You can\'t get the ingame time of other users.')
+	
+	def in_UPTIME(self, client):
+		client.Send('SERVERMSG Server uptime is %i.' % self._time_since(self._root.start_time))
 	
 	def in_GETLASTLOGINTIME(self, client, username):
 		if username:

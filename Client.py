@@ -176,7 +176,7 @@ class Client:
 		except socket.error, e:
 			if e == errno.EAGAIN:
 				return
-			self.handler._remove(self.conn)
+			self.Remove()
 		
 		self.handler.poller.setoutput(self.conn, bool(self.sendbuffer or self.sendingmessage))
 	
