@@ -962,6 +962,14 @@ class Protocol:
 			client.Send('MUTELISTEND')
 
 	def in_JOIN(self, client, chan, key=None):
+		for char in chan:
+			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
+				client.Send('JOINFAILED Unicode channels are not allowed.')
+				return
+		if len(newname) > 20:
+			client.Send('JOINFAILED Channel name is too long.')
+			return
+		
 		alreadyaliased = []
 		run = True
 		blind = False
@@ -996,13 +1004,13 @@ class Protocol:
 		else:
 			if not user == channel.owner and 'mod' not in client.accesslevels and 'admin' not in client.accesslevels:
 				if channel.key and not nolock and not channel.key == key:
-					client.Send('SERVERMSG Cannot join #%s: invalid key' % chan)
+					client.Send('JOINFAILED %s Invalid key' % chan)
 					return
 				elif channel.autokick == 'ban' and user in channel.ban:
-					client.Send('SERVERMSG Cannot join #%s: you are banned from the channel %s' % (chan, channel.ban[user]))
+					client.Send('JOINFAILED %s You are banned from the channel %s' % (chan, channel.ban[user]))
 					return
 				elif channel.autokick == 'allow' and user not in channel.allow:
-					client.Send('SERVERMSG Cannot join #%s: you are not allowed' % channel.ban['user'])
+					client.Send('JOINFAILED %s You are not allowed' % chan)
 					return
 			if not chan in client.channels:
 				client.channels.append(chan)
