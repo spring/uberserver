@@ -483,7 +483,8 @@ def chanowner_unregister(self, user, chan, rights):
 def chanowner_allowmode(self, user, chan, rights, allowmode):
 	'set the allow mode to allow or ban for whitelist or blacklist'
 	chan = self._root.channels[chan]
-	if allowmode in 'ban', 'allow':
+	allowmode = allowmode.lower()
+	if allowmode in ('ban', 'allow'):
 		chan.autokick = allowmode
 		_reply(self, chan, 'Allow mode set to: %s' % chan.autokick)
 	else:
