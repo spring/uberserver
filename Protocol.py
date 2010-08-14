@@ -1625,7 +1625,7 @@ class Protocol:
 			client.Send('SERVERMSG Failed to rename to <%s>: %s' % (newname, reason))
 	
 	def in_CHANGEPASSWORD(self, client, oldpassword, newpassword):
-		user = self.userdb.clientFromUsername(username)
+		user = self.userdb.clientFromUsername(self.username)
 		if user:
 			if user.password == oldpass:
 				user.password = newpass
