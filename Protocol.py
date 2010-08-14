@@ -380,7 +380,7 @@ class Protocol:
 			for battle in self._root.battles.values():
 				if battle.host == user:
 					if not battle_id == battle.id:
-						self._root.console_write('broken battle: %s %s' % (battle_id, battle.id))
+						self._root.error('broken battle: %s %s' % (battle_id, battle.id))
 				
 			if battle_id in self._root.battles:
 				battle = self._root.battles[battle_id]
