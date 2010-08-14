@@ -380,6 +380,8 @@ class Protocol:
 			for battle in self._root.battles.values():
 				if battle.host == user:
 					if not battle_id == battle.id:
+						self.broadcast_RemoveBattle(battle)
+						del self._root.battles[battle.id]
 						self._root.error('broken battle: %s %s' % (battle_id, battle.id))
 				
 			if battle_id in self._root.battles:
@@ -397,7 +399,7 @@ class Protocol:
 						self.broadcast_SendUser(client, 'LEFTBATTLE %s %s' % (battle_id, user))
 			self.broadcast_RemoveUser(client)
 		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
-
+openba
 	def _handle(self, client, msg):
 		if msg.startswith('#'):
 			test = msg.split(' ')[0][1:]
@@ -1248,6 +1250,7 @@ class Protocol:
 				self.broadcast_RemoveBattle(battle)
 				client.hostport = None
 				del self._root.battles[battle_id]
+				client.current_battle = None
 			elif client.username in battle.users:
 				battle.users.remove(client.username)
 				battle_bots = dict(client.battle_bots)
@@ -1257,7 +1260,7 @@ class Protocol:
 						del battle.bots[bot]
 						self._root.broadcast_battle('REMOVEBOT %s %s' % (battle_id, bot), battle_id)
 				self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, client.username))
-		client.current_battle = None
+				client.current_battle = None
 
 	def in_MYBATTLESTATUS(self, client, battlestatus, myteamcolor):
 		try:
