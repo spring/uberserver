@@ -399,7 +399,7 @@ class Protocol:
 						self.broadcast_SendUser(client, 'LEFTBATTLE %s %s' % (battle_id, user))
 			self.broadcast_RemoveUser(client)
 		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
-openba
+
 	def _handle(self, client, msg):
 		if msg.startswith('#'):
 			test = msg.split(' ')[0][1:]
