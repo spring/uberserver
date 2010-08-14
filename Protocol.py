@@ -1627,8 +1627,8 @@ class Protocol:
 	def in_CHANGEPASSWORD(self, client, oldpassword, newpassword):
 		user = self.userdb.clientFromUsername(client.username)
 		if user:
-			if user.password == oldpass:
-				user.password = newpass
+			if user.password == oldpassword:
+				user.password = newpassword
 				client.Send('SERVERMSG Password changed successfully.')
 			else:
 				client.Send('SERVERMSG Incorrect password.')
