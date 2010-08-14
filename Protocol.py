@@ -375,7 +375,13 @@ class Protocol:
 					if user in channel.blindusers:
 						channel.blindusers.remove(user)
 				self._root.broadcast('LEFT %s %s %s'%(chan, user, reason), chan, user)
+				
 			battle_id = client.current_battle
+			for battle in self._root.battles.values():
+				if battle.host == user:
+					if not battle_id == battle.id:
+						self._root.console_write('broken battle: %s %s' % (battle_id, battle.id))
+				
 			if battle_id in self._root.battles:
 				battle = self._root.battles[battle_id]
 				if battle.host == user:
@@ -1436,6 +1442,7 @@ class Protocol:
 					client.current_battle = None
 					if username == battle.host:
 						self.broadcast_RemoveBattle(battle)
+						del self._root.battles[battle_id]
 			else:
 				client.Send('SERVERMSG You must be the battle host to kick from a battle.')
 
