@@ -383,26 +383,9 @@ class Protocol:
 				self._root.broadcast('LEFT %s %s %s'%(chan, user, reason), chan, user)
 				
 			battle_id = client.current_battle
-			for battle in self._root.battles.values():
-				if battle.host == user:
-					if not battle_id == battle.id:
-						self.broadcast_RemoveBattle(battle)
-						del self._root.battles[battle.id]
-						self._root.error('broken battle: %s %s' % (battle_id, battle.id))
-				
-			if battle_id in self._root.battles:
-				battle = self._root.battles[battle_id]
-				if battle.host == user:
-					self.broadcast_RemoveBattle(battle)
-					del self._root.battles[battle_id]
-				else:
-					if user in battle.users:
-						battle.users.remove(user)
-						for bot in bots:
-							if bot in battle.bots:
-								del battle.bots[bot]
-								self.broadcast_SendBattle(battle, 'REMOVEBOT %s %s'%(battle_id, bot))
-						self.broadcast_SendUser(client, 'LEFTBATTLE %s %s' % (battle_id, user))
+			if battle_id:
+				self.in_LEAVEBATTLE(client)
+			
 			self.broadcast_RemoveUser(client)
 		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
 
@@ -1092,7 +1075,7 @@ class Protocol:
 		#battle_id = str(battle_id)
 		host = client.username
 		battle = Battle(root=self._root, id=battle_id, type=type, natType=int(natType), password=password, port=port, maxplayers=maxplayers, hashcode=hashcode, rank=rank, maphash=maphash, map=map, title=title, modname=modname, passworded=passworded, host=host, users=[host])
-		try: valid = '%(id)i %(type)i %(natType)i %(passworded)i %(maphash)i' % ubattle
+		try: valid = '%(id)i %(type)i %(natType)i %(passworded)i %(maphash)i' % battle.copy())
 		except TypeError:
 			client.current_battle = None
 			client.Send('OPENBATTLEFAILED Invalid argument type. Make sure your lobby is passing the right arguments with no spaces in the wrong places.')
@@ -1262,6 +1245,7 @@ class Protocol:
 	def in_LEAVEBATTLE(self, client):
 		client.scriptPassword = None
 		
+		username = client.username
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
@@ -1270,8 +1254,11 @@ class Protocol:
 				client.hostport = None
 				del self._root.battles[battle_id]
 				client.current_battle = None
-			elif client.username in battle.users:
-				battle.users.remove(client.username)
+			elif username in battle.users:
+				battle.users.remove(username)
+				if username in battle.authed_users:
+					battle.authed_users.remove(username)
+					
 				battle_bots = dict(client.battle_bots)
 				for bot in battle_bots:
 					del client.battle_bots[bot]
