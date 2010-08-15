@@ -1299,7 +1299,7 @@ class Protocol:
 			
 			specs = 0
 			for username in battle.users:
-				user = self.clientFromUsername[username]
+				user = self.clientFromUsername(username)
 				if user and user.battlestatus['mode'] == '0':
 					specs += 1
 			
