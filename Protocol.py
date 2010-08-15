@@ -1324,6 +1324,8 @@ class Protocol:
 				
 				if len(battle.users) > 1:
 					client.went_ingame = time.time()
+				else:
+					client.went_ingame = None
 				if client.username == host:
 					if client.hostport:
 						self._root.broadcast_battle('HOSTPORT %i' % client.hostport, battle_id, host)
