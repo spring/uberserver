@@ -285,12 +285,12 @@ class Channel(AutoDict):
 		self.channelMessage("<%s> has just been set as this channel's founder by <%s>" % (target.username, client.username))
 	
 	def opUser(self, client, target):
-		if not client.db_id in self.admins:
+		if not target.db_id in self.admins:
 			self.admins.append(target.db_id)
 			self.channelMessage("<%s> has just been added to this channel's operator list by <%s>" % (target.username, client.username))
 	
 	def deopUser(self, client, target):
-		if client.db_id in self.admins:
+		if target.db_id in self.admins:
 			self.admins.remove(target.db_id)
 			self.channelMessage("<%s> has just been removed from this channel's operator list by <%s>" % (target.username, client.username))
 	
