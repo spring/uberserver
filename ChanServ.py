@@ -90,6 +90,7 @@ class ChanServ:
 				return '#%s info: Anti-spam protection is %s. %s, %s. %s currently in the channel.' % (chan, antispam, founder, mods, users)
 			elif cmd == 'topic':
 				if access in ['mod', 'founder', 'op']:
+					args = args or ''
 					channel.setTopic(client, args)
 					return '#%s: Topic changed' % chan
 				else:
@@ -122,7 +123,9 @@ class ChanServ:
 						channel.antispam = False
 						channel.channelMessage('%s Anti-spam protection was disabled by <%s>' % (chan, user))
 						return '#%s: Anti-spam protection is off.' % chan
-				if not channel.antispam: status = 'off'
+				
+				status = 'off'
+				if channel.antispam: status = 'on'
 				return '#%s: Anti-spam protection is %s' % (chan, status)
 			elif cmd == 'op':
 				if access in ['mod', 'founder']:
@@ -145,7 +148,7 @@ class ChanServ:
 					if not args: return '#%s: You must specify a channel message' % chan
 					target = self.client._protocol.clientFromUsername(args)
 					if target and channel.isOp(target): args = 'issued by <%s>: %s' % (user, args)
-					channel.channelMessage(chan, args)
+					channel.channelMessage(args)
 					return #return '#%s: insert chanmsg here'
 				else:
 					return '#%s: You do not have permission to issue a channel message' % chan

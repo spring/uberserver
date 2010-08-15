@@ -221,14 +221,20 @@ class Channel(AutoDict):
 			self.users.remove(username)
 			self.broadcast('LEFT %s %s %s' % (self.chan, username, (' '+reason if reason else '')))
 	
+	def isAdmin(self, client):
+		return ('admin' in client.accesslevels)
+	
+	def isMod(self, client):
+		return ('mod' in client.accesslevels) or self.isAdmin(client)
+	
 	def isFounder(self, client):
-		return client.isMod() or (client.db_id == self.owner)
+		return (client.db_id == self.owner) or self.isMod(client)
 	
 	def isOp(self, client):
-		return self.isFounder(client) or (client.db_id in self.admins)
+		return (client.db_id in self.admins) or self.isFounder(client)
 	
 	def getAccess(self, client): # return client's security clearance
-		return 'mod' if client.isMod() else\
+		return 'mod' if self.isMod(client) else\
 				('founder' if self.isFounder(client) else\
 				('op' if self.isOp(client) else\
 				'normal'))
@@ -501,9 +507,11 @@ class Protocol:
 			else:
 				self._root.admin_broadcast('NAT spoof from %s pretending to be <%s>'%(ip,username))
 
+	def _calc_access_status(self, client):
+		self._calc_access(client)
+		self._calc_status(client)
+
 	def _calc_access(self, client):
-		if not client.access:
-			return
 		userlevel = client.access
 		inherit = {'mod':['user'], 'admin':['mod', 'user']}
 		
@@ -513,7 +521,6 @@ class Protocol:
 			inherited = [userlevel]
 		if not client.access in inherited: inherited.append(client.access)
 		client.accesslevels = inherited+['everyone']
-		self._calc_status(client, client.status)
 
 	def _calc_status(self, client, status):
 		status = self._dec2bin(status, 7)
@@ -610,7 +617,13 @@ class Protocol:
 		return self._root.clientFromID(db_id) or self.userdb.clientFromID(db_id)
 	
 	def clientFromUsername(self, username):
-		return self._root.clientFromUsername(username) or self.userdb.clientFromUsername(username)
+		client = self._root.clientFromUsername(username)
+		if not client:
+			client = self.userdb.clientFromUsername(username)
+			if client:
+				client.db_id = client.id
+				self._calc_access(client)
+		return client
 
 	def broadcast_AddBattle(self, battle):
 		users = dict(self._root.usernames)
@@ -755,7 +768,7 @@ class Protocol:
 		if not username in self._root.usernames:
 			if good:
 				client.access = reason.access
-				self._calc_access(client)
+				self._calc_access_status(client)
 				client.username = username
 				if client.access == 'agreement':
 					self._root.console_write('Handler %s: Sent user <%s> the terms of service on session %s.'%(client.handler.num, username, client.session_id))
@@ -856,7 +869,7 @@ class Protocol:
 			client.access = 'user'
 			self.userdb.save_user(client)
 			client.access = 'fresh'
-			self._calc_access(client)
+			self._calc_access_status(client)
 
 	def in_HOOK(self, client, chars=''):
 		#if not client.access in ('admin', 'mod'):
@@ -1761,7 +1774,7 @@ class Protocol:
 		if user:
 			user.access = 'mod'
 			user.accesslevels = ['mod', 'user']
-			self._calc_access(user)
+			self._calc_access_status(user)
 			self._root.broadcast('CLIENTSTATUS %s %s'%(user, user.status))
 			self.userdb.save_user(user)
 
@@ -1770,7 +1783,7 @@ class Protocol:
 		if user:
 			user.access = 'admin'
 			user.accesslevels = ['admin', 'mod', 'user']
-			self._calc_access(user)
+			self._calc_access_status(user)
 			self._root.broadcast('CLIENTSTATUS %s %s'%(user, user.status))
 			self.userdb.save_user(user)
 
