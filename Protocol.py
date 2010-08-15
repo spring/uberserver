@@ -1077,11 +1077,12 @@ class Protocol:
 		battle = Battle(root=self._root, id=battle_id, type=type, natType=int(natType), password=password, port=port, maxplayers=maxplayers, hashcode=hashcode, rank=rank, maphash=maphash, map=map, title=title, modname=modname, passworded=passworded, host=host, users=[host])
 		ubattle = battle.copy()
 		
-		try: valid = '%(id)i %(type)i %(natType)i %(passworded)i %(maphash)i' % ubattle
-		except TypeError:
+		try:
+			int(battle_id), int(type), int(natType), int(passworded), int(maphash)
+		except:
 			client.current_battle = None
 			client.Send('OPENBATTLEFAILED Invalid argument type. Make sure your lobby is passing the right arguments with no spaces in the wrong places.')
-			client.Send('SERVERMSG %(id)s %(type)s %(natType)s %(passworded)s %(maphash)s' % ubattle)
+			client.Send('SERVERMSG id=%(id)s type=%(type)s natType=%(natType)s passworded=%(passworded)s maphash=%(maphash)s' % ubattle)
 			return
 			
 		self.broadcast_AddBattle(battle)
