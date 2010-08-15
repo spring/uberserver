@@ -1081,8 +1081,7 @@ class Protocol:
 			int(battle_id), int(type), int(natType), int(passworded), int(maphash)
 		except:
 			client.current_battle = None
-			client.Send('OPENBATTLEFAILED Invalid argument type. Make sure your lobby is passing the right arguments with no spaces in the wrong places.')
-			client.Send('SERVERMSG id=%(id)s type=%(type)s natType=%(natType)s passworded=%(passworded)s maphash=%(maphash)s' % ubattle)
+			client.Send('OPENBATTLEFAILED Invalid argument type, send this to your lobby dev: id=%(id)s type=%(type)s natType=%(natType)s passworded=%(passworded)s maphash=%(maphash)s' % ubattle)
 			return
 			
 		self.broadcast_AddBattle(battle)
