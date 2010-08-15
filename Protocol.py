@@ -1306,10 +1306,12 @@ class Protocol:
 			
 			battle.spectators = specs
 			
-			if spectating and len(battle.users) - specs >= battle.maxplayers and mode != '0':
+			if spectating and len(battle.users) - specs >= int(battle.maxplayers):
 				mode = '0'
+			
 			client.battlestatus.update({'ready':ready, 'id':id1+id2+id3+id4, 'ally':ally1+ally2+ally3+ally4, 'mode':mode, 'sync':sync1+sync2, 'side':side1+side2+side3+side4})
 			client.teamcolor = myteamcolor
+			
 			self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(client.username, self._calc_battlestatus(client), myteamcolor), client.current_battle)
 
 	def in_UPDATEBATTLEINFO(self, client, SpectatorCount, locked, maphash, mapname):
