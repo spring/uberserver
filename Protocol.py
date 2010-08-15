@@ -175,6 +175,7 @@ class Battle(AutoDict):
 		self.replay = replay
 		self.sending_replay_script = sending_replay_script
 		self.locked = locked
+		self.spectators = 0
 		self.__AutoDictInit__()
 
 class Channel(AutoDict):
