@@ -768,7 +768,7 @@ class Protocol:
 		if not username in self._root.usernames:
 			if good:
 				client.access = reason.access
-				self._calc_access_status(client)
+				self._calc_access(client)
 				client.username = username
 				if client.access == 'agreement':
 					self._root.console_write('Handler %s: Sent user <%s> the terms of service on session %s.'%(client.handler.num, username, client.session_id))
@@ -840,13 +840,13 @@ class Protocol:
 						if not user == battle.host:
 							client.SendBattle(battle, 'JOINEDBATTLE %s %s' % (battle.id, user))
 				
+				client.status = self._calc_status(client, 0)
+				self.broadcast_SendUser(client, 'CLIENTSTATUS %s %s'%(username, client.status))
 				for user in usernames:
 					if user == username: continue # potential problem spot, might need to check to make sure username is still in user db
 					client.SendUser(user, 'CLIENTSTATUS %s %s'%(user, usernames[user].status))
 					
 				client.Send('LOGININFOEND')
-				client.status = self._calc_status(client, 0)
-				self.broadcast_SendUser(client, 'CLIENTSTATUS %s %s'%(username, client.status))
 			else:
 				self._root.console_write('Handler %s: Failed to log in user <%s> on session %s. (rejected by database)'%(client.handler.num, username, client.session_id))
 				client.Send('DENIED %s'%reason)
