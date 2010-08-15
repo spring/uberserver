@@ -1330,7 +1330,7 @@ class Protocol:
 				battle.spectators = specs
 				
 				oldstr = 'UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % old
-				newstr = 'UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % updated
+				newstr = 'UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % battle.copy()
 				if oldstr != newstr:
 					self._root.broadcast(newstr)
 
