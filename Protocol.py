@@ -1075,7 +1075,7 @@ class Protocol:
 		#battle_id = str(battle_id)
 		host = client.username
 		battle = Battle(root=self._root, id=battle_id, type=type, natType=int(natType), password=password, port=port, maxplayers=maxplayers, hashcode=hashcode, rank=rank, maphash=maphash, map=map, title=title, modname=modname, passworded=passworded, host=host, users=[host])
-		try: valid = '%(id)i %(type)i %(natType)i %(passworded)i %(maphash)i' % battle.copy())
+		try: valid = '%(id)i %(type)i %(natType)i %(passworded)i %(maphash)i' % battle.copy()
 		except TypeError:
 			client.current_battle = None
 			client.Send('OPENBATTLEFAILED Invalid argument type. Make sure your lobby is passing the right arguments with no spaces in the wrong places.')
