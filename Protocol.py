@@ -1075,10 +1075,13 @@ class Protocol:
 		#battle_id = str(battle_id)
 		host = client.username
 		battle = Battle(root=self._root, id=battle_id, type=type, natType=int(natType), password=password, port=port, maxplayers=maxplayers, hashcode=hashcode, rank=rank, maphash=maphash, map=map, title=title, modname=modname, passworded=passworded, host=host, users=[host])
-		try: valid = '%(id)i %(type)i %(natType)i %(passworded)i %(maphash)i' % battle.copy()
+		ubattle = battle.copy()
+		
+		try: valid = '%(id)i %(type)i %(natType)i %(passworded)i %(maphash)i' % ubattle
 		except TypeError:
 			client.current_battle = None
 			client.Send('OPENBATTLEFAILED Invalid argument type. Make sure your lobby is passing the right arguments with no spaces in the wrong places.')
+			client.Send('SERVERMSG %(id)s %(type)s %(natType)s %(passworded)s %(maphash)s' % ubattle)
 			return
 			
 		self.broadcast_AddBattle(battle)
@@ -1281,8 +1284,6 @@ class Protocol:
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
-			#if client.battlestatus['mode'] == '1': spectator = True # dunno why I used this, was probably some sleepy programming :)
-			#else: spectator = False
 			u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4, id1, id2, id3, id4, ready, u = self._dec2bin(battlestatus, 32)[-32:]
 			# support more allies and ids.
 			#u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4,ally5, ally6, ally7, ally8, id1, id2, id3, id4,id5, id6, id7, id8, ready, u = self._dec2bin(battlestatus, 40)[-40:]
@@ -1690,7 +1691,7 @@ class Protocol:
 			self.userdb.save_user(user)
 	
 	def in_BROADCAST(self, client, msg):
-		self._root.broadcast('SERVERMSG %s'%msg)
+		self._root.broadcast('BROADCAST %s'%msg)
 	
 	def in_BROADCASTEX(self, client, msg):
 		self._root.broadcast('SERVERMSGBOX %s'%msg)
