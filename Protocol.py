@@ -1316,6 +1316,7 @@ class Protocol:
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
 			if battle.host == client.username:
+				old = battle.copy()
 				updated = {'id':battle_id, 'locked':int(locked), 'maphash':maphash, 'map':mapname}
 				battle.update(**updated)
 				oldstr = 'UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % old
