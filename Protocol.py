@@ -790,8 +790,6 @@ class Protocol:
 				else:
 					client.local_ip = local_ip
 				client.lobby_id = lobby_id
-				client.teamcolor = '0'
-				client.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
 				self._root.usernames[username] = client
 				client.Send('ACCEPTED %s'%username)
 				
@@ -901,7 +899,7 @@ class Protocol:
 			user = client.username
 			if user in channel.users:
 				msg = self.SayHooks.hook_SAY(self, client, chan, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel # nevermind, i just need to add inchan :>
-				if not msg: return
+				if not msg.strip(): return
 				if channel.isMuted(client):
 					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 				else:
@@ -914,6 +912,7 @@ class Protocol:
 			user  = client.username
 			if user in channel.users:
 				msg = self.SayHooks.hook_SAYEX(self, client, chan, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel
+				if not msg.strip(): return
 				if channel.isMuted(client):
 					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 				else:
@@ -923,6 +922,7 @@ class Protocol:
 		if not msg: return
 		if user in self._root.usernames:
 			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel
+			if not msg.strip(): return
 			client.Send('SAYPRIVATE %s %s'%(user, msg))
 			self._root.usernames[user].Send('SAIDPRIVATE %s %s'%(client.username, msg))
 
@@ -1096,7 +1096,7 @@ class Protocol:
 			battle = self._root.battles[battle_id]
 			user = client.username
 			msg = self.SayHooks.hook_SAYBATTLE(self, client, battle_id, msg)
-			if not msg: return
+			if not msg.strip(): return
 			self.broadcast_SendBattle(battle, 'SAIDBATTLE %s %s' % (user, msg))
 
 	def in_SAYBATTLEEX(self, client, msg):
@@ -1137,8 +1137,9 @@ class Protocol:
 			battle = self._root.battles[battle_id]
 			if not username in battle.users:
 				if battle.passworded == 1 and not battle.password == password:
-					client.Send('JOINBATTLEFAILED Incorrect password.')
-					return
+					if not (host.compat_battleAuth and username in battle.authed_users):
+						client.Send('JOINBATTLEFAILED Incorrect password.')
+						return
 				if battle.locked:
 					client.Send('JOINBATTLEFAILED Battle is locked.')
 					return
@@ -1178,6 +1179,13 @@ class Protocol:
 						raise NameError, '%s is having an identity crisis' % (host)
 					if client.udpport:
 						self._root.usernames[host].Send('CLIENTIPPORT %s %s %s' % (username, client.ip_address, client.udpport))
+				
+				specs = 0
+				for username in battle.users:
+					user = self.clientFromUsername[username]
+					if user and user.battlestatus['mode'] == '0':
+						specs += 1
+				
 				for user in battle_users:
 					battle_user = self._root.usernames[user]
 					battlestatus = self._calc_battlestatus(battle_user)
@@ -1223,7 +1231,7 @@ class Protocol:
 			if battle.host == client.username:
 				battle.replay_script = []
 				if battle.sending_replay_script:
-					client.Send('SERVERMSG You have issues. Talk to your lobby dev.')
+					client.Send('SERVERMSG Your lobby has problems. Talk to your lobby dev.')
 					battle.sending_replay_script = False
 				else:
 					battle.sending_replay_script = True
@@ -1284,10 +1292,20 @@ class Protocol:
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
+			spectating == (client.battlestatus['mode'] == 0) #(client.spectator)
 			u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4, id1, id2, id3, id4, ready, u = self._dec2bin(battlestatus, 32)[-32:]
 			# support more allies and ids.
 			#u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4,ally5, ally6, ally7, ally8, id1, id2, id3, id4,id5, id6, id7, id8, ready, u = self._dec2bin(battlestatus, 40)[-40:]
-			if len(battle.users) - battle.spectators > battle.maxplayers and not mode == '0':
+			
+			specs = 0
+			for username in battle.users:
+				user = self.clientFromUsername[username]
+				if user and user.battlestatus['mode'] == '0':
+					specs += 1
+			
+			battle.spectators = specs
+			
+			if spectating and len(battle.users) - specs >= battle.maxplayers and mode != '0':
 				mode = '0'
 			client.battlestatus.update({'ready':ready, 'id':id1+id2+id3+id4, 'ally':ally1+ally2+ally3+ally4, 'mode':mode, 'sync':sync1+sync2, 'side':side1+side2+side3+side4})
 			client.teamcolor = myteamcolor
@@ -1298,11 +1316,12 @@ class Protocol:
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
 			if battle.host == client.username:
-				updated = {'id':battle_id, 'spectators':int(SpectatorCount), 'locked':int(locked), 'maphash':maphash, 'map':mapname}
-				old = battle.copy()
+				updated = {'id':battle_id, 'locked':int(locked), 'maphash':maphash, 'map':mapname}
 				battle.update(**updated)
-				if old == battle.copy(): return # nothing changed # apparently broken
-				self._root.broadcast('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s'%updated)
+				oldstr = 'UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % old
+				newstr = 'UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % updated
+				if oldstr != newstr:
+					self._root.broadcast(newstr)
 
 	def in_MYSTATUS(self, client, status):
 		if not status.isdigit():

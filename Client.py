@@ -41,13 +41,18 @@ class Client:
 		self.access = 'fresh'
 		self.accesslevels = ['fresh','everyone']
 		self.channels = []
+		
 		self.battle_bots = {}
 		self.current_battle = None
 		self.battle_bans = []
-		self.username = ''
-		self.password = ''
 		self.ingame_time = 0
 		self.went_ingame = 0
+		self.spectator = False
+		self.battlestatus = {}
+		self.teamcolor = '0'
+		
+		self.username = ''
+		self.password = ''
 		self.hostport = None
 		self.udpport = 0
 		self.bot = 0
