@@ -1182,7 +1182,7 @@ class Protocol:
 				
 				specs = 0
 				for username in battle.users:
-					user = self.clientFromUsername[username]
+					user = self.clientFromUsername(username)
 					if user and user.battlestatus['mode'] == '0':
 						specs += 1
 				
@@ -1319,6 +1319,15 @@ class Protocol:
 				old = battle.copy()
 				updated = {'id':battle_id, 'locked':int(locked), 'maphash':maphash, 'map':mapname}
 				battle.update(**updated)
+				
+				specs = 0
+				for username in battle.users:
+					user = self.clientFromUsername(username)
+					if user and user.battlestatus['mode'] == '0':
+						specs += 1
+				
+				battle.spectators = specs
+				
 				oldstr = 'UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % old
 				newstr = 'UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % updated
 				if oldstr != newstr:
