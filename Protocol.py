@@ -509,7 +509,7 @@ class Protocol:
 
 	def _calc_access_status(self, client):
 		self._calc_access(client)
-		self._calc_status(client)
+		self._calc_status(client, client.status)
 
 	def _calc_access(self, client):
 		userlevel = client.access
