@@ -48,7 +48,7 @@ class Client:
 		self.ingame_time = 0
 		self.went_ingame = 0
 		self.spectator = False
-		self.battlestatus = {}
+		client.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
 		self.teamcolor = '0'
 		
 		self.username = ''
