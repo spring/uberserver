@@ -1092,6 +1092,12 @@ class Protocol:
 		#battle_id = str(battle_id)
 		host = client.username
 		battle = Battle(root=self._root, id=battle_id, type=type, natType=int(natType), password=password, port=port, maxplayers=maxplayers, hashcode=hashcode, rank=rank, maphash=maphash, map=map, title=title, modname=modname, passworded=passworded, host=host, users=[host])
+		try: valid = '%(id)i %(type)i %(natType)i %(passworded)i %(maphash)i' % ubattle
+		except TypeError:
+			client.current_battle = None
+			client.Send('OPENBATTLEFAILED Invalid argument type. Make sure your lobby is passing the right arguments with no spaces in the wrong places.')
+			return
+			
 		self.broadcast_AddBattle(battle)
 		self._root.battles[battle_id] = battle
 		client.Send('OPENBATTLE %s'%battle_id)
@@ -1143,14 +1149,14 @@ class Protocol:
 			return
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
-			if battle.passworded == 1 and not battle.password == password:
-				client.Send('JOINBATTLEFAILED Incorrect password.')
-				return
-			if battle.locked:
-				client.Send('JOINBATTLEFAILED Battle is locked.')
-				return
-			host = self._root.clientFromUsername(battle.host)
 			if not username in battle.users:
+				if battle.passworded == 1 and not battle.password == password:
+					client.Send('JOINBATTLEFAILED Incorrect password.')
+					return
+				if battle.locked:
+					client.Send('JOINBATTLEFAILED Battle is locked.')
+					return
+				host = self._root.clientFromUsername(battle.host)
 				if username in host.battle_bans:
 					client.Send('JOINBATTLEFAILED <%s> has banned you from their battles.' % battle.host)
 					return
