@@ -1137,6 +1137,7 @@ class Protocol:
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
 			if not username in battle.users:
+				host = self._root.clientFromUsername(battle.host)
 				if battle.passworded == 1 and not battle.password == password:
 					if not (host.compat_battleAuth and username in battle.authed_users):
 						client.Send('JOINBATTLEFAILED Incorrect password.')
@@ -1144,7 +1145,6 @@ class Protocol:
 				if battle.locked:
 					client.Send('JOINBATTLEFAILED Battle is locked.')
 					return
-				host = self._root.clientFromUsername(battle.host)
 				if username in host.battle_bans:
 					client.Send('JOINBATTLEFAILED <%s> has banned you from their battles.' % battle.host)
 					return
