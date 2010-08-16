@@ -1312,6 +1312,9 @@ class Protocol:
 			client.battlestatus.update({'ready':ready, 'id':id1+id2+id3+id4, 'ally':ally1+ally2+ally3+ally4, 'mode':mode, 'sync':sync1+sync2, 'side':side1+side2+side3+side4})
 			client.teamcolor = myteamcolor
 			
+			host = self.clientFromUsername(battle.host)
+			self.in_UPDATEBATTLEINFO(host, specs, battle.locked, battle.maphash, battle.map)
+			
 			self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(client.username, self._calc_battlestatus(client), myteamcolor), client.current_battle)
 
 	def in_UPDATEBATTLEINFO(self, client, SpectatorCount, locked, maphash, mapname):
@@ -1322,14 +1325,6 @@ class Protocol:
 				old = battle.copy()
 				updated = {'id':battle_id, 'locked':int(locked), 'maphash':maphash, 'map':mapname}
 				battle.update(**updated)
-				
-				specs = 0
-				for username in battle.users:
-					user = self.clientFromUsername(username)
-					if user and user.battlestatus['mode'] == '0':
-						specs += 1
-				
-				battle.spectators = specs
 				
 				oldstr = 'UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % old
 				newstr = 'UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % battle.copy()
