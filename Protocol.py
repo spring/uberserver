@@ -1298,6 +1298,12 @@ class Protocol:
 			# support more allies and ids.
 			#u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4,ally5, ally6, ally7, ally8, id1, id2, id3, id4,id5, id6, id7, id8, ready, u = self._dec2bin(battlestatus, 40)[-40:]
 			
+			if spectating and len(battle.users) - specs >= int(battle.maxplayers):
+				mode = '0'
+			
+			client.battlestatus.update({'ready':ready, 'id':id1+id2+id3+id4, 'ally':ally1+ally2+ally3+ally4, 'mode':mode, 'sync':sync1+sync2, 'side':side1+side2+side3+side4})
+			client.teamcolor = myteamcolor
+			
 			oldspecs = battle.spectators
 			
 			specs = 0
@@ -1307,12 +1313,6 @@ class Protocol:
 					specs += 1
 			
 			battle.spectators = specs
-			
-			if spectating and len(battle.users) - specs >= int(battle.maxplayers):
-				mode = '0'
-			
-			client.battlestatus.update({'ready':ready, 'id':id1+id2+id3+id4, 'ally':ally1+ally2+ally3+ally4, 'mode':mode, 'sync':sync1+sync2, 'side':side1+side2+side3+side4})
-			client.teamcolor = myteamcolor
 			
 			host = self.clientFromUsername(battle.host)
 			
