@@ -1030,7 +1030,8 @@ class Protocol:
 				channel.users.append(user)
 				channel.blindusers.append(user)
 				client.Send('CLIENTS %s %s'%(chan, user))
-			
+				
+			topic = channel.topic
 			client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topic['time'], topic['text']))
 				
 				
