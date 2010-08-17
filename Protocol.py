@@ -1027,9 +1027,11 @@ class Protocol:
 				client.Send('CLIENTS %s %s'%(chan, ' '.join(channel.users)))
 			else:
 				self._root.broadcast('JOINED %s %s'%(chan,user), chan, channel.blindusers)
-				channel.append(user)
-				channel.append(user)
+				channel.users.append(user)
+				channel.blindusers.append(user)
 				client.Send('CLIENTS %s %s'%(chan, user))
+			
+			client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topic['time'], topic['text']))
 				
 				
 		# disabled because irc bridge spams JOIN commands
