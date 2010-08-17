@@ -1032,7 +1032,8 @@ class Protocol:
 				client.Send('CLIENTS %s %s'%(chan, user))
 				
 			topic = channel.topic
-			client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topic['time'], topic['text']))
+			if topic:
+				client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topic['time'], topic['text']))
 				
 				
 		# disabled because irc bridge spams JOIN commands
