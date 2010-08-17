@@ -1030,9 +1030,14 @@ class Protocol:
 				channel.append(user)
 				channel.append(user)
 				client.Send('CLIENTS %s %s'%(chan, user))
-		topic = channel.topic
-		if topic and user in channel.users: # putting this outside of the check means a user can rejoin a channel to get the topic while in it
-			client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topic['time'], topic['text']))
+				
+				
+		# disabled because irc bridge spams JOIN commands
+		#
+		# a user can rejoin a channel to get the topic while in it
+		#topic = channel.topic
+		#if topic and user in channel.users:
+		#	client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topic['time'], topic['text']))
 	
 	def in_SETCHANNELKEY(self, client, chan, key='*'):
 		if chan in self._root.channels:
@@ -1279,6 +1284,18 @@ class Protocol:
 						self._root.broadcast_battle('REMOVEBOT %s %s' % (battle_id, bot), battle_id)
 				self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, client.username))
 				client.current_battle = None
+				
+				oldspecs = battle.spectators
+			
+				specs = 0
+				for username in battle.users:
+					user = self.clientFromUsername(username)
+					if user and user.battlestatus['mode'] == '0':
+						specs += 1
+				
+				battle.spectators = specs
+				if oldspecs != specs:
+					self._root.broadcast('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % battle.copy())
 
 	def in_MYBATTLESTATUS(self, client, battlestatus, myteamcolor):
 		try:
