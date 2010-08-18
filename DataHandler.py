@@ -389,7 +389,8 @@ class DataHandler:
 				print line
 				if self.log:
 					self.output.write(line+'\n')
-					self.output.flush()
+			
+			self.output.flush()
 		except:
 			print separator
 			print traceback.format_exc()
