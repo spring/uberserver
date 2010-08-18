@@ -1,4 +1,4 @@
-import thread, time, sys, os
+import thread, time, sys, os, socket
 
 import base64
 try: from hashlib import md5
@@ -44,6 +44,8 @@ class DataHandler:
 		self.motd = None
 		self.updates = {}
 		self.running = True
+		
+		self.trusted_proxies = []
 		
 		self.start_time = time.time()
 		self.channels = {}
@@ -196,6 +198,13 @@ class DataHandler:
 				except:
 					print 'Error opening legacy updates.xml.'
 					self.updatefile = None
+			elif arg == 'proxies':
+				try:
+					self.trusted_proxyfile = argp[0]
+					open(self.trusted_proxyfile, 'r').close()
+				except:
+					print 'Error opening trusted proxy file.'
+					self.trusted_proxyfile = None
 					
 		if self.dbtype == 'sql':
 			if self.sqlurl == 'sqlite:///:memory:' or self.sqlurl == 'sqlite:///':
@@ -306,6 +315,20 @@ class DataHandler:
 						self.updates[name][version] = {}
 						
 					self.updates[name][version] = right
+		
+		if self.trusted_proxyfile:
+			self.trusted_proxies = set([])
+			f = open(self.trusted_proxyfile, 'r')
+			data = f.read()
+			f.close()
+			if data:
+				for line in data.split('\n'):
+					proxy = line.strip()
+					if not proxy.replace('.', '', 3).isdigit():
+						proxy = socket.gethostbyname(proxy)
+					
+					if proxy:
+						self.trusted_proxies.add(proxy)
 	
 	def getUserDB(self):
 		if self.dbtype in ('legacy', 'lan'):

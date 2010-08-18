@@ -20,9 +20,10 @@ class Client:
 		self.local_ip = address[0]
 		self.port = address[1]
 		
-		if root.randomflags: country_code = ip2country.randomcc()
-		else: country_code = ip2country.lookup(self.ip_address)
-		self.country_code = country_code
+		if root.randomflags:
+			self.country_code = ip2country.randomcc()
+		else:
+			self.setFlagByIP(self.ip_address)
 		
 		self.session_id = session_id
 		self.db_id = session_id
@@ -88,6 +89,9 @@ class Client:
 		self.battles = set([]) # [battle_id] = [user1, user2, user3, etc]
 		
 		self._root.console_write('Client connected from %s, session ID %s.' % (self.ip_address, session_id))
+	
+	def setFlagByIP(self, ip):
+		self.country_code = ip2country.lookup(ip)
 
 	def Bind(self, handler=None, protocol=None):
 		if handler:	self.handler = handler
