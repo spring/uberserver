@@ -774,7 +774,7 @@ class Protocol:
 				self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s.'%(client.handler.num, username, client.session_id))
 				
 				if client.ip_address in self._root.trusted_proxies:
-					client.setFlagByIP(local_ip)
+					client.setFlagByIP(local_ip, False)
 				
 				if reason.id == None:
 					client.db_id = client.session_id

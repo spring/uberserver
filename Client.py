@@ -90,8 +90,10 @@ class Client:
 		
 		self._root.console_write('Client connected from %s, session ID %s.' % (self.ip_address, session_id))
 	
-	def setFlagByIP(self, ip):
-		self.country_code = ip2country.lookup(ip)
+	def setFlagByIP(self, ip, force=True):
+		cc = ip2country.lookup(ip)
+		if force or cc != '??':
+			self.country_code = cc
 
 	def Bind(self, handler=None, protocol=None):
 		if handler:	self.handler = handler
