@@ -76,6 +76,7 @@ class Client:
 		self.compat_accountIDs = False
 		self.compat_battleAuth = False
 		self.compat_scriptPassword = False
+		self.compat_sendEmptyTopic = False
 		self.scriptPassword = None
 		
 		now = time.time()

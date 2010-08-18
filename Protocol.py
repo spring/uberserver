@@ -731,12 +731,14 @@ class Protocol:
 						flags.add(flag)
 				
 				for flag in flags:
-					if flag == 'a':
+					if flag == 'a': # send account IDs in ADDUSER
 						client.compat_accountIDs = True
-					elif flag == 'b':
+					elif flag == 'b': # JOINBATTLEREQUEST/ACCEPT/DENY
 						client.compat_battleAuth = True
-					elif flag == 'sp':
+					elif flag == 'sp': # scriptPassword in JOINBATTLE
 						client.compat_scriptPassword = True
+					elif flag == 'et': # send NOCHANNELTOPIC on join if channel has no topic
+						client.compat_sendEmptyTopic = True
 						
 			if user_id.replace('-','',1).isdigit():
 				user_id = int(user_id)
@@ -1034,7 +1036,8 @@ class Protocol:
 			topic = channel.topic
 			if topic:
 				client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topic['time'], topic['text']))
-				
+			elif client.compat_sendEmptyTopic:
+				client.Send('NOCHANNELTOPIC')
 				
 		# disabled because irc bridge spams JOIN commands
 		#
