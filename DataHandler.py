@@ -34,6 +34,7 @@ class DataHandler:
 		self.channelfile = None
 		self.protocol = None
 		self.updatefile = None
+		self.trusted_proxyfile = None
 		
 		self.max_threads = 25
 		self.sqlurl = 'sqlite:///sqlite.txt'
@@ -106,7 +107,7 @@ class DataHandler:
 				print '      { Uses SQL database at the specified sqlurl as a legacy TASServer ban database. } '
 				print '  --channels /path/to/settings.xml'
 				print '      { Path to ChanServ settings.xml, for using the legacy ChanServ channel database. }'
-				print ' --updates /path/to/updates.txt'
+				print '  --updates /path/to/updates.txt'
 				print '     { Path to updates.txt, for using Spring update system. }'
 				print 'SQLURL Examples:'
 				#print '  "sqlite:///:memory:" or "sqlite:///"'
@@ -197,7 +198,7 @@ class DataHandler:
 					self.updatefile = argp[0]
 					open(self.updatefile, 'r').close()
 				except:
-					print 'Error opening legacy updates.xml.'
+					print 'Error opening updates.txt.'
 					self.updatefile = None
 			elif arg == 'proxies':
 				try:
