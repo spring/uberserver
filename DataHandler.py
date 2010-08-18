@@ -44,6 +44,7 @@ class DataHandler:
 		self.motd = None
 		self.updates = {}
 		self.running = True
+		self.output = None
 		
 		self.trusted_proxies = []
 		
@@ -390,7 +391,8 @@ class DataHandler:
 				if self.log:
 					self.output.write(line+'\n')
 			
-			self.output.flush()
+			if self.output:
+				self.output.flush()
 		except:
 			print separator
 			print traceback.format_exc()
