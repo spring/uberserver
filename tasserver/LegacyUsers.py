@@ -126,8 +126,11 @@ class UsersHandler:
 			f.write(user.toAccountLine()+'\n')
 		f.close()
 		
-		if os.path.exists(self.accountstxt):
+		if os.path.exists(self.accountstxt) and os.path.exists(tmpname):
 			os.remove(self.accountstxt)
+		else:
+			print 'FAILURE: Account database could not be written. Preserving last successful database dump.'
+
 		os.rename(tmpname, self.accountstxt)
 		
 	def clientFromID(self, db_id):
