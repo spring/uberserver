@@ -155,12 +155,12 @@ class UsersHandler:
 			user = User(lanadmin['username'], password, 0, False, 'admin', None, now, ip, now, country, 0)
 			return True, user
 		elif name == lanadmin['username'].lower():
-			return False, 'Bad username/password.'
+			return False, 'Bad username/password'
 			#return False, 'Invalid password.'
 		
 		user = self.clientFromUsername(name)
 		if not user:
-			return False, 'Bad username/password.'
+			return False, 'Bad username/password'
 			#return False, 'No user named %s.'%username
 		
 		good, reason = self.check_ban(user.username, ip, user_id)
@@ -168,7 +168,7 @@ class UsersHandler:
 			return False, 'Banned: %s' % reason
 		
 		if not password == user.password:
-			return False, 'Bad username/password.'
+			return False, 'Bad username/password'
 			#return False, 'Invalid password.'
 		
 		user.last_login = now

@@ -1037,7 +1037,7 @@ class Protocol:
 			if topic:
 				client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topic['time'], topic['text']))
 			elif client.compat_sendEmptyTopic:
-				client.Send('NOCHANNELTOPIC')
+				client.Send('NOCHANNELTOPIC %s' % chan)
 				
 		# disabled because irc bridge spams JOIN commands
 		#
