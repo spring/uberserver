@@ -72,7 +72,7 @@ class Parser:
 				chanops.append(str(op.getAttribute('name')))
 				
 			owner = str(channel.getAttribute('founder')) or None
-			name = channel.getAttribute('name')
+			name = str(channel.getAttribute('name'))
 			
 			topic = None
 			if name in topics:
