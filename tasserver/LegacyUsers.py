@@ -293,7 +293,7 @@ class UsersHandler:
 	def get_ip(self, username):
 		user = self.clientFromUsername(username)
 		if user:
-			return user.ip
+			return user.last_ip
 	
 	def remove_user(self, username):
 		user = self.clientFromUsername(username)
