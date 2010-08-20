@@ -1428,7 +1428,11 @@ class Protocol:
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			if channel.isOp(client):
-				channel.kickUser(client, username, reason)
+				target = self._root.clientFromUsername(username)
+				if target and username in channel.users:
+					channel.kickUser(client, target, reason)
+				else:
+					client.Send('SERVERMSG <%s> not in channel #%s' % (username, chan))
 
 	def in_RING(self, client, username):
 		if username in self._root.usernames:
