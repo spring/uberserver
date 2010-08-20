@@ -905,7 +905,7 @@ class Protocol:
 			user = client.username
 			if user in channel.users:
 				msg = self.SayHooks.hook_SAY(self, client, chan, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel # nevermind, i just need to add inchan :>
-				if not msg.strip(): return
+				if not msg or not msg.strip(): return
 				if channel.isMuted(client):
 					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 				else:
@@ -918,7 +918,7 @@ class Protocol:
 			user  = client.username
 			if user in channel.users:
 				msg = self.SayHooks.hook_SAYEX(self, client, chan, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel
-				if not msg.strip(): return
+				if not msg or not msg.strip(): return
 				if channel.isMuted(client):
 					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 				else:
@@ -928,7 +928,7 @@ class Protocol:
 		if not msg: return
 		if user in self._root.usernames:
 			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel
-			if not msg.strip(): return
+			if not msg or not msg.strip(): return
 			client.Send('SAYPRIVATE %s %s'%(user, msg))
 			self._root.usernames[user].Send('SAIDPRIVATE %s %s'%(client.username, msg))
 
@@ -1112,7 +1112,7 @@ class Protocol:
 			battle = self._root.battles[battle_id]
 			user = client.username
 			msg = self.SayHooks.hook_SAYBATTLE(self, client, battle_id, msg)
-			if not msg.strip(): return
+			if not msg or not msg.strip(): return
 			self.broadcast_SendBattle(battle, 'SAIDBATTLE %s %s' % (user, msg))
 
 	def in_SAYBATTLEEX(self, client, msg):
