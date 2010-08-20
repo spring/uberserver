@@ -1665,11 +1665,11 @@ class Protocol:
 	
 	def in_FINDIP(self, client, address):
 		results = self.userdb.find_ip(address)
-		for entry in results:
-			if entry.username in self._root.usernames:
-				client.Send('SERVERMSG <%s> is currently bound to %s.' % (entry
-			else:
-				client.Send('SERVERMSG <%s> was recently bound to %s at %s' % (
+			for entry in results:
+				if entry.username in self._root.usernames:
+					client.Send('SERVERMSG <%s> is currently bound to %s.' % (entry.username, address))
+				else:
+					client.Send('SERVERMSG <%s> was recently bound to %s at %s' % (entry.username, address, time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(entry.lastlogin))))
 	
 	def in_GETLASTIP(self, client, username): return self.in_GETIP(client, username)
 	
