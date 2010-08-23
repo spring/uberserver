@@ -82,7 +82,7 @@ class User(object):
 		return (bot + agreement + dec2bin(self.ingame_time, 20) + dec2bin(access, 3)).lstrip('0') or '0'
 	
 	def toAccountLine(self):
-		return ' '.join((self.username, self.password, self.getAccess(), str(self.last_id), str(int(self.last_login*1000)), self.last_ip, str(int(self.register_date*1000)), self.country, str(self.id)))
+		return ' '.join((self.username, self.password, self.getAccess(), str(self.last_id), str(int(self.last_login)), self.last_ip, str(int(self.register_date)), self.country, str(self.id)))
 
 class UsersHandler:
 	def __init__(self, root, accountstxt):
