@@ -78,7 +78,9 @@ class Parser:
 			if name in topics:
 				topic = topics[name].decode('utf-8').encode('raw_unicode_escape') # chanserv writes double-encoded utf-8, this decodes it
 				
-			chans[name] = {'owner':str(owner), 'key':str(channel.getAttribute('key')) or None, 'topic':topic or '', 'antispam':(str(channel.getAttribute('antispam')) == 'yes'), 'admins':chanops}
+			chan = {'owner':str(owner), 'key':str(channel.getAttribute('key')) or None, 'topic':topic or '', 'antispam':(str(channel.getAttribute('antispam')) == 'yes'), 'admins':chanops}
+			if chan[key] == '*': chan[key] = None
+			chans[name] = chan
 		
 		return chans
 	
