@@ -110,12 +110,12 @@ class UsersHandler:
 			user = User.fromAccountLine(line)
 			if user:
 				self.accounts[user.lowername] = user
-				last_id = user.id
-				self.idToAccount[last_id] = user
+				last_id = max(last_id, int(user.id))
+				self.idToAccount[user.id] = user
 				
 			line = f.readline().rstrip()
 		
-		self.last_id = int(last_id)
+		self.last_id = last_id
 		f.close()
 	
 	def writeAccounts(self):
