@@ -107,7 +107,9 @@ class Writer:
 				else: topic = '*'
 				f.write('\t<channel antispam="%s" name="%s" founder="%s" topic=%s key=%s>\n' % (('yes' if channel.antispam else 'no'), channel.chan, owner.username, escape(quoteattr(topic)), escape(quoteattr(channel.key or '*'))))
 				for admin in channel.admins:
-					f.write('\t\t<operator name="%s" />\n' % clientFromID(admin).username)
+					admin = clientFromID(admin)
+					if admin:
+						f.write('\t\t<operator name="%s" />\n' % admin.username)
 				f.write('\t</channel>\n')
 		f.write('</channels>\n')
 		f.close()
