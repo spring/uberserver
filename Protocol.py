@@ -1446,7 +1446,7 @@ class Protocol:
 			if battle.host == client.username:
 				rect = {'left':left, 'top':top, 'right':right, 'bottom':bottom}
 				battle.startrects[allyno] = rect
-				self._root.broadcast_battle('ADDSTARTRECT %s' % (allyno)+' %(left)s %(top)s %(right)s %(bottom)s' %(rect), client.current_battle)
+				self._root.broadcast_battle('ADDSTARTRECT %s' % (allyno)+' %(left)s %(top)s %(right)s %(bottom)s' %(rect), client.current_battle, [client.username])
 
 	def in_REMOVESTARTRECT(self, client, allyno):
 		battle_id = client.current_battle
@@ -1454,7 +1454,7 @@ class Protocol:
 			battle = self._root.battles[battle_id]
 			if battle.host == client.username:
 				del battle.startrects[allyno]
-				self._root.broadcast_battle('REMOVESTARTRECT %s'%allyno,client.current_battle)
+				self._root.broadcast_battle('REMOVESTARTRECT %s' % allyno, client.current_battle, [client.username])
 
 	def in_DISABLEUNITS(self, client, units):
 		battle_id = client.current_battle
