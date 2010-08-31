@@ -220,7 +220,13 @@ class Channel(AutoDict):
 		username = client.username
 		if username in self.users:
 			self.users.remove(username)
-			self.broadcast('LEFT %s %s %s' % (self.chan, username, (' '+reason if reason else '')))
+			if username in self.blindusers:
+				self.blindusers.remove(username)
+				
+			if self.chan in target.channels:
+				target.channels.remove(self.chan)
+			
+			self._root.broadcast('LEFT %s %s' % (chan, user), chan, channel.blindusers)
 	
 	def isAdmin(self, client):
 		return ('admin' in client.accesslevels)
@@ -300,7 +306,7 @@ class Channel(AutoDict):
 		if target.username in self.users:
 			target.Send('FORCELEAVECHANNEL %s %s %s' % (self.chan, client.username, reason))
 			self.channelMessage('<%s> has kicked <%s> from the channel%s' % (client.username, target.username, (' (reason: %s)'%reason if reason else '')))
-			self.removeUser(target, 'kicked from channel%s' % (' '+reason if reason else ''))
+			self.removeUser(target, 'kicked from channel%s' % (' (reason: %s)'%reason if reason else ''))
 	
 	def banUser(self, client, target, reason=''):
 		if self.isFounder(target): return
@@ -1059,14 +1065,8 @@ class Protocol:
 	def in_LEAVE(self, client, chan):
 		user = client.username
 		if chan in self._root.channels:
-			if chan in client.channels:
-				client.channels.remove(chan)
 			channel = self._root.channels[chan]
-			if user in channel.users:
-				channel.users.remove(user)
-				self._root.broadcast('LEFT %s %s' % (chan, user), chan, channel.blindusers + [user])
-			if user in channel.blindusers:
-				channel.blindusers.remove(user)
+			channel.removeUser(client.username)
 	
 	def in_MAPGRADES(self, client, grades): # update in db # dunno if I need to implement, I'd rather have a separate web-based grading system than integration into the lobby
 		client.Send('MAPGRADESFAILED Not implemented.')
