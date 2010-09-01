@@ -217,14 +217,16 @@ class Channel(AutoDict):
 			self.broadcast('JOINED %s %s' % (self.chan, username))
 	
 	def removeUser(self, client, reason=''):
+		chan = self.chan
 		username = client.username
+		
 		if username in self.users:
 			self.users.remove(username)
 			if username in self.blindusers:
 				self.blindusers.remove(username)
 				
 			if self.chan in client.channels:
-				client.channels.remove(self.chan)
+				client.channels.remove(chan)
 			
 			self._root.broadcast('LEFT %s %s' % (chan, user), chan, channel.blindusers)
 	
