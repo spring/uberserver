@@ -1066,7 +1066,7 @@ class Protocol:
 		user = client.username
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
-			channel.removeUser(client.username)
+			channel.removeUser(client)
 	
 	def in_MAPGRADES(self, client, grades): # update in db # dunno if I need to implement, I'd rather have a separate web-based grading system than integration into the lobby
 		client.Send('MAPGRADESFAILED Not implemented.')
