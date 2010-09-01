@@ -228,7 +228,7 @@ class Channel(AutoDict):
 			if self.chan in client.channels:
 				client.channels.remove(chan)
 			
-			self._root.broadcast('LEFT %s %s' % (chan, user), chan, channel.blindusers)
+			self._root.broadcast('LEFT %s %s' % (chan, username), chan, channel.blindusers)
 	
 	def isAdmin(self, client):
 		return ('admin' in client.accesslevels)
