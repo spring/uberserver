@@ -223,8 +223,8 @@ class Channel(AutoDict):
 			if username in self.blindusers:
 				self.blindusers.remove(username)
 				
-			if self.chan in target.channels:
-				target.channels.remove(self.chan)
+			if self.chan in client.channels:
+				client.channels.remove(self.chan)
 			
 			self._root.broadcast('LEFT %s %s' % (chan, user), chan, channel.blindusers)
 	
