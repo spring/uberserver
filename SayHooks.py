@@ -134,7 +134,6 @@ def _word_censor(msg):
 def _site_censor(msg):
 	testmsg1 = ''
 	testmsg2 = ''
-	testmsg3 = ''
 	for letter in msg:
 		if not letter: continue
 		if letter.isalnum():
@@ -160,7 +159,7 @@ def _spam_enum(client, chan):
 				if message in already:
 					bonus += 2 * already.count(message) # repeated message
 				if len(message) > 50:
-					bonus += max(len(message), 200) * 0.01 # long message: 0-2 bonus points based linearly on length 0-200+
+					bonus += min(len(message), 200) * 0.01 # long message: 0-2 bonus points based linearly on length 0-200
 				bonus += 1 # something was said
 				already.append(message)
 		else: del client.lastsaid[chan][when]
@@ -193,7 +192,7 @@ def _chan_msg_filter(self, client, chan, msg):
 	if channel.antispam and not channel.isOp(client): # don't apply antispam to ops
 		_spam_rec(client, chan, msg)
 		if _spam_enum(client, chan):
-			channel.muteUser(self._root.chanserv, client, 30, ip=True, quiet=True)
+			channel.muteUser(self._root.chanserv, client, 15, ip=True, quiet=True)
 			# this next line is necessary, because users aren't always muted i.e. you can't mute channel founders or moderators
 			if channel.isMuted(client):
 				channel.channelMessage('%s was muted for spamming.' % username)
@@ -314,12 +313,6 @@ def __find_command(rights,command):
 		except:
 			exists = False
 	return function,exists
-
-def __find_user(client,user):
-	for i in usr.userlist:
-		if user.lower() in i.name.lower():
-			return i.name
-	return 'No such user!'
 
 def _help(funcname,rights):
 	function,exists = __find_command(rights,funcname)

@@ -1,6 +1,5 @@
 import xml.dom.minidom as minidom
 from xml.sax.saxutils import escape, unescape, quoteattr
-import binascii
 
 import os, re, codecs
 
@@ -79,7 +78,7 @@ class Parser:
 				topic = topics[name].decode('utf-8').encode('raw_unicode_escape') # chanserv writes double-encoded utf-8, this decodes it
 				
 			chan = {'owner':str(owner), 'key':str(channel.getAttribute('key')) or None, 'topic':topic or '', 'antispam':(str(channel.getAttribute('antispam')) == 'yes'), 'admins':chanops}
-			if chan[key] == '*': chan[key] = None
+			if chan['key'] == '*': chan['key'] = None
 			chans[name] = chan
 		
 		return chans
@@ -114,6 +113,6 @@ class Writer:
 		f.write('</channels>\n')
 		f.close()
 		
-		if os.path.exists('channels.xml'):
+		if os.path.exists('channels.xml') and os.path.exists('channels.xml.tmp'):
 			os.remove('channels.xml')
 		os.rename('channels.xml.tmp', 'channels.xml')

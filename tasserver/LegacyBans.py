@@ -1,11 +1,11 @@
 # WARNING: this module is only for *reading* from the database. you can't expect the types to fully work, or work at all when writing.
 # furthermore, this database layer will not generate correct tables for use with tasserver.
 
-import time
+import datetime
 
 from sqlalchemy import create_engine, Table, Column, Integer, MetaData, Boolean, Text, VARCHAR, TIMESTAMP
-from sqlalchemy.exceptions import OperationalError
 from sqlalchemy.orm import mapper, sessionmaker
+from sqlalchemy.sql import or_
 
 ## ip2long helper
 import socket, struct
@@ -42,20 +42,22 @@ class BanHandler:
 		self._root = root
 		self.dburl = dburl
 		self.engine = create_engine(dburl, pool_size=root.max_threads*2, pool_recycle=300)
-		self.sessionmaker = sessionmaker(bind=self.engine, autoflush=True, transactional=True)
+		self.sessionmaker = sessionmaker(bind=self.engine)
 	
 	def check_ban(self, username=None, ip=None, userid=None):
 		if not username and not ip and not userid: return
 		session = self.sessionmaker()
 		
+		query = session.query(Ban).filter(Ban.Enabled==True).filter(or_(Ban.ExpirationDate == None, Ban.ExpirationDate > datetime.datetime.now()))
+
 		entry = None
 		if username:
-			entry = session.query(Ban).filter(Ban.Username==username).first()
+			entry = query.filter(Ban.Username==username).first()
 		if not entry and userid: # ban priority is username > userid > ip # skips these if statements when we find a ban
-			entry = session.query(Ban).filter(Ban.userID==userid).first()
+			entry = query.filter(Ban.userID==userid).first()
 		if not entry and ip:
 			longip = ip2long(ip)
-			entry = session.query(Ban).filter(Ban.IP_start<=longip).filter(Ban.IP_end>=IP_end).first()
+			entry = query.filter(Ban.IP_start<=longip).filter(Ban.IP_end>=longip).first()
 		
 		if entry:
 			return False, entry.PublicReason

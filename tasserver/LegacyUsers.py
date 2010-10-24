@@ -1,5 +1,4 @@
-import time, os, codecs
-from xml.sax.saxutils import escape, quoteattr
+import time, os
 
 import traceback
 try:
@@ -30,31 +29,32 @@ class User(object):
 		line = line.split()
 		if len(line) < 8: return
 
-		username = line[0]
-		password = line[1]
-		access = line[2]
-		uid = line[3]
-		last_login = int(line[4])/1000.0
-		last_ip = line[5]
-		register_date = int(line[6])/1000.0
-		country = line[7]
-		# mapgrades = ' '.join(line[8:]) # no longer used
-		account_id = line[8]
+		try:
+			username = line[0]
+			password = line[1]
+			access = line[2]
+			uid = line[3]
+			last_login = int(line[4])/1000.0
+			last_ip = line[5]
+			register_date = int(line[6])/1000.0
+			country = line[7]
+			# mapgrades = ' '.join(line[8:]) # no longer used
+			account_id = line[8]
+			
+			permissions = int((access[-3:] or '0'), 2)
+			ingame_time = int((access[-23:-3] or '0'), 2)
+			agreement = (len(access) >= 24 and access[-24] == '1')
+			bot = (len(access) >= 25 and access[-25] == '1')
 
-		accss = int(access, 2)
+			if permissions and not agreement: access = 'agreement'
+			elif permissions == 3: access = 'admin'
+			elif permissions == 2: access = 'mod'
+			elif permissions == 1: access = 'user'
+			else: access = 'disabled'
 		
-		permissions = int((access[-3:] or '0'), 2)
-		ingame_time = int((access[-23:-3] or '0'), 2)
-		agreement = (len(access) >= 24 and access[-24] == '1')
-		bot = (len(access) >= 25 and access[-25] == '1')
-
-		if permissions and not agreement: access = 'agreement'
-		elif permissions == 3: access = 'admin'
-		elif permissions == 2: access = 'mod'
-		elif permissions == 1: access = 'user'
-		else: access = 'disabled'
-		
-		return cls(username, password, ingame_time, bot, access, uid, last_login, last_ip, register_date, country, account_id)
+			return cls(username, password, ingame_time, bot, access, uid, last_login, last_ip, register_date, country, account_id)
+		except:
+			print 'Error reading user:', line
 	
 	def __init__(self, username, password, ingame_time, bot, access, uid, last_login, last_ip, register_date, country, account_id):
 		self.lowername = username.lower()
@@ -243,7 +243,7 @@ class UsersHandler:
 	def get_lastlogin(self, username):
 		user = self.clientFromUsername(username)
 		if user:
-			return True, user.last_login
+			return True, user.last_login / 1000
 		else:
 			return False, 'User not found.'
 	

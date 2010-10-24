@@ -1,7 +1,6 @@
 import time
 
 from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean, Text
-from sqlalchemy.exceptions import OperationalError
 from sqlalchemy.orm import mapper, sessionmaker, relation
 
 metadata = MetaData()
@@ -49,7 +48,7 @@ class Rename(object):
 class Channel(object):
 	def __init__(self, name, key='', chanserv=False, owner='', topic='', topic_time=0, topic_owner='', antispam=False, admins='', autokick='ban', censor=False, antishock=False):
 		self.lowername = name
-		self.key = password
+		self.key = key
 		self.chanserv = chanserv
 		self.owner = owner
 		self.topic = topic
@@ -57,7 +56,6 @@ class Channel(object):
 		self.topic_owner = topic_owner
 		self.antispam = antispam
 		self.admins = admins
-		self.allow = allow
 		self.autokick = autokick
 		self.censor = censor
 		self.antishock = antishock
@@ -226,6 +224,8 @@ class UsersHandler:
 	def login_user(self, user, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		session = self.sessionmaker()
 		name = user.lower()
+
+		lanadmin = self._root.lanadmin
 		if user == lanadmin['username'] and password == lanadmin['password']:
 		 	sqluser = User(name, lanadmin['username'], password, ip, 'admin')
 		 	return True, sqluser
@@ -277,7 +277,8 @@ class UsersHandler:
 				if user in self._root.usernames:
 					self._root.usernames[user] # what the *********************
 				entry = User(name, lanadmin['username'], password, ip, 'admin')
-				entry.addresses.append(Address(ip_address=ip))
+				now = time.time()
+				entry.logins.append(Login(now, ip, None, None, None, None, country))
 				session.save(entry)
 				session.commit()
 				session.close()
@@ -376,7 +377,7 @@ class UsersHandler:
 		name = username.lower()
 		entry = session.query(User).filter(User.lowername==name).first()
 		session.close()
-		if entry: return True, entry.last_login
+		if entry: return True, entry.last_login / 1000
 		else: return False, 'User not found.'
 	
 	def get_registration_date(self, username):
@@ -424,7 +425,6 @@ class UsersHandler:
 		session = self.sessionmaker()
 		name = username.lower()
 		entry = session.query(User).filter(User.lowername==name).first()
-		ip = entry.ip
 		session.close()
 		return entry.ip
 
@@ -441,8 +441,9 @@ class UsersHandler:
 	def load_channels(self):
 		session = self.sessionmaker()
 		response = session.query(Channel)
-		for channel in response:
-			channels.append({})
+		channels = {}
+		for chan in response:
+			channels.append({'owner':chan.owner, 'key':chan.key, 'topic':chan.topic or '', 'antispam':chan.antispam, 'admins':[]})
 		session.close()
 		return channels
 	
@@ -477,7 +478,7 @@ class UsersHandler:
 	def inject_user(self, user, password, ip, last_login, register_date, uid, ingame, country, bot, access):
 		name = user.lower()
 		entry = User(name, user, password, ip)
-		entry.last_login = lastlogin
+		entry.last_login = last_login
 		entry.last_id = uid
 		entry.ingame_time = ingame
 		entry.register_date = register_date

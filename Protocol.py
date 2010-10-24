@@ -73,7 +73,7 @@ restricted = {
 	'UPTIME',
 	'RENAMEACCOUNT'],
 'mod':['BAN', 'BANUSER', 'BANIP', 'UNBAN', 'BANLIST','KICKUSER','FINDIP','GETIP',
-	'FORCECLOSEBATTLE','SETBOTMODE'],
+	'FORCECLOSEBATTLE','SETBOTMODE','TESTLOGIN'],
 'admin':[
 	#########
 	# channel
@@ -88,7 +88,7 @@ restricted = {
 	'GETACCOUNTINFO', 'GETLASTLOGINTIME', 'GETREGISTRATIONDATE',
 	'GETACCOUNTACCESS', 
 	'ADMIN','MOD','DEBUG','PYTHON',
-	'TESTLOGIN','SETINGAMETIME',],
+	'SETINGAMETIME',],
 }
 
 restricted_list = []
@@ -918,7 +918,7 @@ class Protocol:
 				if channel.isMuted(client):
 					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 				else:
-					self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan)
+					self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, client.reverse_ignore)
 
 	def in_SAYEX(self, client, chan, msg):
 		if not msg: return
@@ -931,16 +931,23 @@ class Protocol:
 				if channel.isMuted(client):
 					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 				else:
-					self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan)
+					self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, client.reverse_ignore)
 
 	def in_SAYPRIVATE(self, client, user, msg):
 		if not msg: return
 		if user in self._root.usernames:
-			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel
+			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
 			if not msg or not msg.strip(): return
 			client.Send('SAYPRIVATE %s %s'%(user, msg))
 			self._root.usernames[user].Send('SAIDPRIVATE %s %s'%(client.username, msg))
 
+	def in_SAYPRIVATEEX(self, client, user, msg):
+		if not msg: return
+		if user in self._root.usernames:
+			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
+			if not msg or not msg.strip(): return
+			client.Send('SAYPRIVATEEX %s %s'%(user, msg))
+			self._root.usernames[user].Send('SAIDPRIVATEEX %s %s'%(client.username, msg))
 
 	def in_MUTE(self, client, chan, user, duration=None, args=''):
 		if chan in self._root.channels:
@@ -1090,17 +1097,17 @@ class Protocol:
 			passworded = 0
 		else:
 			passworded = 1
-		clients = dict(self._root.clients)
 		#battle_id = str(battle_id)
 		host = client.username
 		battle = Battle(root=self._root, id=battle_id, type=type, natType=int(natType), password=password, port=port, maxplayers=maxplayers, hashcode=hashcode, rank=rank, maphash=maphash, map=map, title=title, modname=modname, passworded=passworded, host=host, users=[host])
 		ubattle = battle.copy()
 		
 		try:
-			int(battle_id), int(type), int(natType), int(passworded), int(maphash)
+			int(battle_id), int(type), int(natType), int(passworded), int(port), int(maphash)
 		except:
 			client.current_battle = None
-			client.Send('OPENBATTLEFAILED Invalid argument type, send this to your lobby dev: id=%(id)s type=%(type)s natType=%(natType)s passworded=%(passworded)s maphash=%(maphash)s' % ubattle)
+			client.Send('OPENBATTLEFAILED Invalid argument type, send this to your lobby dev:'
+						'id=%(id)s type=%(type)s natType=%(natType)s passworded=%(passworded)s port=%(port)s maphash=%(maphash)s' % ubattle)
 			return
 			
 		self.broadcast_AddBattle(battle)
@@ -1143,7 +1150,7 @@ class Protocol:
 			if username in battle.pending_users:
 				battle.pending_users.remove(username)
 				user = self._root.clientFromUsername(username)
-				user.Send('JOINBATTLEFAILED %s%s' % ('Denied by host%s', (' ('+reason+')' if reason else '')))
+				user.Send('JOINBATTLEFAILED %s%s' % ('Denied by host', (' ('+reason+')' if reason else '')))
 
 	def in_JOINBATTLE(self, client, battle_id, password=None, scriptPassword=None):
 		if scriptPassword: client.scriptPassword = scriptPassword
@@ -1680,10 +1687,10 @@ class Protocol:
 		if username in self._root.usernames:
 			client.Send('SERVERMSG <%s> is currently bound to %s' % (username, self._root.usernames[username].ip_address))
 			return
-		good, data = self.userdb.get_ip(username)
-		if good:
-			client.Send('SERVERMSG <%s> was recently bound to %s' % data)
-		else: client.Send('SERVERMSG Database returned error when finding ip for <%s> (%s)' % (username, data))
+			
+		ip = self.userdb.get_ip(username)
+		if ip:
+			client.Send('SERVERMSG <%s> was recently bound to %s' % (username, ip))
 	
 	def in_RENAMEACCOUNT(self, client, newname):
 	#	return
@@ -1731,7 +1738,7 @@ class Protocol:
 	def in_GETLOBBYVERSION(self, client, username):
 		user = self.clientFromUsername(username)
 		if user and 'lobby_id' in dir(user):
-			client.Send('SERVERMSG <%s> is using %s'%(user, user.lobby_id))
+			client.Send('SERVERMSG <%s> is using %s'%(user.username, user.lobby_id))
 	
 	def in_GETSENDBUFFERSIZE(self, client, username):
 		if username in self._root.usernames:
@@ -1783,9 +1790,9 @@ class Protocol:
 				client.Remove('all clients killed')
 	
 	def in_TESTLOGIN(self, client, username, password):
-		good, reason = self.userdb.login_user(username, password, client.ip_address)
-		if good:
-			client.Send('TESTLOGINACCEPT')
+		user = self.userdb.clientFromUsername(username)
+		if user and user.password == password:
+			client.Send('TESTLOGINACCEPT %s %s' % (user.username, user.id))
 		else:
 			client.Send('TESTLOGINDENY')
 

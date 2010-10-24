@@ -109,6 +109,8 @@ class DataHandler:
 				print '      { Path to ChanServ settings.xml, for using the legacy ChanServ channel database. }'
 				print '  --updates /path/to/updates.txt'
 				print '     { Path to updates.txt, for using Spring update system. }'
+				print '  --proxies /path/to/proxies.txt'
+				print '     { Path to proxies.txt, for trusting proxies to pass real IP through local IP }'
 				print 'SQLURL Examples:'
 				#print '  "sqlite:///:memory:" or "sqlite:///"'
 				#print '     { both make a temporary database in memory }'
@@ -150,9 +152,10 @@ class DataHandler:
 			elif arg in ['g', 'loadargs']:
 				try:
 					f = file(argp[0], 'r')
-					data = file.read().split('\n')
+					data = f.read().split('\n')
 					f.close()
-					for line in data: self.parseArgv(line)
+					self.parseArgv(data[0])
+					return
 				except: print 'Error opening file with command-line args'
 			elif arg in ['r', 'randomcc']:
 				try: self.randomflags = True

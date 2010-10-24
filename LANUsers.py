@@ -62,7 +62,7 @@ class UsersHandler:
 		return False, None
 	
 	def get_ip(self, *args, **kwargs):
-		return False, None
+		return None
 	
 	def ban_user(self, *args, **kwargs):
 		return False

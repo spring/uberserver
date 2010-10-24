@@ -69,6 +69,8 @@ class Client:
 		self.telnet = False
 		self.current_channel = ''
 		self.blind_channels = []
+		self.reverse_ignore = []
+		
 		self.tokenized = False
 		self.hashpw = False
 		self.debug = False
@@ -185,6 +187,9 @@ class Client:
 		try:
 			sent = self.conn.send(senddata)
 			self.sendingmessage = self.sendingmessage[sent:] # only removes the number of bytes sent
+		except UnicodeDecodeError:
+			self.sendingmessage = None
+			self._root.console_write('Error sending unicode string, message dropped.')
 		except socket.error, e:
 			if e == errno.EAGAIN:
 				return
