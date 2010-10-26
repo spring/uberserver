@@ -3,6 +3,7 @@ import base64
 try: from hashlib import md5
 except: md5 = __import__('md5').new
 import traceback, sys, os
+import socket
 
 ranks = (5, 15, 30, 100, 300, 1000, 3000, 10000)
 
@@ -231,16 +232,16 @@ class Channel(AutoDict):
 			self._root.broadcast('LEFT %s %s' % (chan, username), chan, self.blindusers)
 	
 	def isAdmin(self, client):
-		return ('admin' in client.accesslevels)
+		return client and ('admin' in client.accesslevels)
 	
 	def isMod(self, client):
-		return ('mod' in client.accesslevels) or self.isAdmin(client)
+		return client and (('mod' in client.accesslevels) or self.isAdmin(client))
 	
 	def isFounder(self, client):
-		return (client.db_id == self.owner) or self.isMod(client)
+		return client and ((client.db_id == self.owner) or self.isMod(client))
 	
 	def isOp(self, client):
-		return (client.db_id in self.admins) or self.isFounder(client)
+		return client and ((client.db_id in self.admins) or self.isFounder(client))
 	
 	def getAccess(self, client): # return client's security clearance
 		return 'mod' if self.isMod(client) else\
@@ -378,7 +379,6 @@ class Protocol:
 			self.userdb.end_session(user)
 			
 			channels = list(client.channels)
-			bots = dict(client.battle_bots)
 			del self._root.usernames[user]
 			if client.db_id in self._root.db_ids:
 				del self._root.db_ids[client.db_id]
@@ -685,7 +685,7 @@ class Protocol:
 	def in_PORTTEST(self, client, port):
 		host = client.ip_address
 		port = int(port)
-		sock = socket(AF_INET, SOCK_DGRAM)
+		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		sock.sendto('Port testing...', (host, port))
 
 	def in_REGISTER(self, client, username, password):
@@ -1072,7 +1072,6 @@ class Protocol:
 				channel.setKey(client, key)
 	
 	def in_LEAVE(self, client, chan):
-		user = client.username
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			channel.removeUser(client)
