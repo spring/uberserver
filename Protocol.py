@@ -1140,7 +1140,8 @@ class Protocol:
 				battle.pending_users.remove(username)
 				battle.authed_users.add(username)
 				user = self._root.clientFromUsername(username)
-				self.in_JOINBATTLE(user, battle_id)
+				if user:
+					self.in_JOINBATTLE(user, battle_id)
 	
 	def in_JOINBATTLEDENY(self, client, username, reason=None):
 		battle_id = client.current_battle
@@ -1150,7 +1151,8 @@ class Protocol:
 			if username in battle.pending_users:
 				battle.pending_users.remove(username)
 				user = self._root.clientFromUsername(username)
-				user.Send('JOINBATTLEFAILED %s%s' % ('Denied by host', (' ('+reason+')' if reason else '')))
+				if user:
+					user.Send('JOINBATTLEFAILED %s%s' % ('Denied by host', (' ('+reason+')' if reason else '')))
 
 	def in_JOINBATTLE(self, client, battle_id, password=None, scriptPassword=None):
 		if scriptPassword: client.scriptPassword = scriptPassword
