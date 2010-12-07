@@ -349,11 +349,12 @@ class DataHandler:
 
 	def event_loop(self):
 		start = time.time()
+		lastsave = lastmute = start
 		while self.running:
-			loopstart = time.time()
-			seconds = int(loopstart - start)
+			now = time.time()
 			try:
-				if seconds % 1800 == 0: # save every 30 minutes
+				if now - lastsave >= 1800: # save every 30 minutes
+					lastsave = now
 					if self.dbtype == 'legacy' and self.userdb:
 						print 'Writing account database to file.',
 						start = time.time()
@@ -363,7 +364,8 @@ class DataHandler:
 							writer.dump(self.channels, self.getUserDB().clientFromID)
 						print '..took %0.2f seconds.' % (time.time() - start)
 					
-				if seconds % 1 == 0:
+				if now - lastmute >= 1:
+					lastmute = now
 					self.mute_timeout_step()
 				
 				self.console_print_step()
