@@ -1758,8 +1758,15 @@ class Protocol:
 		if user:
 			bot = (mode.lower() in ('true', 'yes', '1'))
 			user.bot = bot
-			client.Send('SERVERMSG botmode for <%s> set to: %s' % (username, bot))
 			self.userdb.save_user(user)
+			client.Send('SERVERMSG botmode for <%s> set to: %s' % (username, bot))
+	
+	def in_CHANGEACCOUNTPASS(self, client, username, newpass):
+		user = self.clientFromUsername(username):
+		if user:
+			user.password = newpass
+			self.userdb.save_user(user)
+			client.Send('SERVERMSG password for <%s> successfully changed to %s' % (username, newpass))
 	
 	def in_BROADCAST(self, client, msg):
 		self._root.broadcast('BROADCAST %s'%msg)
@@ -1842,16 +1849,16 @@ class Protocol:
 			user.access = 'mod'
 			user.accesslevels = ['mod', 'user']
 			self._calc_access_status(user)
-			self._root.broadcast('CLIENTSTATUS %s %s'%(user, user.status))
+			self._root.broadcast('CLIENTSTATUS %s %s'%(username, user.status))
 			self.userdb.save_user(user)
 
-	def in_ADMIN(self, client, user):
+	def in_ADMIN(self, client, username):
 		user = self.clientFromUsername(username)
 		if user:
 			user.access = 'admin'
 			user.accesslevels = ['admin', 'mod', 'user']
 			self._calc_access_status(user)
-			self._root.broadcast('CLIENTSTATUS %s %s'%(user, user.status))
+			self._root.broadcast('CLIENTSTATUS %s %s'%(username, user.status))
 			self.userdb.save_user(user)
 
 	def in_DEBUG(self, client, enabled=None):
