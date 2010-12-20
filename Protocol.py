@@ -1719,6 +1719,7 @@ class Protocol:
 		if user:
 			if user.password == oldpassword:
 				user.password = newpassword
+				self.userdb.save_user(user)
 				client.Send('SERVERMSG Password changed successfully.')
 			else:
 				client.Send('SERVERMSG Incorrect password.')
@@ -1750,7 +1751,7 @@ class Protocol:
 		if user:
 			user.ingame_time = int(minutes)
 			self.userdb.save_user(user)
-			client.Send('SERVERMSG You have successfully set the ingame time for <%s>.' % username)
+			client.Send('SERVERMSG Ingame time for <%s> successfully set to %s' % (username, minutes))
 			self.in_GETINGAMETIME(client, username)
 
 	def in_SETBOTMODE(self, client, username, mode):
@@ -1759,14 +1760,14 @@ class Protocol:
 			bot = (mode.lower() in ('true', 'yes', '1'))
 			user.bot = bot
 			self.userdb.save_user(user)
-			client.Send('SERVERMSG botmode for <%s> set to: %s' % (username, bot))
+			client.Send('SERVERMSG Botmode for <%s> successfully changed to %s' % (username, bot))
 	
 	def in_CHANGEACCOUNTPASS(self, client, username, newpass):
-		user = self.clientFromUsername(username)
+		user = self.userdb.clientFromUsername(username)
 		if user:
 			user.password = newpass
 			self.userdb.save_user(user)
-			client.Send('SERVERMSG password for <%s> successfully changed to %s' % (username, newpass))
+			client.Send('SERVERMSG Password for <%s> successfully changed to %s' % (username, newpass))
 	
 	def in_BROADCAST(self, client, msg):
 		self._root.broadcast('BROADCAST %s'%msg)
