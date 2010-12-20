@@ -1762,7 +1762,7 @@ class Protocol:
 			client.Send('SERVERMSG botmode for <%s> set to: %s' % (username, bot))
 	
 	def in_CHANGEACCOUNTPASS(self, client, username, newpass):
-		user = self.clientFromUsername(username):
+		user = self.clientFromUsername(username)
 		if user:
 			user.password = newpass
 			self.userdb.save_user(user)
