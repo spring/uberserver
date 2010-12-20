@@ -38,6 +38,8 @@ restricted = {
 	'SAYBATTLE',
 	'SAYBATTLEHOOKED',
 	'SAYBATTLEEX',
+	'SAYBATTLEUSER',
+	'SAYBATTLEUSEREX',
 	'SCRIPT',
 	'SCRIPTEND',
 	'SCRIPTSTART',
@@ -1129,6 +1131,24 @@ class Protocol:
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
 			self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg))
+	
+	def in_SAYBATTLEUSER(self, client, username, msg):
+		battle_id = client.current_battle
+		if battle_id in self._root.battles:
+			battle = self._root.battles[battle_id]
+			if client.username == battle.host and username in battle.users:
+				user = self.clientFromUsername(username)
+				if user:
+					user.Send('SAIDBATTLE %s %s' % (client.username, msg))
+	
+	def in_SAYBATTLEUSEREX(self, client, username, msg):
+		battle_id = client.current_battle
+		if battle_id in self._root.battles:
+			battle = self._root.battles[battle_id]
+			if client.username == battle.host and username in battle.users:
+				user = self.clientFromUsername(username)
+				if user:
+					user.Send('SAIDBATTLEEX %s %s' % (client.username, msg))
 
 	def in_JOINBATTLEACCEPT(self, client, username):
 		battle_id = client.current_battle
@@ -1885,5 +1905,5 @@ def make_docs():
 	
 if __name__ == '__main__':
 	f = open('protocol.txt', 'w')
-	f.write('\n'.join(make_docs()))
+	f.write('\n'.join(make_docs()) + '\n')
 	f.close()
