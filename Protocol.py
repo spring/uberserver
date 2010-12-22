@@ -1149,7 +1149,7 @@ class Protocol:
 		else:
 			passworded = 1
 		
-		host = client.username:
+		host = client.username
 		battle = Battle(
 						root=self._root, id=battle_id, type=type, natType=int(natType),
 						password=password, port=port, maxplayers=maxplayers, hashcode=hashcode,
