@@ -372,7 +372,7 @@ class DataHandler:
 			except:
 				self.error(traceback.format_exc())	
 				
-			time.sleep(max(0.1, 1 - (time.time() - loopstart)))
+			time.sleep(max(0.1, 1 - (time.time() - start)))
 
 	def mute_timeout_step(self):
 		try:
