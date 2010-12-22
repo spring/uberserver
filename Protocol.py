@@ -148,7 +148,7 @@ class AutoDict:
 				setattr(self, key, new)
 
 class Battle(AutoDict):
-	def __init__(self, root, id, type, natType, password, port, maxplayers, hashcode, rank, maphash, map, title, modname, passworded, host, users, spectators=0, startrects={}, disabled_units=[], pending_users=set(), authed_users=set(), bots={}, script_tags={}, replay_script={}, replay=False, sending_replay_script=False, locked=False):
+	def __init__(self, root, id, type, natType, password, port, maxplayers, hashcode, rank, maphash, map, title, modname, passworded, host, users, spectators=0, startrects={}, disabled_units=[], pending_users=set(), authed_users=set(), bots={}, script_tags={}, replay_script={}, replay=False, sending_replay_script=False, locked=False, engine=None, version=None, extended=False):
 		self._root = root
 		self.id = id
 		self.type = type
@@ -171,7 +171,11 @@ class Battle(AutoDict):
 		
 		self.pending_users = pending_users
 		self.authed_users = authed_users
-		
+
+		self.engine = engine.lower() or 'spring'
+		self.version = version or root.latestspringversion
+		self.extended = extended
+
 		self.bots = bots
 		self.script_tags = script_tags
 		self.replay_script = replay_script
@@ -664,6 +668,7 @@ class Protocol:
 	def client_AddBattle(self, client, battle):
 		ubattle = battle.copy()
 		if not battle.host in self._root.usernames: return
+
 		host = self._root.usernames[battle.host]
 		if host.ip_address == client.ip_address: # translates the ip to always be compatible with the client
 			if client.local_ip == host.local_ip:
@@ -672,8 +677,12 @@ class Protocol:
 				translated_ip = host.local_ip
 		else:
 			translated_ip = host.ip_address
+		
 		ubattle.update({'ip':translated_ip})
-		client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
+		if client.compat_extendedBattles and not (battle.engine != 'spring' and battle.version == self._root.latestspringversion):
+			client.Send('BATTLEOPENEDEX %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
+		else:
+			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
 	
 	def client_RemoveBattle(self, client, battle):
 		client.Send('BATTLECLOSED %s' % battle.id)
@@ -750,6 +759,8 @@ class Protocol:
 						client.compat_scriptPassword = True
 					elif flag == 'et': # send NOCHANNELTOPIC on join if channel has no topic
 						client.compat_sendEmptyTopic = True
+					elif flag == 'eb': # extended battle commands with support for engine/version
+						client.compat_extendedBattles = True
 						
 			if user_id.replace('-','',1).isdigit():
 				user_id = int(user_id)
@@ -1100,7 +1111,12 @@ class Protocol:
 			passworded = 1
 		#battle_id = str(battle_id)
 		host = client.username
-		battle = Battle(root=self._root, id=battle_id, type=type, natType=int(natType), password=password, port=port, maxplayers=maxplayers, hashcode=hashcode, rank=rank, maphash=maphash, map=map, title=title, modname=modname, passworded=passworded, host=host, users=[host])
+		battle = Battle(
+						root=self._root, id=battle_id, type=type, natType=int(natType),
+						password=password, port=port, maxplayers=maxplayers, hashcode=hashcode,
+						rank=rank, maphash=maphash, map=map, title=title, modname=modname,
+						passworded=passworded, host=host, users=[host], extended=False
+					)
 		ubattle = battle.copy()
 		
 		try:
@@ -1114,6 +1130,45 @@ class Protocol:
 		self.broadcast_AddBattle(battle)
 		self._root.battles[battle_id] = battle
 		client.Send('OPENBATTLE %s'%battle_id)
+		client.Send('REQUESTBATTLESTATUS')
+
+	def in_OPENBATTLEEX(self, client, type, natType, password, port, maxplayers, hashcode, rank, maphash, engine, version, sentence_args):
+		if client.current_battle in self._root.battles:
+			self.in_LEAVEBATTLE(client)
+		
+		if sentence_args.count('\t') > 1:
+			map, title, modname = sentence_args.split('\t', 2)
+		else:
+			return False
+		
+		battle_id = str(self._root.nextbattle) # not thread safe
+		self._root.nextbattle += 1
+		client.current_battle = battle_id
+		if password == '*':
+			passworded = 0
+		else:
+			passworded = 1
+		
+		host = client.username:
+		battle = Battle(
+						root=self._root, id=battle_id, type=type, natType=int(natType),
+						password=password, port=port, maxplayers=maxplayers, hashcode=hashcode,
+						rank=rank, maphash=maphash, map=map, title=title, modname=modname,
+						passworded=passworded, host=host, users=[host],
+						engine=engine, version=version, extended=True
+					)
+		ubattle = battle.copy()
+
+		try:
+			int(battle_id), int(type), int(natType), int(passworded), int(port), int(maphash)
+		except:
+			client.current_battle = None
+			client.Send('OPENBATTLEFAILED Invalid argument type, send this to your lobby dev:'
+						'id=%(id)s type=%(type)s natType=%(natType)s passworded=%(passworded)s port=%(port)s maphash=%(maphash)s' % ubattle)
+		
+		self.broadcast_AddBattle(battle)
+		self._root.battles[battle_id] = battle
+		client.Send('OPENBATTLE %s' % battle_id)
 		client.Send('REQUESTBATTLESTATUS')
 
 	def in_SAYBATTLE(self, client, msg):

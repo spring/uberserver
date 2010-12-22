@@ -80,6 +80,7 @@ class Client:
 		self.compat_battleAuth = False
 		self.compat_scriptPassword = False
 		self.compat_sendEmptyTopic = False
+		self.compat_extendedBattles = False
 		self.scriptPassword = None
 		
 		now = time.time()
