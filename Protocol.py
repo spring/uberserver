@@ -172,7 +172,7 @@ class Battle(AutoDict):
 		self.pending_users = pending_users
 		self.authed_users = authed_users
 
-		self.engine = engine.lower() or 'spring'
+		self.engine = (engine or 'spring').lower()
 		self.version = version or root.latestspringversion
 		self.extended = extended
 
