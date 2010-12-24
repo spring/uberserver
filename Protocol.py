@@ -1598,11 +1598,12 @@ class Protocol:
 					kickuser = self._root.usernames[username]
 					kickuser.Send('FORCEQUITBATTLE')
 					kickuser.current_battle = None
-					self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, username))
-					battle.users.remove(username)
 					if username == battle.host:
 						self.broadcast_RemoveBattle(battle)
 						del self._root.battles[battle_id]
+					else:
+						self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, username))
+						battle.users.remove(username)
 			else:
 				client.Send('SERVERMSG You must be the battle host to kick from a battle.')
 
