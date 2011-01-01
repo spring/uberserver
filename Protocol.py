@@ -9,6 +9,7 @@ import socket
 ranks = (5, 15, 30, 100, 300, 1000, 3000, 10000)
 
 restricted = {
+'disabled':[],
 'nobody':['OPENBATTLEEX'],
 'everyone':['TOKENIZE','TELNET','HASH','EXIT','PING'],
 'fresh':['LOGIN','REGISTER','REQUESTUPDATEFILE'],
@@ -1539,7 +1540,7 @@ class Protocol:
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
-			if battle.host == client.username:
+			if battle.host == client.username and allyno in battle.startrects:
 				del battle.startrects[allyno]
 				self._root.broadcast_battle('REMOVESTARTRECT %s' % allyno, client.current_battle, [client.username])
 
@@ -1770,7 +1771,6 @@ class Protocol:
 			client.Send('SERVERMSG <%s> was recently bound to %s' % (username, ip))
 	
 	def in_RENAMEACCOUNT(self, client, newname):
-	#	return
 		for char in newname:
 			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
 				client.Send('REGISTRATIONDENIED Unicode names are currently disallowed.')
