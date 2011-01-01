@@ -1597,13 +1597,11 @@ class Protocol:
 				if username in battle.users:
 					kickuser = self._root.usernames[username]
 					kickuser.Send('FORCEQUITBATTLE')
-					kickuser.current_battle = None
 					if username == battle.host:
 						self.broadcast_RemoveBattle(battle)
 						del self._root.battles[battle_id]
 					else:
-						self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, username))
-						battle.users.remove(username)
+						self.in_LEAVEBATTLE(kickuser)
 			else:
 				client.Send('SERVERMSG You must be the battle host to kick from a battle.')
 
@@ -1673,7 +1671,7 @@ class Protocol:
 				if client.username == battle.bots[name]['owner'] or client.username == battle.host:
 					del self._root.usernames[battle.bots[name]['owner']].battle_bots[name]
 					del battle.bots[name]
-				self._root.broadcast_battle('REMOVEBOT %s %s'%(battle_id, name), battle_id)
+				 	self._root.broadcast_battle('REMOVEBOT %s %s'%(battle_id, name), battle_id)
 	
 	def in_FORCECLOSEBATTLE(self, client, battle_id=None):
 		if not battle_id: battle_id = client.current_battle
@@ -1963,3 +1961,4 @@ if __name__ == '__main__':
 	f = open('protocol.txt', 'w')
 	f.write('\n'.join(make_docs()) + '\n')
 	f.close()
+	
