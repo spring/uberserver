@@ -334,14 +334,14 @@ class Channel(AutoDict):
 	
 	def banUser(self, client, target, reason=''):
 		if self.isFounder(target): return
-		if not client.db_id in self.bans:
-			self.bans[client.db_id] = reason
+		if not target.db_id in self.ban:
+			self.ban[target.db_id] = reason
 			self.kickUser(client, target, reason)
 			self.channelMessage('<%s> has been banned from this channel by <%s>' % (target.username, client.username))
 	
 	def unbanUser(self, client, target):
-		if client.db_id in self.admins:
-			del self.bans[client.db_id]
+		if target.db_id in self.ban:
+			del self.ban[target.db_id]
 			self.channelMessage('<%s> has been unbanned from this channel by <%s>' % (target.username, client.username))
 	
 	def allowUser(self, client, target):
