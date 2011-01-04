@@ -1521,7 +1521,7 @@ class Protocol:
 				if battle.locked:
 					client.Send('JOINBATTLEFAILED Battle is locked.')
 					return
-				if username in host.battle_bans:
+				if username in host.battle_bans: # TODO: make this depend on db_id instead
 					client.Send('JOINBATTLEFAILED <%s> has banned you from their battles.' % battle.host)
 					return
 				if host.compat_battleAuth and not username in battle.authed_users:
