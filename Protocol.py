@@ -587,49 +587,19 @@ class Protocol:
 			channel = Channel(self._root, chan, **kwargs)
 		except: channel = Channel(self._root, chan)
 		return channel
-
-	def _format_time(self, seconds):
-		'given a future time in seconds, returns a readable relative time as a string'
-		if seconds < 1:
-			message = 'forever'
-		else:
-			seconds = seconds - time.time()
-			minutesleft = float(seconds) / 60
-			hoursleft = minutesleft / 60
-			daysleft = hoursleft / 24
-			if daysleft > 7:
-				message = '%0.2f weeks' % (daysleft / 7)
-			if daysleft == 7:
-				message = 'a week'
-			if daysleft > 1:
-				message = '%0.2f days' % daysleft
-			if daysleft == 1:
-				message = 'a day'
-			elif hoursleft > 1:
-				message = '%0.2f hours' % hoursleft
-			elif hoursleft == 1:
-				message = 'an hour'
-			elif minutesleft > 1:
-				message = '%0.1f minutes' % minutesleft
-			elif minutesleft == 1:
-				message = 'a minute'
-			else:
-				message = '%0.0f second(s)'%(float(seconds))
-		return message
 	
-	def _time_since(self, seconds):
-		'given a past time in seconds, returns a readable relative time as a string'
-		seconds = time.time() - seconds
+	def _time_format(self, seconds):
+		'given a duration in seconds, returns a human-readable relative time'
 		minutesleft = float(seconds) / 60
 		hoursleft = minutesleft / 60
 		daysleft = hoursleft / 24
 		if daysleft > 7:
 			message = '%0.2f weeks' % (daysleft / 7)
-		if daysleft == 7:
+		elif daysleft == 7:
 			message = 'a week'
-		if daysleft > 1:
+		elif daysleft > 1:
 			message = '%0.2f days' % daysleft
-		if daysleft == 1:
+		elif daysleft == 1:
 			message = 'a day'
 		elif hoursleft > 1:
 			message = '%0.2f hours' % hoursleft
@@ -642,6 +612,20 @@ class Protocol:
 		else:
 			message = '%0.0f second(s)'%(float(seconds))
 		return message
+	
+	def _time_until(self, timestamp):
+		'given a future timestamp, as returned by time.time(), returns a human-readable relative time'
+		seconds = timestamp - time.time()
+		if seconds <= 0:
+			return 'forever'
+		else:
+			seconds = seconds - time.time()
+			return self._time_format(seconds)
+	
+	def _time_since(self, timestamp):
+		'given a past timestamp, as returned by time.time(), returns a readable relative time as a string'
+		seconds = time.time() - timestamp
+		return self._time_format(seconds)
 
 	def clientFromID(self, db_id):
 		'given a user database id, returns a client object from memory or the database'
@@ -801,13 +785,6 @@ class Protocol:
 		else:
 			self._root.console_write('Handler %s: Registration failed for user <%s> on session %s.'%(client.handler.num, username, client.session_id))
 			client.Send('REGISTRATIONDENIED %s'%reason)
-	
-	def in_TOKENIZE(self, client):
-		'''
-		Deprecated, will probably be removed future commit.
-		'''
-		client.tokenized = True
-		client.Send('TOKENIZED')
 	
 	def in_TELNET(self, client):
 		'''
@@ -1643,9 +1620,10 @@ class Protocol:
 				else:
 					battle.sending_replay_script = True
 	
-	def in_SCRIPT(self, client, scriptline): # TODO: limit this, could be used to overflow server memory
+	def in_SCRIPT(self, client, scriptline):
 		'''
 		Send a line of a script to the server.
+		Note: Scripts over 512KB will be discarded.
 
 		@required.str line: Another line of the script to save in the server.
 		'''
@@ -1654,7 +1632,11 @@ class Protocol:
 			battle = self._root.battles[battle_id]
 			if battle.host == client.username:
 				if battle.sending_replay_script:
-					battle.replay_script.append('%s\n'%scriptline)
+					if len(battle.replay_script) > 512 and len('\n'.join(battle.replay_script)) > 512*1024:
+						battle.sending_replay_script = False
+						client.Send('SERVERMSG Script too long (over 512KB). Discarding.')
+					else:
+						battle.replay_script.append('%s\n'%scriptline)
 
 	def in_SCRIPTEND(self, client):
 		'''
