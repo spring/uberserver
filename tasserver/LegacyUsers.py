@@ -250,7 +250,7 @@ class UsersHandler:
 	def get_registration_date(self, username):
 		user = self.clientFromUsername(username)
 		if user:
-			return True, user.registration_date
+			return True, user.register_date
 		else:
 			return False, 'User not found.'
 	
