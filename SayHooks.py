@@ -315,10 +315,11 @@ def public_rights(self, user, chan, rights):
 	_reply(self, chan, 'Your access levels are: %s.'%(', '.join(rights)))
 
 def public_raw(self, user, chan, rights, msg):
+	'send a raw message to the server'
 	self._protocol._handle(self, msg)
 
 def public_help(self, user, chan, rights, command=None):
-	'show command specific help.'
+	'show command-specific help'
 	if not command:
 		public_commands(self, user, chan, rights)
 		return
@@ -360,6 +361,7 @@ def public_commands(self, user, chan, rights):
 				_reply(self, chan, command)
 
 def chanpublic_info(self, user, chan, rights):
+	'shows general information about a channel'
 	channel = self._root.channels[chan]
 	
 	ops = []
@@ -423,6 +425,7 @@ def chanowner_deop(self, user, chan, rights, users):
 		channel.deopUser(self, username)
 
 def chanowner_register(self, user, chan, rights, owner=None):
+	'change the owner of a channel'
 	channel = self._root.channel[chan]
 	if owner == None: owner = user
 	if channel.owner == owner:
@@ -433,6 +436,7 @@ def chanowner_register(self, user, chan, rights, owner=None):
 	_reply(self, chan, 'Channel #%s successfully registered to %s' % (chan, user))
 
 def chanowner_unregister(self, user, chan, rights):
+	'unregister a channel'
 	channel = self._root.channels[chan]
 	if not channel.owner:
 		_reply(self, chan, 'Channel #%s is not registered' % chan)
@@ -441,34 +445,46 @@ def chanowner_unregister(self, user, chan, rights):
 	_reply(self, chan, 'Channel #%s successfully unregistered' % chan)
 
 def chanadmin_topic(self, user, channel, rights, topic):
+	'set the channel topic'
 	self._root.channels[channel].setTopic(self, topic)
 
 def chanadmin_kick(self, user, chan, rights, username, reason=''):
+	'kick a user from the channel'
 	channel = self._root.channels[chan]
-	channel.kickUser(self, username, reason)
+	target = self._protocol.clientFromUsername(username)
+	channel.kickUser(self, target, reason)
 
 def chanadmin_ban(self, user, chan, rights, username, reason=''):
+	'ban a user from the channel'
 	channel = self._root.channels[chan]
-	channel.banUser(self, username, reason)
+	target = self._protocol.clientFromUsername(username)
+	channel.banUser(self, target, reason)
 
 def chanadmin_unban(self, user, chan, rights, username):
+	'unban a user from the channel'
 	channel = self._root.channels[chan]
-	channel.unbanUser(self, username)
+	target = self._protocol.clientFromUsername(username)
+	channel.unbanUser(self, target)
 
 def chanadmin_allow(self, user, chan, rights, username):
+	'add a user to the channel allow list'
 	channel = self._root.channels[chan]
-	channel.allowUser(self, username)
+	target = self._protocol.clientFromUsername(username)
+	channel.allowUser(self, target)
 
 def chanadmin_disallow(self, user, chan, rights, username):
+	'remove a user from the channel allow list'
 	channel = self._root.channels[chan]
-	channel.disallowUser(self, username)
+	target = self._protocol.clientFromUsername(username)
+	channel.disallowUser(self, target)
 
 def chanadmin_chanmsg(self, user, chan, rights, message):
+	'send a channel message'
 	channel = self._root.channels[chan]
 	channel.channelMessage(message)
 
 def modchan_alias(self, user, chan, rights, alias, args=None):
-	'args can be "blind" or "nolock"'
+	'add a channel alias. args can be "blind" or "nolock"'
 	if args:
 		args = args.lower()
 		if 'blind' in args: blind = True
@@ -483,6 +499,7 @@ def modchan_alias(self, user, chan, rights, alias, args=None):
 		_reply(self, chan, 'Successfully aliased #%s to #%s.'%(alias, chan))
 
 def modchan_unalias(self, user, chan, rights, alias):
+	'remove a channel alias'
 	if alias and alias in self._root.chan_alias:
 		del self._root.chan_alias[alias]
 		_reply(self, chan, 'Successfully removed alias #%s to #%s.'%(alias, chan))
@@ -490,6 +507,7 @@ def modchan_unalias(self, user, chan, rights, alias):
 		_reply(self, chan, 'No such alias (#%s)'%alias)
 
 def battlehost_ban(self, user, battle_id, rights, username):
+	'ban a user from your battles'
 	if not username in self.battle_ban:
 		self.battle_ban.append(username)
 		_replyb(self, 'You have banned <%s> from your battles.'%username)
@@ -499,6 +517,7 @@ def battlehost_ban(self, user, battle_id, rights, username):
 		self._protool.incoming_KICKFROMBATTLE(self, username)
 
 def battlehost_unban(self, user, battle_id, rights, username):
+	'unban a user from your battles'
 	if not username in self.battle_ban:
 		self.battle_ban.append(username)
 		_replyb(self, 'You have unbanned <%s> from your battles.'%username)
@@ -510,20 +529,28 @@ def battlehost_unban(self, user, battle_id, rights, username):
 #def battlehost_unautospec(self, user, battle_id, rights, username):
 
 def battlepublic_banlist(self, user, battle_id, rights):
+	'view the host banlist'
 	battle_id = user.current_battle
 	host = self._root.battles[battle_id].host
 	bans = ['Battle bans for %s'%host]+self._root.usernames[host].battle_ban
 	_replyb(self, bans)
 
-def battlepublic_help(*args, **kwargs): public_help(*args, **kwargs)
-def battlepublic_commands(*args, **kwargs): public_commands(*args, **kwargs)
+def battlepublic_help(*args, **kwargs):
+	'get command-specific help'
+	public_help(*args, **kwargs)
 
-def public_aliaslist(self, user, chan, rights):
+def battlepublic_commands(*args, **kwargs):
+	'show all commands available to your access level'
+	public_commands(*args, **kwargs)
+
+def chanpublic_aliaslist(self, user, chan, rights):
+	'show a list of channel aliases'
 	_reply(self, chan, 'Channel alias list:')
 	for alias in dict(self._root.chan_alias):
 		_reply(self, chan, alias)
 
-def public_banlist(self, user, chan, rights):
+def chanpublic_banlist(self, user, chan, rights):
+	'show the current channel banlist'
 	channel = self._root.channels[chan]
 	if channel.ban:
 		bans = dict(channel.ban)
@@ -536,7 +563,8 @@ def public_banlist(self, user, chan, rights):
 	else:
 		_reply(self, chan, 'No users banned in #%s' % chan)
 
-def public_allowlist(self, user, chan, rights):
+def chanpublic_allowlist(self, user, chan, rights):
+	'show the current channel allow list'
 	channel = self._root.channels[chan]
 	if channel.allow:
 		allows = list(channel.allow)
