@@ -219,8 +219,20 @@ def hook_SAYBATTLE(self, client, battle_id, msg):
 		good, reason = _do(client, battle_id, user, msg[len(client.hook):], access)
 	else: return msg
 
+def __find_command(rights, command):
+	function, exists = None, False
+	for right in rights:
+		function = '%s_%s' %(right, command)
+		try:
+			exec "exists = type(%s) == types.FunctionType" % function
+			exists = True
+			break
+		except:
+			exists = False
+	return function, exists
+
 def _do(client, chan, user, msg, rights):
-	#number of words
+	# number of words
 	numspaces = msg.count(' ')
 	args = ''
 	if numspaces:
@@ -234,26 +246,26 @@ def _do(client, chan, user, msg, rights):
 		return False, 'no such command!'
 	exec 'function_info = inspect.getargspec(%s)' % function
 	total_args = len(function_info[0])-4
-	#if there are no arguments, just call the function
+	# if there are no arguments, just call the function
 
 	if not total_args:
 		exec '%s(client, user, chan, rights)' % function
 		return True, ''
-	#check for optional arguments
+	# check for optional arguments
 
 	optional_args = 0
 	if function_info[3]:
 		optional_args = len(function_info[3])
 
-	#check if we've got enough words for filling the required args
+	# check if we've got enough words for filling the required args
 	required_args = total_args - optional_args
-	#print numspaces, '--', required_args
+	# print numspaces, '--', required_args
 
 	if numspaces < required_args:
 		good, usage, description = _help(command, rights)
 		_reply(client, chan, 'invalid usage: %s'%usage)
 		return False, ''#, 'invalid usage: '+usage
-	#bunch the last words together if there are too many of them
+	# bunch the last words together if there are too many of them
 
 	if numspaces > total_args:
 		arguments = args.split(' ', total_args-1)
@@ -261,18 +273,6 @@ def _do(client, chan, user, msg, rights):
 		arguments = args.split(' ')
 	exec '%s(*([client, user, chan, rights]+arguments))' % function
 	return True, ''
-
-def __find_command(rights, command):
-	function, exists = None, False
-	for right in rights:
-		function = '%s_%s' %(right, command)
-		try:
-			exec "exists = type(%s) == types.FunctionType" % function
-			exists = True
-			break
-		except:
-			exists = False
-	return function, exists
 
 def _help(funcname, rights):
 	function, exists = __find_command(rights, funcname)
@@ -343,8 +343,9 @@ def public_commands(self, user, chan, rights):
 		exec 'isfunc = type(%s) == types.FunctionType' % command
 		if isfunc:
 			level, command = command.split('_', 1)
+			if not level in rights: continue
 			try:
-				exists, usage, description = _help(command, rights)
+				exists, usage, description = _help(command, [level])
 				if exists:
 					try:
 						helparray[level].append('    - %s (%s)'%(command, description))
