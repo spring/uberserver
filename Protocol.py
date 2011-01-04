@@ -2217,24 +2217,16 @@ class Protocol:
 			for line in traceback.format_exc().split('\n'):
 				client.Send('SERVERMSG  %s'%line)
 			client.Send('SERVERMSG %s'%('-'*20))
-
-	def in_MOD(self, client, username):
+	
+	def in_SETACCESS(self, client, username, access):
 		user = self.clientFromUsername(username)
-		if user:
-			user.access = 'mod'
-			user.accesslevels = ['mod', 'user']
-			self._calc_access_status(user)
-			self._root.broadcast('CLIENTSTATUS %s %s'%(username, user.status))
-			self.userdb.save_user(user)
-
-	def in_ADMIN(self, client, username):
-		user = self.clientFromUsername(username)
-		if user:
-			user.access = 'admin'
-			user.accesslevels = ['admin', 'mod', 'user']
-			self._calc_access_status(user)
-			self._root.broadcast('CLIENTSTATUS %s %s'%(username, user.status))
-			self.userdb.save_user(user)
+		if access in ('user', 'mod', 'admin'):
+			if user:
+				user.access = access
+				self._calc_access_status(user)
+				if username in self._root.usernames:
+					self._root.broadcast('CLIENTSTATUS %s %s'%(username, user.status))
+				self.userdb.save_user(user)
 
 	def in_DEBUG(self, client, enabled=None):
 		if enabled == 'on':	client.debug = True
