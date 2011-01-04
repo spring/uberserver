@@ -1214,14 +1214,14 @@ class Protocol:
 				client.Send('JOIN %s' % chan)
 				client.Send('CLIENTS %s %s' % (chan, user))
 		else:
-			if not user == channel.owner and 'mod' not in client.accesslevels and 'admin' not in client.accesslevels:
+			if not channel.isFounder(client):
 				if channel.key and not nolock and not channel.key == key:
 					client.Send('JOINFAILED %s Invalid key' % chan)
 					return
-				elif channel.autokick == 'ban' and user in channel.ban:
-					client.Send('JOINFAILED %s You are banned from the channel %s' % (chan, channel.ban[user]))
+				elif channel.autokick == 'ban' and client.db_id in channel.ban:
+					client.Send('JOINFAILED %s You are banned from the channel %s' % (chan, channel.ban[client.db_id]))
 					return
-				elif channel.autokick == 'allow' and user not in channel.allow:
+				elif channel.autokick == 'allow' and client.db_id not in channel.allow:
 					client.Send('JOINFAILED %s You are not allowed' % chan)
 					return
 			if not chan in client.channels:
