@@ -11,7 +11,7 @@ _permissiondocs = {
 					'chanpublic':'Public Commands (channel)',
 					'public':'Public Commands',
 					'battlehost':'Battle Host',
-					'battlepublic':'Battle Public',
+					'battlepublic':'Public Commands (battle)',
 					}
 
 def _erase():
@@ -201,7 +201,7 @@ def hook_SAYPRIVATE(self, client, target, msg):
 	return _site_censor(msg)
 
 def hook_SAYBATTLE(self, client, battle_id, msg):
-	return # no way to respond in battles atm
+	return msg # no way to respond in battles atm
 	user = client.username
 	if client.hook and msg.startswith(client.hook):
 		access = []
@@ -228,7 +228,7 @@ def _do(client, chan, user, msg, rights):
 		command = msg
 	command = command.lower()
 	#command = command[1:]
-	function,exists = __find_command(rights,command)
+	function,exists = __find_command(rights, command)
 	if not exists:
 		return False,'no such command!'
 	exec 'function_info = inspect.getargspec(%s)' % function
@@ -256,8 +256,8 @@ def _do(client, chan, user, msg, rights):
 	exec '%s(*([client,user,chan,rights]+arguments))' % function
 	return True,''
 
-def __find_command(rights,command):
-	function,exists = None,False
+def __find_command(rights, command):
+	function, exists = None,False
 	for right in rights:
 		function = '%s_%s' %(right,command)
 		try:
@@ -266,12 +266,12 @@ def __find_command(rights,command):
 			break
 		except:
 			exists = False
-	return function,exists
+	return function, exists
 
 def _help(funcname,rights):
-	function,exists = __find_command(rights,funcname)
+	function, exists = __find_command(rights, funcname)
 	if not exists:
-		return False,'',''
+		return False, '', ''
 	exec 'function_info = inspect.getargspec(%s)' %function
 	all_args = function_info[0][4:]
 	num_all_args = 0
@@ -336,9 +336,9 @@ def public_commands(self, user, chan, rights):
 	for command in l:
 		exec 'isfunc = type(%s) == types.FunctionType' % command
 		if isfunc:
-			level,command = command.split('_',1)
+			level, command = command.split('_',1)
 			try:
-				exists,usage,description = _help(command,rights)
+				exists, usage, description = _help(command, rights)
 				if exists:
 					try:
 						helparray[level].append('    - %s (%s)'%(command, description))
@@ -509,7 +509,7 @@ def battlepublic_banlist(self, user, battle_id, rights):
 	_replyb(self,bans)
 
 def battlepublic_help(*args, **kwargs): public_help(*args, **kwargs)
-def battlepublic_commands(*args, **kwargs): battlepublic_commands(*args, **kwargs)
+def battlepublic_commands(*args, **kwargs): public_commands(*args, **kwargs)
 
 def public_aliaslist(self, user, chan, rights):
 	_reply(self, chan, 'Channel alias list:')
