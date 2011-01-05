@@ -698,10 +698,7 @@ class Protocol:
 
 		host = self._root.usernames[battle.host]
 		if host.ip_address == client.ip_address: # translates the ip to always be compatible with the client
-			if client.local_ip == host.local_ip:
-				translated_ip = '127.0.0.1'
-			else:
-				translated_ip = host.local_ip
+			translated_ip = host.local_ip
 		else:
 			translated_ip = host.ip_address
 		
