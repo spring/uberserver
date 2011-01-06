@@ -1863,8 +1863,19 @@ class Protocol:
 
 		@required.str username: The target user.
 		'''
-		if username in self._root.usernames:
-			self._root.usernames[username].Send('RING %s'%(client.username))
+		user = self.clientFromUsername(username)
+
+		if not user: return
+		if not 'mod' in client.accesslevels:
+			battle_id = client.current_battle
+			if battle_id:
+				battle = self._root.battles[battle_id]
+				if battle.host != client.username:
+					return
+			else:
+				return
+
+		user.Send('RING %s' % (client.username))
 
 	def in_ADDSTARTRECT(self, client, allyno, left, top, right, bottom):
 		'''
