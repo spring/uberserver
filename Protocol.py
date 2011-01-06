@@ -1734,6 +1734,15 @@ class Protocol:
 			self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(client.username, self._calc_battlestatus(client), myteamcolor), client.current_battle)
 
 	def in_UPDATEBATTLEINFO(self, client, SpectatorCount, locked, maphash, mapname):
+		'''
+		Update public properties of your battle.
+		[host]
+
+		@required.int spectators: The number of spectators in your battle.
+		@required.int locked: A boolean (0 or 1) of whether battle is locked.
+		@required.sint mapHash: A 32-bit signed hash of the current map as returned by unitsync.
+		@required.str mapName: The name of the current map.
+		'''
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
@@ -1748,6 +1757,11 @@ class Protocol:
 					self._root.broadcast(newstr)
 
 	def in_MYSTATUS(self, client, status):
+		'''
+		Set your client status, to be relayed to all other clients.
+
+		@required.int status: A bitfield of your status. The server forces a few values itself, as well.
+		'''
 		if not status.isdigit():
 			client.Send('SERVERMSG MYSTATUS failed - invalid status.')
 			return
@@ -1780,6 +1794,9 @@ class Protocol:
 		self._root.broadcast('CLIENTSTATUS %s %s'%(client.username, client.status))
 
 	def in_CHANNELS(self, client):
+		'''
+		Return a listing of all channels on the server.
+		'''
 		channels = []
 		for channel in self._root.channels.values():
 			if channel.owner and not channel.key:
@@ -1798,18 +1815,38 @@ class Protocol:
 		client.Send('ENDOFCHANNELS')
 
 	def in_CHANNELTOPIC(self, client, chan, topic):
+		'''
+		Set the topic in target channel.
+		[operator]
+
+		@required.str channel: The target channel.
+		@required.str topic: The topic to set.
+		'''
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			if channel.isOp(client):
 				channel.setTopic(client, topic)
 
 	def in_CHANNELMESSAGE(self, client, chan, message):
+		'''
+		Send a server message to target channel.
+
+		@required.str channel: The target channel.
+		@required.str message: The message to send.
+		'''
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			if channel.isOp(client):
 				channel.channelMessage(message)
 
 	def in_FORCELEAVECHANNEL(self, client, chan, username, reason=''):
+		'''
+		Kick target user from target channel.
+
+		@required.str channel: The target channel.
+		@required.str username: The target user.
+		@optional.str reason: A reason for kicking the user..
+		'''
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			if channel.isOp(client):
@@ -1820,10 +1857,25 @@ class Protocol:
 					client.Send('SERVERMSG <%s> not in channel #%s' % (username, chan))
 
 	def in_RING(self, client, username):
+		'''
+		Send target user a ringing notification, normally used for idle users in battle.
+		[host]
+
+		@required.str username: The target user.
+		'''
 		if username in self._root.usernames:
 			self._root.usernames[username].Send('RING %s'%(client.username))
 
 	def in_ADDSTARTRECT(self, client, allyno, left, top, right, bottom):
+		'''
+		Add a start rectangle in the battle.
+
+		@required.int allyno: The ally number for the rectangle.
+		@required.float left: The left side of the rectangle.
+		@required.float top: The top side of the rectangle.
+		@required.float right: The right side of the rectangle.
+		@required.float bottom: The bottom side of the rectangle.
+		'''
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
