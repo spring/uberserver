@@ -1879,7 +1879,8 @@ class Protocol:
 
 	def in_ADDSTARTRECT(self, client, allyno, left, top, right, bottom):
 		'''
-		Add a start rectangle in the battle.
+		Add a start rectangle for an ally team.
+		[host]
 
 		@required.int allyno: The ally number for the rectangle.
 		@required.float left: The left side of the rectangle.
@@ -1896,6 +1897,12 @@ class Protocol:
 				self._root.broadcast_battle('ADDSTARTRECT %s' % (allyno)+' %(left)s %(top)s %(right)s %(bottom)s' %(rect), client.current_battle, [client.username])
 
 	def in_REMOVESTARTRECT(self, client, allyno):
+		'''
+		Remove a start rectangle for an ally team.
+		[host]
+
+		@required.int allyno: The ally number for the rectangle.
+		'''
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
@@ -1904,6 +1911,12 @@ class Protocol:
 				self._root.broadcast_battle('REMOVESTARTRECT %s' % allyno, client.current_battle, [client.username])
 
 	def in_DISABLEUNITS(self, client, units):
+		'''
+		Add a list of units to disable.
+		[host]
+
+		@required.str units: A string-separated list of unit names to disable.
+		'''
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
@@ -1919,6 +1932,12 @@ class Protocol:
 					self._root.broadcast_battle('DISABLEUNITS %s'%disabled_units, battle_id, client.username)
 
 	def in_ENABLEUNITS(self, client, units):
+		'''
+		Remove units from the disabled unit list.
+		[host]
+
+		@required.str units: A string-separated list of unit names to enable.
+		'''
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
@@ -1934,6 +1953,10 @@ class Protocol:
 					self._root.broadcast_battle('ENABLEUNITS %s'%enabled_units, battle_id, client.username)
 
 	def in_ENABLEALLUNITS(self, client):
+		'''
+		Enable all units.
+		[host]
+		'''
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
@@ -1942,6 +1965,13 @@ class Protocol:
 				self._root.broadcast_battle('ENABLEALLUNITS', battle_id, client.username)
 
 	def in_HANDICAP(self, client, username, value):
+		'''
+		Change the handicap value for a player.
+		[host]
+
+		@required.str username: The player to handicap.
+		@required.int handicap: The percentage of handicap to give (1-100).
+		'''
 		battle_id = client.current_battle
 		if battle_id in self._root.battles and value in str(range(0,101)).strip('[]').split(', '):
 			battle = self._root.battles[battle_id]
