@@ -1870,7 +1870,7 @@ class Protocol:
 			battle_id = client.current_battle
 			if battle_id:
 				battle = self._root.battles[battle_id]
-				if battle.host != client.username:
+				if battle.host in (client.username, username):
 					return
 			else:
 				return
