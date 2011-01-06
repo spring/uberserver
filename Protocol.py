@@ -2201,6 +2201,10 @@ class Protocol:
 	
 	def in_ADMINBROADCAST(self, client, msg):
 		self._root.admin_broadcast(msg)
+	
+	def in_SETLATESTSPRINGVERSION(self, client, version):
+		self._root.latestspringversion = version
+		client.Send('SERVERMSG Latest spring version is now set to: %s' % version)
 
 	def in_KICKUSER(self, client, user, reason=''):
 		if reason.startswith('quiet'):
