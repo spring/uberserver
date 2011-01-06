@@ -1973,7 +1973,10 @@ class Protocol:
 		@required.int handicap: The percentage of handicap to give (1-100).
 		'''
 		battle_id = client.current_battle
-		if battle_id in self._root.battles and value in str(range(0,101)).strip('[]').split(', '):
+		if not value.isdigit() or not int(value) in range(0, 101):
+			return
+
+		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
 			if client.username == battle.host:
 				if username in battle.users:
