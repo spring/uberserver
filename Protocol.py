@@ -1985,6 +1985,12 @@ class Protocol:
 					self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), battle_id)
 
 	def in_KICKFROMBATTLE(self, client, username):
+		'''
+		Kick a player from their battle.
+		[host]
+
+		@required.str username: The player to kick.
+		'''
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
@@ -2001,6 +2007,13 @@ class Protocol:
 				client.Send('SERVERMSG You must be the battle host to kick from a battle.')
 
 	def in_FORCETEAMNO(self, client, username, teamno):
+		'''
+		Force target player's team number.
+		[host]
+
+		@required.str username: The target player.
+		@required.int teamno: The team to assign them.
+		'''
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
@@ -2011,6 +2024,13 @@ class Protocol:
 					self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), battle_id)
 
 	def in_FORCEALLYNO(self, client, username, allyno):
+		'''
+		Force target player's ally team number.
+		[host]
+
+		@required.str username: The target player.
+		@required.int teamno: The ally team to assign them.
+		'''
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
@@ -2021,6 +2041,13 @@ class Protocol:
 					self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), battle_id)
 
 	def in_FORCETEAMCOLOR(self, client, username, teamcolor):
+		'''
+		Force target player's team color.
+		[host]
+
+		@required.str username: The target player.
+		@required.sint teamcolor: The color to assign them, represented with hex 0xBBGGRR as a signed integer.
+		'''
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
@@ -2031,6 +2058,12 @@ class Protocol:
 					self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), battle_id)
 
 	def in_FORCESPECTATORMODE(self, client, username):
+		'''
+		Force target player to become a spectator.
+		[host]
+
+		@required.str username: The target player.
+		'''
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
