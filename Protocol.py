@@ -2046,7 +2046,7 @@ class Protocol:
 		[host]
 
 		@required.str username: The target player.
-		@required.sint teamcolor: The color to assign them, represented with hex 0xBBGGRR as a signed integer.
+		@required.sint teamcolor: The color to assign, represented with hex 0xBBGGRR as a signed integer.
 		'''
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
@@ -2074,6 +2074,15 @@ class Protocol:
 					self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), battle_id)
 
 	def in_ADDBOT(self, client, name, battlestatus, teamcolor, AIDLL):
+		'''
+		Add a bot to the current battle.
+		[battle]
+
+		@required.str name: The name of the bot.
+		@required.int battlestatus: The battle status of the bot.
+		@required.sint teamcolor: The color to assign, represented with hex 0xBBGGRR as a signed integer.
+		@required.str AIDLL: The name of the DLL loading the bot.
+		'''
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
@@ -2083,6 +2092,14 @@ class Protocol:
 				self._root.broadcast_battle('ADDBOT %s %s %s %s %s %s'%(battle_id, name, client.username, battlestatus, teamcolor, AIDLL), battle_id)
 
 	def in_UPDATEBOT(self, client, name, battlestatus, teamcolor):
+		'''
+		Update battle status and teamcolor for a bot.
+		[battle]
+
+		@required.str name: The name of the bot.
+		@required.int battlestatus: The battle status of the bot.
+		@required.sint teamcolor: The color to assign, represented with hex 0xBBGGRR as a signed integer.
+		'''
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
@@ -2092,6 +2109,12 @@ class Protocol:
 					self._root.broadcast_battle('UPDATEBOT %s %s %s %s'%(battle_id, name, battlestatus, teamcolor), battle_id)
 	
 	def in_REMOVEBOT(self, client, name):
+		'''
+		Remove a bot from the active battle.
+		[battle]
+
+		@required.str name: The name of the bot.
+		'''
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
@@ -2102,6 +2125,11 @@ class Protocol:
 				 	self._root.broadcast_battle('REMOVEBOT %s %s'%(battle_id, name), battle_id)
 	
 	def in_FORCECLOSEBATTLE(self, client, battle_id=None):
+		'''
+		Force a battle to close.
+
+		@optional.int battle_id: The battle ID to close. Defaults to current battle.
+		'''
 		if not battle_id: battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
@@ -2110,6 +2138,15 @@ class Protocol:
 			client.Send('SERVERMSG Invalid battle ID.')
 	
 	def in_GETINGAMETIME(self, client, username=None):
+		'''
+		Get the ingame time for yourself.
+		[user]
+
+		Get the ingame time for any user.
+		[mod]
+
+		@optional.str username: The target user. Defaults to yourself.
+		'''
 		if username and 'mod' in client.accesslevels:
 			if username in self._root.usernames: # maybe abstract in the datahandler to automatically query SQL for users not logged in.
 				ingame_time = int(self._root.usernames[username].ingame_time)
@@ -2127,6 +2164,12 @@ class Protocol:
 			client.Send('SERVERMSG You can\'t get the ingame time of other users.')
 	
 	def in_REQUESTUPDATEFILE(self, client, nameAndVersion):
+		'''
+		Request the server to send you an update.
+
+		@required.str name: The name of the update to request.
+		@optional.str version: The version to request. If not provided or found, the default version will be used.
+		'''
 		nameAndVersion = nameAndVersion.lower()
 		if ' ' in nameAndVersion:
 			name, version = nameAndVersion.rsplit(' ',1)
@@ -2142,15 +2185,32 @@ class Protocol:
 				client.Send('OFFERFILE %s' % update['default'])
 	
 	def in_UPTIME(self, client):
+		'''
+		Get the server's uptime.
+		'''
 		client.Send('SERVERMSG Server uptime is %s.' % self._time_since(self._root.start_time))
 	
 	def in_GETLASTLOGINTIME(self, client, username):
+		'''
+		Get the last login time of target user.
+
+		@required.str username: The target user.
+		'''
 		if username:
 			good, data = self.userdb.get_lastlogin(username)
 			if good: client.Send('SERVERMSG <%s> last logged in on %s.' % (username, time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(data))))
 			else: client.Send('SERVERMSG Database returned error when retrieving last login time for <%s> (%s)' % (username, data))
 	
 	def in_GETREGISTRATIONDATE(self, client, username=None):
+		'''
+		Get the registration date of yourself.
+		[user]
+
+		Get the registration date of target user.
+		[mod]
+
+		@optional.str username: The target user. Defaults to yourself.
+		'''
 		if username and 'mod' in client.accesslevels:
 			if username in self._root.usernames:
 				reason = self._root.usernames[username].register_date
@@ -2164,12 +2224,24 @@ class Protocol:
 		else: client.Send('SERVERMSG Database returned error when retrieving registration date for <%s> (%s)' % (username, reason))
 	
 	def in_GETACCOUNTINFO(self, client, username):
+		'''
+		Get the account information for target user.
+		[mod]
+
+		@required.str username: The target user.
+		'''
 		good, data = self.userdb.get_account_info(username)
 		if good:
 			client.Send('SERVERMSG Account info for <%s>: %s' % (username, data))
 		else: client.Send('SERVERMSG Database returned error when retrieving account info for <%s> (%s)' % (username, data))
 	
 	def in_GETACCOUNTACCESS(self, client, username):
+		'''
+		Get the account access bitfield for target user.
+		[mod]
+
+		@required.str username: The target user.
+		'''
 		good, data = self.userdb.get_account_access(username)
 		if good:
 			client.Send('SERVERMSG Account access for <%s>: %s' % (username, data))
@@ -2177,6 +2249,11 @@ class Protocol:
 			client.Send('SERVERMSG Database returned error when retrieving account access for <%s> (%s)' % (username, data))
 	
 	def in_FINDIP(self, client, address):
+		'''
+		Get all usernames associated with target IP address.
+
+		@required.str address: The target IP address.
+		'''
 		results = self.userdb.find_ip(address)
 		for entry in results:
 			if entry.username in self._root.usernames:
@@ -2184,9 +2261,18 @@ class Protocol:
 			else:
 				client.Send('SERVERMSG <%s> was recently bound to %s at %s' % (entry.username, address, time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(entry.last_login / 1000))))
 	
-	def in_GETLASTIP(self, client, username): return self.in_GETIP(client, username)
+	def in_GETLASTIP(self, client, username):
+		'''
+		An alias for GETIP.
+		'''
+		return self.in_GETIP(client, username)
 	
 	def in_GETIP(self, client, username):
+		'''
+		Get the current or last IP address for target user.
+
+		@required.str username: The target user.
+		'''
 		if username in self._root.usernames:
 			client.Send('SERVERMSG <%s> is currently bound to %s' % (username, self._root.usernames[username].ip_address))
 			return
