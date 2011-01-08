@@ -1863,14 +1863,14 @@ class Protocol:
 
 		@required.str username: The target user.
 		'''
-		user = self.clientFromUsername(username)
+		user = self._root.clientFromUsername(username)
 
 		if not user: return
 		if not 'mod' in client.accesslevels:
 			battle_id = client.current_battle
 			if battle_id:
 				battle = self._root.battles[battle_id]
-				if battle.host in (client.username, username):
+				if not battle.host in (client.username, username):
 					return
 			else:
 				return
