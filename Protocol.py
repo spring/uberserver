@@ -279,7 +279,7 @@ class Channel(AutoDict):
 				return 'muted forever'
 			else:
 				 # TODO: move format_time, bin2dec, etc to a utilities class or module
-				return 'muted for the next %s.' % (client._protocol._format_time(m['expires']))
+				return 'muted for the next %s.' % (client._protocol._time_until(m['expires']))
 		else:
 			return 'not muted'
 	
@@ -1160,7 +1160,7 @@ class Protocol:
 			for user in mutelist:
 				m = mutelist[user].copy()
 				user = self.clientFromID(user).username
-				message = self._format_time(m['expires']) + (' by IP.' if m['ip'] else '.')
+				message = self._time_until(m['expires']) + (' by IP.' if m['ip'] else '.')
 				client.Send('MUTELIST %s, %s' % (user, message))
 			client.Send('MUTELISTEND')
 
