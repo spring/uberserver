@@ -416,17 +416,21 @@ def chanowner_op(self, user, chan, rights, users):
 	'add user(s) to the channel admin list'
 	channel = self._root.channels[chan]
 	for username in users.split(' '):
-		channel.opUser(self, username)
+		user = self._protocol.clientFromUsername(username)
+		if user:
+			channel.opUser(self, user)
 
 def chanowner_deop(self, user, chan, rights, users):
 	'removes user(s) from the channel admin list'
 	channel = self._root.channels[chan]
 	for username in users.split(' '):
-		channel.deopUser(self, username)
+		user = self._protocol.clientFromUsername(username)
+		if user:
+			channel.deopUser(self, user)
 
 def chanowner_register(self, user, chan, rights, owner=None):
 	'change the owner of a channel'
-	channel = self._root.channel[chan]
+	channel = self._root.channels[chan]
 	if owner == None: owner = user
 	if channel.owner == owner:
 		_reply(self, chan, 'Channel #%s already belongs to #%s' % (chan, owner))
@@ -458,25 +462,29 @@ def chanadmin_ban(self, user, chan, rights, username, reason=''):
 	'ban a user from the channel'
 	channel = self._root.channels[chan]
 	target = self._protocol.clientFromUsername(username)
-	channel.banUser(self, target, reason)
+	if target:
+		channel.banUser(self, target, reason)
 
 def chanadmin_unban(self, user, chan, rights, username):
 	'unban a user from the channel'
 	channel = self._root.channels[chan]
 	target = self._protocol.clientFromUsername(username)
-	channel.unbanUser(self, target)
+	if target:
+		channel.unbanUser(self, target)
 
 def chanadmin_allow(self, user, chan, rights, username):
 	'add a user to the channel allow list'
 	channel = self._root.channels[chan]
 	target = self._protocol.clientFromUsername(username)
-	channel.allowUser(self, target)
+	if target:
+		channel.allowUser(self, target)
 
 def chanadmin_disallow(self, user, chan, rights, username):
 	'remove a user from the channel allow list'
 	channel = self._root.channels[chan]
 	target = self._protocol.clientFromUsername(username)
-	channel.disallowUser(self, target)
+	if target:
+		channel.disallowUser(self, target)
 
 def chanadmin_chanmsg(self, user, chan, rights, message):
 	'send a channel message'
@@ -492,7 +500,7 @@ def modchan_alias(self, user, chan, rights, alias, args=None):
 		if 'nolock' in args: nolock = True
 		else: nolock = False
 	else: blind = nolock = False
-	if alias in self._root.channels and self._root.channels[alias].founder:
+	if alias in self._root.channels and self._root.channels[alias].owner:
 		_reply(self, chan, 'Cannot alias #%s to #%s, #%s is a registered channel.'%(alias, chan, alias))
 	else:
 		self._root.chan_alias[alias] = {'chan':chan, 'blind':blind, 'nolock':nolock}
