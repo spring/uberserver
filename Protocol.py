@@ -1425,7 +1425,7 @@ class Protocol:
 			battle = self._root.battles[battle_id]
 			self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg))
 	
-	def in_SAYBATTLEUSER(self, client, username, msg):
+	def in_SAYBATTLEPRIVATE(self, client, username, msg):
 		'''
 		Send a message to one target user in your current battle.
 		[host]
@@ -1441,7 +1441,7 @@ class Protocol:
 				if user:
 					user.Send('SAIDBATTLE %s %s' % (client.username, msg))
 	
-	def in_SAYBATTLEUSEREX(self, client, username, msg):
+	def in_SAYBATTLEPRIVATEEX(self, client, username, msg):
 		'''
 		Send an action to one target user in your current battle.
 		[host]
