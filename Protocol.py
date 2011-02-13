@@ -2282,6 +2282,11 @@ class Protocol:
 			client.Send('SERVERMSG <%s> was recently bound to %s' % (username, ip))
 	
 	def in_RENAMEACCOUNT(self, client, newname):
+		'''
+		Change the name of current user.
+
+		@required.str username: The new username to apply.
+		'''
 		for char in newname:
 			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
 				client.Send('REGISTRATIONDENIED Unicode names are currently disallowed.')
@@ -2302,6 +2307,12 @@ class Protocol:
 			client.Send('SERVERMSG Failed to rename to <%s>: %s' % (newname, reason))
 	
 	def in_CHANGEPASSWORD(self, client, oldpassword, newpassword):
+		'''
+		Change the password of current user.
+
+		@required.str oldpassword: The previous password.
+		@required.str newpassword: The new password.
+		'''
 		user = self.userdb.clientFromUsername(client.username)
 		if user:
 			if user.password == oldpassword:
@@ -2312,6 +2323,13 @@ class Protocol:
 				client.Send('SERVERMSG Incorrect password.')
 
 	def in_FORGEMSG(self, client, user, msg):
+		'''
+		Forge a message to target user.
+		Note: this is currently disabled.
+
+		@required.str username: The target user.
+		@required.str message: The raw message to send to them.
+		'''
 		if user == client.username:
 			client.Send(msg)
 		else:
@@ -2320,20 +2338,43 @@ class Protocol:
 	#		self._root.usernames[user].Send(msg)
 
 	def in_FORGEREVERSEMSG(self, client, user, msg):
+		'''
+		Forge a message from target user.
+		Note: this is currently disabled.
+
+		@required.str username: The target user.
+		@required.str message: The message to forge from them.
+		'''
 		client.Send('SERVERMSG Forging messages is disabled.')
 	#	if user in self._root.usernames:
 	#		self._handle(self._root.usernames[user], msg)
 
 	def in_GETLOBBYVERSION(self, client, username):
+		'''
+		Get the lobby version of target user.
+
+		@required.str username: The target user.
+		'''
 		user = self.clientFromUsername(username)
 		if user and 'lobby_id' in dir(user):
 			client.Send('SERVERMSG <%s> is using %s'%(user.username, user.lobby_id))
 	
 	def in_GETSENDBUFFERSIZE(self, client, username):
+		'''
+		Get the size in bytes of target user's send buffer.
+
+		@required.str username: The target user.
+		'''
 		if username in self._root.usernames:
 			client.Send('SERVERMSG <%s> has a sendbuffer size of %s'%(username, len(self._root.usernames[username].sendbuffer)))
 
 	def in_SETINGAMETIME(self, client, username, minutes):
+		'''
+		Set the ingame time of target user.
+
+		@required.str username: The target user.
+		@required.int minutes: The new ingame time to set.
+		'''
 		user = self.clientFromUsername(username)
 		if user:
 			user.ingame_time = int(minutes)
@@ -2342,6 +2383,12 @@ class Protocol:
 			self.in_GETINGAMETIME(client, username)
 
 	def in_SETBOTMODE(self, client, username, mode):
+		'''
+		Set the bot flag of target user.
+
+		@required.str username: The target user.
+		@required.bool mode: The resulting bot mode.
+		'''
 		user = self.clientFromUsername(username)
 		if user:
 			bot = (mode.lower() in ('true', 'yes', '1'))
@@ -2350,6 +2397,12 @@ class Protocol:
 			client.Send('SERVERMSG Botmode for <%s> successfully changed to %s' % (username, bot))
 	
 	def in_CHANGEACCOUNTPASS(self, client, username, newpass):
+		'''
+		Set the password for target user.
+
+		@required.str username: The target user.
+		@required.str password: The new password.
+		'''
 		user = self.userdb.clientFromUsername(username)
 		if user:
 			user.password = newpass
@@ -2357,19 +2410,45 @@ class Protocol:
 			client.Send('SERVERMSG Password for <%s> successfully changed to %s' % (username, newpass))
 	
 	def in_BROADCAST(self, client, msg):
+		'''
+		Broadcast a message.
+
+		@required.str message: The message to broadcast.
+		'''
 		self._root.broadcast('BROADCAST %s'%msg)
 	
 	def in_BROADCASTEX(self, client, msg):
+		'''
+		Broadcast a message to be shown especially by lobby clients.
+
+		@required.str message: The message to broadcast.
+		'''
 		self._root.broadcast('SERVERMSGBOX %s'%msg)
 	
 	def in_ADMINBROADCAST(self, client, msg):
+		'''
+		Broadcast a message to administrative users.
+
+		@required.str message: The message to broadcast.
+		'''
 		self._root.admin_broadcast(msg)
 	
 	def in_SETLATESTSPRINGVERSION(self, client, version):
+		'''
+		Set a new version of Spring as the latest.
+
+		@required.str version: The new version to apply.
+		'''
 		self._root.latestspringversion = version
 		client.Send('SERVERMSG Latest spring version is now set to: %s' % version)
 
 	def in_KICKUSER(self, client, user, reason=''):
+		'''
+		Kick target user from the server.
+
+		@required.str username: The target user.
+		@optional.str reason: The reason to be shown.
+		'''
 		if reason.startswith('quiet'):
 			reason = reason.split('quiet')[1].lstrip()
 			quiet = True
@@ -2385,11 +2464,20 @@ class Protocol:
 			kickeduser.Remove('Kicked from server')
 	
 	def in_KILLALL(self, client):
+		'''
+		Kick all non-admins from the server.
+		'''
 		for client in self._root.clients.values():
 			if not client.isAdmin():
 				client.Remove('all clients killed')
 	
 	def in_TESTLOGIN(self, client, username, password):
+		'''
+		Test logging in as target user.
+
+		@required.str username: The target user.
+		@required.str password: The password to try.
+		'''
 		user = self.userdb.clientFromUsername(username)
 		if user and user.password == password:
 			client.Send('TESTLOGINACCEPT %s %s' % (user.username, user.id))
@@ -2397,11 +2485,23 @@ class Protocol:
 			client.Send('TESTLOGINDENY')
 
 	def in_EXIT(self, client, reason=('Exiting')):
+		'''
+		Disconnect from the server, with an optional reason.
+
+		optional.str reason: The reason for exiting.
+		'''
 		if reason: reason = 'Quit: %s' % reason
 		else: reason = 'Quit'
 		client.Remove(reason)
 	
 	def in_BAN(self, client, username, duration, reason):
+		'''
+		Ban target user from the server.
+
+		@required.str username: The target user.
+		@required.float duration: The duration in days.
+		@required.str reason: The reason to be shown.
+		'''
 		try: duration = float(duration)
 		except:
 			client.Send('SERVERMSG Duration must be a float (it\'s the ban duration in days)')
@@ -2410,21 +2510,38 @@ class Protocol:
 		if response: client.Send('SERVERMSG %s' % response)
 	
 	def in_UNBAN(self, client, username):
+		'''
+		Remove all bans for target user from the server.
+
+		@required.str username: The target user.
+		'''
 		response = self.userdb.unban_user(username)
 		if response: client.Send('SERVERMSG %s' % response)
 	
 	def in_BANLIST(self, client):
+		'''
+		Retrieve a list of all bans currently active on the server.
+		'''
 		for entry in self.userdb.banlist():
 			client.Send('SERVERMSG %s' % entry)
 	
 	def in_BANIP(self, client, ip, duration, reason):
+		'''
+		Ban an IP address from the server.
+
+		@required.str ip: The IP address to ban.
+		@required.float duration: The duration in days.
+		@required.str reason: The reason to show.
+		'''
 		client.Send('SERVERMSG BANIP not implemented')
-	
-	def in_BANUSER(self, client, username, duration, reason):
-		client.Send('SERVERMSG BANUSER not implemented')
 
 	def in_PYTHON(self, client, code):
-		'Execute Python code.'
+		'''
+		Execute Python code directly on the server.
+
+		@required.str code: The code to execute.
+		Note: \\n and \\t will be escaped and turned directly into newlines and tabs.
+		'''
 		code = code.replace('\\n', '\n').replace('\\t','\t')
 		try:
 			exec code
@@ -2435,6 +2552,13 @@ class Protocol:
 			client.Send('SERVERMSG %s'%('-'*20))
 	
 	def in_SETACCESS(self, client, username, access):
+		'''
+		Set the access level of target user.
+
+		@required.str username: The target user.
+		@required.str access: The new access to apply.
+		Access levels: user, mod, admin
+		'''
 		user = self.clientFromUsername(username)
 		if access in ('user', 'mod', 'admin'):
 			if user:
@@ -2445,6 +2569,13 @@ class Protocol:
 				self.userdb.save_user(user)
 
 	def in_DEBUG(self, client, enabled=None):
+		'''
+		Enable or toggle showing debug messages from the server to the current client.
+		This allows admins to see exceptions thrown by the server.
+
+		optional.bool enabled: Set the debug mode directly.
+		If omitted, debug mode will be toggled.
+		'''
 		if enabled == 'on':	client.debug = True
 		elif enabled == 'off': client.debug = False
 		else: client.debug = not client.debug
@@ -2452,7 +2583,21 @@ class Protocol:
 		client.Send('SERVERMSG Debug messages: %s' % ('on' and client.debug or 'off'))
 		
 	def in_RELOAD(self, client):
-		'Reloads Protocol, SayHooks, Telnet, UserHandler, and ChanServ'
+		'''
+		Reload core parts of the server code from source. This also reparses motd, update list, and trusted proxy file.
+		Do not use this for changes unless you are very confident in your ability to recover from a mistake.
+		If you use this command to change code on the primary server without talking to aegis, he won't be happy.
+
+		Parts reloaded:
+		ChanServ.py
+		Protocol.py
+		SayHooks.py
+		Telnet.py
+
+		User databases reloaded:
+		SQLUsers.py
+		LanUsers.py
+		'''
 		self._root.reload()
 
 def make_docs():
