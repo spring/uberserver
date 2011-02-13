@@ -2611,7 +2611,9 @@ def make_docs():
 	return response
 	
 if __name__ == '__main__':
-	f = open('protocol.txt', 'w')
+	if not os.path.exists('docs'):
+		os.mkdir('docs')
+	f = open('docs/protocol.txt', 'w')
 	f.write('\n'.join(make_docs()) + '\n')
 	f.close()
 	
