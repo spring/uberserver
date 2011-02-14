@@ -2617,3 +2617,4 @@ if __name__ == '__main__':
 	f.write('\n'.join(make_docs()) + '\n')
 	f.close()
 	
+	print 'Protocol documentation written to docs/protocol.txt'
