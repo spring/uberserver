@@ -2318,9 +2318,9 @@ class Protocol:
 			if user.password == oldpassword:
 				user.password = newpassword
 				self.userdb.save_user(user)
-				client.Send('SERVERMSG Password changed successfully.')
+				client.Send('SERVERMSG Password changed successfully to %s' % newpassword)
 			else:
-				client.Send('SERVERMSG Incorrect password.')
+				client.Send('SERVERMSG Incorrect old password.')
 
 	def in_FORGEMSG(self, client, user, msg):
 		'''
