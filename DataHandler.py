@@ -62,14 +62,30 @@ class DataHandler:
 		'parses command-line options'
 		args = {'ignoreme':[]}
 		mainarg = 'ignoreme'
-		for arg in argv:
+
+		tempargv = list(argv)
+		while tempargv:
+			arg = tempargv.pop(0)
 			if arg.startswith('-'):
 				mainarg = arg.lstrip('-').lower()
+
+				if mainarg in ['g', 'loadargs']:
+					try:
+						name = tempargv[0]
+						if name.startswith('-'): raise Exception
+						f = file(name, 'r')
+						lines = f.read().split('\n')
+						f.close()
+
+						tempargv += ' '.join(lines).split(' ')
+					except:
+						pass
+
 				args[mainarg] = []
 			else:
 				args[mainarg].append(arg)
 		del args['ignoreme']
-		
+
 		for arg in args:
 			argp = args[arg]
 			if arg in ['h', 'help']:
@@ -88,7 +104,7 @@ class DataHandler:
 				print '  -a, --lanadmin username password [hash] }'
 				print '      { Hardcoded admin account for LAN. If third arg reads "hash" it will apply the standard hash algorithm to the supplied password }'
 				print '  -g, --loadargs filename'
-				print '      { Reads command-line arguments from file }'
+				print '      { Reads additional command-line arguments from file }'
 				print '  -r  --randomflags'
 				print '      { Randomizes country codes (flags) }'
 				print '  -o, --output /path/to/file.log'
@@ -149,14 +165,6 @@ class DataHandler:
 							argp[1] = base64.b64encode(m.digest())
 					self.lanadmin = {'username':argp[0], 'password':argp[1]}
 				except: print 'Invalid LAN admin specified'
-			elif arg in ['g', 'loadargs']:
-				try:
-					f = file(argp[0], 'r')
-					data = f.read().split('\n')
-					f.close()
-					self.parseArgv(data[0])
-					return
-				except: print 'Error opening file with command-line args'
 			elif arg in ['r', 'randomcc']:
 				try: self.randomflags = True
 				except: print 'Error enabling random flags. (weird)'
