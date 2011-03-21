@@ -1,7 +1,7 @@
 # WARNING: this module is only for *reading* from the database. you can't expect the types to fully work, or work at all when writing.
 # furthermore, this database layer will not generate correct tables for use with tasserver.
 
-import datetime
+import datetime, traceback
 
 from sqlalchemy import create_engine, Table, Column, Integer, MetaData, Boolean, Text, VARCHAR, TIMESTAMP
 from sqlalchemy.orm import mapper, sessionmaker
@@ -45,21 +45,26 @@ class BanHandler:
 		self.sessionmaker = sessionmaker(bind=self.engine)
 	
 	def check_ban(self, username=None, ip=None, userid=None):
-		if not username and not ip and not userid: return
-		session = self.sessionmaker()
-		
-		query = session.query(Ban).filter(Ban.Enabled==True).filter(or_(Ban.ExpirationDate == None, Ban.ExpirationDate > datetime.datetime.now()))
+		if not username and not ip and not userid: return False, 'no user specified'
 
-		entry = None
-		if username:
-			entry = query.filter(Ban.Username==username).first()
-		if not entry and userid: # ban priority is username > userid > ip # skips these if statements when we find a ban
-			entry = query.filter(Ban.userID==userid).first()
-		if not entry and ip:
-			longip = ip2long(ip)
-			entry = query.filter(Ban.IP_start<=longip).filter(Ban.IP_end>=longip).first()
-		
-		if entry:
-			return False, entry.PublicReason
-		else:
+		try:
+			session = self.sessionmaker()
+			
+			query = session.query(Ban).filter(Ban.Enabled==True).filter(or_(Ban.ExpirationDate == None, Ban.ExpirationDate > datetime.datetime.now()))
+
+			entry = None
+			if username:
+				entry = query.filter(Ban.Username==username).first()
+			if not entry and userid: # ban priority is username > userid > ip # skips these if statements when we find a ban
+				entry = query.filter(Ban.userID==userid).first()
+			if not entry and ip:
+				longip = ip2long(ip)
+				entry = query.filter(Ban.IP_start<=longip).filter(Ban.IP_end>=longip).first()
+			
+			if entry:
+				return False, entry.PublicReason
+			else:
+				return True, None
+		except Exception: # probably a mysql operational error
+			self._root.error(traceback.format_exc())
 			return True, None
