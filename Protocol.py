@@ -312,51 +312,52 @@ class Channel(AutoDict):
 			self.channelMessage('<%s> locked this channel with a password' % client.username)
 	
 	def setFounder(self, client, target):
+		if not target: return
 		self.owner = target.db_id
 		self.channelMessage("<%s> has just been set as this channel's founder by <%s>" % (target.username, client.username))
 	
 	def opUser(self, client, target):
-		if not target.db_id in self.admins:
+		if target and not target.db_id in self.admins:
 			self.admins.append(target.db_id)
 			self.channelMessage("<%s> has just been added to this channel's operator list by <%s>" % (target.username, client.username))
 	
 	def deopUser(self, client, target):
-		if target.db_id in self.admins:
+		if target and target.db_id in self.admins:
 			self.admins.remove(target.db_id)
 			self.channelMessage("<%s> has just been removed from this channel's operator list by <%s>" % (target.username, client.username))
 	
 	def kickUser(self, client, target, reason=''):
 		if self.isFounder(target): return
-		if target.username in self.users:
+		if target and target.username in self.users:
 			target.Send('FORCELEAVECHANNEL %s %s %s' % (self.chan, client.username, reason))
 			self.channelMessage('<%s> has kicked <%s> from the channel%s' % (client.username, target.username, (' (reason: %s)'%reason if reason else '')))
 			self.removeUser(target, 'kicked from channel%s' % (' (reason: %s)'%reason if reason else ''))
 	
 	def banUser(self, client, target, reason=''):
 		if self.isFounder(target): return
-		if not target.db_id in self.ban:
+		if target and not target.db_id in self.ban:
 			self.ban[target.db_id] = reason
 			self.kickUser(client, target, reason)
 			self.channelMessage('<%s> has been banned from this channel by <%s>' % (target.username, client.username))
 	
 	def unbanUser(self, client, target):
-		if target.db_id in self.ban:
+		if target and target.db_id in self.ban:
 			del self.ban[target.db_id]
 			self.channelMessage('<%s> has been unbanned from this channel by <%s>' % (target.username, client.username))
 	
 	def allowUser(self, client, target):
-		if not client.db_id in self.allow:
+		if target and not client.db_id in self.allow:
 			self.allow.append(client.db_id)
 			self.channelMessage('<%s> has been allowed in this channel by <%s>' % (target.username, client.username))
 	
 	def disallowUser(self, client, target):
-		if client.db_id in self.allow:
+		if target and client.db_id in self.allow:
 			self.allow.remove(client.db_id)
 			self.channelMessage('<%s> has been disallowed in this channel by <%s>' % (target.username, client.username))
 	
 	def muteUser(self, client, target, duration=0, ip=False, quiet=False):
 		if self.isFounder(target): return
-		if not client.db_id in self.mutelist:
+		if target and not client.db_id in self.mutelist:
 			if not quiet:
 				self.channelMessage('<%s> has muted <%s>' % (client.username, target.username))
 			try:
@@ -369,7 +370,7 @@ class Channel(AutoDict):
 			self.mutelist[target.db_id] = {'expires':duration, 'ip':ip, 'quiet':quiet}
 	
 	def unmuteUser(self, client, target):
-		if target.db_id in self.mutelist:
+		if target and target.db_id in self.mutelist:
 			del self.mutelist[target.db_id]
 			self.channelMessage('<%s> has unmuted <%s>' % (client.username, target.username))
 
