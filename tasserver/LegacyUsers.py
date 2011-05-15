@@ -210,7 +210,7 @@ class UsersHandler:
 		user = self.clientFromUsername(username)
 		if user:
 			name = newname.lower()
-			if name in self.accounts:
+			if name != username.lower() and name in self.accounts:
 				return False, 'Username already exists.'
 			else:
 				user.lowername = name
