@@ -79,8 +79,12 @@ restricted = {
 	'PORTTEST',
 	'UPTIME',
 	'RENAMEACCOUNT'],
-'mod':['BAN', 'BANUSER', 'BANIP', 'UNBAN', 'BANLIST','KICKUSER','FINDIP','GETIP',
-	'FORCECLOSEBATTLE','SETBOTMODE','TESTLOGIN'],
+'mod':[
+	'BAN', 'BANUSER', 'BANIP', 'UNBAN', 'BANLIST',
+	'CHANGEACCOUNTPASS',
+	'KICKUSER', 'FINDIP', 'GETIP', 'GETLASTLOGINTIME',
+	'FORCECLOSEBATTLE', 'SETBOTMODE', 'TESTLOGIN'
+	],
 'admin':[
 	#########
 	# channel
@@ -92,7 +96,7 @@ restricted = {
 	# users
 	'FORGEMSG','FORGEREVERSEMSG',
 	'GETLOBBYVERSION', 'GETSENDBUFFERSIZE',
-	'GETACCOUNTINFO', 'GETLASTLOGINTIME', 'GETREGISTRATIONDATE',
+	'GETACCOUNTINFO', 'GETLASTLOGINTIME',
 	'GETACCOUNTACCESS', 
 	'SETACCESS','DEBUG','PYTHON',
 	'SETINGAMETIME',],
@@ -2401,15 +2405,19 @@ class Protocol:
 	def in_CHANGEACCOUNTPASS(self, client, username, newpass):
 		'''
 		Set the password for target user.
+		[mod]
 
 		@required.str username: The target user.
 		@required.str password: The new password.
 		'''
 		user = self.userdb.clientFromUsername(username)
 		if user:
-			user.password = newpass
-			self.userdb.save_user(user)
-			client.Send('SERVERMSG Password for <%s> successfully changed to %s' % (username, newpass))
+			if user.access in ('mod', 'admin') and not client.access == 'admin':
+				client.Send('SERVERMSG You have insufficient access to change moderator passwords.')
+			else:
+				user.password = newpass
+				self.userdb.save_user(user)
+				client.Send('SERVERMSG Password for <%s> successfully changed to %s' % (username, newpass))
 	
 	def in_BROADCAST(self, client, msg):
 		'''
