@@ -10,7 +10,6 @@ ranks = (5, 15, 30, 100, 300, 1000, 3000, 10000)
 
 restricted = {
 'disabled':[],
-'nobody':['OPENBATTLEEX'],
 'everyone':['TOKENIZE','TELNET','HASH','EXIT','PING'],
 'fresh':['LOGIN','REGISTER','REQUESTUPDATEFILE'],
 'agreement':['CONFIRMAGREEMENT'],
@@ -35,6 +34,7 @@ restricted = {
 	'MAPGRADES',
 	'MYBATTLESTATUS',
 	'OPENBATTLE',
+	'OPENBATTLEEX',
 	'REMOVEBOT',
 	'REMOVESTARTRECT',
 	'RING',
