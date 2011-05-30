@@ -82,7 +82,7 @@ restricted = {
 'mod':[
 	'BAN', 'BANUSER', 'BANIP', 'UNBAN', 'BANLIST',
 	'CHANGEACCOUNTPASS',
-	'KICKUSER', 'FINDIP', 'GETIP', 'GETLASTLOGINTIME',
+	'KICKUSER', 'FINDIP', 'GETIP', 'GETLASTLOGINTIME','GETUSERID'
 	'FORCECLOSEBATTLE', 'SETBOTMODE', 'TESTLOGIN'
 	],
 'admin':[
@@ -2229,6 +2229,13 @@ class Protocol:
 		if good: client.Send('SERVERMSG <%s> registered on %s.' % (username, time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(reason))))
 		else: client.Send('SERVERMSG Database returned error when retrieving registration date for <%s> (%s)' % (username, reason))
 	
+	def in_GETUSERID(self, client, username):
+		user = self.userdb.clientFromUsername(username)
+		if user:
+			client.Send('SERVERMSG %s' % user.last_id)
+		else:
+			client.Send('SERVERMSG User not found.')
+
 	def in_GETACCOUNTINFO(self, client, username):
 		'''
 		Get the account information for target user.
