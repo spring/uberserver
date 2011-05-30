@@ -2232,7 +2232,7 @@ class Protocol:
 	def in_GETUSERID(self, client, username):
 		user = self.userdb.clientFromUsername(username)
 		if user:
-			client.Send('SERVERMSG %s' % user.last_id)
+			client.Send('SERVERMSG The ID for <%s> is %s' % (username, user.last_id))
 		else:
 			client.Send('SERVERMSG User not found.')
 
