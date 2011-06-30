@@ -860,6 +860,9 @@ class Protocol:
 						
 			if user_id.replace('-','',1).isdigit():
 				user_id = int(user_id)
+				if user_id > 2147483647:
+					user_id &= 2147483647
+					user_id *= -1
 			else: user_id = None
 		else:
 			lobby_id = sentence_args
