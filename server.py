@@ -1,17 +1,31 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-import thread, socket, time, sys, traceback
+import thread, traceback, signal, socket, sys
 from urllib import urlopen
+
 from DataHandler import DataHandler
 from Client import Client
 from NATServer import NATServer
 from Dispatcher import Dispatcher
+
 import ip2country # just to make sure it's downloaded
 import ChanServ
 
 _root = DataHandler()
 _root.parseArgv(sys.argv)
+
+try:
+	signal.SIGHUP
+	
+	def sighup(sig, frame):
+		_root.console_write('Received SIGHUP.')
+		if _root.sighup:
+			_root.reload()
+
+	signal.signal(signal.SIGHUP, sighup)
+except AttributeError:
+	pass
 
 _root.console_write('-'*40)
 _root.console_write('Starting uberserver...\n')

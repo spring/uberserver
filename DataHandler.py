@@ -26,6 +26,7 @@ class DataHandler:
 		self.log = False
 		self.server = 'TASServer'
 		self.server_version = 0.35
+		self.sighup = False
 		
 		self.chanserv = None
 		self.userdb = None
@@ -109,6 +110,8 @@ class DataHandler:
 				print '      { Randomizes country codes (flags) }'
 				print '  -o, --output /path/to/file.log'
 				print '      { Writes console output to file (for logging) }'
+				print '  -u, --sighup'
+				print '      { Reload the server on SIGHUP (if SIGHUP is supported by OS) }'
 				print '  -v, --latestspringversion version'
 				print '      { Sets latest Spring version to this string. Defaults to "*" }'
 				print '  -m, --maxthreads number'
@@ -174,6 +177,8 @@ class DataHandler:
 					print 'Logging enabled at: %s' % argp[0]
 					self.log = True
 				except: print 'Error specifying log location'
+			elif arg in ['u', 'sighup']:
+				self.sighup = True
 			elif arg in ['v', 'latestspringversion']:
 				try: self.latestspringversion = argp[0] # ' '.join(argp) # shouldn't have spaces
 				except: print 'Error specifying latest spring version'
