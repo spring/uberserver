@@ -1719,13 +1719,14 @@ class Protocol:
 			spectating = (client.battlestatus['mode'] == '0')
 
 			clients = (self.clientFromUsername(name) for name in battle.users)
-			spectators = len(client for client in clients if (client.battlestatus['mode'] == '0'))
+			spectators = len([client for client in clients if (client.battlestatus['mode'] == '0')])
 
 			u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4, id1, id2, id3, id4, ready, u = self._dec2bin(battlestatus, 32)[-32:]
 			# support more allies and ids.
 			#u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4,ally5, ally6, ally7, ally8, id1, id2, id3, id4,id5, id6, id7, id8, ready, u = self._dec2bin(battlestatus, 40)[-40:]
 			
 			if spectating:
+				print len(battle.users), spectators, int(battle.maxplayers)
 				if len(battle.users) - spectators >= int(battle.maxplayers):
 					mode = '0'
 				elif mode == '1':
