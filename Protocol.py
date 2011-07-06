@@ -1731,7 +1731,7 @@ class Protocol:
 				elif mode == '1':
 					spectators -= 1
 			
-			oldstatus = self._calc_battlestatus(client)
+			# oldstatus = self._calc_battlestatus(client)
 			client.battlestatus.update({'ready':ready, 'id':id1+id2+id3+id4, 'ally':ally1+ally2+ally3+ally4, 'mode':mode, 'sync':sync1+sync2, 'side':side1+side2+side3+side4})
 			client.teamcolor = myteamcolor
 			
@@ -1741,12 +1741,13 @@ class Protocol:
 			if oldspecs != spectators:
 				self._root.broadcast('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % battle.copy())
 			
-			newstatus = self._calc_battlestatus(client)
-			statuscmd = 'CLIENTBATTLESTATUS %s %s %s'%(client.username, newstatus, myteamcolor)
-			if oldstatus != newstatus:
-				self._root.broadcast_battle(statuscmd, client.current_battle)
-			else:
-				client.Send(statuscmd) # in case we changed anything
+			self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(client.username, self._calc_battlestatus(client), myteamcolor), client.current_battle)
+			# newstatus = self._calc_battlestatus(client)
+			# statuscmd = 'CLIENTBATTLESTATUS %s %s %s'%(client.username, newstatus, myteamcolor)
+			# if oldstatus != newstatus:
+			# 	self._root.broadcast_battle(statuscmd, client.current_battle)
+			# else:
+			# 	client.Send(statuscmd) # in case we changed anything
 
 	def in_UPDATEBATTLEINFO(self, client, SpectatorCount, locked, maphash, mapname):
 		'''
