@@ -105,7 +105,18 @@ class BasePollMultiplexer(BaseMultiplexer):
 		self.poller.modify(fd, eventmask) # not valid for select.poll before python 2.6, might need to replace with register() in this context
 		
 	def poll(self):
-		results = self.poller.poll(*self.args) # oh eff, those are milliseconds
+		for i in xrange(5):
+			try:
+				results = self.poller.poll(*self.args)
+			except IOError, e:
+				if e[0] == 4:
+					# interrupted system call - this happens when any signal is triggered
+					continue
+				else:
+					raise e
+			
+			break
+			
 		inputs = []
 		outputs = []
 		errors = []
