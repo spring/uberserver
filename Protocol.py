@@ -1887,6 +1887,8 @@ class Protocol:
 				battle = self._root.battles[battle_id]
 				if not battle.host in (client.username, username):
 					return
+				if not username in battle.users:
+					return
 			else:
 				return
 
