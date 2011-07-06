@@ -1716,28 +1716,28 @@ class Protocol:
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
-			spectating = (client.battlestatus['mode'] == '0') #(client.spectator)
+			spectating = (client.battlestatus['mode'] == '0')
+
+			clients = (self.clientFromUsername(name) for name in battle.users)
+			spectators = len(client for client in clients if (client.battlestatus['mode'] == '0'))
+
 			u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4, id1, id2, id3, id4, ready, u = self._dec2bin(battlestatus, 32)[-32:]
 			# support more allies and ids.
 			#u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4,ally5, ally6, ally7, ally8, id1, id2, id3, id4,id5, id6, id7, id8, ready, u = self._dec2bin(battlestatus, 40)[-40:]
 			
-			if spectating and len(battle.users) - battle.spectators >= int(battle.maxplayers):
-				mode = '0'
+			if spectating:
+				if len(battle.users) - spectators >= int(battle.maxplayers):
+					mode = '0'
+				elif mode == '1':
+					spectators -= 1
 			
 			client.battlestatus.update({'ready':ready, 'id':id1+id2+id3+id4, 'ally':ally1+ally2+ally3+ally4, 'mode':mode, 'sync':sync1+sync2, 'side':side1+side2+side3+side4})
 			client.teamcolor = myteamcolor
 			
 			oldspecs = battle.spectators
+			battle.spectators = spectators
 			
-			specs = 0
-			for username in battle.users:
-				user = self.clientFromUsername(username)
-				if user and user.battlestatus['mode'] == '0':
-					specs += 1
-			
-			battle.spectators = specs
-			
-			if oldspecs != specs:
+			if oldspecs != spectators:
 				self._root.broadcast('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % battle.copy())
 			
 			self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(client.username, self._calc_battlestatus(client), myteamcolor), client.current_battle)
