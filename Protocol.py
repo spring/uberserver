@@ -1719,7 +1719,7 @@ class Protocol:
 			spectating = (client.battlestatus['mode'] == '0')
 
 			clients = (self.clientFromUsername(name) for name in battle.users)
-			spectators = len([client for client in clients if (client.battlestatus['mode'] == '0')])
+			spectators = len([user for user in clients if (client.battlestatus['mode'] == '0')])
 
 			u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4, id1, id2, id3, id4, ready, u = self._dec2bin(battlestatus, 32)[-32:]
 			# support more allies and ids.
@@ -1731,7 +1731,7 @@ class Protocol:
 				elif mode == '1':
 					spectators -= 1
 			
-			# oldstatus = self._calc_battlestatus(client)
+			oldstatus = self._calc_battlestatus(client)
 			client.battlestatus.update({'ready':ready, 'id':id1+id2+id3+id4, 'ally':ally1+ally2+ally3+ally4, 'mode':mode, 'sync':sync1+sync2, 'side':side1+side2+side3+side4})
 			client.teamcolor = myteamcolor
 			
@@ -1741,13 +1741,12 @@ class Protocol:
 			if oldspecs != spectators:
 				self._root.broadcast('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % battle.copy())
 			
-			self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(client.username, self._calc_battlestatus(client), myteamcolor), client.current_battle)
-			# newstatus = self._calc_battlestatus(client)
-			# statuscmd = 'CLIENTBATTLESTATUS %s %s %s'%(client.username, newstatus, myteamcolor)
-			# if oldstatus != newstatus:
-			# 	self._root.broadcast_battle(statuscmd, client.current_battle)
-			# else:
-			# 	client.Send(statuscmd) # in case we changed anything
+			newstatus = self._calc_battlestatus(client)
+			statuscmd = 'CLIENTBATTLESTATUS %s %s %s'%(client.username, newstatus, myteamcolor)
+			if oldstatus != newstatus:
+				self._root.broadcast_battle(statuscmd, client.current_battle)
+			else:
+				client.Send(statuscmd) # in case we changed anything
 
 	def in_UPDATEBATTLEINFO(self, client, SpectatorCount, locked, maphash, mapname):
 		'''
