@@ -2087,8 +2087,11 @@ class Protocol:
 			if client.username == battle.host:
 				if username in battle.users:
 					client = self._root.usernames[username]
-					client.battlestatus['mode'] = '0'
-					self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), battle_id)
+					if client.battlestatus['mode'] == '1':
+						battle.spectators += 1
+						client.battlestatus['mode'] = '0'
+						self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), battle_id)
+						self._root.broadcast('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % battle.copy())
 
 	def in_ADDBOT(self, client, name, battlestatus, teamcolor, AIDLL):
 		'''
