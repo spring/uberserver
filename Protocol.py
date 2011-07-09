@@ -151,7 +151,7 @@ class AutoDict:
 		for key in self.keys():
 			new = getattr(self, key)
 			ntype = type(new)
-			if ntype in (str, list, dict, int, unicode):
+			if ntype in (list, dict, set):
 				new = ntype(new)
 				setattr(self, key, new)
 
