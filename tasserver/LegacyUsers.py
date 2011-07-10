@@ -210,13 +210,15 @@ class UsersHandler:
 		user = self.clientFromUsername(username)
 		if user:
 			name = newname.lower()
-			if name != username.lower() and name in self.accounts:
+			old = username.lower()
+			if name != old and name in self.accounts:
 				return False, 'Username already exists.'
 			else:
 				user.lowername = name
 				user.username = newname
 				self.accounts[name] = user
-				del self.accounts[username.lower()]
+				if name != old:
+					del self.accounts[old]
 				return True, 'Account renamed successfully.'
 	
 	def change_password(self, username, oldpass, newpass):
