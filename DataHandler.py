@@ -247,6 +247,7 @@ class DataHandler:
 		if self.dbtype == 'legacy':
 			try:
 				self.userdb = LegacyUsers.UsersHandler(self, self.engine)
+				self.userdb.readAccounts()
 			except:
 				print traceback.format_exc()
 				print 'Error loading accounts.txt database, falling back to LAN mode.'
@@ -504,5 +505,6 @@ class DataHandler:
 		reload(sys.modules['Client'])
 		if 'SQLUsers' in sys.modules: reload(sys.modules['SQLUsers'])
 		elif 'LANUsers' in sys.modules: reload(sys.modules['LANUsers'])
+		elif 'tasserver.LegacyUsers' in sys.modules: reload(sys.modules['tasserver.LegacyUsers'])
 		self.SayHooks = __import__('SayHooks')
 		thread.start_new_thread(self._rebind_slow, ()) # why should reloading block the thread? :)

@@ -97,8 +97,6 @@ class UsersHandler:
 		self.idToAccount = {}
 		self.lock = None
 		self.last_id = 0
-		
-		self.readAccounts()
 	
 	def readAccounts(self):
 		f = open(self.accountstxt, 'r')
