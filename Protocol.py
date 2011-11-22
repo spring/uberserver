@@ -709,9 +709,12 @@ class Protocol:
 			translated_ip = host.ip_address
 		
 		ubattle.update({'ip':translated_ip})
-		if client.compat_extendedBattles and not (battle.engine != 'spring' and battle.version == self._root.latestspringversion):
+		if client.compat_extendedBattles:
 			client.Send('BATTLEOPENEDEX %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
 		else:
+			if not (battle.engine == 'spring' and battle.version == self._root.latestspringversion):
+				ubattle['title'] = 'Incompatible (%(engine)s %(version)s) %(title)s' % ubattle
+
 			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
 	
 	def client_RemoveBattle(self, client, battle):
@@ -1511,6 +1514,9 @@ class Protocol:
 		@optional.str scriptPassword: A password unique to your user, to verify users connecting to the actual game.
 		'''
 		if scriptPassword: client.scriptPassword = scriptPassword
+
+                if not (client.compat_extendedBattles or battle.engine == 'spring' and battle.version == self._root.latestspringversion):
+			client.Send('JOINBATTLEFAILED Your lobby client does not support joining this battle.')
 		
 		username = client.username
 		if client.current_battle in self._root.battles:
