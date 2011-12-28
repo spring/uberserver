@@ -282,7 +282,7 @@ class ChanServClient(Client):
 	def Handle(self, data):
 		pass
 
-	def Remove(self):
+	def Remove(self, reason=None):
 		pass
 
 	def Send(self, msg):

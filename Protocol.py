@@ -963,6 +963,9 @@ class Protocol:
 				client.Send('DENIED %s'%reason)
 		else:
 			oldclient = self._root.usernames[username]
+			if oldclient.static:
+				client.Send('DENIED Cannot ghost static users.')
+
 			if time.time() - oldclient.lastdata > 15:
 				if self._root.dbtype == 'lan' and not oldclient.password == password:
 					client.Send('DENIED Would ghost old user, but we are in LAN mode and your password does not match.')
