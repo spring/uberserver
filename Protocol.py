@@ -1518,9 +1518,6 @@ class Protocol:
 		@optional.str scriptPassword: A password unique to your user, to verify users connecting to the actual game.
 		'''
 		if scriptPassword: client.scriptPassword = scriptPassword
-
-                if not (client.compat_extendedBattles or battle.engine == 'spring' and battle.version == self._root.latestspringversion):
-			client.Send('JOINBATTLEFAILED Your lobby client does not support joining this battle.')
 		
 		username = client.username
 		if client.current_battle in self._root.battles:
