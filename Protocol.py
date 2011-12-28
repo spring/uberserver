@@ -712,7 +712,7 @@ class Protocol:
 		if client.compat_extendedBattles:
 			client.Send('BATTLEOPENEDEX %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
 		else:
-			if not (battle.engine == 'spring' and battle.version == self._root.latestspringversion):
+			if not (battle.engine == 'spring' and (battle.version == self._root.latestspringversion or battle.version == self._root.latestspringversion + '.0')):
 				ubattle['title'] = 'Incompatible (%(engine)s %(version)s) %(title)s' % ubattle
 
 			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
