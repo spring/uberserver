@@ -1405,6 +1405,7 @@ class Protocol:
 			client.current_battle = None
 			client.Send('OPENBATTLEFAILED Invalid argument type, send this to your lobby dev:'
 						'id=%(id)s type=%(type)s natType=%(natType)s passworded=%(passworded)s port=%(port)s maphash=%(maphash)s' % ubattle)
+			return
 		
 		self.broadcast_AddBattle(battle)
 		self._root.battles[battle_id] = battle
