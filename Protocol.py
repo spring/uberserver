@@ -1319,6 +1319,13 @@ class Protocol:
 
 		if sentence_args.count('\t') > 1:
 			map, title, modname = sentence_args.split('\t',2)
+
+			if not modname:
+				client.Send('OPENBATTLEFAILED No mod name specified.')
+				return
+			if not map:
+				client.Send('OPENBATTLEFAILED No map name specified.')
+				return
 		else:
 			return False
 		battle_id = str(self._root.nextbattle)
