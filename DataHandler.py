@@ -363,7 +363,7 @@ class DataHandler:
 
 	def event_loop(self):
 		start = time.time()
-		lastsave = lastmute = start
+		lastsave = lastmute = lastidle = start
 		while self.running:
 			now = time.time()
 			try:
@@ -381,6 +381,10 @@ class DataHandler:
 				if now - lastmute >= 1:
 					lastmute = now
 					self.mute_timeout_step()
+
+				if now - lastidle >= 90:
+					lastidle = now
+					self.idle_timeout_step()
 				
 				self.console_print_step()
 			except:
@@ -402,6 +406,12 @@ class DataHandler:
 						channel.channelMessage('<%s> has been unmuted (mute expired).' % self.protocol.clientFromID(db_id).username)
 		except:
 			self.error(traceback.format_exc())
+
+	def idle_timeout_step(self):
+		now = time.time()
+		for client in self._root.clients.values():
+			if not client.logged_in and client.last_login < now - 90:
+				client.Remove()
 
 	def console_print_step(self):
 		try:
