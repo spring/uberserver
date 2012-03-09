@@ -409,7 +409,7 @@ class DataHandler:
 
 	def idle_timeout_step(self):
 		now = time.time()
-		for client in self._root.clients.values():
+		for client in self.clients.values():
 			if not client.logged_in and client.last_login < now - 90:
 				client.Remove()
 
