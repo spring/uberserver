@@ -877,6 +877,7 @@ class Protocol:
 		if good: username = reason.username
 		if not username in self._root.usernames:
 			if good:
+				client.logged_in = True
 				client.access = reason.access
 				self._calc_access(client)
 				client.username = username
@@ -1751,6 +1752,8 @@ class Protocol:
 					mode = '0'
 				elif mode == '1':
 					spectators -= 1
+			elif mode == '0':
+				spectators += 1
 			
 			oldstatus = self._calc_battlestatus(client)
 			client.battlestatus.update({'ready':ready, 'id':id1+id2+id3+id4, 'ally':ally1+ally2+ally3+ally4, 'mode':mode, 'sync':sync1+sync2, 'side':side1+side2+side3+side4})
