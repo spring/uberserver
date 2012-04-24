@@ -198,9 +198,30 @@ class UsersHandler:
 		self.idToAccount[user.id] = user
 		return True, 'Account registered successfully.'
 	
-	def ban_user(self, username, duration, reason): pass
-	def unban_user(self, username): pass
-	def banlist(self): return []
+	def ban_user(self, owner, username, duration, reason):
+		if self.bandb:
+			user = self.clientFromUsername(username)
+			client_id = None
+			if user:
+				client_id = user.last_id
+
+			self.bandb.ban_user(owner, username, client_id, duration, reason)
+
+	def unban_user(self, username):
+		if self.bandb:
+			self.bandb.unban_user(username)
+
+	def ban_ip(self, owner, ip, duration, reason):
+		if self.bandb:
+			self.bandb.ban_ip(owner, ip, duration, reason)
+
+	def unban_ip(self, ip):
+		if self.bandb:
+			self.bandb.unban_ip(ip)
+
+	def banlist(self):
+		if self.bandb:
+			return self.bandb.banlist()
 	
 	def rename_user(self, username, newname):
 		if self._root.censor and not self._root.SayHooks._nasty_word_censor(newname):

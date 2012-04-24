@@ -81,7 +81,7 @@ restricted = {
 	'UPTIME',
 	'RENAMEACCOUNT'],
 'mod':[
-	'BAN', 'BANUSER', 'BANIP', 'UNBAN', 'BANLIST',
+	'BAN', 'BANUSER', 'BANIP', 'UNBAN', 'UNBANIP', 'BANLIST',
 	'CHANGEACCOUNTPASS',
 	'KICKUSER', 'FINDIP', 'GETIP', 'GETLASTLOGINTIME','GETUSERID'
 	'FORCECLOSEBATTLE', 'SETBOTMODE', 'TESTLOGIN'
@@ -2592,9 +2592,9 @@ class Protocol:
 		'''
 		try: duration = float(duration)
 		except:
-			client.Send('SERVERMSG Duration must be a float (it\'s the ban duration in days)')
+			client.Send('SERVERMSG Duration must be a float (the ban duration in days)')
 			return
-		response = self.userdb.ban_user(username, duration, reason)
+		response = self.userdb.ban_user(client.username, username, duration, reason)
 		if response: client.Send('SERVERMSG %s' % response)
 	
 	def in_UNBAN(self, client, username):
@@ -2606,13 +2606,6 @@ class Protocol:
 		response = self.userdb.unban_user(username)
 		if response: client.Send('SERVERMSG %s' % response)
 	
-	def in_BANLIST(self, client):
-		'''
-		Retrieve a list of all bans currently active on the server.
-		'''
-		for entry in self.userdb.banlist():
-			client.Send('SERVERMSG %s' % entry)
-	
 	def in_BANIP(self, client, ip, duration, reason):
 		'''
 		Ban an IP address from the server.
@@ -2621,7 +2614,27 @@ class Protocol:
 		@required.float duration: The duration in days.
 		@required.str reason: The reason to show.
 		'''
-		client.Send('SERVERMSG BANIP not implemented')
+		try: duration = float(duration)
+		except:
+			client.Send('SERVERMSG Duration must be a float (the ban duration in days)')
+		response = self.userdb.ban_ip(client.username, ip, duration, reason)
+		if response: client.Send('SERVERMSG %s' % response)
+
+	def in_UNBANIP(self, client, ip):
+		'''
+		Remove all bans for target IP from the server.
+
+		@required.str ip: The target IP.
+		'''
+		response = self.userdb.unban_ip(ip)
+		if response: client.Send('SERVERMSG %s' % response)
+	
+	def in_BANLIST(self, client):
+		'''
+		Retrieve a list of all bans currently active on the server.
+		'''
+		for entry in self.userdb.banlist():
+			client.Send('SERVERMSG %s' % entry)
 
 	def in_PYTHON(self, client, code):
 		'''

@@ -292,11 +292,12 @@ class UsersHandler:
 		session.close()
 		return True, 'Account registered successfully.'
 	
-	def ban_user(self, username, duration, reason):
+	def ban_user(self, owner, username, duration, reason):
+		# TODO: add owner field to the database for bans
 		session = self.sessionmaker()
 		name = username.lower()
 		entry = session.query(User).filter(User.lowername==name).first()
-		end_time = int(time.time()*1000) + int(duration*1000)
+		end_time = int(time.time()*1000) + int(duration*24*60*60*1000)
 		ban = Ban(reason, end_time)
 		session.save(ban)
 		ban.entries.append(AggregateBan('user', name))
@@ -318,6 +319,30 @@ class UsersHandler:
 		else:
 			session.close()
 			return 'No matching bans for %s.' % username
+
+	def ban_ip(self, owner, ip, duration, reason):
+		# TODO: add owner field to the database for bans
+		session = self.sessionmaker()
+		end_time = int(time.time()*1000) + int(duration*24*60*60*1000)
+		ban = Ban(reason, end_time)
+		session.save(ban)
+		ban.entries.append(AggregateBan('ip'), ip)
+		session.commit()
+		session.close()
+		return 'Successfully banned %s for %s days.' (ip, duration)
+
+	def unban_ip(self, ip):
+		session = self.sessionmaker()
+		results = session.query(AggregateBan).filter(AggregateBan.type=='ip').filter(AggregateBan.data==ip)
+		if results:
+			for result in results:
+				session.delete(result.ban)
+			session.commit()
+			session.close()
+			return 'Successfully unbanned %s.' % ip
+		else:
+			session.close()
+			return 'No matching bans for %s.' % ip
 	
 	def banlist(self):
 		session = self.sessionmaker()
