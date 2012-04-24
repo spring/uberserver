@@ -689,7 +689,7 @@ class Protocol:
 
 	def client_AddUser(self, client, user):
 		'sends the protocol for adding a user'
-		if client.compat_accountIDs:
+		if client.compat['accountIDs']:
 			client.Send('ADDUSER %s %s %s %s' % (user.username, user.country_code, user.cpu, user.db_id))
 		else:
 			client.Send('ADDUSER %s %s %s' % (user.username, user.country_code, user.cpu))
@@ -710,7 +710,7 @@ class Protocol:
 			translated_ip = host.ip_address
 		
 		ubattle.update({'ip':translated_ip})
-		if client.compat_extendedBattles:
+		if client.compat['extendedBattles']:
 			client.Send('BATTLEOPENEDEX %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
 		else:
 			if not (battle.engine == 'spring' and (battle.version == self._root.latestspringversion or battle.version == self._root.latestspringversion + '.0')):
@@ -849,21 +849,20 @@ class Protocol:
 						flags.add('b')
 					else:
 						flags.add(flag)
-				
+
+				flag_map = {
+					'a': 'accountIDs',			# send account IDs in ADDUSER
+					'b': 'battleAuth',			# JOINBATTLEREQUEST/ACCEPT/DENY
+					'sp': 'scriptPassword',		# scriptPassword in JOINEDBATTLE
+					'et': 'sendEmptyTopic',		# send NOCHANNELTOPIC on join if channel has no topic
+					'eb': 'extendedBattles',	# extended battle commands with support for engine/version
+					'm': 'matchmaking',			# FORCEJOINBATTLE from battle hosts for matchmaking
+				}
+
 				for flag in flags:
-					if flag == 'a': # send account IDs in ADDUSER
-						client.compat_accountIDs = True
-					elif flag == 'b': # JOINBATTLEREQUEST/ACCEPT/DENY
-						client.compat_battleAuth = True
-					elif flag == 'sp': # scriptPassword in JOINEDBATTLE
-						client.compat_scriptPassword = True
-					elif flag == 'et': # send NOCHANNELTOPIC on join if channel has no topic
-						client.compat_sendEmptyTopic = True
-					elif flag == 'eb': # extended battle commands with support for engine/version
-						client.compat_extendedBattles = True
-					elif flag == 'm': # FORCEJOINBATTLE from battle hosts for matchmaking
-						client.compat_matchmaking = True
-						
+					if flag in flag_map:
+						client.compat[flag_map[flag]] = True
+
 			if user_id.replace('-','',1).isdigit():
 				user_id = int(user_id)
 				if user_id > 2147483647:
@@ -1256,7 +1255,7 @@ class Protocol:
 			topic = channel.topic
 			if topic:
 				client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topic['time'], topic['text']))
-			elif client.compat_sendEmptyTopic:
+			elif client.compat['sendEmptyTopic']:
 				client.Send('NOCHANNELTOPIC %s' % chan)
 				
 		# disabled because irc bridge spams JOIN commands
@@ -1516,7 +1515,7 @@ class Protocol:
 					client.Send('SERVERMESSAGE You are not allowed to force this user into battle.')
 					return
 
-				if not user.compat_matchmaking:
+				if not user.compat['matchmaking']:
 					client.Send('SERVERMESSAGE This user does not subscribe to matchmaking.')
 					return
 
@@ -1584,7 +1583,7 @@ class Protocol:
 			if not username in battle.users:
 				host = self._root.clientFromUsername(battle.host)
 				if battle.passworded == 1 and not battle.password == password:
-					if not (host.compat_battleAuth and username in battle.authed_users):
+					if not (host.compat['battleAuth'] and username in battle.authed_users):
 						client.Send('JOINBATTLEFAILED Incorrect password.')
 						return
 				if battle.locked:
@@ -1593,7 +1592,7 @@ class Protocol:
 				if username in host.battle_bans: # TODO: make this depend on db_id instead
 					client.Send('JOINBATTLEFAILED <%s> has banned you from their battles.' % battle.host)
 					return
-				if host.compat_battleAuth and not username in battle.authed_users:
+				if host.compat['battleAuth'] and not username in battle.authed_users:
 					battle.pending_users.add(username)
 					host.Send('JOINBATTLEREQUEST %s %s' % (username, client.ip_address))
 					return
@@ -1612,7 +1611,7 @@ class Protocol:
 				self._root.broadcast('JOINEDBATTLE %s %s' % (battle_id, username), ignore=(battle.host, username))
 				
 				scriptPassword = client.scriptPassword
-				if host.compat_scriptPassword and scriptPassword:
+				if host.compat['scriptPassword'] and scriptPassword:
 					host.Send('JOINEDBATTLE %s %s %s' % (battle_id, username, scriptPassword))
 					client.Send('JOINEDBATTLE %s %s %s' % (battle_id, username, scriptPassword))
 				else:

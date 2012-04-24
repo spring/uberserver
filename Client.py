@@ -1,6 +1,8 @@
 import socket, time, sys, thread, ip2country, errno
 import Telnet
 
+from collections import defaultdict
+
 class Client:
 	'this object represents one connected client'
 
@@ -75,13 +77,9 @@ class Client:
 		self.hashpw = False
 		self.debug = False
 		self.data = ''
-		
-		self.compat_accountIDs = False
-		self.compat_battleAuth = False
-		self.compat_scriptPassword = False
-		self.compat_sendEmptyTopic = False
-		self.compat_extendedBattles = False
-		self.compat_matchmaking = False
+
+		# holds compatibility flags - will be set by Protocol as necessary
+		self.compat = defaultdict(False)
 		self.scriptPassword = None
 		
 		now = time.time()
