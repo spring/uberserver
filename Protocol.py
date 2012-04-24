@@ -29,6 +29,7 @@ restricted = {
 	'JOINBATTLE',
 	'JOINBATTLEACCEPT',
 	'JOINBATTLEDENY',
+	'FORCEJOINBATTLE',
 	'KICKFROMBATTLE',
 	'LEAVEBATTLE',
 	'MAPGRADES',
@@ -860,6 +861,8 @@ class Protocol:
 						client.compat_sendEmptyTopic = True
 					elif flag == 'eb': # extended battle commands with support for engine/version
 						client.compat_extendedBattles = True
+					elif flag == 'm': # FORCEJOINBATTLE from battle hosts for matchmaking
+						client.compat_matchmaking = True
 						
 			if user_id.replace('-','',1).isdigit():
 				user_id = int(user_id)
@@ -1487,6 +1490,36 @@ class Protocol:
 				user = self.clientFromUsername(username)
 				if user:
 					user.Send('SAIDBATTLEEX %s %s' % (client.username, msg))
+
+	def in_FORCEJOINBATTLE(self, client, username, target_battle, password=None):
+		user = self.clientFromUsername(username)
+		if user:
+			battle_id = user.current_battle
+			if battle_id in self._root.battles:
+				battle = self._root.battles[battle_id]
+
+				if not target_battle in self._root.battles:
+					client.Send('SERVERMESSAGE Target battle does not exist.')
+					return
+
+				# TODO: the spec says moderators should be able to force users into battle
+				# bad overlapping of user roles, so probably should be revised
+				if client.username != battle.host:
+					client.Send('SERVERMESSAGE You are not allowed to force this user into battle.')
+					return
+
+				if not user.compat_matchmaking:
+					client.Send('SERVERMESSAGE This user does not subscribe to matchmaking.')
+					return
+
+				if battle.passworded:
+					if not password == battle.password:
+						client.Send('SERVERMESSAGE Incorrect password for target battle.')
+						return
+					else:
+						user.Send('FORCEJOINBATTLE %s %s' % (target_battle, password))
+
+				user.Send('FORCEJOINBATTLE %s' % (target_battle))
 
 	def in_JOINBATTLEACCEPT(self, client, username):
 		'''
