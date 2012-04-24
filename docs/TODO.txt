@@ -6,12 +6,7 @@ channel configuration (antispam) - copy from chanserv to sayhooks
 update chanserv to check if user is in database before performing actions
 loading and saving of channels from sql; proper syncing of everything to the sql database
 
-renames - go through battle bans, channel users, etc and update them on rename - would be much preferred to use userids internally. - use a userid object? findUserID(username) on every incoming and autoresolve to username on outgoing :D
-
-
 after release:
-offerfile updating
-
 new protocol with "newprotocol" in lobby name/version - poll lobby developers for alternatives
 quietness? (whether to print sayhooks actions)
 maybe still send quiet actions to admins/owner
@@ -33,8 +28,6 @@ outgoing protocol class too - useful for abstracting protocol version difference
 
 ability to pull updates from trusted servers
 
-use a mutex on every loop if there's a problem
-
 default user state for channels :D << allows "moderated" channels
 logging in when banned throws you hidden into a #banned channel
 
@@ -47,3 +40,21 @@ insane amounts of stats - maybe through a separate sql db and a bot
 
 separate in-battle map sync and map download percentage
 make a unit test for sql, run it through sqlite
+
+
+more concise protocol validation:
+
+concept from FORCEJOINBATTLE
+
+validation = (
+	(target_battle in self._root.battles, 'Target battle does not exist.'),
+	(client.username != battle.host, 'You are not allowed to force this user into battle.'),
+	(not user.compat_matchmaking, 'This user does not subscribe to matchmaking.'),
+	(battle.passworded and not password == battle.password, 'Incorrect password for target battle.')
+)
+if not self.validate(validation): return
+
+also decorator selectors to automatically coerce types and gather data:
+
+@s('online_user', 'battle')
+def in_FORCEJOINBATTLE(self, client, user, target_battle)
