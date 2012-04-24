@@ -1492,6 +1492,14 @@ class Protocol:
 					user.Send('SAIDBATTLEEX %s %s' % (client.username, msg))
 
 	def in_FORCEJOINBATTLE(self, client, username, target_battle, password=None):
+		'''
+		Instruct a user in your battle to join another.
+		[host]
+
+		@required.str username: The target user.
+		@required.int battle_id: The destination battle.
+		@optional.str password: The battle's password, if required.
+		'''
 		user = self.clientFromUsername(username)
 		if user:
 			battle_id = user.current_battle
