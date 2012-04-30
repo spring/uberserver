@@ -64,7 +64,7 @@ class ChanServ:
 							self.Send('SAYPRIVATE %s %s'%(user, msg))
 
 	def Help(self, user):
-		return 'Hello, %s!\nI am an automated channel service bot,\nfor the full list of commands, see http://taspring.clan-sy.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
+		return 'Hello, %s!\nI am an automated channel service bot,\nfor the full list of commands, see http://springrts.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
 	
 	def HandleCommand(self, chan, user, cmd, args=None):
 		client = self.client._protocol.clientFromUsername(user)
