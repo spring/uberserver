@@ -95,7 +95,7 @@ users_table = Table('users', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('lowername', String(40)),
 	Column('username', String(40)),
-	Column('password', String(32)),
+	Column('password', String(64)),
 	Column('register_date', Integer),
 	Column('last_login', Integer), # use milliseconds since unix epoch # should replace these with last_session or just remove them
 	Column('last_ip', String(15)), # would need update for ipv6   # 
