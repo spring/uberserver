@@ -79,7 +79,7 @@ class Client:
 		self.data = ''
 
 		# holds compatibility flags - will be set by Protocol as necessary
-		self.compat = defaultdict(False)
+		self.compat = defaultdict(lambda: False)
 		self.scriptPassword = None
 		
 		now = time.time()
