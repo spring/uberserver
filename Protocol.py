@@ -2380,10 +2380,10 @@ class Protocol:
 		'''
 		for char in newname:
 			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
-				client.Send('REGISTRATIONDENIED Unicode names are currently disallowed.')
+				client.Send('SERVERMSG Unicode names are currently disallowed.')
 				return
 		if len(newname) > 20:
-			client.Send('REGISTRATIONDENIED Username is too long.')
+			client.Send('SERVERMSG Username is too long.')
 			return
 			
 		user = client.username
