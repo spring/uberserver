@@ -81,11 +81,14 @@ class Dispatcher:
 		self.poller.unregister(s)
 		
 		try:
-			self.conn.shutdown(socket.SHUT_RDWR)
-			self.conn.close()
+			s.shutdown(socket.SHUT_RDWR)
+			s.close()
 		except socket.error: #socket shut down by itself ;) probably got a bad file descriptor
-			try: self.conn.close()
-			except socket.error: pass # in case shutdown was called but not close.
-		except AttributeError: pass
+			try:
+				s.close()
+			except socket.error:
+				pass # in case shutdown was called but not close.
+		except AttributeError:
+			pass
 		
 		self._root.console_write('Client disconnected from %s, session ID was %s'%(client.ip_address, client.session_id))

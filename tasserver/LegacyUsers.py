@@ -174,7 +174,7 @@ class UsersHandler:
 		user.last_id = user_id
 		return True, user
 
-	def end_session(self, username): pass
+	def end_session(self, db_id): pass
 	
 	def register_user(self, username, password, ip, country):
 		good, reason = self.check_ban(ip=ip)

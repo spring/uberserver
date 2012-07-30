@@ -255,12 +255,13 @@ class UsersHandler:
 		session.close()
 		return good, reason
 	
-	def end_session(self, username):
+	def end_session(self, db_id):
 		session = self.sessionmaker()
-		name = username.lower()
-		entry = session.query(User).filter(User.lowername==name).first()
-		if not entry.logins[-1].end: entry.logins[-1].end = int(time.time()*1000)
-		session.commit()
+		entry = session.query(User).filter(User.id==db_id).first()
+		if entry and not entry.logins[-1].end:
+			entry.logins[-1].end = int(time.time()*1000)
+			session.commit()
+		
 		session.close()
 
 	def register_user(self, user, password, ip, country): # need to add better ban checks so it can check if an ip address is banned when registering an account :)
@@ -376,7 +377,7 @@ class UsersHandler:
 		# need to iterate through channels and rename junk there...
 		# it might actually be a lot easier to use userids in the server... # later.
 		return True, 'Account renamed successfully.'
-	
+
 	def save_user(self, client):
 		session = self.sessionmaker()
 		name = client.username.lower()

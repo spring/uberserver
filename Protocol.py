@@ -404,7 +404,7 @@ class Protocol:
 				client.removing = False # 'cause we really aren't anymore
 				return
 				
-			self.userdb.end_session(user)
+			self.userdb.end_session(client.db_id)
 			
 			channels = list(client.channels)
 			del self._root.usernames[user]
