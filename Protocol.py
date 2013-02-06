@@ -37,6 +37,7 @@ restricted = {
 	'OPENBATTLE',
 	'OPENBATTLEEX',
 	'REMOVEBOT',
+	'REMOVESCRIPTTAGS',
 	'REMOVESTARTRECT',
 	'RING',
 	'SAYBATTLE',
@@ -1673,7 +1674,27 @@ class Protocol:
 				if not scripttags:
 					return
 				self._root.broadcast_battle('SETSCRIPTTAGS %s'%'\t'.join(scripttags), battle_id)
-	
+
+	def in_REMOVESCRIPTTAGS(self, client, tags):
+		'''
+		Remove script tags and send an update to all clients in your battle.
+
+		@required.str tags: A space-separated list of tags.
+		'''
+		battle_id = client.current_battle
+		if battle_id in self._root.battles:
+			battle = self._root.battles[battle_id]
+			if client.username == battle.host:
+				rem = set()
+				for tag in set(tags.split(' ')):
+					try:
+						# this means we only broadcast removed tags if they existed
+						rem.add(battle.script_tags.pop(tag))
+					except KeyError:
+						pass
+
+				self._root.broadcast_battle('REMOVESCRIPTTAGS %s'%' '.join(rem), battle_id)
+
 	def in_SCRIPTSTART(self, client):
 		'''
 		Start sending a script to server.
