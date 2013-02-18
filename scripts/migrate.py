@@ -9,7 +9,9 @@ import sys
 import time
 import traceback
 from tasserver.LegacyChannels import Parser
-from Protocol import Channel
+from tasserver.LegacyUsers import User
+
+from SQLUsers import Channel
 
 if not len(sys.argv) == 4:
 	print 'usage: migrate.py [/path/to/accounts.txt] [/path/to/channels.xml] [dburl]'
@@ -41,35 +43,62 @@ UsersHandler = __import__('SQLUsers').UsersHandler
 db = UsersHandler(None, engine)
 
 print 'reading accounts'
-userdb = UsersHandler(None, accountstxt)
+
+f = open(accountstxt, 'r')
+data = f.read()
+
+f.close()
+
+print 'scanning accounts'
+accounts = {}
+
+for line in data.split('\n'):
+	if line:
+		user = User.fromAccountLine(line)
+		if not user:
+			print 'Invalid line: %s' %(line)
+			continue
+		accounts[user.username] = {
+			'user':user.username, 'pass':user.password, 'ingame':user.ingame_time,
+			'last_login':user.last_login, 'register_date':user.register_date, 'uid':user.last_id,
+			'last_ip':user.last_ip, 'country':user.country, 'bot':user.bot, 'access':user.access,
+			}
 
 print
 print 'writing accounts to database'
-accounts = {}
-for user in userdb.accounts.values():
-	accounts[user.username] = {
-		'user':user.username, 'pass':user.password, 'ingame':user.ingame_time,
-		'last_login':user.last_login, 'register_date':user.register_date, 'uid':user.last_id,
-		'last_ip':user.last_ip, 'country':user.country, 'bot':user.bot, 'access':user.access
-	}
-
-db.inject_users()
+db.inject_users(accounts.values())
 
 print
 print 'reading channels'
 
 p = Parser()
 for name, channel in p.parse(channel_xml).items():
-	owner = None
 	admins = []
 	
-	client = userdb.clientFromUsername(channel['owner'])
+	client = db.clientFromUsername(channel['owner'])
 	if client and client.id: owner = client.id
 	
 	for user in channel['admins']:
-		client = userdb.clientFromUsername(user)
+		client = db.clientFromUsername(user)
 		if client and client.id:
 			admins.append(client.id)
-	
-	c = Channel(None, name, chanserv=bool(owner), owner=owner, admins=admins, key=channel['key'], antispam=channel['antispam'], topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time()*1000)})
-	db.save_channel(c)
+	c = Channel(
+			name,
+			#chanserv=bool(owner),
+			owner = channel['owner'],
+			topic = channel['topic'],
+			topic_time = int(time.time()),
+			topic_owner = 'ChanServ',
+			antispam=channel['antispam'],
+			#autokick='ban',
+			#censor=False
+			#antishock=False
+			admins=admins,
+			key=channel['key'],
+		)
+	try:
+		db.inject_channel(c)
+	except sqlalchemy.exceptions.IntegrityError:
+		print "Duplicate channel: " + name
+		pass
+
