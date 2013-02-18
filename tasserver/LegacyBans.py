@@ -25,8 +25,8 @@ metadata = MetaData()
 class Ban(object):
 	def __init__(self, owner, duration, reason, username=None, user_id=None, ip=None, ip_end=None):
 		self.Owner = owner
-		self.Date = time.time() * 1000
-		self.ExpirationDate = time.time() * 1000 + duration * 24*60*60*1000
+		self.Date = time.time()
+		self.ExpirationDate = time.time() + duration * 24*60*60
 
 		if username:
 			self.Username = username

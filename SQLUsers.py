@@ -10,8 +10,8 @@ class User(object):
 		self.lowername = name
 		self.username = username
 		self.password = password
-		self.last_login = int(time.time()*1000)
-		self.register_date = int(time.time()*1000)
+		self.last_login = int(time.time())
+		self.register_date = int(time.time())
 		self.last_ip = last_ip
 		self.ingame_time = 0
 		self.bot = 0
@@ -40,7 +40,7 @@ class Rename(object):
 	def __init__(self, original, new):
 		self.original = original
 		self.new = new
-		self.time = int(time.time()*1000)
+		self.time = int(time.time())
 		
 	def __repr__(self):
 		return "<Rename('%s')>" % self.ip_address
@@ -230,7 +230,7 @@ class UsersHandler:
 		 	sqluser = User(name, lanadmin['username'], password, ip, 'admin')
 		 	return True, sqluser
 		good = True
-		now = int(time.time()*1000)
+		now = time.time()
 		entry = session.query(User).filter(User.lowername==name).first() # should only ever be one user with each name so we can just grab the first one :)
 		reason = entry
 		if not entry:
@@ -259,7 +259,7 @@ class UsersHandler:
 		session = self.sessionmaker()
 		entry = session.query(User).filter(User.id==db_id).first()
 		if entry and not entry.logins[-1].end:
-			entry.logins[-1].end = int(time.time()*1000)
+			entry.logins[-1].end = int(time.time())
 			session.commit()
 		
 		session.close()
@@ -298,7 +298,7 @@ class UsersHandler:
 		session = self.sessionmaker()
 		name = username.lower()
 		entry = session.query(User).filter(User.lowername==name).first()
-		end_time = int(time.time()*1000) + int(duration*24*60*60*1000)
+		end_time = int(time.time()) + int(duration*24*60*60)
 		ban = Ban(reason, end_time)
 		session.save(ban)
 		ban.entries.append(AggregateBan('user', name))
@@ -324,7 +324,7 @@ class UsersHandler:
 	def ban_ip(self, owner, ip, duration, reason):
 		# TODO: add owner field to the database for bans
 		session = self.sessionmaker()
-		end_time = int(time.time()*1000) + int(duration*24*60*60*1000)
+		end_time = int(time.time()) + int(duration*24*60*60)
 		ban = Ban(reason, end_time)
 		session.save(ban)
 		ban.entries.append(AggregateBan('ip'), ip)
@@ -403,7 +403,7 @@ class UsersHandler:
 		name = username.lower()
 		entry = session.query(User).filter(User.lowername==name).first()
 		session.close()
-		if entry: return True, entry.last_login / 1000
+		if entry: return True, entry.last_login
 		else: return False, 'User not found.'
 	
 	def get_registration_date(self, username):
