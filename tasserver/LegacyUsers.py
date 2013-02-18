@@ -34,9 +34,9 @@ class User(object):
 			password = line[1]
 			access = line[2]
 			uid = line[3]
-			last_login = int(line[4])/1000.0
+			last_login = int(line[4])
 			last_ip = line[5]
-			register_date = int(line[6])/1000.0
+			register_date = int(line[6])
 			country = line[7]
 			# mapgrades = ' '.join(line[8:]) # no longer used
 			account_id = line[8]
@@ -148,7 +148,7 @@ class UsersHandler:
 	def login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		name = username.lower()
 		lanadmin = self._root.lanadmin
-		now = int(time.time()*1000)
+		now = int(time.time())
 		if name == lanadmin['username'].lower() and password == lanadmin['password']:
 			user = User(lanadmin['username'], password, 0, False, 'admin', None, now, ip, now, country, 0)
 			return True, user
@@ -190,7 +190,7 @@ class UsersHandler:
 		if name == lanadmin['username'].lower() or name in self.accounts:
 			return False, 'Username already exists.'
 		
-		now = int(time.time()*1000)
+		now = int(time.time())
 		
 		user = User(username, password, 0, False, 'agreement', None, now, ip, now, country, self.last_id+1)
 		self.last_id += 1
@@ -264,7 +264,7 @@ class UsersHandler:
 	def get_lastlogin(self, username):
 		user = self.clientFromUsername(username)
 		if user:
-			return True, user.last_login / 1000
+			return True, user.last_login
 		else:
 			return False, 'User not found.'
 	

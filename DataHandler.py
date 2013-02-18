@@ -284,7 +284,7 @@ class DataHandler:
 					if client and client.id:
 						admins.append(client.id)
 				
-				self.channels[name] = Channel(self, name, chanserv=bool(owner), owner=owner, admins=admins, key=channel['key'], antispam=channel['antispam'], topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time()*1000)})
+				self.channels[name] = Channel(self, name, chanserv=bool(owner), owner=owner, admins=admins, key=channel['key'], antispam=channel['antispam'], topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time())})
 			
 			if self.chanserv:
 				for name in channels:
