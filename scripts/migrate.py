@@ -11,7 +11,7 @@ import traceback
 from tasserver.LegacyChannels import Parser
 from tasserver.LegacyUsers import User
 
-from Protocol import Channel
+from SQLUsers import Channel
 
 if not len(sys.argv) == 4:
 	print 'usage: migrate.py [/path/to/accounts.txt] [/path/to/channels.xml] [dburl]'
@@ -66,14 +66,13 @@ for line in data.split('\n'):
 
 print
 print 'writing accounts to database'
-#db.inject_users(accounts.values())
+db.inject_users(accounts.values())
 
 print
 print 'reading channels'
 
 p = Parser()
 for name, channel in p.parse(channel_xml).items():
-	owner = None
 	admins = []
 	
 	client = db.clientFromUsername(channel['owner'])
@@ -83,13 +82,23 @@ for name, channel in p.parse(channel_xml).items():
 		client = db.clientFromUsername(user)
 		if client and client.id:
 			admins.append(client.id)
-	
-	c = Channel(None, None, name, chanserv=bool(owner),
-			owner=owner,
+	c = Channel(
+			name,
+			#chanserv=bool(owner),
+			owner = channel['owner'],
+			topic = channel['topic'],
+			topic_time = int(time.time()),
+			topic_owner = 'ChanServ',
+			antispam=channel['antispam'],
+			#autokick='ban',
+			#censor=False
+			#antishock=False
 			admins=admins,
 			key=channel['key'],
-			antispam=channel['antispam'],
-			topic={'user':'ChanServ','text':channel['topic'],'time':int(time.time()*1000)}
 		)
-	db.save_channel(c)
+	try:
+		db.inject_channel(c)
+	except sqlalchemy.exceptions.IntegrityError:
+		print "Duplicate channel: " + name
+		pass
 

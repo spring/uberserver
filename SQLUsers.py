@@ -47,7 +47,7 @@ class Rename(object):
 
 class Channel(object):
 	def __init__(self, name, key='', chanserv=False, owner='', topic='', topic_time=0, topic_owner='', antispam=False, admins='', autokick='ban', censor=False, antishock=False):
-		self.lowername = name
+		self.name = name
 		self.key = key
 		self.chanserv = chanserv
 		self.owner = owner
@@ -130,10 +130,10 @@ renames_table = Table('renames', metadata,
 
 channels_table = Table('channels', metadata,
 	Column('id', Integer, primary_key=True),
-	Column('name', String(40)),
+	Column('name', String(40), unique=True),
 	Column('key', String(32)),
 	Column('owner', String(40)),
-	Column('topic', Integer),
+	Column('topic', Text),
 	Column('topic_time', Integer),
 	Column('topic_owner', String(40)),
 	Column('antispam', Boolean),
@@ -474,6 +474,12 @@ class UsersHandler:
 			channels.append({'owner':chan.owner, 'key':chan.key, 'topic':chan.topic or '', 'antispam':chan.antispam, 'admins':[]})
 		session.close()
 		return channels
+
+	def inject_channel(self, channel):
+		session = self.sessionmaker()
+		session.save(channel)
+		session.commit()
+		session.close()
 	
 	def save_channel(self, channel):
 
