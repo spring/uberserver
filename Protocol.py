@@ -114,6 +114,12 @@ re_ip = re.compile(ipRegex)
 def validateIP(ipAddress):
 	return re_ip.match(ipAddress)
 
+def int32(x):
+	val = int(x)
+	if val >  2147483647 : raise OverflowError
+	if val < -2147483648 : raise OverflowError
+	return val
+
 class AutoDict:
 # method 1
 #	def __getitem__(self, item):
@@ -1350,7 +1356,7 @@ class Protocol:
 		ubattle = battle.copy()
 		
 		try:
-			int(battle_id), int(type), int(natType), int(passworded), int(port), int(maphash)
+			int(battle_id), int(type), int(natType), int(passworded), int(port), int32(maphash)
 		except:
 			client.current_battle = None
 			client.Send('OPENBATTLEFAILED Invalid argument type, send this to your lobby dev:'
@@ -1421,7 +1427,7 @@ class Protocol:
 		ubattle = battle.copy()
 
 		try:
-			int(battle_id), int(type), int(natType), int(passworded), int(port), int(maphash)
+			int(battle_id), int(type), int(natType), int(passworded), int(port), int32(maphash)
 		except:
 			client.current_battle = None
 			client.Send('OPENBATTLEFAILED Invalid argument type, send this to your lobby dev:'
