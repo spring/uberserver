@@ -230,7 +230,7 @@ class UsersHandler:
 		 	sqluser = User(name, lanadmin['username'], password, ip, 'admin')
 		 	return True, sqluser
 		good = True
-		now = time.time()
+		now = int(time.time())
 		entry = session.query(User).filter(User.lowername==name).first() # should only ever be one user with each name so we can just grab the first one :)
 		reason = entry
 		if not entry:
