@@ -1695,7 +1695,8 @@ class Protocol:
 				for tag in set(tags.split(' ')):
 					try:
 						# this means we only broadcast removed tags if they existed
-						rem.add(battle.script_tags.pop(tag))
+						del battle.script_tags[tag]
+						rem.add(tag)
 					except KeyError:
 						pass
 
