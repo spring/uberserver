@@ -1702,7 +1702,8 @@ class Protocol:
 						rem.add(tag)
 					except KeyError:
 						pass
-
+				if not rem:
+					return
 				self._root.broadcast_battle('REMOVESCRIPTTAGS %s'%' '.join(rem), battle_id)
 
 	def in_SCRIPTSTART(self, client):
