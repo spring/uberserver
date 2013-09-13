@@ -6,7 +6,7 @@ except: md5 = __import__('md5').new
 import traceback, sys, os
 import socket
 
-ranks = (5, 15, 30, 100, 300, 1000, 3000, 10000)
+ranks = (5, 15, 30, 100, 300, 1000, 3000)
 
 restricted = {
 'disabled':[],
