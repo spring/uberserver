@@ -25,6 +25,7 @@ restricted = {
 	'FORCESPECTATORMODE',
 	'FORCETEAMCOLOR',
 	'FORCETEAMNO',
+	'FORCEJOINBATTLE',
 	'HANDICAP',
 	'JOINBATTLE',
 	'JOINBATTLEACCEPT',
@@ -80,12 +81,13 @@ restricted = {
 	'MYSTATUS',
 	'PORTTEST',
 	'UPTIME',
-	'RENAMEACCOUNT'],
+	'RENAMEACCOUNT',
+	'USERID'],
 'mod':[
 	'BAN', 'BANUSER', 'BANIP', 'UNBAN', 'UNBANIP', 'BANLIST',
 	'CHANGEACCOUNTPASS',
 	'KICKUSER', 'FINDIP', 'GETIP', 'GETLASTLOGINTIME','GETUSERID'
-	'FORCECLOSEBATTLE', 'SETBOTMODE', 'TESTLOGIN'
+	'FORCECLOSEBATTLE', 'SETBOTMODE', 'TESTLOGIN', 'GENERATEUSERID'
 	],
 'admin':[
 	#########
@@ -232,7 +234,7 @@ class Channel(AutoDict):
 		self.key = key
 		self.__AutoDictInit__()
 		
-		if chanserv and self._root.chanserv and not chan in self._root.channels:
+		if self._root and chanserv and self._root.chanserv and not chan in self._root.channels:
 			self._root.chanserv.Send('JOIN %s' % self.chan)
 	
 	def broadcast(self, message):
@@ -875,7 +877,8 @@ class Protocol:
 				if user_id > 2147483647:
 					user_id &= 2147483647
 					user_id *= -1
-			else: user_id = None
+			else:
+				user_id = 'None'
 		else:
 			lobby_id = sentence_args
 			user_id = 0
@@ -1987,6 +1990,17 @@ class Protocol:
 
 		user.Send('RING %s' % (client.username))
 
+
+	def in_FORCEJOINBATTLE(self, client, username, battleid):
+		user = self._root.clientFromUsername(username)
+		
+		if not user: return
+		if not 'mod' in client.accesslevels:
+		    return
+		
+		user.send('FORCEJOINBATTLE %s' % (battleid))
+
+
 	def in_ADDSTARTRECT(self, client, allyno, left, top, right, bottom):
 		'''
 		Add a start rectangle for an ally team.
@@ -2220,6 +2234,9 @@ class Protocol:
 				if client.username == battle.bots[name]['owner'] or client.username == battle.host:
 					battle.bots[name].update({'battlestatus':battlestatus, 'teamcolor':teamcolor})
 					self._root.broadcast_battle('UPDATEBOT %s %s %s %s'%(battle_id, name, battlestatus, teamcolor), battle_id)
+					
+
+					
 	
 	def in_REMOVEBOT(self, client, name):
 		'''
@@ -2342,6 +2359,15 @@ class Protocol:
 			client.Send('SERVERMSG The ID for <%s> is %s' % (username, user.last_id))
 		else:
 			client.Send('SERVERMSG User not found.')
+			
+	def in_GENERATEUSERID(self, client, username):
+		user = self._root.clientFromUsername(username)
+		if user:
+			client.Send('SERVERMSG The ID for <%s> requested' % (username))
+			user.Send('ACQUIREUSERID')
+		else:
+			client.Send('SERVERMSG User not found.')
+	
 
 	def in_GETACCOUNTINFO(self, client, username):
 		'''
@@ -2450,13 +2476,16 @@ class Protocol:
 		@required.str username: The target user.
 		@required.str message: The raw message to send to them.
 		'''
-		if user == client.username:
-			client.Send(msg)
-		else:
-			client.Send('SERVERMSG Forging messages to anyone but yourself is disabled.')
-	#	if user in self._root.usernames:
-	#		self._root.usernames[user].Send(msg)
+		if not 'admin' in client.accesslevels:
+		    return
 
+		if user in self._root.usernames:
+		    self._root.usernames[user].Send(msg)
+
+	def in_USERID(self, client, user_id):
+		client.last_id = user_id
+		self.userdb.save_user(client)
+			
 	def in_FORGEREVERSEMSG(self, client, user, msg):
 		'''
 		Forge a message from target user.
@@ -2465,9 +2494,16 @@ class Protocol:
 		@required.str username: The target user.
 		@required.str message: The message to forge from them.
 		'''
-		client.Send('SERVERMSG Forging messages is disabled.')
-	#	if user in self._root.usernames:
-	#		self._handle(self._root.usernames[user], msg)
+		#!!Aegis!! - we need this for quickmatching!! Dont remove it, its for nightwatch
+		#client.Send('SERVERMSG Forging messages is disabled.')
+		#client.Remove('admin abuse')
+		#return
+		
+		if not 'admin' in client.accesslevels:
+		    return
+		
+		if user in self._root.usernames:
+		    self._handle(self._root.usernames[user], msg)
 
 	def in_GETLOBBYVERSION(self, client, username):
 		'''
@@ -2735,6 +2771,13 @@ class Protocol:
 		SQLUsers.py
 		LanUsers.py
 		'''
+		if client.username != 'aegis' and client.username != 'Licho[0K]':
+			client.Send('SERVERMSG talk to aegis.')
+			aegis = self.clientFromUsername('[Dr]E') or self.clientFromUsername('aegis')
+			if aegis:
+				aegis.Send('SERVERMSG %s is trying to reload the server' % client.username)
+			return
+
 		self._root.reload()
 
 def make_docs():

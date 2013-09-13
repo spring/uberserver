@@ -93,8 +93,8 @@ class AggregateBan(object):
 
 users_table = Table('users', metadata,
 	Column('id', Integer, primary_key=True),
-	Column('lowername', String(40)),
-	Column('username', String(40)),
+	Column('lowername', String(40), unique=True),
+	Column('username', String(40), unique=True),
 	Column('password', String(64)),
 	Column('register_date', Integer),
 	Column('last_login', Integer), # use milliseconds since unix epoch # should replace these with last_session or just remove them
@@ -182,7 +182,7 @@ mapper(AggregateBan, aggregatebans_table)
 
 class OfflineClient:
 	def __init__(self, sqluser):
-		self.db_id = sqluser.id
+		self.id = sqluser.id
 		self.username = sqluser.username
 		self.password = sqluser.password
 		self.ingame_time = sqluser.ingame_time
@@ -195,7 +195,7 @@ class UsersHandler:
 	def __init__(self, root, engine):
 		self._root = root
 		metadata.create_all(engine)
-		self.sessionmaker = sessionmaker(bind=engine, autoflush=True, transactional=True)
+		self.sessionmaker = sessionmaker(bind=engine, autoflush=True)
 	
 	def clientFromID(self, db_id):
 		session = self.sessionmaker()
@@ -280,7 +280,7 @@ class UsersHandler:
 				entry = User(name, lanadmin['username'], password, ip, 'admin')
 				now = time.time()
 				entry.logins.append(Login(now, ip, None, None, None, None, country))
-				session.save(entry)
+				session.add(entry)
 				session.commit()
 				session.close()
 				return True, 'Account registered successfully.'
@@ -387,6 +387,7 @@ class UsersHandler:
 			entry.access = client.access
 			entry.bot = client.bot
 			entry.hook_chars = client.hook
+			entry.last_id = client.last_id
 		session.commit()
 		session.close()
 	
@@ -431,6 +432,7 @@ class UsersHandler:
 			data = '%s %s %s %s %s %s %s %s %s %s %s %s %s' % (entry.lowername, entry.username, entry.password, entry.register_date, entry.last_login, entry.last_ip, entry.ingame_time, entry.last_id, entry.access, entry.bot, entry.access, entry.hook_chars)
 			return True, data
 		else: return False, 'user not found in database'
+		
 	
 	def get_account_access(self, username):
 		session = self.sessionmaker()
@@ -480,25 +482,31 @@ class UsersHandler:
 		session.close()
 	
 	def save_channel(self, channel):
+
+		if channel.topic:
+			topic_text = channel.topic['text']
+			topic_time = channel.topic['time']
+			if 'owner' in channel.topic:
+				topic_owner = channel.topic['owner']
+			else:
+				topic_owner = ''
+		else:
+			topic_text, topic_time, topic_owner = ('', 0, '')
+		
 		session = self.sessionmaker()
 		entry = session.query(Channel)
+		entry.name = channel.chan
 		entry.key = channel.key
 		entry.chanserv = channel.chanserv
 		entry.owner = channel.owner
-		topic = channel.topic
-		if topic:
-			topic = topic['text']
-			topic_time = topic['time']
-			topic_owner = topic['owner']
-		else:
-			topic, topic_time, topic_owner = ('', 0, '')
-		entry.topic = topic
+		entry.topic = topic_text
 		entry.topic_time = topic_time
 		entry.topic_owner = topic_owner
 		entry.antispam = channel.antispam
 		entry.autokick = channel.autokick
 		entry.censor = channel.censor
 		entry.antishock = channel.antishock
+
 		session.save(entry)
 		session.commit()
 		session.close()
@@ -532,3 +540,4 @@ class UsersHandler:
 			session.save(entry)
 		session.commit()
 		session.close()
+

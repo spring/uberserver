@@ -109,6 +109,10 @@ class Client:
 		if self.bot and not (self.access in self.floodlimit and 'disabled' in self.floodlimit[self.access]): limit = self.floodlimit['bot']
 		elif self.access in self.floodlimit: limit = self.floodlimit[self.access]
 		else: limit = self.floodlimit['user']
+
+		if self.username == 'Nightwatch':
+			limit = {'disabled': True}
+
 		if not 'disabled' in limit:
 			msglength = limit['msglength']
 			bytespersecond = limit['bytespersecond']
