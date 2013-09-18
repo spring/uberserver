@@ -7,6 +7,7 @@ sys.path.append('.')
 
 import sys
 import time
+import datetime 
 import traceback
 from tasserver.LegacyChannels import Parser
 from tasserver.LegacyUsers import User
@@ -52,15 +53,28 @@ f.close()
 print 'scanning accounts'
 accounts = {}
 
+def fromtimestamp(str):
+	if str == 0:
+		return None
+	if str < 3000:
+		return None
+	if str > time.time():
+		str = str / 1000
+	return datetime.datetime.fromtimestamp(str)
+
+#defdate = datetime.datetime(2000, 1, 1)
+
 for line in data.split('\n'):
 	if line:
 		user = User.fromAccountLine(line)
 		if not user:
 			print 'Invalid line: %s' %(line)
 			continue
+		register_date = fromtimestamp(user.last_login)
+		last_login = fromtimestamp(user.last_login)
 		accounts[user.username] = {
 			'user':user.username, 'pass':user.password, 'ingame':user.ingame_time,
-			'last_login':user.last_login, 'register_date':user.register_date, 'uid':user.last_id,
+			'last_login':last_login, 'register_date':register_date, 'uid':user.last_id,
 			'last_ip':user.last_ip, 'country':user.country, 'bot':user.bot, 'access':user.access,
 			}
 
