@@ -322,3 +322,4 @@ class UsersHandler:
 			del self.accounts[user]
 			if user.id:
 				del self.idToAccount[user.id]
+
