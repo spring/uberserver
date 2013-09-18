@@ -62,7 +62,7 @@ def fromtimestamp(str):
 		str = str / 1000
 	return datetime.datetime.fromtimestamp(str)
 
-#defdate = datetime.datetime(2000, 1, 1)
+defdate = datetime.datetime(2000, 1, 1)
 
 for line in data.split('\n'):
 	if line:
@@ -80,7 +80,7 @@ for line in data.split('\n'):
 
 print
 print 'writing accounts to database'
-db.inject_users(accounts.values())
+#db.inject_users(accounts.values())
 
 print
 print 'reading channels'
@@ -101,7 +101,7 @@ for name, channel in p.parse(channel_xml).items():
 			#chanserv=bool(owner),
 			owner = channel['owner'],
 			topic = channel['topic'],
-			topic_time = int(time.time()),
+			topic_time = defdate,
 			topic_owner = 'ChanServ',
 			antispam=channel['antispam'],
 			#autokick='ban',
@@ -112,7 +112,7 @@ for name, channel in p.parse(channel_xml).items():
 		)
 	try:
 		db.inject_channel(c)
-	except sqlalchemy.exceptions.IntegrityError:
+	except sqlalchemy.exc.IntegrityError:
 		print "Duplicate channel: " + name
 		pass
 
