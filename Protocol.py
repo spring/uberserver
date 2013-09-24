@@ -2759,7 +2759,6 @@ class Protocol:
 		'''
 		Reload core parts of the server code from source. This also reparses motd, update list, and trusted proxy file.
 		Do not use this for changes unless you are very confident in your ability to recover from a mistake.
-		If you use this command to change code on the primary server without talking to aegis, he won't be happy.
 
 		Parts reloaded:
 		ChanServ.py
@@ -2771,13 +2770,8 @@ class Protocol:
 		SQLUsers.py
 		LanUsers.py
 		'''
-		if client.username != 'aegis' and client.username != 'Licho[0K]':
-			client.Send('SERVERMSG talk to aegis.')
-			aegis = self.clientFromUsername('[Dr]E') or self.clientFromUsername('aegis')
-			if aegis:
-				aegis.Send('SERVERMSG %s is trying to reload the server' % client.username)
-			return
-
+		if not 'admin' in client.accesslevels:
+		    return
 		self._root.reload()
 
 def make_docs():
