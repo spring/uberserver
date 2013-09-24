@@ -313,7 +313,7 @@ class Channel(AutoDict):
 				topicdict = {}
 		else:
 			self.channelMessage('Topic changed.')
-			topicdict = {'user':client.username, 'text':topic, 'time':'%s'%(int(time.time())*1000)}
+			topicdict = {'user':client.username, 'text':topic, 'time':time.time()}
 			self.broadcast('CHANNELTOPIC %s %s %s %s'%(self.chan, client.username, topicdict['time'], topic))
 		self.topic = topicdict
 	

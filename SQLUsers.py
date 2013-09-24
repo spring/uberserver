@@ -1,4 +1,4 @@
-import time
+from datetime import datetime
 
 from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean, Text, DateTime
 from sqlalchemy.orm import mapper, sessionmaker, relation
@@ -10,8 +10,8 @@ class User(object):
 		self.lowername = name
 		self.username = username
 		self.password = password
-		self.last_login = time.time()
-		self.register_date = time.time()
+		self.last_login = datetime.now()
+		self.register_date = datetime.now()
 		self.last_ip = last_ip
 		self.ingame_time = 0
 		self.bot = 0
@@ -31,7 +31,7 @@ class Login(object):
 		self.cpu = cpu
 		self.local_ip = local_ip
 		self.country = country
-		self.end = 0
+		#self.end = 0
 
 	def __repr__(self):
 		return "<Login('%s', '%s')>" % (self.ip_address, self.time)
@@ -40,7 +40,7 @@ class Rename(object):
 	def __init__(self, original, new):
 		self.original = original
 		self.new = new
-		self.time = int(time.time())
+		self.time = datetime.now()
 		
 	def __repr__(self):
 		return "<Rename('%s')>" % self.ip_address
@@ -98,7 +98,7 @@ users_table = Table('users', metadata,
 	Column('password', String(64)),
 	Column('register_date', DateTime),
 	Column('last_login', DateTime),
-	Column('last_ip', String(15)), # would need update for ipv6   # 
+	Column('last_ip', String(15)), # would need update for ipv6
 	Column('last_id', String(128)),
 	Column('ingame_time', Integer),
 	Column('access', String(32)),
@@ -110,12 +110,12 @@ users_table = Table('users', metadata,
 logins_table = Table('logins', metadata, 
 	Column('id', Integer, primary_key=True),
 	Column('ip_address', String(15), nullable=False),
-	Column('time', Integer),
+	Column('time', DateTime),
 	Column('lobby_id', String(128)),
 	Column('cpu', Integer),
-	Column('local_ip', String(15)),
+	Column('local_ip', String(15)), # needs update for ipv6
 	Column('country', String(4)),
-	Column('end', Integer),
+	Column('end', DateTime),
 	Column('user_id', String(128)),
 	Column('user_dbid', Integer, ForeignKey('users.id')),
 	)
@@ -125,7 +125,7 @@ renames_table = Table('renames', metadata,
 	Column('user_id', Integer, ForeignKey('users.id')),
 	Column('original', String(40)),
 	Column('new', String(40)),
-	Column('time', Integer),
+	Column('time', DateTime),
 	)
 
 channels_table = Table('channels', metadata,
@@ -134,7 +134,7 @@ channels_table = Table('channels', metadata,
 	Column('key', String(32)),
 	Column('owner', String(40)),
 	Column('topic', Text),
-	Column('topic_time', Integer),
+	Column('topic_time', DateTime),
 	Column('topic_owner', String(40)),
 	Column('antispam', Boolean),
 	Column('autokick', String(5)),
@@ -155,7 +155,7 @@ chanuser_table = Table('chanuser', metadata,
 bans_table = Table('ban_groups', metadata, # server bans
 	Column('id', Integer, primary_key=True),
 	Column('reason', Text),
-	Column('end_time', Integer), # seconds since unix epoch
+	Column('end_time', DateTime),
 	)
 
 aggregatebans_table = Table('ban_items', metadata, # server bans
@@ -230,14 +230,15 @@ class UsersHandler:
 		 	sqluser = User(name, lanadmin['username'], password, ip, 'admin')
 		 	return True, sqluser
 		good = True
-		now = int(time.time())
-		entry = session.query(User).filter(User.lowername==name).first() # should only ever be one user with each name so we can just grab the first one :)
-		reason = entry
-		if not entry:
-			return False, 'No user named %s'%user
-		if not password == entry.password:
+		dbuser = session.query(User).filter(User.lowername==name).first() # should only ever be one user with each name so we can just grab the first one :)
+		reason = dbuser
+		if not dbuser:
+			return False, 'No user named %s' % user
+		if not password == dbuser.password:
 			good = False
 			reason = 'Invalid password'
+
+		now = datetime.now()
 		#if entry.banned > 0: # update with _time_remaining() from protocol or wherever it is
 			#if entry.banned > now:
 				#good = False
@@ -247,19 +248,19 @@ class UsersHandler:
 					#reason = 'You are banned: (%s) days remaining.' % daysleft
 				#else:
 					#reason = 'You are banned: (%s) hours remaining.' % (float(seconds) / 60 / 60)
-		entry.logins.append(Login(now, ip, lobby_id, user_id, cpu, local_ip, country))
-		entry.last_login = now
-		entry.last_ip = ip
-		entry.last_id = user_id
+		dbuser.logins.append(Login(now, ip, lobby_id, user_id, cpu, local_ip, country))
+		dbuser.last_login = now
+		dbuser.time = now
+		dbuser.last_ip = ip
+		dbuser.last_id = user_id
 		session.commit()
-		session.close()
 		return good, reason
 	
 	def end_session(self, db_id):
 		session = self.sessionmaker()
 		entry = session.query(User).filter(User.id==db_id).first()
 		if entry and not entry.logins[-1].end:
-			entry.logins[-1].end = int(time.time())
+			entry.logins[-1].end = datetime.now()
 			session.commit()
 		
 		session.close()
@@ -278,7 +279,7 @@ class UsersHandler:
 				if user in self._root.usernames:
 					self._root.usernames[user] # what the *********************
 				entry = User(name, lanadmin['username'], password, ip, 'admin')
-				now = time.time()
+				now = datetime.now()
 				entry.logins.append(Login(now, ip, None, None, None, None, country))
 				session.add(entry)
 				session.commit()
@@ -298,7 +299,7 @@ class UsersHandler:
 		session = self.sessionmaker()
 		name = username.lower()
 		entry = session.query(User).filter(User.lowername==name).first()
-		end_time = int(time.time()) + int(duration*24*60*60)
+		end_time = datetime.now() + duration*24*60*60
 		ban = Ban(reason, end_time)
 		session.add(ban)
 		ban.entries.append(AggregateBan('user', name))
@@ -324,7 +325,7 @@ class UsersHandler:
 	def ban_ip(self, owner, ip, duration, reason):
 		# TODO: add owner field to the database for bans
 		session = self.sessionmaker()
-		end_time = int(time.time()) + int(duration*24*60*60)
+		end_time = datetime.now() + duration*24*60*60
 		ban = Ban(reason, end_time)
 		session.add(ban)
 		ban.entries.append(AggregateBan('ip'), ip)

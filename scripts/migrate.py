@@ -80,7 +80,7 @@ for line in data.split('\n'):
 
 print
 print 'writing accounts to database'
-#db.inject_users(accounts.values())
+db.inject_users(accounts.values())
 
 print
 print 'reading channels'
