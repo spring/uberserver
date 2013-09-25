@@ -908,7 +908,7 @@ class Protocol:
 					'AGREEMENTEND']
 					for line in agreement: client.Send(line)
 					return
-				self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s.'%(client.handler.num, username, client.session_id))
+				self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s %s.'%(client.handler.num, username, client.session_id, client.access))
 				
 				if client.ip_address in self._root.trusted_proxies:
 					client.setFlagByIP(local_ip, False)
@@ -919,7 +919,7 @@ class Protocol:
 					client.db_id = reason.id
 				self._root.db_ids[client.db_id] = client
 				
-				client.ingame_time = int(reason.ingame_time)
+				client.ingame_time = reason.ingame_time
 				client.bot = reason.bot
 				client.last_login = reason.last_login
 				client.register_date = reason.register_date
@@ -1029,14 +1029,6 @@ class Protocol:
 			user = client.username
 			if user in channel.users:
 				self.SayHooks.hook_SAY(self, client, chan, msg)
-	
-	#def in_SAYEXHOOKED(self, client, chan, msg): # sayex hook was only for filtering
-	#	if not msg: return
-	#	if chan in self._root.channels:
-	#		channel = self._root.channels[chan]
-	#		user = client.username
-	#		if user in channel.users:
-	#			self.SayHooks.hook_SAYEX(self,client,chan,msg)
 	
 	def in_SAYPRIVATEHOOKED(self, client, user, msg):
 		'''

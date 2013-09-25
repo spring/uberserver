@@ -265,11 +265,15 @@ class DataHandler:
 			self.userdb = __import__('LANUsers').UsersHandler(self)
 			print 'Warning: LAN mode enabled - many user-specific features will be broken.'
 		
-		if self.channelfile:
-			parser = LegacyChannels.Parser()
-			channels = parser.parse(self.channelfile)
-			
+		if self.channelfile or self.dbtype == 'sql':
+			channels = None
 			userdb = self.getUserDB()
+			if self.dbtype == 'sql':
+				channels = userdb.load_channels()
+			else:
+				parser = LegacyChannels.Parser()
+				channels = parser.parse(self.channelfile)
+			
 			for name in channels:
 				channel = channels[name]
 				

@@ -58,7 +58,7 @@ _root.console_write('Detecting online IP:')
 try:
 	timeout = socket.getdefaulttimeout()
 	socket.setdefaulttimeout(5)
-	web_addr = urlopen('http://automation.whatismyip.com/n09230945.asp').read()
+	web_addr = urlopen('http://api.externalip.net/ip').read()
 	socket.setdefaulttimeout(timeout)
 	_root.console_write(web_addr)
 except:
