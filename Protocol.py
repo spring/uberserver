@@ -278,12 +278,6 @@ class Channel(AutoDict):
 	def isOp(self, client):
 		return client and ((client.db_id in self.admins) or self.isFounder(client))
 	
-	def getAccess(self, client): # return client's security clearance
-		return 'mod' if self.isMod(client) else\
-				('founder' if self.isFounder(client) else\
-				('op' if self.isOp(client) else\
-				'normal'))
-	
 	def isMuted(self, client):
 		return client.db_id in self.mutelist
 	
