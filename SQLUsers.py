@@ -61,11 +61,11 @@ class Channel(object):
 		self.antishock = antishock
 
 	def __repr__(self):
-		return "<Channel('%s')>" % self.lowername
+		return "<Channel('%s')>" % self.name
 
 class ChanUser(object):
 	def __init__(self, name, channel, admin=False, banned='', allowed=False, mute=0):
-		self.lowername = name
+		self.name = name
 		self.channel = channel
 		self.admin = admin
 		self.banned = banned
@@ -73,7 +73,7 @@ class ChanUser(object):
 		self.mute = mute
 
 	def __repr__(self):
-		return "<ChanUser('%s')>" % self.lowername
+		return "<ChanUser('%s')>" % self.name
 
 class Ban(object):
 	def __init__(self, reason, end_time):
@@ -432,7 +432,7 @@ class UsersHandler:
 		entry = session.query(User).filter(User.username==username).first()
 		session.close()
 		if entry:
-			data = '%s %s %s %s %s %s %s %s %s %s %s %s %s' % (entry.username.lower(), entry.username, entry.password, entry.register_date, entry.last_login, entry.last_ip, entry.ingame_time, entry.last_id, entry.access, entry.bot, entry.access, entry.hook_chars)
+			data = '%s %s %s %s %s %s %s %s %s %s %s %s' % (entry.username, entry.password, entry.register_date, entry.last_login, entry.last_ip, entry.ingame_time, entry.last_id, entry.access, entry.bot, entry.access, entry.hook_chars)
 			return True, data
 		else: return False, 'user not found in database'
 		
