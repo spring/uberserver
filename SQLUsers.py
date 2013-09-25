@@ -188,6 +188,7 @@ class OfflineClient:
 		self.last_login = sqluser.last_login
 		self.register_date = sqluser.register_date
 		self.hook = sqluser.hook_chars
+		self.last_id = sqluser.last_id
 
 class UsersHandler:
 	def __init__(self, root, engine):
