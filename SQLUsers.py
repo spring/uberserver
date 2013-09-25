@@ -515,7 +515,7 @@ class UsersHandler:
 		for channel in channels:
 			self.save_channel(channel)
 
-	def inject_user(self, user, password, ip, last_login, register_date, uid, ingame, country, bot, access):
+	def inject_user(self, user, password, ip, last_login, register_date, uid, ingame, country, bot, access, id):
 		entry = User(user, password, ip)
 		entry.last_login = last_login
 		entry.last_id = uid
@@ -523,6 +523,7 @@ class UsersHandler:
 		entry.register_date = register_date
 		entry.access = access
 		entry.bot = bot
+		entry.id = id
 		return entry
 	
 	def inject_users(self, accounts):
@@ -535,7 +536,7 @@ class UsersHandler:
 				session.close()
 				session = self.sessionmaker()
 			entry = self.inject_user(user['user'], user['pass'], user['last_ip'], user['last_login'], user['register_date'],
-												user['uid'], user['ingame'], user['country'], user['bot'], user['access'])
+												user['uid'], user['ingame'], user['country'], user['bot'], user['access'], user['id'])
 			session.add(entry)
 		session.commit()
 		session.close()

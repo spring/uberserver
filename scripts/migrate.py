@@ -73,6 +73,7 @@ for line in data.split('\n'):
 		register_date = fromtimestamp(user.last_login)
 		last_login = fromtimestamp(user.last_login)
 		accounts[user.username] = {
+			'id':user.id,
 			'user':user.username, 'pass':user.password, 'ingame':user.ingame_time,
 			'last_login':last_login, 'register_date':register_date, 'uid':user.last_id,
 			'last_ip':user.last_ip, 'country':user.country, 'bot':user.bot, 'access':user.access,
