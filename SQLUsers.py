@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean, Text, DateTime
 from sqlalchemy.orm import mapper, sessionmaker, relation
+from sqlalchemy.exc import IntegrityError
 
 metadata = MetaData()
 
@@ -528,16 +529,16 @@ class UsersHandler:
 	
 	def inject_users(self, accounts):
 		session = self.sessionmaker()
-		count = 0
 		for user in accounts:
-			count += 1
-			if not count % 500:
+			try:
+				entry = self.inject_user(user['user'], user['pass'], user['last_ip'], user['last_login'], user['register_date'],
+							user['uid'], user['ingame'], user['country'], user['bot'], user['access'], user['id'])
+				session.add(entry)
 				session.commit()
-				session.close()
-				session = self.sessionmaker()
-			entry = self.inject_user(user['user'], user['pass'], user['last_ip'], user['last_login'], user['register_date'],
-												user['uid'], user['ingame'], user['country'], user['bot'], user['access'], user['id'])
-			session.add(entry)
+				print("Inserted: " + user['user'])
+			except IntegrityError:
+				session.rollback()
+				#print("Duplicate Entry: " + user['user'])
 		session.commit()
 		session.close()
 
