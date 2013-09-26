@@ -32,7 +32,7 @@ class Dispatcher:
 					self.addClient(client)
 				else:
 					try:
-						data = s.recv(1024)
+						data = s.recv(4096)
 						if data:
 							if s in self.socketmap: # for threading, just need to pass this to a worker thread... remember to fix the problem for any calls to handler, and fix msg ids (handler.thread)
 									self.socketmap[s].Handle(data)
