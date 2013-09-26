@@ -756,14 +756,6 @@ class Protocol:
 
 		@optional.str reply: Reply to send client
 		'''
-		mintime = 15
-		now = time.time()
-		if now - client.last_pongsend < mintime:
-			if not client.pingabusesend:
-				client.pingabusesend = True
-				client.Send("SERVERMSG PING's received to fast, don't abuse this server, please wait %0.f seconds before sending the next PING" %(mintime - (now - client.last_pongsend)))
-			return
-		client.last_pongsend = now
 		if reply:
 			client.Send('PONG %s'%reply)
 		else:
