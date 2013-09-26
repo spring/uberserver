@@ -106,20 +106,20 @@ _root.running = False
 _root.console_print_step()
 
 if _root.dbtype == 'legacy':
-	print 'Writing account database to file...'
+	_root.console_write('Writing account database to file...')
 	try:
 		while True:
 			try:
 				_root.userdb.writeAccounts()
-				print 'Accounts written.'
+				_root.console_write('Accounts written.')
 				if _root.channelfile:
-					print 'Writing channels...'
+					_root.console_write('Writing channels...')
 					__import__('tasserver').LegacyChannels.Writer().dump(_root.channels, _root.getUserDB().clientFromID)
-					print 'Channels written.'
+					_root.console_write('Channels written.')
 					_root.channelfile = None
 				break
 			except KeyboardInterrupt:
-				print 'You probably shouldn\'t interrupt this, starting account dump over.'
+				_root.console_write('You probably shouldn\'t interrupt this, starting account dump over.')
 	except:
 		print '-'*60
 		print traceback.format_exc()

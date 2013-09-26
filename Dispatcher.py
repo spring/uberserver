@@ -37,7 +37,7 @@ class Dispatcher:
 							if s in self.socketmap: # for threading, just need to pass this to a worker thread... remember to fix the problem for any calls to handler, and fix msg ids (handler.thread)
 									self.socketmap[s].Handle(data)
 							else:
-								print 'Problem, sockets are not being cleaned up properly.'
+								self._root.console_write('Problem, sockets are not being cleaned up properly.')
 						else:
 							raise socket.error, 'Connection closed.'
 					except socket.error:
