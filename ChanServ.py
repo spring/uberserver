@@ -5,11 +5,12 @@ class ChanServ:
 	def __init__(self, client, root):
 		self.client = client
 		self._root = root
+		self.channeldb = root.channeldb
 	
 	def onLogin(self):
 		self.client.status = self.client._protocol._calc_status(self.client, 0)
 		for channel in self._root.channels.values():
-			self.Send('JOIN %s' % str(channel.chan))
+			self.Send('JOIN %s' % str(channel.name))
 	
 	def Handle(self, msg):
 		try:
@@ -92,6 +93,7 @@ class ChanServ:
 				if access in ['mod', 'founder', 'op']:
 					args = args or ''
 					channel.setTopic(client, args)
+					self.channeldb.setTopic(client.username, channel, args) # update topic in db
 					return '#%s: Topic changed' % chan
 				else:
 					return '#%s: You do not have permission to set the topic' % chan
@@ -100,6 +102,7 @@ class ChanServ:
 					channel.owner = ''
 					channel.channelMessage('#%s has been unregistered'%chan)
 					self.Send('LEAVE %s' % chan)
+					self.channeldb.unRegister(client, channel)
 					return '#%s: Successfully unregistered.' % chan
 				else:
 					return '#%s: You must contact one of the server moderators or the owner of the channel to unregister a channel' % chan
@@ -230,6 +233,7 @@ class ChanServ:
 				target = self.client._protocol.clientFromUsername(args)
 				if target:
 					channel.setFounder(client, target)
+					self.channeldb.register(channel, client, target) # register channel in db
 					return '#%s: Successfully registered to <%s>' % (chan, args.split(' ',1)[0])
 				else:
 					return '#%s: User <%s> does not exist.' % (chan, args)

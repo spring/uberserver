@@ -5,8 +5,9 @@ try: from hashlib import md5
 except: md5 = __import__('md5').new
 
 import traceback
-from protocol import Channel
+from protocol.Channel import Channel
 from protocol.Protocol import Protocol
+from SQLUsers import UsersHandler, ChannelsHandler
 
 separator = '-'*60
 
@@ -28,8 +29,8 @@ class DataHandler:
 		
 		self.chanserv = None
 		self.userdb = None
+		self.channeldb = None
 		self.engine = None
-		self.channelfile = None
 		self.protocol = None
 		self.updatefile = None
 		self.trusted_proxyfile = None
@@ -194,20 +195,17 @@ class DataHandler:
 			print
 			self.max_threads = 1
 
-		self.userdb = __import__('SQLUsers').UsersHandler
-		self.userdb(self, self.engine)
-		
-		channels = None
-		userdb = self.getUserDB()
-		channels = userdb.load_channels()
+		self.userdb = UsersHandler(self, self.engine)
+		self.channeldb = ChannelsHandler(self, self.engine)
+		channels = self.channeldb.load_channels()
 		
 		for name in channels:
 			channel = channels[name]
 			
 			owner = None
 			admins = []
-				
-			client = userdb.clientFromUsername(channel['owner'])
+			print channel['owner']
+			client = self.userdb.clientFromUsername(channel['owner'])
 			if client and client.id: owner = client.id
 				
 			for user in channel['admins']:
@@ -281,7 +279,7 @@ class DataHandler:
 						self.trusted_proxies.add(proxy)
 	
 	def getUserDB(self):
-		return self.userdb(self, self.engine)
+		return self.userdb
 	
 	def clientFromID(self, db_id):
 		if db_id in self.db_ids: return self.db_ids[db_id]

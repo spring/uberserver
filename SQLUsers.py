@@ -450,6 +450,38 @@ class UsersHandler:
 		session.commit()
 		session.close()
 		return True, 'Success.'
+
+	def inject_user(self, user, password, ip, last_login, register_date, uid, ingame, country, bot, access, id):
+		entry = User(user, password, ip)
+		entry.last_login = last_login
+		entry.last_id = uid
+		entry.ingame_time = ingame
+		entry.register_date = register_date
+		entry.access = access
+		entry.bot = bot
+		entry.id = id
+		return entry
+	
+	def inject_users(self, accounts):
+		session = self.sessionmaker()
+		for user in accounts:
+			try:
+				entry = self.inject_user(user['user'], user['pass'], user['last_ip'], user['last_login'], user['register_date'],
+							user['uid'], user['ingame'], user['country'], user['bot'], user['access'], user['id'])
+				session.add(entry)
+				session.commit()
+				print("Inserted: " + user['user'])
+			except IntegrityError:
+				session.rollback()
+				#print("Duplicate Entry: " + user['user'])
+		session.commit()
+		session.close()
+
+class ChannelsHandler:
+	def __init__(self, root, engine):
+		self._root = root
+		metadata.create_all(engine)
+		self.sessionmaker = sessionmaker(bind=engine, autoflush=True)
 	
 	def load_channels(self):
 		session = self.sessionmaker()
@@ -500,29 +532,34 @@ class UsersHandler:
 		for channel in channels:
 			self.save_channel(channel)
 
-	def inject_user(self, user, password, ip, last_login, register_date, uid, ingame, country, bot, access, id):
-		entry = User(user, password, ip)
-		entry.last_login = last_login
-		entry.last_id = uid
-		entry.ingame_time = ingame
-		entry.register_date = register_date
-		entry.access = access
-		entry.bot = bot
-		entry.id = id
-		return entry
-	
-	def inject_users(self, accounts):
+	def setTopic(self, user, chan, topic):
 		session = self.sessionmaker()
-		for user in accounts:
-			try:
-				entry = self.inject_user(user['user'], user['pass'], user['last_ip'], user['last_login'], user['register_date'],
-							user['uid'], user['ingame'], user['country'], user['bot'], user['access'], user['id'])
-				session.add(entry)
-				session.commit()
-				print("Inserted: " + user['user'])
-			except IntegrityError:
-				session.rollback()
-				#print("Duplicate Entry: " + user['user'])
+		entry = session.query(Channel).filter(Channel.name == chan.name).first()
+		entry.topic = topic
+		entry.topic_time = datetime.now()
+		entry.topic_owner = user
 		session.commit()
 		session.close()
+
+	def register(self, channel, client, target):
+		session = self.sessionmaker()
+		entry = session.query(Channel).filter(Channel.name == channel.name)
+		if entry and not entry.first():
+			entry = Channel(channel.name)
+			session.add(entry)
+			if channel.topic:
+				entry.topic = channel.topic['text']
+				entry.topic_time =  datetime.fromtimestamp(channel.topic['time'])
+				entry.topic_owner = channel.topic['user']
+		entry.owner = target.username
+		session.commit()
+		session.close()
+
+	def unRegister(self, client, channel):
+		session = self.sessionmaker()
+		entry = session.query(Channel).filter(Channel.name == channel.name).first()
+		session.delete(entry)
+		session.commit()
+		session.close()
+	
 

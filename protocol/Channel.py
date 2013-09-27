@@ -1,20 +1,21 @@
 from AutoDict import AutoDict
+import time
 
 class Channel(AutoDict):
-	def __init__(self, root, chan, users=[], blindusers=[], admins=[],
+	def __init__(self, root, name, users=[], blindusers=[], admins=[],
 						ban={}, allow=[], autokick='ban', chanserv=False,
 						owner='', mutelist={}, antispam=False,
 						censor=False, antishock=False, topic=None,
 						key=None, **kwargs):
 		self._root = root
-		self.chan = chan
+		self.name = name
 		self.users = users
 		self.blindusers = blindusers
 		self.admins = admins
 		self.ban = ban
 		self.allow = allow
 		self.autokick = autokick
-		self.chanserv = chanserv
+		self.nameserv = chanserv
 		self.owner = owner
 		self.mutelist = mutelist
 		self.antispam = antispam
@@ -25,13 +26,13 @@ class Channel(AutoDict):
 		self.__AutoDictInit__()
 
 		if self._root and chanserv and self._root.chanserv and not chan in self._root.channels:
-			self._root.chanserv.Send('JOIN %s' % self.chan)
+			self._root.chanserv.Send('JOIN %s' % self.name)
 
 	def broadcast(self, message):
-		self._root.broadcast(message, self.chan)
+		self._root.broadcast(message, self.name)
 
 	def channelMessage(self, message):
-		self.broadcast('CHANNELMESSAGE %s %s' % (self.chan, message))
+		self.broadcast('CHANNELMESSAGE %s %s' % (self.name, message))
 
 	def register(self, client, owner):
 		self.owner = owner.db_id
@@ -40,10 +41,10 @@ class Channel(AutoDict):
 		username = client.username
 		if not username in self.users:
 			self.users.append(username)
-			self.broadcast('JOINED %s %s' % (self.chan, username))
+			self.broadcast('JOINED %s %s' % (self.name, username))
 
 	def removeUser(self, client, reason=''):
-		chan = self.chan
+		chan = self.name
 		username = client.username
 
 		if username in self.users:
@@ -51,7 +52,7 @@ class Channel(AutoDict):
 			if username in self.blindusers:
 				self.blindusers.remove(username)
 
-			if self.chan in client.channels:
+			if self.name in client.channels:
 				client.channels.remove(chan)
 
 			self._root.broadcast('LEFT %s %s' % (chan, username), chan, self.blindusers)
@@ -104,7 +105,7 @@ class Channel(AutoDict):
 		else:
 			self.channelMessage('Topic changed.')
 			topicdict = {'user':client.username, 'text':topic, 'time':time.time()}
-			self.broadcast('CHANNELTOPIC %s %s %s %s'%(self.chan, client.username, topicdict['time'], topic))
+			self.broadcast('CHANNELTOPIC %s %s %s %s'%(self.name, client.username, topicdict['time'], topic))
 		self.topic = topicdict
 
 	def setKey(self, client, key):
@@ -134,7 +135,7 @@ class Channel(AutoDict):
 	def kickUser(self, client, target, reason=''):
 		if self.isFounder(target): return
 		if target and target.username in self.users:
-			target.Send('FORCELEAVECHANNEL %s %s %s' % (self.chan, client.username, reason))
+			target.Send('FORCELEAVECHANNEL %s %s %s' % (self.name, client.username, reason))
 			self.channelMessage('<%s> has kicked <%s> from the channel%s' % (client.username, target.username, (' (reason: %s)'%reason if reason else '')))
 			self.removeUser(target, 'kicked from channel%s' % (' (reason: %s)'%reason if reason else ''))
 
