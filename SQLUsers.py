@@ -439,7 +439,7 @@ class UsersHandler:
 		session = self.sessionmaker()
 		entry = session.query(User).filter(User.username==username).first()
 		session.close()
-		return entry.ip
+		return entry.last_ip
 
 	def remove_user(self, user):
 		session = self.sessionmaker()
