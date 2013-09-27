@@ -1,5 +1,6 @@
-import Multiplexer, Protocol, Client
+import Multiplexer, Client
 import socket, thread, traceback
+from protocol import Protocol, Channel
 
 class Dispatcher:
 	def __init__(self, root, server):

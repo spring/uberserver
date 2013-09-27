@@ -5,8 +5,8 @@ try: from hashlib import md5
 except: md5 = __import__('md5').new
 
 import traceback
-from Protocol import Channel, Protocol
-
+from protocol import Channel
+from protocol.Protocol import Protocol
 from tasserver import LegacyChannels, LegacyUsers
 
 separator = '-'*60
@@ -233,7 +233,7 @@ class DataHandler:
 			else:
 				try:
 					sqlalchemy = __import__('sqlalchemy')
-					self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.max_threads*2, pool_recycle=300) # hopefully no thread will open more than two sql connections :/
+					self.engine = sqlalchemy.create_engine(self.sqlurl) # hopefully no thread will open more than two sql connections :/
 					if self.sqlurl.startswith('sqlite'):
 						print 'Multiple threads are not supported with sqlite, forcing a single thread'
 						print 'Please note the server performance will not be optimal'
@@ -501,7 +501,7 @@ class DataHandler:
 			for channel in dict(self.channels): # hack, but I guess reloading is all a hack :P
 				chan = self.channels[channel].copy()
 				del chan['chan'] # 'cause we're passing it ourselves
-				self.channels[channel] = sys.modules['Protocol'].Channel(self, channel, **chan)
+				self.channels[channel] = sys.modules['protocol.Protocol'].Channel(self, channel, **chan)
 			
 			self.protocol = Protocol(self, None)
 		except:
@@ -514,7 +514,11 @@ class DataHandler:
 		self.admin_broadcast('Reloading...')
 		self.console_write('Reloading...')
 		reload(sys.modules['SayHooks'])
-		reload(sys.modules['Protocol'])
+		reload(sys.modules['protocol.AutoDict'])
+		reload(sys.modules['protocol.Channel'])
+		reload(sys.modules['protocol.Battle'])
+		reload(sys.modules['protocol.Protocol'])
+		reload(sys.modules['protocol'])
 		reload(sys.modules['ChanServ'])
 		reload(sys.modules['Client'])
 		if 'SQLUsers' in sys.modules: reload(sys.modules['SQLUsers'])
@@ -522,3 +526,4 @@ class DataHandler:
 		elif 'tasserver.LegacyUsers' in sys.modules: reload(sys.modules['tasserver.LegacyUsers'])
 		self.SayHooks = __import__('SayHooks')
 		thread.start_new_thread(self._rebind_slow, ()) # why should reloading block the thread? :)
+
