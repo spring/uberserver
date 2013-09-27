@@ -231,10 +231,6 @@ class UsersHandler:
 	def login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		session = self.sessionmaker()
 
-		lanadmin = self._root.lanadmin
-		if username == lanadmin['username'] and password == lanadmin['password']:
-		 	sqluser = User(username, lanadmin['username'], password, ip, 'admin')
-		 	return True, sqluser
 		good = True
 		dbuser = session.query(User).filter(User.username==username, User.password == password).first() # should only ever be one user with each name so we can just grab the first one :)
 		if not dbuser:
@@ -284,19 +280,6 @@ class UsersHandler:
 			if not self._root.SayHooks._nasty_word_censor(user):
 				return False, 'Name failed to pass profanity filter.'
 		results = session.query(User).filter(User.username==user).first()
-		lanadmin = self._root.lanadmin
-		if user == lanadmin['username']:
-			if password == lanadmin['password']: # if you register a lanadmin account with the right user and pass combo, it makes it into a normal admin account
-				if user in self._root.usernames:
-					self._root.usernames[user] # what the *********************
-				entry = User(name, lanadmin['username'], password, ip, 'admin')
-				now = datetime.now()
-				entry.logins.append(Login(now, ip, None, None, None, None, country))
-				session.add(entry)
-				session.commit()
-				session.close()
-				return True, 'Account registered successfully.'
-			else: return False, 'Username already exists.'
 		if results:
 			return False, 'Username already exists.'
 		entry = User(user, password, ip)
