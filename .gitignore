@@ -3,3 +3,4 @@
 *.swp
 /sqlalchemy/
 /server.log
+/server.db

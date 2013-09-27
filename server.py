@@ -105,26 +105,6 @@ server.close()
 _root.running = False
 _root.console_print_step()
 
-if _root.dbtype == 'legacy':
-	_root.console_write('Writing account database to file...')
-	try:
-		while True:
-			try:
-				_root.userdb.writeAccounts()
-				_root.console_write('Accounts written.')
-				if _root.channelfile:
-					_root.console_write('Writing channels...')
-					__import__('tasserver').LegacyChannels.Writer().dump(_root.channels, _root.getUserDB().clientFromID)
-					_root.console_write('Channels written.')
-					_root.channelfile = None
-				break
-			except KeyboardInterrupt:
-				_root.console_write('You probably shouldn\'t interrupt this, starting account dump over.')
-	except:
-		print '-'*60
-		print traceback.format_exc()
-		print '-'*60
-
 memdebug = False
 if memdebug:
 	recursion = []

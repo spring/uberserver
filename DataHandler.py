@@ -7,11 +7,11 @@ except: md5 = __import__('md5').new
 import traceback
 from protocol import Channel
 from protocol.Protocol import Protocol
-from tasserver import LegacyChannels, LegacyUsers
 
 separator = '-'*60
 
 class DataHandler:
+
 	def __init__(self):
 		self.local_ip = None
 		self.online_ip = None
@@ -20,8 +20,6 @@ class DataHandler:
 		self.console_buffer = []
 		self.port = 8200
 		self.natport = self.port+1
-		self.dbtype = 'lan'
-		self.lanadmin = {'username':'', 'password':''}
 		self.latestspringversion = '*'
 		self.log = False
 		self.server = 'TASServer'
@@ -31,14 +29,13 @@ class DataHandler:
 		self.chanserv = None
 		self.userdb = None
 		self.engine = None
-		self.tsbanurl = None
 		self.channelfile = None
 		self.protocol = None
 		self.updatefile = None
 		self.trusted_proxyfile = None
 		
 		self.max_threads = 25
-		self.sqlurl = 'sqlite:///sqlite.txt'
+		self.sqlurl = 'sqlite:///server.db'
 		self.randomflags = False
 		self.nextbattle = 0
 		self.SayHooks = __import__('SayHooks')
@@ -58,7 +55,60 @@ class DataHandler:
 		self.db_ids = {}
 		self.battles = {}
 		thread.start_new_thread(self.event_loop, ())
-	
+
+	def showhelp(self):
+		print 'Usage: server.py [OPTIONS]...'
+		print 'Starts uberserver.'
+		print
+		print 'Options:'
+		print '  -h, --help'
+		print '      { Displays this screen then exits }'
+		print '  -p, --port number'
+		print '      { Server will host on this port (default is 8200) }'
+		print '  -n, --natport number'
+		print '      { Server will use this port for NAT transversal (default is 8201) }'
+		print '  -g, --loadargs filename'
+		print '      { Reads additional command-line arguments from file }'
+		print '  -r  --randomflags'
+		print '      { Randomizes country codes (flags) }'
+		print '  -o, --output /path/to/file.log'
+		print '      { Writes console output to file (for logging) }'
+		print '  -u, --sighup'
+		print '      { Reload the server on SIGHUP (if SIGHUP is supported by OS) }'
+		print '  -v, --latestspringversion version'
+		print '      { Sets latest Spring version to this string. Defaults to "*" }'
+		print '  -m, --maxthreads number'
+		print '      { Uses the specified number of threads for handling clients }'
+		print '  -s, --sqlurl SQLURL'
+		print '      { Uses SQL database at the specified sqlurl for user, channel, and ban storage. }'
+		print '  -c, --no-censor'
+		print '      { Disables censoring of #main, #newbies, and usernames (default is to censor) }'
+		print '  --updates /path/to/updates.txt'
+		print '     { Path to updates.txt, for using Spring update system. }'
+		print '  --proxies /path/to/proxies.txt'
+		print '     { Path to proxies.txt, for trusting proxies to pass real IP through local IP }'
+		print 'SQLURL Examples:'
+		#print '  "sqlite:///:memory:" or "sqlite:///"'
+		#print '     { both make a temporary database in memory }'
+		print '  "sqlite:////absolute/path/to/database.txt"'
+		print '     { uses a database in the file specified }'
+		print '  "sqlite:///relative/path/to/database.txt"'
+		print '     { note sqlite is slower than a real SQL server }'
+		print '  "mysql://user:password@server:port/database"'
+		print '     { requires the MySQLdb module }'
+		print '  "oracle://user:password@server:port/database"'
+		print '     { requires the cx_Oracle module }'
+		print '  "postgres://user:password@server:port/database"'
+		print '     { requires the psycopg2 module }'
+		print '  "mssql://user:password@server:port/database"'
+		print '     { requires pyodbc (recommended) or adodbapi or pymssql }'
+		print '  "firebird://user:password@server:port/database"'
+		print '     { requires the kinterbasdb module }'
+		print
+		print 'Usage example (this is what the test server uses at the moment):'
+		print ' server.py -p 8300 -n 8301'
+		print
+		exit()
 	def parseArgv(self, argv):
 		'parses command-line options'
 		args = {'ignoreme':[]}
@@ -90,84 +140,13 @@ class DataHandler:
 		for arg in args:
 			argp = args[arg]
 			if arg in ['h', 'help']:
-				print 'Usage: server.py [OPTIONS]...'
-				print 'Starts uberserver.'
-				print
-				print 'Options:'
-				print '  -h, --help'
-				print '      { Displays this screen then exits }'
-				print '  -p, --port number'
-				print '      { Server will host on this port (default is 8200) }'
-				print '  -n, --natport number'
-				print '      { Server will use this port for NAT transversal (default is 8201) }'
-				print '  -l, --lan'
-				print '      { Users do not need to be registered to login - breaks rudimentary features like channel ops/founders, channel/battle bans, etc. }'
-				print '  -a, --lanadmin username password [hash] }'
-				print '      { Hardcoded admin account for LAN. If third arg reads "hash" it will apply the standard hash algorithm to the supplied password }'
-				print '  -g, --loadargs filename'
-				print '      { Reads additional command-line arguments from file }'
-				print '  -r  --randomflags'
-				print '      { Randomizes country codes (flags) }'
-				print '  -o, --output /path/to/file.log'
-				print '      { Writes console output to file (for logging) }'
-				print '  -u, --sighup'
-				print '      { Reload the server on SIGHUP (if SIGHUP is supported by OS) }'
-				print '  -v, --latestspringversion version'
-				print '      { Sets latest Spring version to this string. Defaults to "*" }'
-				print '  -m, --maxthreads number'
-				print '      { Uses the specified number of threads for handling clients }'
-				print '  -s, --sqlurl SQLURL'
-				print '      { Uses SQL database at the specified sqlurl for user, channel, and ban storage. }'
-				print '  -c, --no-censor'
-				print '      { Disables censoring of #main, #newbies, and usernames (default is to censor) }'
-				print '  --accounts /path/to/accounts.txt'
-				print '      { Path to accounts.txt. For using the legacy TASServer account database. }'
-				print '  --tsbans SQLURL'
-				print '      { Uses SQL database at the specified sqlurl as a legacy TASServer ban database. } '
-				print '  --channels /path/to/settings.xml'
-				print '      { Path to ChanServ settings.xml, for using the legacy ChanServ channel database. }'
-				print '  --updates /path/to/updates.txt'
-				print '     { Path to updates.txt, for using Spring update system. }'
-				print '  --proxies /path/to/proxies.txt'
-				print '     { Path to proxies.txt, for trusting proxies to pass real IP through local IP }'
-				print 'SQLURL Examples:'
-				#print '  "sqlite:///:memory:" or "sqlite:///"'
-				#print '     { both make a temporary database in memory }'
-				print '  "sqlite:////absolute/path/to/database.txt"'
-				print '     { uses a database in the file specified }'
-				print '  "sqlite:///relative/path/to/database.txt"'
-				print '     { note sqlite is slower than a real SQL server }'
-				print '  "mysql://user:password@server:port/database"'
-				print '     { requires the MySQLdb module }'
-				print '  "oracle://user:password@server:port/database"'
-				print '     { requires the cx_Oracle module }'
-				print '  "postgres://user:password@server:port/database"'
-				print '     { requires the psycopg2 module }'
-				print '  "mssql://user:password@server:port/database"'
-				print '     { requires pyodbc (recommended) or adodbapi or pymssql }'
-				print '  "firebird://user:password@server:port/database"'
-				print '     { requires the kinterbasdb module }'
-				print
-				print 'Usage example (this is what the test server uses at the moment):'
-				print ' server.py -p 8300 -n 8301'
-				print
-				exit()
+				self.showhelp()
 			if arg in ['p', 'port']:
 				try: self.port = int(argp[0])
 				except: print 'Invalid port specification'
 			elif arg in ['n', 'natport']:
 				try: self.natport = int(argp[0])
 				except: print 'Invalid NAT port specification'
-			elif arg in ['l', 'lan']:
-				self.dbtype = 'lan'
-			elif arg in ['a', 'lanadmin']:
-				try:
-					if len(argp) > 2:
-						if argp[2] == 'hash':
-							m = md5(argp[1])
-							argp[1] = base64.b64encode(m.digest())
-					self.lanadmin = {'username':argp[0], 'password':argp[1]}
-				except: print 'Invalid LAN admin specified'
 			elif arg in ['r', 'randomcc']:
 				try: self.randomflags = True
 				except: print 'Error enabling random flags. (weird)'
@@ -188,27 +167,10 @@ class DataHandler:
 			elif arg in ['s', 'sqlurl']:
 				try:
 					self.sqlurl = argp[0]
-					self.dbtype = 'sql'
 				except:
 					print 'Error specifying SQL URL'
 			elif arg in ['c', 'no-censor']:
 				self.censor = False
-			elif arg == 'accounts':
-				try:
-					self.engine = argp[0]
-					open(self.engine, 'r').close()
-					self.dbtype = 'legacy'
-				except:
-					print 'Error opening legacy accounts.txt database.'
-			elif arg == 'tsbans':
-				self.tsbanurl = argp[0]
-			elif arg == 'channels':
-				try:
-					self.channelfile = argp[0]
-					open(self.channelfile, 'r').close()
-				except:
-					print 'Error opening ChanServ settings.xml.'
-					self.channelfile = None
 			elif arg == 'updates':
 				try:
 					self.updatefile = argp[0]
@@ -223,76 +185,41 @@ class DataHandler:
 				except:
 					print 'Error opening trusted proxy file.'
 					self.trusted_proxyfile = None
-					
-		if self.dbtype == 'sql':
-			if self.sqlurl == 'sqlite:///:memory:' or self.sqlurl == 'sqlite:///':
-				print 'In-memory sqlite databases are not supported.'
-				print 'Falling back to LAN mode.'
-				print
-				self.dbtype = 'lan'
-			else:
-				try:
-					sqlalchemy = __import__('sqlalchemy')
-					self.engine = sqlalchemy.create_engine(self.sqlurl) # hopefully no thread will open more than two sql connections :/
-					if self.sqlurl.startswith('sqlite'):
-						print 'Multiple threads are not supported with sqlite, forcing a single thread'
-						print 'Please note the server performance will not be optimal'
-						print 'You might want to install a real database server or use LAN mode'
-						print
-						self.max_threads = 1
-				except ImportError:
-					print 'sqlalchemy not found or invalid SQL URL, falling back to LAN mode.'
-					self.dbtype = 'lan'
+		sqlalchemy = __import__('sqlalchemy')
+		self.engine = sqlalchemy.create_engine(self.sqlurl) # hopefully no thread will open more than two sql connections :/
+		if self.sqlurl.startswith('sqlite'):
+			print 'Multiple threads are not supported with sqlite, forcing a single thread'
+			print 'Please note the server performance will not be optimal'
+			print 'You might want to install a real database server or use LAN mode'
+			print
+			self.max_threads = 1
+
+		self.userdb = __import__('SQLUsers').UsersHandler
+		self.userdb(self, self.engine)
 		
-		if self.dbtype == 'legacy':
-			try:
-				self.userdb = LegacyUsers.UsersHandler(self, self.engine)
-				self.userdb.readAccounts()
-			except:
-				print traceback.format_exc()
-				print 'Error loading accounts.txt database, falling back to LAN mode.'
-				self.dbtype = 'lan'
-		elif self.dbtype == 'sql':
-			try:
-				self.userdb = __import__('SQLUsers').UsersHandler
-				self.userdb(self, self.engine)
-			except:
-				self.dbtype = 'lan'
-				print traceback.format_exc()
-				print 'Error importing SQL - falling back to LAN mode.'
+		channels = None
+		userdb = self.getUserDB()
+		channels = userdb.load_channels()
 		
-		if self.dbtype == 'lan':
-			self.userdb = __import__('LANUsers').UsersHandler(self)
-			print 'Warning: LAN mode enabled - many user-specific features will be broken.'
-		
-		if self.channelfile or self.dbtype == 'sql':
-			channels = None
-			userdb = self.getUserDB()
-			if self.dbtype == 'sql':
-				channels = userdb.load_channels()
-			else:
-				parser = LegacyChannels.Parser()
-				channels = parser.parse(self.channelfile)
+		for name in channels:
+			channel = channels[name]
 			
+			owner = None
+			admins = []
+				
+			client = userdb.clientFromUsername(channel['owner'])
+			if client and client.id: owner = client.id
+				
+			for user in channel['admins']:
+				client = userdb.clientFromUsername(user)
+				if client and client.id:
+					admins.append(client.id)
+				
+			self.channels[name] = Channel(self, name, chanserv=bool(owner), owner=owner, admins=admins, key=channel['key'], antispam=channel['antispam'], topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time())})
+			
+		if self.chanserv:
 			for name in channels:
-				channel = channels[name]
-				
-				owner = None
-				admins = []
-				
-				client = userdb.clientFromUsername(channel['owner'])
-				if client and client.id: owner = client.id
-				
-				for user in channel['admins']:
-					client = userdb.clientFromUsername(user)
-					if client and client.id:
-						admins.append(client.id)
-				
-				self.channels[name] = Channel(self, name, chanserv=bool(owner), owner=owner, admins=admins, key=channel['key'], antispam=channel['antispam'], topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time())})
-			
-			if self.chanserv:
-				for name in channels:
-					self.chanserv.client._protocol._handle(self.chanserv.client, 'JOIN %s' % name)
+				self.chanserv.client._protocol._handle(self.chanserv.client, 'JOIN %s' % name)
 		
 		if not self.log:
 			try:
@@ -354,10 +281,7 @@ class DataHandler:
 						self.trusted_proxies.add(proxy)
 	
 	def getUserDB(self):
-		if self.dbtype in ('legacy', 'lan'):
-			return self.userdb
-		elif self.dbtype == 'sql':
-			return self.userdb(self, self.engine)
+		return self.userdb(self, self.engine)
 	
 	def clientFromID(self, db_id):
 		if db_id in self.db_ids: return self.db_ids[db_id]
@@ -371,17 +295,6 @@ class DataHandler:
 		while self.running:
 			now = time.time()
 			try:
-				if now - lastsave >= 1800: # save every 30 minutes
-					lastsave = now
-					if self.dbtype == 'legacy' and self.userdb:
-						print 'Writing account database to file.',
-						start = time.time()
-						self.userdb.writeAccounts()
-						if self.channelfile:
-							writer = LegacyChannels.Writer()
-							writer.dump(self.channels, self.getUserDB().clientFromID)
-						print '..took %0.2f seconds.' % (time.time() - start)
-					
 				if now - lastmute >= 1:
 					lastmute = now
 					self.mute_timeout_step()
@@ -521,9 +434,7 @@ class DataHandler:
 		reload(sys.modules['protocol'])
 		reload(sys.modules['ChanServ'])
 		reload(sys.modules['Client'])
-		if 'SQLUsers' in sys.modules: reload(sys.modules['SQLUsers'])
-		elif 'LANUsers' in sys.modules: reload(sys.modules['LANUsers'])
-		elif 'tasserver.LegacyUsers' in sys.modules: reload(sys.modules['tasserver.LegacyUsers'])
+		reload(sys.modules['SQLUsers'])
 		self.SayHooks = __import__('SayHooks')
 		thread.start_new_thread(self._rebind_slow, ()) # why should reloading block the thread? :)
 
