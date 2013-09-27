@@ -2,7 +2,7 @@
 # coding=utf-8
 
 import thread, traceback, signal, socket, sys
-from urllib import urlopen
+from urllib2 import urlopen
 
 from DataHandler import DataHandler
 from Client import Client
