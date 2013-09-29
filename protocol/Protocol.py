@@ -13,7 +13,7 @@ ranks = (5, 15, 30, 100, 300, 1000, 3000, 10000)
 restricted = {
 'disabled':[],
 'everyone':['TOKENIZE','TELNET','HASH','EXIT','PING'],
-'fresh':['LOGIN','REGISTER','REQUESTUPDATEFILE'],
+'fresh':['LOGIN','REGISTER'],
 'agreement':['CONFIRMAGREEMENT'],
 'user':[
 	########
@@ -2010,27 +2010,6 @@ class Protocol:
 			client.Send('SERVERMSG Your ingame time is %d minutes (%d hours).'%(ingame_time, ingame_time / 60))
 		else:
 			client.Send('SERVERMSG You can\'t get the ingame time of other users.')
-
-	def in_REQUESTUPDATEFILE(self, client, nameAndVersion):
-		'''
-		Request the server to send you an update.
-
-		@required.str name: The name of the update to request.
-		@optional.str version: The version to request. If not provided or found, the default version will be used.
-		'''
-		nameAndVersion = nameAndVersion.lower()
-		if ' ' in nameAndVersion:
-			name, version = nameAndVersion.rsplit(' ',1)
-		else:
-			name, version = nameAndVersion, 'default'
-
-		updates = self._root.updates
-		if name in updates:
-			update = updates[name]
-			if version in updates[name]:
-				client.Send('OFFERFILE %s' % update[version])
-			elif 'default' in updates[name]:
-				client.Send('OFFERFILE %s' % update['default'])
 
 	def in_UPTIME(self, client):
 		'''

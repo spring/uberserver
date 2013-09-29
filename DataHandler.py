@@ -42,7 +42,6 @@ class DataHandler:
 		self.SayHooks = __import__('SayHooks')
 		self.censor = True
 		self.motd = None
-		self.updates = {}
 		self.running = True
 		self.output = None
 		
@@ -84,8 +83,6 @@ class DataHandler:
 		print '      { Uses SQL database at the specified sqlurl for user, channel, and ban storage. }'
 		print '  -c, --no-censor'
 		print '      { Disables censoring of #main, #newbies, and usernames (default is to censor) }'
-		print '  --updates /path/to/updates.txt'
-		print '     { Path to updates.txt, for using Spring update system. }'
 		print '  --proxies /path/to/proxies.txt'
 		print '     { Path to proxies.txt, for trusting proxies to pass real IP through local IP }'
 		print 'SQLURL Examples:'
@@ -172,13 +169,6 @@ class DataHandler:
 					print 'Error specifying SQL URL'
 			elif arg in ['c', 'no-censor']:
 				self.censor = False
-			elif arg == 'updates':
-				try:
-					self.updatefile = argp[0]
-					open(self.updatefile, 'r').close()
-				except:
-					print 'Error opening updates.txt.'
-					self.updatefile = None
 			elif arg == 'proxies':
 				try:
 					self.trusted_proxyfile = argp[0]
@@ -239,30 +229,6 @@ class DataHandler:
 				for line in data.split('\n'):
 					motd.append(line.strip())
 			self.motd = motd
-		
-		if self.updatefile:
-			self.updates = {}
-			f = open(self.updatefile, 'r')
-			data = f.read()
-			f.close()
-			if data:
-				for line in data.split('\n'):
-					if not ':' in line: continue
-					left, right = line.split(':', 1)
-					
-					left = left.lower()
-					if ' ' in left:
-						name, version = left.rsplit(' ',1)
-					else:
-						name, version = left, 'default'
-					
-					if not name in self.updates:
-						self.updates[name] = {}
-					
-					if not version in self.updates[name]:
-						self.updates[name][version] = {}
-						
-					self.updates[name][version] = right
 		
 		if self.trusted_proxyfile:
 			self.trusted_proxies = set([])
