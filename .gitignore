@@ -2,5 +2,8 @@
 *~
 *.swp
 /sqlalchemy/
-/server.log
+/server.log*
 /server.db
+/deps.zip
+/ip2c
+/ip2cntry.dat
