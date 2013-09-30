@@ -377,7 +377,7 @@ class DataHandler:
 				
 			for channel in dict(self.channels): # hack, but I guess reloading is all a hack :P
 				chan = self.channels[channel].copy()
-				del chan['chan'] # 'cause we're passing it ourselves
+				del chan['name'] # 'cause we're passing it ourselves
 				self.channels[channel] = sys.modules['protocol.Protocol'].Channel(self, channel, **chan)
 			
 			self.protocol = Protocol(self, None)

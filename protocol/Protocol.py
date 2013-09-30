@@ -1636,7 +1636,7 @@ class Protocol:
 			return
 
 		for channel in channels:
-			chaninfo = '%s %s'%(channel.chan, len(channel.users))
+			chaninfo = '%s %s'%(channel.name, len(channel.users))
 			topic = channel.topic
 			if topic:
 				chaninfo = '%s %s'%(chaninfo, topic['text']) # TASClient doesn't show the topic in CHANNELS unless it has a space, by the way.
