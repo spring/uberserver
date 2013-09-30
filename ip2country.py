@@ -102,3 +102,9 @@ def randomcc():
 	if not working: return '??'
 	cclen = len(ip2c.countryname)
 	return ip2c.countryCode( random.randint(2, cclen)-1 )
+
+def reloaddb():
+	if not working:
+		return
+	ip2c = ip2country()
+

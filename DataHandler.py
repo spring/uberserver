@@ -8,6 +8,7 @@ import traceback
 from protocol.Channel import Channel
 from protocol.Protocol import Protocol
 from SQLUsers import UsersHandler, ChannelsHandler
+import ip2country
 
 separator = '-'*60
 
@@ -397,6 +398,7 @@ class DataHandler:
 		reload(sys.modules['Client'])
 		reload(sys.modules['SQLUsers'])
 		self.SayHooks = __import__('SayHooks')
+		ip2country.reloaddb()
 		thread.start_new_thread(self._rebind_slow, ()) # why should reloading block the thread? :)
 
 	def rotatelogfile(self):
