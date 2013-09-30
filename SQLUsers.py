@@ -380,6 +380,7 @@ class UsersHandler:
 			entry.bot = client.bot
 			entry.hook_chars = client.hook
 			entry.last_id = client.last_id
+			entry.password = client.password
 		session.commit()
 		session.close()
 	
