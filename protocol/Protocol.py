@@ -94,7 +94,7 @@ restricted = {
 'admin':[
 	#########
 	# channel
-	'ALIAS','UNALIAS','ALIASLIST',
+	#'ALIAS','UNALIAS','ALIASLIST',
 	#########
 	# server
 	'ADMINBROADCAST', 'BROADCAST','BROADCASTEX','RELOAD',
