@@ -711,15 +711,12 @@ class Protocol:
 			else:
 				self._root.console_write('Handler %s: Failed to log in user <%s> on session %s. (rejected by database)'%(client.handler.num, username, client.session_id))
 				client.Send('DENIED %s'%reason)
-		else:
+		else: #user is alreaddy logged in
 			oldclient = self._root.usernames[username]
 			if oldclient.static:
 				client.Send('DENIED Cannot ghost static users.')
 
 			if time.time() - oldclient.lastdata > 15:
-				if self._root.dbtype == 'lan' and not oldclient.password == password:
-					client.Send('DENIED Would ghost old user, but we are in LAN mode and your password does not match.')
-					return
 
 				# kicks old user and logs in new user
 				oldclient.Remove('Ghosted')
