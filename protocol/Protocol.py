@@ -618,6 +618,7 @@ class Protocol:
 		if client.hashpw:
 			m = md5(password)
 			password = base64.b64encode(m.digest())
+
 		good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 		if good: username = reason.username
 		if not username in self._root.usernames:
@@ -625,7 +626,30 @@ class Protocol:
 				client.logged_in = True
 				client.access = reason.access
 				self._calc_access(client)
-				client.username = username
+				client.username = reason.username
+				client.password = reason.password
+				client.lobby_id = reason.lobby_id
+				client.bot = reason.bot
+				client.register_date = reason.register_date
+				client.last_login = reason.last_login
+				client.cpu = cpu
+
+				client.local_ip = None
+				if local_ip.startswith('127.') or not validateIP(local_ip):
+					client.local_ip = client.ip_address
+				else:
+					client.local_ip = local_ip
+
+				client.ingame_time = reason.ingame_time
+				client.hook = reason.hook_chars
+
+				if reason.id == None:
+					client.db_id = client.session_id
+				else:
+					client.db_id = reason.id
+				if client.ip_address in self._root.trusted_proxies:
+					client.setFlagByIP(local_ip, False)
+
 				if client.access == 'agreement':
 					self._root.console_write('Handler %s: Sent user <%s> the terms of service on session %s.'%(client.handler.num, username, client.session_id))
 					agreement = ['AGREEMENT {\\rtf1\\ansi\\ansicpg1250\\deff0\\deflang1060{\\fonttbl{\\f0\\fswiss\\fprq2\\fcharset238 Verdana;}{\\f1\\fswiss\\fprq2\\fcharset238{\\*\\fname Arial;}Arial CE;}{\\f2\\fswiss\\fcharset238{\\*\\fname Arial;}Arial CE;}}',
@@ -643,30 +667,10 @@ class Protocol:
 					return
 				self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s %s.'%(client.handler.num, username, client.session_id, client.access))
 
-				if client.ip_address in self._root.trusted_proxies:
-					client.setFlagByIP(local_ip, False)
 
-				if reason.id == None:
-					client.db_id = client.session_id
-				else:
-					client.db_id = reason.id
 				self._root.db_ids[client.db_id] = client
-
-				client.ingame_time = reason.ingame_time
-				client.bot = reason.bot
-				client.last_login = reason.last_login
-				client.register_date = reason.register_date
-				client.hook = reason.hook_chars
-				client.username = username
-				client.password = password
-				client.cpu = cpu
-				client.local_ip = None
-				if local_ip.startswith('127.') or not validateIP(local_ip):
-					client.local_ip = client.ip_address
-				else:
-					client.local_ip = local_ip
-				client.lobby_id = lobby_id
 				self._root.usernames[username] = client
+
 				client.Send('ACCEPTED %s'%username)
 
 				client.Send('MOTD Welcome, %s!' % username)

@@ -18,6 +18,7 @@ class User(object):
 		self.access = access # user, moderator, admin, bot, agreement
 		self.hook_chars = ''
 		self.mapgrades = ''
+		self.last_id = 0
 
 	def __repr__(self):
 		return "<User('%s', '%s')>" % (self.username, self.password)
@@ -251,7 +252,7 @@ class UsersHandler:
 		dbuser.last_ip = ip
 		dbuser.last_id = user_id
 		if good:
-			reason = User(username, password, ip, now )
+			reason = User(username, password, ip, now)
 			reason.access = dbuser.access
 			reason.id = dbuser.id
 			reason.ingame_time = dbuser.ingame_time
@@ -259,6 +260,7 @@ class UsersHandler:
 			reason.last_login = dbuser.last_login
 			reason.register_date = dbuser.register_date
 			reason.hook_chars = dbuser.hook_chars
+			reason.lobby_id = user_id
 
 		session.commit()
 		session.close()
