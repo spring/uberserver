@@ -40,7 +40,6 @@ class DataHandler:
 		
 		self.max_threads = 25
 		self.sqlurl = 'sqlite:///server.db'
-		self.randomflags = False
 		self.nextbattle = 0
 		self.SayHooks = __import__('SayHooks')
 		self.censor = True
@@ -71,8 +70,6 @@ class DataHandler:
 		print '      { Server will use this port for NAT transversal (default is 8201) }'
 		print '  -g, --loadargs filename'
 		print '      { Reads additional command-line arguments from file }'
-		print '  -r  --randomflags'
-		print '      { Randomizes country codes (flags) }'
 		print '  -o, --output /path/to/file.log'
 		print '      { Writes console output to file (for logging) }'
 		print '  -u, --sighup'
@@ -147,9 +144,6 @@ class DataHandler:
 			elif arg in ['n', 'natport']:
 				try: self.natport = int(argp[0])
 				except: print 'Invalid NAT port specification'
-			elif arg in ['r', 'randomcc']:
-				try: self.randomflags = True
-				except: print 'Error enabling random flags. (weird)'
 			elif arg in ['o', 'output']:
 				try: self.logfilename = argp[0]
 				except: print 'Error specifying log location'

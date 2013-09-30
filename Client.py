@@ -22,10 +22,7 @@ class Client:
 		self.local_ip = address[0]
 		self.port = address[1]
 		
-		if root.randomflags:
-			self.country_code = ip2country.randomcc()
-		else:
-			self.setFlagByIP(self.ip_address)
+		self.setFlagByIP(self.ip_address)
 		
 		self.session_id = session_id
 		self.db_id = session_id
