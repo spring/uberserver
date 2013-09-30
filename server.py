@@ -41,6 +41,15 @@ server.setsockopt( socket.SOL_SOCKET, socket.SO_REUSEADDR,
 server.bind((host,port))
 server.listen(backlog)
 
+try: # note this is platform specific and will work only on linux (i assume)
+	server.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1) # enable keepalive
+	server.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 15) # send tcp keepalive after 15 seconds idle
+	server.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 15) # resend after 15 seconds
+	server.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3) # maximum fails for keepalive
+	print 'Enabled tcp-keepalive!'
+except socket.error as msg:
+	print "Couldn't enable tcp-keepalive: %s, expect ghosts!" % (msg)
+
 try:
 	natserver = NATServer(natport)
 	thread.start_new_thread(natserver.start,())
