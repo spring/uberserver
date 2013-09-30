@@ -23,6 +23,8 @@ class DataHandler:
 		self.natport = self.port+1
 		self.latestspringversion = '*'
 		self.log = False
+		self.logfile = None
+		self.logfilename = 'server.log'
 		self.server = 'TASServer'
 		self.server_version = 0.35
 		self.sighup = False
@@ -43,7 +45,6 @@ class DataHandler:
 		self.censor = True
 		self.motd = None
 		self.running = True
-		self.output = None
 		
 		self.trusted_proxies = []
 		
@@ -149,11 +150,9 @@ class DataHandler:
 				try: self.randomflags = True
 				except: print 'Error enabling random flags. (weird)'
 			elif arg in ['o', 'output']:
-				try:
-					self.output = file(argp[0], 'w')
-					print 'Logging enabled at: %s' % argp[0]
-					self.log = True
+				try: self.logfilename = argp[0]
 				except: print 'Error specifying log location'
+				self.rotatelogfile()
 			elif arg in ['u', 'sighup']:
 				self.sighup = True
 			elif arg in ['v', 'latestspringversion']:
@@ -210,10 +209,7 @@ class DataHandler:
 				self.chanserv.client._protocol._handle(self.chanserv.client, 'JOIN %s' % name)
 		
 		if not self.log:
-			try:
-				self.output = open('server.log', 'w')
-				self.log = True
-			except: pass
+			self.rotatelogfile()
 		
 		self.parseFiles()
 		
@@ -300,10 +296,10 @@ class DataHandler:
 				line = self.console_buffer.pop(0)
 				print line
 				if self.log:
-					self.output.write(line+'\n')
+					self.logfile.write(line+'\n')
 			
-			if self.output:
-				self.output.flush()
+			if self.logfile:
+				self.logfile.flush()
 		except:
 			print separator
 			print traceback.format_exc()
@@ -390,6 +386,7 @@ class DataHandler:
 	def reload(self):
 		self.admin_broadcast('Reloading...')
 		self.console_write('Reloading...')
+		self.rotatelogfile()
 		reload(sys.modules['SayHooks'])
 		reload(sys.modules['protocol.AutoDict'])
 		reload(sys.modules['protocol.Channel'])
@@ -401,4 +398,19 @@ class DataHandler:
 		reload(sys.modules['SQLUsers'])
 		self.SayHooks = __import__('SayHooks')
 		thread.start_new_thread(self._rebind_slow, ()) # why should reloading block the thread? :)
+
+	def rotatelogfile(self):
+		self.log = False
+		try:
+			if self.logfile:
+				self.logfile.close()
+			oldfilename = self.logfilename + ".old"
+			if os.path.exists(oldfilename):
+				os.remove(oldfilename)
+			os.rename(self.logfilename, oldfilename)
+		except IOError as e:
+			print("Error rotaing logfile %s"% (e.strerror))
+		self.logfile = file(self.logfilename, 'w')
+		print 'Logging enabled at: %s' % self.logfilename
+		self.log = True
 
