@@ -292,7 +292,7 @@ class DataHandler:
 		now = time.time()
 		for client in self.clients.values():
 			if not client.logged_in and client.last_login < now - 90:
-				client.Remove()
+				client.Remove("didn't login, timed out")
 
 	def console_print_step(self):
 		try:
