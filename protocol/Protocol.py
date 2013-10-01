@@ -381,14 +381,15 @@ class Protocol:
 	def _sendMotd(self, client):
 		'send the message of the day to client'
 		if not self._root.motd: return
+		replace = {"{USERNAME}": str(client.username),
+			"{CLIENTS}": str(len(self._root.clients)),
+			"{CHANNELS}": str(len(self._root.channels)),
+			"{BATTLES}": str(len(self._root.battles)),
+			"{UPTIME}": str(self._time_since(self._root.start_time))}
 		client.Send('MOTD')
 		for line in list(self._root.motd):
-			line = line.replace("{USERNAME}", str(client.username))
-			line = line.replace("{CLIENTS}", str(len(self._root.clients)))
-			line = line.replace("{CHANNELS}", str(len(self._root.channels)))
-			line = line.replace("{BATTLES}", str(len(self._root.battles)))
-			line = line.replace("{UPTIME}", str(self._time_since(self._root.start_time)))
-
+			for key, value in replace.iteritems():
+				line = line.replace(key, value)
 			client.Send('MOTD %s' % line)
 
 
