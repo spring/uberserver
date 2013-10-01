@@ -17,6 +17,17 @@ class Dispatcher:
 	def pump(self):
 		self.poller.register(self.server)
 		self.poller.pump(self.callback)
+
+	def setKeepAlive(self, s):
+		print s
+		try: # note this is platform specific and will work only on linux (i assume)
+			s.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1) # enable keepalive
+			s.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPIDLE, 15) # send tcp keepalive after 15 seconds idle
+			s.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, 15) # resend after 15 seconds
+			s.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT, 3) # maximum fails for keepalive
+		except socket.error, msg:
+			self._root.console_write("Couldn't enable tcp-keepalive: %s, expect ghosts!" % (msg))
+
 	
 	def callback(self, inputs, outputs, errors):
 		try:
@@ -29,6 +40,7 @@ class Dispatcher:
 							self._root.console_write('Maximum files reached, refused new connection.')
 						else:
 							raise socket.error, e
+					self.setKeepAlive(conn)
 					client = Client.Client(self._root, conn, addr, self._root.session_id)
 					self.addClient(client)
 				else:
