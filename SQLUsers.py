@@ -260,7 +260,7 @@ class UsersHandler:
 			reason.last_login = dbuser.last_login
 			reason.register_date = dbuser.register_date
 			reason.hook_chars = dbuser.hook_chars
-			reason.lobby_id = user_id
+			reason.lobby_id = lobby_id
 
 		session.commit()
 		session.close()
