@@ -665,7 +665,6 @@ class Protocol:
 				if client.access == 'agreement':
 					self._root.console_write('Handler %s: Sent user <%s> the terms of service on session %s.'%(client.handler.num, username, client.session_id))
 					for line in self.agreement:
-						print("AGREEMENT %s" %(line))
 						client.Send("AGREEMENT %s" %(line))
 					client.Send('AGREEMENTEND')
 					return
