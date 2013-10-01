@@ -30,7 +30,6 @@ setup(
 				'Protocol',
 				'SayHooks',
 				'SQLUsers',
-				'Telnet',
 				'tasserver',
 			],
 		}},

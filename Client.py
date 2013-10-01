@@ -64,7 +64,6 @@ class Client:
 		self.msglengthhistory = {}
 		self.lastsaid = {}
 		self.nl = '\n'
-		self.telnet = False
 		self.current_channel = ''
 		self.blind_channels = []
 		self.reverse_ignore = []
@@ -134,8 +133,6 @@ class Client:
 			data = self.data.split('\n')
 			(datas, self.data) = (data[:len(data)-1], data[len(data)-1:][0])
 			for data in datas:
-				if data.endswith('\r') and self.telnet: # causes fail on TASClient, so only enable on telnet
-					self.nl = '\r\n'
 				command = data.rstrip('\r').lstrip(' ') # strips leading spaces and trailing carriage return
 				if not 'disabled' in limit and len(command) > msglength:
 					self.Send('SERVERMSG Max length exceeded (%s): no message for you.'%msglength)
@@ -167,8 +164,6 @@ class Client:
 			self.Remove("SendNow(): Socket error: %s" % (str(e)))
 
 	def FlushBuffer(self):
-		if self.data and self.telnet: # don't send if the person is typing :)
-			return
 		if not self.sendingmessage:
 			message = ''
 			while not message:
