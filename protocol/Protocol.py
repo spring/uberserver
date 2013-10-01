@@ -131,6 +131,8 @@ class Protocol:
 		self.userdb = root.getUserDB()
 		self.SayHooks = root.SayHooks
 		self.dir = dir(self)
+		self.optiondb = root.optiondb
+		self.agreement = root.agreement
 
 	def _new(self, client):
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0'))
@@ -648,18 +650,10 @@ class Protocol:
 
 				if client.access == 'agreement':
 					self._root.console_write('Handler %s: Sent user <%s> the terms of service on session %s.'%(client.handler.num, username, client.session_id))
-					agreement = ['AGREEMENT {\\rtf1\\ansi\\ansicpg1250\\deff0\\deflang1060{\\fonttbl{\\f0\\fswiss\\fprq2\\fcharset238 Verdana;}{\\f1\\fswiss\\fprq2\\fcharset238{\\*\\fname Arial;}Arial CE;}{\\f2\\fswiss\\fcharset238{\\*\\fname Arial;}Arial CE;}}',
-					'AGREEMENT {\\*\\generator Msftedit 5.41.15.1507;}\\viewkind4\\uc1\\pard\\ul\\b\\f0\\fs22 Terms of Use\\ulnone\\b0\\f1\\fs20\\par',
-					'AGREEMENT \\f2\\par',
-					'AGREEMENT \\f0\\fs16 While the administrators and moderators of this server will attempt to keep spammers and players violating this agreement off the server, it is impossible for them to maintain order at all times. Therefore you acknowledge that any messages in our channels express the views and opinions of the author and not the administrators or moderators (except for messages by these people) and hence will not be held liable.\\par',
-					'AGREEMENT \\par',
-					'AGREEMENT You agree not to use any abusive, obscene, vulgar, slanderous, hateful, threatening, sexually-oriented or any other material that may violate any applicable laws. Doing so may lead to you being immediately and permanently banned (and your service provider being informed). You agree that the administrators and moderators of this server have the right to mute, kick or ban you at any time should they see fit. As a user you agree to any information you have entered above being stored in a database. While this information will not be disclosed to any third party without your consent administrators and moderators cannot be held responsible for any hacking attempt that may lead to the data being compromised. Passwords are sent and stored in encoded form. Any personal information such as personal statistics will be kept privately and will not be disclosed to any third party.\\par',
-					'AGREEMENT \\par',
-					'AGREEMENT By using this service you hereby agree to all of the above terms.\\fs18\\par',
-					'AGREEMENT \\f2\\fs20\\par',
-					'AGREEMENT }',
-					'AGREEMENTEND']
-					for line in agreement: client.Send(line)
+					for line in self.agreement:
+						print("AGREEMENT %s" %(line))
+						client.Send("AGREEMENT %s" %(line))
+					client.Send('AGREEMENTEND')
 					return
 				self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s %s.'%(client.handler.num, username, client.session_id, client.access))
 

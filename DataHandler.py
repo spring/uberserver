@@ -26,6 +26,8 @@ class DataHandler:
 		self.log = False
 		self.logfile = None
 		self.logfilename = 'server.log'
+		self.agreementfile = 'agreement.rtf'
+		self.agreement = []
 		self.server = 'TASServer'
 		self.server_version = 0.35
 		self.sighup = False
@@ -84,6 +86,8 @@ class DataHandler:
 		print '      { Disables censoring of #main, #newbies, and usernames (default is to censor) }'
 		print '  --proxies /path/to/proxies.txt'
 		print '     { Path to proxies.txt, for trusting proxies to pass real IP through local IP }'
+		print '   -a --agreement /path/to/agreement.rtf'
+		print '     { sets the pat to the agreement file which is sent to a client registering at the server }'
 		print 'SQLURL Examples:'
 		#print '  "sqlite:///:memory:" or "sqlite:///"'
 		#print '     { both make a temporary database in memory }'
@@ -163,6 +167,11 @@ class DataHandler:
 					print 'Error specifying SQL URL'
 			elif arg in ['c', 'no-censor']:
 				self.censor = False
+			elif arg in ['a', 'agreement']:
+				try:
+					self.argeementfile = argp[0]
+				except:
+					print 'Error reading agreement file'
 			elif arg == 'proxies':
 				try:
 					self.trusted_proxyfile = argp[0]
@@ -207,7 +216,12 @@ class DataHandler:
 			self.rotatelogfile()
 		
 		self.parseFiles()
-		
+
+		ins = open(self.agreementfile, "r" )
+		for line in ins:
+			self.agreement.append(line.rstrip('\r\n'))
+		ins.close()
+
 		self.protocol = Protocol(self, None)
 	
 	def parseFiles(self):
