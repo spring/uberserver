@@ -170,9 +170,9 @@ class Client:
 		if not msg: return
 		try:
 			self.conn.send(msg+self.nl)
-		except socket.error:
+		except socket.error, e:
 			self.sendError = True
-			self.Remove()
+			self.Remove("SendNow(): Socket error: %s" % (str(e)))
 
 	def FlushBuffer(self):
 		if self.data and self.telnet: # don't send if the person is typing :)
@@ -195,7 +195,7 @@ class Client:
 		except socket.error, e:
 			if e == errno.EAGAIN:
 				return
-			self.Remove()
+			self.Remove("FlushBuffer(): Socket error: %s" %(str(e)))
 		
 		self.handler.poller.setoutput(self.conn, bool(self.sendbuffer or self.sendingmessage))
 	
