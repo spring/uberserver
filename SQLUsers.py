@@ -554,6 +554,8 @@ class ChannelsHandler:
 				entry.topic = channel.topic['text']
 				entry.topic_time =  datetime.fromtimestamp(channel.topic['time'])
 				entry.topic_owner = channel.topic['user']
+			else:
+				entry.topic_time = datetime.now()
 		entry.owner = target.username
 		session.commit()
 		session.close()
