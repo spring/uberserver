@@ -217,11 +217,6 @@ class DataHandler:
 		
 		self.parseFiles()
 
-		ins = open(self.agreementfile, "r" )
-		for line in ins:
-			self.agreement.append(line.rstrip('\r\n'))
-		ins.close()
-
 		self.protocol = Protocol(self, None)
 	
 	def parseFiles(self):
@@ -248,7 +243,12 @@ class DataHandler:
 					
 					if proxy:
 						self.trusted_proxies.add(proxy)
-	
+		ins = open(self.agreementfile, "r" )
+		for line in ins:
+			self.agreement.append(line.rstrip('\r\n'))
+		ins.close()
+
+
 	def getUserDB(self):
 		return self.userdb
 	
@@ -396,6 +396,7 @@ class DataHandler:
 		self.admin_broadcast('Reloading...')
 		self.console_write('Reloading...')
 		self.rotatelogfile()
+		self.parseFiles()
 		reload(sys.modules['SayHooks'])
 		reload(sys.modules['protocol.AutoDict'])
 		reload(sys.modules['protocol.Channel'])
