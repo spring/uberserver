@@ -378,6 +378,20 @@ class Protocol:
 		seconds = time.time() - timestamp
 		return self._time_format(seconds)
 
+	def _sendMotd(self, client):
+		'send the message of the day to client'
+		if not self._root.motd: return
+		client.Send('MOTD')
+		for line in list(self._root.motd):
+			line = line.replace("{USERNAME}", str(client.username))
+			line = line.replace("{CLIENTS}", str(len(self._root.clients)))
+			line = line.replace("{CHANNELS}", str(len(self._root.channels)))
+			line = line.replace("{BATTLES}", str(len(self._root.battles)))
+			line = line.replace("{UPTIME}", str(self._time_since(self._root.start_time)))
+
+			client.Send('MOTD %s' % line)
+
+
 	def clientFromID(self, db_id):
 		'given a user database id, returns a client object from memory or the database'
 		return self._root.clientFromID(db_id) or self.userdb.clientFromID(db_id)
@@ -663,17 +677,7 @@ class Protocol:
 
 				client.Send('ACCEPTED %s'%username)
 
-				client.Send('MOTD Welcome, %s!' % username)
-				client.Send('MOTD There are currently %i clients connected' % len(self._root.clients))
-				client.Send('MOTD to the server talking in %i open channels' % len(self._root.channels))
-				client.Send('MOTD and participating in %i battles.' % len(self._root.battles))
-				client.Send('MOTD Server\'s uptime is %s' % self._time_since(self._root.start_time))
-
-				if self._root.motd:
-					client.Send('MOTD')
-					for line in list(self._root.motd):
-						client.Send('MOTD %s' % line)
-
+				self._sendMotd(client)
 				self.broadcast_AddUser(client)
 
 				usernames = dict(self._root.usernames) # cache them here in case anyone joins/leaves or hosts/closes a battle
