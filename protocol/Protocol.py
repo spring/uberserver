@@ -131,7 +131,6 @@ class Protocol:
 		self.userdb = root.getUserDB()
 		self.SayHooks = root.SayHooks
 		self.dir = dir(self)
-		self.optiondb = root.optiondb
 		self.agreement = root.agreement
 
 	def _new(self, client):
