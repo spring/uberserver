@@ -66,9 +66,6 @@ class Dispatcher:
 			self.socketmap[client.conn] = client
 			self.poller.register(client.conn)
 	
-	def removeClient(self, client, reason='Quit'):
-		client.Remove()
-	
 	def removeSocket(self, s):
 		if s in self.socketmap:
 			self.socketmap[s].Remove()
