@@ -1,5 +1,4 @@
 import socket, time, sys, thread, ip2country, errno
-import Telnet
 
 from collections import defaultdict
 
@@ -141,8 +140,6 @@ class Client:
 				if not 'disabled' in limit and len(command) > msglength:
 					self.Send('SERVERMSG Max length exceeded (%s): no message for you.'%msglength)
 				else:
-					if self.telnet:
-						command = Telnet.filter_in(self,command)
 					if type(command) == str:
 						command = [command]
 					for cmd in command:
@@ -152,9 +149,6 @@ class Client:
 		self.handler.finishRemove(self, reason)
 
 	def Send(self, msg):
-		if self.telnet:
-			msg = Telnet.filter_out(self,msg)
-		
 		if not msg: return
 
 		if self.handler.thread == thread.get_ident():
@@ -165,8 +159,6 @@ class Client:
 
 	def SendNow(self, msg):
 		if self.sendError: return
-		if self.telnet:
-			msg = Telnet.filter_out(msg)
 		if not msg: return
 		try:
 			self.conn.send(msg+self.nl)

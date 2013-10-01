@@ -12,7 +12,7 @@ ranks = (5, 15, 30, 100, 300, 1000, 3000, 10000)
 
 restricted = {
 'disabled':[],
-'everyone':['TOKENIZE','TELNET','HASH','EXIT','PING'],
+'everyone':['TOKENIZE','HASH','EXIT','PING'],
 'fresh':['LOGIN','REGISTER'],
 'agreement':['CONFIRMAGREEMENT'],
 'user':[
@@ -204,11 +204,11 @@ class Protocol:
 				client.Send('SERVERMSG %s failed. Insufficient rights.'%command)
 				return False
 
-		command = 'in_%s' % command
-		if command in self.dir:
-			function = getattr(self, command)
+		funcname = 'in_%s' % command
+		if funcname in self.dir:
+			function = getattr(self, funcname)
 		else:
-			client.Send('SERVERMSG %s failed. Command does not exist.'%(command.split('_',1)[1]))
+			client.Send('SERVERMSG %s failed. Command does not exist.'%(command))
 			return False
 		function_info = inspect.getargspec(function)
 		total_args = len(function_info[0])-2
@@ -226,7 +226,7 @@ class Protocol:
 		# check if we've got enough words for filling the required args
 		required_args = total_args - optional_args
 		if numspaces < required_args:
-			client.Send('SERVERMSG %s failed. Incorrect arguments.'%('_'.join(command.split('_')[1:])))
+			client.Send('SERVERMSG %s failed. Incorrect arguments.'%(command))
 			return False
 		if required_args == 0 and numspaces == 0:
 			function(client)
@@ -535,20 +535,15 @@ class Protocol:
 			self._root.console_write('Handler %s: Registration failed for user <%s> on session %s.'%(client.handler.num, username, client.session_id))
 			client.Send('REGISTRATIONDENIED %s'%reason)
 
-	def in_TELNET(self, client):
-		'''
-		Set the client to a telnet client, which provides a simple interface for speaking in one channel.
-		'''
-		client.telnet = True
-		client.Send('Welcome, telnet user.')
-
 	def in_HASH(self, client):
 		'''
 		After this command has been used, the password argument to LOGIN will be automatically hashed with md5+base64.
 		'''
-		client.hashpw = True
-		if client.telnet:
-			client.Send('Your password will be hashed for you when you login.')
+		client.hashpw = not client.hashpw
+		if client.hashpw:
+			client.Send('SERVERMSG Your password will be hashed for you when you login.')
+		else:
+			client.Send('SERVERMSG Auto-Password hashing disabled.')
 
 	def in_LOGIN(self, client, username, password='', cpu='0', local_ip='', sentence_args=''):
 		'''
@@ -616,6 +611,7 @@ class Protocol:
 			lobby_id = sentence_args
 			user_id = 0
 		if client.hashpw:
+			origpassword = password # store for later use when ghosting
 			m = md5(password)
 			password = base64.b64encode(m.digest())
 
@@ -709,7 +705,7 @@ class Protocol:
 
 				client.Send('LOGININFOEND')
 			else:
-				self._root.console_write('Handler %s: Failed to log in user <%s> on session %s. (rejected by database)'%(client.handler.num, username, client.session_id))
+				self._root.console_write('Handler %s: Failed to log in user <%s> on session %s: %s'%(client.handler.num, username, client.session_id, reason))
 				client.Send('DENIED %s'%reason)
 		else: #user is alreaddy logged in
 			oldclient = self._root.usernames[username]
@@ -719,8 +715,10 @@ class Protocol:
 			if time.time() - oldclient.lastdata > 15:
 
 				# kicks old user and logs in new user
+				oldclient.SendNow("SERVERMSG Logged in a second time from %s:%s, closing connection..." % (client.ip_address, client.port))
 				oldclient.Remove('Ghosted')
 				self._root.console_write('Handler %s: Old client inactive, ghosting user <%s> from session %s.'%(client.handler.num, username, client.session_id))
+				if client.hashpw: password=origpassword #hack to allow ghosting when hashpw is enabled
 				self.in_LOGIN(client, username, password, cpu, local_ip, sentence_args)
 			else:
 				self._root.console_write('Handler %s: Failed to log in user <%s> on session %s. (already logged in)'%(client.handler.num, username, client.session_id))
@@ -2469,7 +2467,6 @@ class Protocol:
 		ChanServ.py
 		Protocol.py
 		SayHooks.py
-		Telnet.py
 
 		User databases reloaded:
 		SQLUsers.py
