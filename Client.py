@@ -81,6 +81,7 @@ class Client:
 		self.last_login = now
 		self.register_date = now
 		self.lastdata = now
+		self.pings = False # client sends pings, used for disconnect when no ping is received any more
 		self.last_id = 0
 		
 		self.users = set([]) # session_id
@@ -105,6 +106,9 @@ class Client:
 		elif self.access in self.floodlimit: limit = self.floodlimit[self.access]
 		else: limit = self.floodlimit['user']
 
+		now = int(time.time())
+		self.lastdata = now # data received, store time to detect disconnects
+
 		if self.username == 'Nightwatch':
 			limit = {'disabled': True}
 
@@ -112,8 +116,6 @@ class Client:
 			msglength = limit['msglength']
 			bytespersecond = limit['bytespersecond']
 			seconds = limit['seconds']
-			now = int(time.time())
-			self.lastdata = now
 			if now in self.msglengthhistory:
 				self.msglengthhistory[now] += len(data)
 			else:

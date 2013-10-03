@@ -510,6 +510,7 @@ class Protocol:
 
 		@optional.str reply: Reply to send client
 		'''
+		client.pings = True
 		if reply:
 			client.Send('PONG %s'%reply)
 		else:
