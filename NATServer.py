@@ -1,12 +1,12 @@
 import SocketServer, sys
 
 class CustomUDPServer(SocketServer.UDPServer):
-    def Bind(self, root):
-        self._root = root
+	def Bind(self, root):
+		self._root = root
 
-    def finish_request(self, request, client_address):
+	def finish_request(self, request, client_address):
 		if '_root' in dir(self):
-		        self.RequestHandlerClass(request, client_address, self, self._root)
+			self.RequestHandlerClass(request, client_address, self, self._root)
 		else:
 			pass # not bound to _root yet, no point in handling UDP
 
@@ -22,7 +22,7 @@ class handler(SocketServer.DatagramRequestHandler):
 			self.finish()
 		finally:
 			sys.exc_traceback = None    # Help garbage collection
-			
+
 	def handle(self):
 		addr = self.client_address
 		msg = self.rfile.readline().rstrip()
