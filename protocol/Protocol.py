@@ -385,7 +385,6 @@ class Protocol:
 			"{CHANNELS}": str(len(self._root.channels)),
 			"{BATTLES}": str(len(self._root.battles)),
 			"{UPTIME}": str(self._time_since(self._root.start_time))}
-		client.Send('MOTD')
 		for line in list(self._root.motd):
 			for key, value in replace.iteritems():
 				line = line.replace(key, value)

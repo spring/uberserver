@@ -1,3 +1,4 @@
+
 Welcome, {USERNAME}!
 There are currently {CLIENTS} clients connected
 to the server talking in {CHANNELS} open channels
