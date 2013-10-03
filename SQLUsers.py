@@ -252,7 +252,7 @@ class UsersHandler:
 		dbuser.last_ip = ip
 		dbuser.last_id = user_id
 		if good:
-			reason = User(username, password, ip, now)
+			reason = User(dbuser.username, password, ip, now)
 			reason.access = dbuser.access
 			reason.id = dbuser.id
 			reason.ingame_time = dbuser.ingame_time
