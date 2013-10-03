@@ -197,7 +197,6 @@ class DataHandler:
 			
 			owner = None
 			admins = []
-			print channel['owner']
 			client = self.userdb.clientFromUsername(channel['owner'])
 			if client and client.id: owner = client.id
 				
