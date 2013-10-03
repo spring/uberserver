@@ -298,7 +298,7 @@ class DataHandler:
 			if not client.logged_in and client.last_login < now - 60:
 				client.SendNow("SERVERMSG timeout! no login within 60 seconds!")
 				client.Remove("didn't login, timed out")
-			if client.pings and client.lastdata < now - 60:
+			elif client.pings and client.lastdata < now - 60:
 				client.SendNow("SERVERMSG timeout! no data or PING received for >60 seconds, closing connection")
 				client.Remove("dead connection detected, didn't receive a ping")
 
