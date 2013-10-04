@@ -267,7 +267,7 @@ class DataHandler:
 					lastmute = now
 					self.mute_timeout_step()
 
-				if now - lastidle >= 30:
+				if now - lastidle > 10:
 					lastidle = now
 					self.idle_timeout_step()
 				

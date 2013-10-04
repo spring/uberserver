@@ -705,21 +705,8 @@ class Protocol:
 				self._root.console_write('Handler %s: Failed to log in user <%s> on session %s: %s'%(client.handler.num, username, client.session_id, reason))
 				client.Send('DENIED %s'%reason)
 		else: #user is alreaddy logged in
-			oldclient = self._root.usernames[username]
-			if oldclient.static:
-				client.Send('DENIED Cannot ghost static users.')
-
-			if time.time() - oldclient.lastdata > 15:
-
-				# kicks old user and logs in new user
-				oldclient.SendNow("SERVERMSG Logged in a second time from %s:%s, closing connection..." % (client.ip_address, client.port))
-				oldclient.Remove('Ghosted')
-				self._root.console_write('Handler %s: Old client inactive, ghosting user <%s> from session %s.'%(client.handler.num, username, client.session_id))
-				if client.hashpw: password=origpassword #hack to allow ghosting when hashpw is enabled
-				self.in_LOGIN(client, username, password, cpu, local_ip, sentence_args)
-			else:
-				self._root.console_write('Handler %s: Failed to log in user <%s> on session %s. (already logged in)'%(client.handler.num, username, client.session_id))
-				client.Send('DENIED Already logged in.')
+			self._root.console_write('Handler %s: Failed to log in user <%s> on session %s. (already logged in)'%(client.handler.num, username, client.session_id))
+			client.Send('DENIED Already logged in.')
 
 	def in_CONFIRMAGREEMENT(self, client):
 		'Confirm the terms of service as shown with the AGREEMENT commands. Users must accept the terms of service to use their account.'
