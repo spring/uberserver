@@ -972,7 +972,7 @@ class Protocol:
 
 			topic = channel.topic
 			if topic:
-				client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topic['time'], topic['text']))
+				client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], int(topic['time']), topic['text']))
 			elif client.compat['sendEmptyTopic']:
 				client.Send('NOCHANNELTOPIC %s' % chan)
 
