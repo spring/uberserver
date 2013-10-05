@@ -132,6 +132,7 @@ class Protocol:
 		self.SayHooks = root.SayHooks
 		self.dir = dir(self)
 		self.agreement = root.agreement
+		self.stats = {}
 
 	def _new(self, client):
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0'))
@@ -211,6 +212,10 @@ class Protocol:
 		else:
 			client.Send('SERVERMSG %s failed. Command does not exist.'%(command))
 			return False
+
+		# update statistics
+		if not command in self.stats: self.stats[command] = 0
+		self.stats[command] += 1
 		function_info = inspect.getargspec(function)
 		total_args = len(function_info[0])-2
 
@@ -2442,6 +2447,9 @@ class Protocol:
 		'''
 		if not 'admin' in client.accesslevels:
 		    return
+		self._root.console_write("Stats of command usage:")
+		for k,v in self.stats.iteritems():
+			self._root.console_write("%s %d" % (k, v))
 		self._root.reload()
 
 def make_docs():
