@@ -9,6 +9,7 @@ from protocol.Channel import Channel
 from protocol.Protocol import Protocol
 from SQLUsers import UsersHandler, ChannelsHandler
 import ip2country
+import datetime
 
 separator = '-'*60
 
@@ -334,7 +335,10 @@ class DataHandler:
 		elif not type(lines) in (list, tuple, set):
 			try: lines = [lines.__repr__()]
 			except: lines = ['Failed to print lines of type %s'%type(lines)]
-		self.console_buffer += lines
+		strtime = datetime.datetime.fromtimestamp(int(time.time())).isoformat() + ' '
+		for line in lines:
+			self.console_buffer += [ strtime + line ]
+
 	
 	def multicast(self, clients, msg, ignore=()):
 		if type(ignore) in (str, unicode): ignore = [ignore]
