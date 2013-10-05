@@ -101,7 +101,7 @@ restricted = {
 	#########
 	# users
 	'FORGEMSG','FORGEREVERSEMSG',
-	'GETLOBBYVERSION', 'GETSENDBUFFERSIZE',
+	'GETLOBBYVERSION',
 	'GETACCOUNTINFO', 'GETLASTLOGINTIME',
 	'GETACCOUNTACCESS',
 	'SETACCESS','DEBUG',
@@ -2201,15 +2201,6 @@ class Protocol:
 		user = self.clientFromUsername(username)
 		if user and 'lobby_id' in dir(user):
 			client.Send('SERVERMSG <%s> is using %s'%(user.username, user.lobby_id))
-
-	def in_GETSENDBUFFERSIZE(self, client, username):
-		'''
-		Get the size in bytes of target user's send buffer.
-
-		@required.str username: The target user.
-		'''
-		if username in self._root.usernames:
-			client.Send('SERVERMSG <%s> has a sendbuffer size of %s'%(username, len(self._root.usernames[username].sendbuffer)))
 
 	def in_SETINGAMETIME(self, client, username, minutes):
 		'''
