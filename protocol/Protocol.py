@@ -104,7 +104,7 @@ restricted = {
 	'GETLOBBYVERSION', 'GETSENDBUFFERSIZE',
 	'GETACCOUNTINFO', 'GETLASTLOGINTIME',
 	'GETACCOUNTACCESS',
-	'SETACCESS','DEBUG','PYTHON',
+	'SETACCESS','DEBUG',
 	'SETINGAMETIME',],
 }
 
@@ -2394,22 +2394,6 @@ class Protocol:
 		'''
 		for entry in self.userdb.banlist():
 			client.Send('SERVERMSG %s' % entry)
-
-	def in_PYTHON(self, client, code):
-		'''
-		Execute Python code directly on the server.
-
-		@required.str code: The code to execute.
-		Note: \\n and \\t will be escaped and turned directly into newlines and tabs.
-		'''
-		code = code.replace('\\n', '\n').replace('\\t','\t')
-		try:
-			exec code
-		except:
-			client.Send('SERVERMSG %s'%('-'*20))
-			for line in traceback.format_exc().split('\n'):
-				client.Send('SERVERMSG  %s'%line)
-			client.Send('SERVERMSG %s'%('-'*20))
 
 	def in_SETACCESS(self, client, username, access):
 		'''
