@@ -421,6 +421,7 @@ class DataHandler:
 		self.log = False
 		try:
 			if self.logfile:
+				self.console_print_step() # flush logfile
 				self.logfile.close()
 			oldfilename = self.logfilename + ".old"
 			if os.path.exists(oldfilename):
