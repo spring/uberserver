@@ -414,16 +414,6 @@ class UsersHandler:
 		if entry: return True, entry.ingame_time
 		else: return False, 'user not found in database'
 	
-	def get_account_info(self, username):
-		session = self.sessionmaker()
-		entry = session.query(User).filter(User.username==username).first()
-		session.close()
-		if entry:
-			data = '%s %s %s %s %s %s %s %s %s %s %s %s' % (entry.username, entry.password, entry.register_date, entry.last_login, entry.last_ip, entry.ingame_time, entry.last_id, entry.access, entry.bot, entry.access, entry.hook_chars)
-			return True, data
-		else: return False, 'user not found in database'
-		
-	
 	def get_account_access(self, username):
 		session = self.sessionmaker()
 		entry = session.query(User).filter(User.username==username).first()

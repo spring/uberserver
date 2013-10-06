@@ -102,7 +102,7 @@ restricted = {
 	# users
 	'FORGEMSG','FORGEREVERSEMSG',
 	'GETLOBBYVERSION',
-	'GETACCOUNTINFO', 'GETLASTLOGINTIME',
+	'GETLASTLOGINTIME',
 	'GETACCOUNTACCESS',
 	'SETACCESS','DEBUG', 'ALLCHANNELS',
 	'SETINGAMETIME',],
@@ -2071,19 +2071,6 @@ class Protocol:
 			user.Send('ACQUIREUSERID')
 		else:
 			client.Send('SERVERMSG User not found.')
-
-
-	def in_GETACCOUNTINFO(self, client, username):
-		'''
-		Get the account information for target user.
-		[mod]
-
-		@required.str username: The target user.
-		'''
-		good, data = self.userdb.get_account_info(username)
-		if good:
-			client.Send('SERVERMSG Account info for <%s>: %s' % (username, data))
-		else: client.Send('SERVERMSG Database returned error when retrieving account info for <%s> (%s)' % (username, data))
 
 	def in_GETACCOUNTACCESS(self, client, username):
 		'''
