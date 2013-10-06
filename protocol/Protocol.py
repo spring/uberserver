@@ -977,7 +977,11 @@ class Protocol:
 
 			topic = channel.topic
 			if topic:
-				client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], int(topic['time']), topic['text']))
+				# FIXME:
+				# topictime is time in milliseconds since  Jan 1, 1970 (UTC), (WTF?) see
+				# http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#CHANNELTOPIC:server
+				topictime = int(topic['time'])*1000
+				client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topictime, topic['text']))
 			elif client.compat['sendEmptyTopic']:
 				client.Send('NOCHANNELTOPIC %s' % chan)
 
