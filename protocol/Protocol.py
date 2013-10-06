@@ -394,6 +394,7 @@ class Protocol:
 			for key, value in replace.iteritems():
 				line = line.replace(key, value)
 			client.Send('MOTD %s' % line)
+
 	def _validPasswordSyntax(self, password):
 		'checks if a password is correctly encoded base64(md5())'
 		try:
@@ -402,6 +403,15 @@ class Protocol:
 			return False, "Invalid base64 encoding"
 		if len(md5str) != 16:
 			return False, "Invalid md5 sum"
+		return True, ""
+
+	def _validUsernameSyntax(self, username):
+		'checks if usernames syntax is correct / doesn''t contain invalid chars'
+		for char in username:
+			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
+				return False, 'Unicode names are currently disallowed.'
+		if len(username) > 20:
+			return False, 'Username is too long.'
 		return True, ""
 
 	def clientFromID(self, db_id):
@@ -548,13 +558,16 @@ class Protocol:
 		@required.str username: Username to register
 		@required.str password: Password to use, usually encoded md5+base64
 		'''
-		for char in username:
-			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
-				client.Send('REGISTRATIONDENIED Unicode names are currently disallowed.')
-				return
-		if len(username) > 20:
-			client.Send('REGISTRATIONDENIED Username is too long.')
+		good, reason = self._validUsernameSyntax(username)
+		if not good:
+			client.Send("REGISTRATIONDENIED %s" % (reason))
 			return
+
+		good, reason = self._validPasswordSyntax(password)
+		if not good:
+			client.Send("REGISTRATIONDENIED %s" % (reason))
+			return
+
 		good, reason = self.userdb.register_user(username, password, client.ip_address, client.country_code)
 		if good:
 			self._root.console_write('Handler %s: Successfully registered user <%s> on session %s.'%(client.handler.num, username, client.session_id))
@@ -2124,12 +2137,9 @@ class Protocol:
 
 		@required.str username: The new username to apply.
 		'''
-		for char in newname:
-			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
-				client.Send('SERVERMSG Unicode names are currently disallowed.')
-				return
-		if len(newname) > 20:
-			client.Send('SERVERMSG Username is too long.')
+		good, reason = self._validUsernameSyntax(newname)
+		if not good:
+			client.Send('SERVERMSG %s' %(reason))
 			return
 
 		user = client.username
@@ -2150,6 +2160,10 @@ class Protocol:
 		@required.str oldpassword: The previous password.
 		@required.str newpassword: The new password.
 		'''
+		good, reason = self._validatePasswordSyntax(newpassword)
+		if not good:
+			client.Send('SERVERMSG %s' % (reason))
+			return
 		user = self.userdb.clientFromUsername(client.username)
 		if user:
 			if user.password == oldpassword:
