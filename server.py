@@ -12,6 +12,10 @@ from Dispatcher import Dispatcher
 import ip2country # just to make sure it's downloaded
 import ChanServ
 
+# uncomment for debugging deadlocks, creates a stacktrace at the given interval to stdout
+#import stacktracer
+#stacktracer.trace_start("trace.html",interval=5,auto=True) # Set auto flag to always update file!
+
 _root = DataHandler()
 _root.parseArgv(sys.argv)
 
