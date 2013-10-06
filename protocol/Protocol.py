@@ -394,7 +394,15 @@ class Protocol:
 			for key, value in replace.iteritems():
 				line = line.replace(key, value)
 			client.Send('MOTD %s' % line)
-
+	def _validPasswordSyntax(self, password):
+		'checks if a password is correctly encoded base64(md5())'
+		try:
+			md5str = base64.b64decode(password)
+		except Exception, e:
+			return False, "Invalid base64 encoding"
+		if len(md5str) != 16:
+			return False, "Invalid md5 sum"
+		return True, ""
 
 	def clientFromID(self, db_id):
 		'given a user database id, returns a client object from memory or the database'
@@ -2252,6 +2260,10 @@ class Protocol:
 			if user.access in ('mod', 'admin') and not client.access == 'admin':
 				client.Send('SERVERMSG You have insufficient access to change moderator passwords.')
 			else:
+				res, reason = self._validPasswordSyntax(newpass)
+				if not res:
+					client.Send("SERVERMSG invalid password specified: %s" %(reason))
+					return
 				user.password = newpass
 				self.userdb.save_user(user)
 				client.Send('SERVERMSG Password for <%s> successfully changed to %s' % (username, newpass))
