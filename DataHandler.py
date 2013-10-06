@@ -187,10 +187,9 @@ class DataHandler:
 			print 'You might want to install a real database server or use LAN mode'
 			print
 			self.max_threads = 1
-			sqlpoolsize = 1
+			self.engine = sqlalchemy.create_engine(self.sqlurl)
 		else:
-			sqlpoolsize = self.max_threads * 2 # setting poolsize to low seems to cause deadlocks in sqlalchemy
-		self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=poolsize, pool_recycle=300)
+			self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.max_threads * 2, pool_recycle=300)
 
 		self.userdb = UsersHandler(self, self.engine)
 		self.channeldb = ChannelsHandler(self, self.engine)
