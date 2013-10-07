@@ -157,7 +157,7 @@ def runclient(i):
 	client.run()
 	print("finished: "+name)
 threads = []
-for x in range(0, 300):
+for x in range(0, 1):
 	clientthread = threading.Thread(target=runclient, args=(x,))
 	clientthread.start()
 	threads.append(clientthread)
