@@ -2108,7 +2108,7 @@ class Protocol:
 			if entry.username in self._root.usernames:
 				client.Send('SERVERMSG <%s> is currently bound to %s.' % (entry.username, address))
 			else:
-				client.Send('SERVERMSG <%s> was recently bound to %s at %s' % (entry.username, address, time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(entry.last_login / 1000))))
+				client.Send('SERVERMSG <%s> was recently bound to %s at %s' % (entry.username, address, time.strftime('%a, %d %b %Y %H:%M:%S GMT', int(time.gmtime(entry.last_login)))))
 
 	def in_GETLASTIP(self, client, username):
 		'''

@@ -432,6 +432,8 @@ class UsersHandler:
 		session = self.sessionmaker()
 		entry = session.query(User).filter(User.username==username).first()
 		session.close()
+		if not entry:
+			return None
 		return entry.last_ip
 
 	def remove_user(self, user):
@@ -528,11 +530,11 @@ class ChannelsHandler:
 	def setTopic(self, user, chan, topic):
 		session = self.sessionmaker()
 		entry = session.query(Channel).filter(Channel.name == chan.name).first()
-		if not entry: return
-		entry.topic = topic
-		entry.topic_time = datetime.now()
-		entry.topic_owner = user
-		session.commit()
+		if entry:
+			entry.topic = topic
+			entry.topic_time = datetime.now()
+			entry.topic_owner = user
+			session.commit()
 		session.close()
 
 	def register(self, channel, client, target):
