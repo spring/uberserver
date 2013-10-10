@@ -2159,7 +2159,7 @@ class Protocol:
 		@required.str oldpassword: The previous password.
 		@required.str newpassword: The new password.
 		'''
-		good, reason = self._validatePasswordSyntax(newpassword)
+		good, reason = self._validPasswordSyntax(newpassword)
 		if not good:
 			client.Send('SERVERMSG %s' % (reason))
 			return
