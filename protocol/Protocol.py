@@ -2044,7 +2044,7 @@ class Protocol:
 		'''
 		if username:
 			good, data = self.userdb.get_lastlogin(username)
-			if good: client.Send('SERVERMSG <%s> last logged in on %s.' % (username, time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(data))))
+			if good: client.Send('SERVERMSG <%s> last logged in on %s.' % (username, data.isoformat()))
 			else: client.Send('SERVERMSG Database returned error when retrieving last login time for <%s> (%s)' % (username, data))
 
 	def in_GETREGISTRATIONDATE(self, client, username=None):
@@ -2066,7 +2066,7 @@ class Protocol:
 			good = True
 			username = client.username
 			reason = client.register_date
-		if good: client.Send('SERVERMSG <%s> registered on %s.' % (username, time.strftime('%a, %d %b %Y %H:%M:%S GMT', time.gmtime(reason))))
+		if good: client.Send('SERVERMSG <%s> registered on %s.' % (username, reason.isoformat()))
 		else: client.Send('SERVERMSG Database returned error when retrieving registration date for <%s> (%s)' % (username, reason))
 
 	def in_GETUSERID(self, client, username):
@@ -2108,7 +2108,7 @@ class Protocol:
 			if entry.username in self._root.usernames:
 				client.Send('SERVERMSG <%s> is currently bound to %s.' % (entry.username, address))
 			else:
-				client.Send('SERVERMSG <%s> was recently bound to %s at %s' % (entry.username, address, time.strftime('%a, %d %b %Y %H:%M:%S GMT', int(time.gmtime(entry.last_login)))))
+				client.Send('SERVERMSG <%s> was recently bound to %s at %s' % (entry.username, address, entry.last_login.isoformat()))
 
 	def in_GETLASTIP(self, client, username):
 		'''
