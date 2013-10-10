@@ -528,6 +528,7 @@ class ChannelsHandler:
 	def setTopic(self, user, chan, topic):
 		session = self.sessionmaker()
 		entry = session.query(Channel).filter(Channel.name == chan.name).first()
+		if not entry: return
 		entry.topic = topic
 		entry.topic_time = datetime.now()
 		entry.topic_owner = user
