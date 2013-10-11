@@ -95,9 +95,9 @@ class BasePollMultiplexer(BaseMultiplexer):
 		
 	def pollUnregister(self, fd):
 		fileno = self.socketToFileno[fd]
+		self.poller.unregister(fileno)
 		del self.socketToFileno[fd]
 		del self.filenoToSocket[fileno]
-		self.poller.unregister(fileno)
 		
 	def pollSetoutput(self, fd, ready):
 		if not fd in self.socketToFileno: return
@@ -159,3 +159,4 @@ elif 'epoll' in dir():
 	BestMultiplexer = EpollMultiplexer
 elif 'poll' in dir():
 	BestMultiplexer = PollMultiplexer
+
