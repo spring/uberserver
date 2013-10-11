@@ -4,9 +4,6 @@ from select import * # eww hack but saves the other hack of selectively importin
 class EpollMultiplexer:
 	
 	def __init__(self):
-		self.inMask = 0
-		self.outMask = 0
-		self.errMask = 0
 		self.args = []
 		self.filenoToSocket = {}
 		self.socketToFileno = {}
@@ -85,14 +82,10 @@ class EpollMultiplexer:
 		outputs = []
 		errors = []
 		
-		inMask = self.inMask
-		outMask = self.outMask
-		errMask = self.errMask
 		for fd, mask in results:
 			s = self.filenoToSocket[fd]
-			if mask & inMask: inputs.append(s)
-			if mask & outMask: outputs.append(s)
-			if mask & errMask: errors.append(s)
+			if mask & self.inMask: inputs.append(s)
+			if mask & self.outMask: outputs.append(s)
+			if mask & self.errMask: errors.append(s)
 		return inputs, outputs, errors
-	
 
