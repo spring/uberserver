@@ -6,7 +6,7 @@ class Dispatcher:
 	def __init__(self, root, server):
 		self._root = root
 		self.server = server
-		self.poller = Multiplexer.BestMultiplexer()
+		self.poller = Multiplexer.EpollMultiplexer()
 		self.socketmap = {}
 		self.workers = []
 		self.protocol = Protocol.Protocol(root, self)
@@ -90,3 +90,4 @@ class Dispatcher:
 			pass
 		
 		self._root.console_write('Client disconnected from %s, session ID was %s: %s'%(client.ip_address, client.session_id, reason))
+

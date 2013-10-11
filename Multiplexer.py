@@ -52,10 +52,6 @@ class EpollMultiplexer:
 	def empty(self):
 		if not self.sockets: return True
 	
-	def pollRegister(self, fd): pass
-	def pollUnregister(self, fd): pass
-	def pollSetoutput(self, fd, ready): pass
-
 	def pollRegister(self, fd):
 		fileno = fd.fileno()
 		self.filenoToSocket[fileno] = fd
@@ -83,7 +79,6 @@ class EpollMultiplexer:
 					continue
 				else:
 					raise e
-			
 			break
 			
 		inputs = []
@@ -100,5 +95,4 @@ class EpollMultiplexer:
 			if mask & errMask: errors.append(s)
 		return inputs, outputs, errors
 	
-BestMultiplexer = EpollMultiplexer
 
