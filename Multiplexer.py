@@ -1,12 +1,24 @@
 import time
 from select import * # eww hack but saves the other hack of selectively importing constants
 
-class BaseMultiplexer:
-	def __init__(self): self.__multiplex_init__()
+class EpollMultiplexer:
 	
-	def __multiplex_init__(self):
+	def __init__(self):
+		self.inMask = 0
+		self.outMask = 0
+		self.errMask = 0
+		self.args = []
+		self.filenoToSocket = {}
+		self.socketToFileno = {}
 		self.sockets = set([])
 		self.output = set([])
+		self.args = []
+
+		self.inMask = EPOLLIN | EPOLLPRI
+		self.outMask = EPOLLOUT
+		self.errMask = EPOLLERR | EPOLLHUP
+
+		self.poller = epoll()
 	
 	def register(self, fd):
 		fd.setblocking(0)
@@ -44,21 +56,6 @@ class BaseMultiplexer:
 	def pollUnregister(self, fd): pass
 	def pollSetoutput(self, fd, ready): pass
 
-class BasePollMultiplexer(BaseMultiplexer):
-	
-	def __init__(self):
-		self.inMask = 0
-		self.outMask = 0
-		self.errMask = 0
-		self.args = []
-		
-		self.__poll_init__()
-	
-	def __poll_init__(self):
-		self.filenoToSocket = {}
-		self.socketToFileno = {}
-		self.__multiplex_init__()
-	
 	def pollRegister(self, fd):
 		fileno = fd.fileno()
 		self.filenoToSocket[fileno] = fd
@@ -103,16 +100,5 @@ class BasePollMultiplexer(BaseMultiplexer):
 			if mask & errMask: errors.append(s)
 		return inputs, outputs, errors
 	
-class EpollMultiplexer(BasePollMultiplexer):
-	def __init__(self):
-		self.args = []
-		
-		self.inMask = EPOLLIN | EPOLLPRI
-		self.outMask = EPOLLOUT
-		self.errMask = EPOLLERR | EPOLLHUP
-		
-		self.poller = epoll()
-		self.__poll_init__()
-
 BestMultiplexer = EpollMultiplexer
 
