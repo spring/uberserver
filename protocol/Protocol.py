@@ -12,7 +12,7 @@ ranks = (5, 15, 30, 100, 300, 1000, 3000, 10000)
 
 restricted = {
 'disabled':[],
-'everyone':['TOKENIZE','HASH','EXIT','PING'],
+'everyone':['HASH','EXIT','PING'],
 'fresh':['LOGIN','REGISTER'],
 'agreement':['CONFIRMAGREEMENT'],
 'user':[
