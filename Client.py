@@ -81,7 +81,6 @@ class Client:
 		self.last_login = now
 		self.register_date = now
 		self.lastdata = now
-		self.pings = False # client sends pings, used for disconnect when no ping is received any more
 		self.last_id = 0
 		
 		self.users = set([]) # session_id
