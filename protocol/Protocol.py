@@ -2183,7 +2183,8 @@ class Protocol:
 		    return
 
 		if user in self._root.usernames:
-		    self._root.usernames[user].Send(msg)
+			self._root.console_write('FORGEMSG %s %s %s' %(client.username, user, msg))
+			self._root.usernames[user].Send(msg)
 
 	def in_USERID(self, client, user_id):
 		client.last_id = user_id
@@ -2206,7 +2207,8 @@ class Protocol:
 		    return
 
 		if user in self._root.usernames:
-		    self._handle(self._root.usernames[user], msg)
+			self._root.console_write('FORGEREVERSEMSG %s %s %s' %(client.username, user, msg))
+			self._handle(self._root.usernames[user], msg)
 
 	def in_GETLOBBYVERSION(self, client, username):
 		'''
