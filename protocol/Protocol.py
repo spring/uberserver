@@ -160,6 +160,8 @@ class Protocol:
 					channel.users.remove(user)
 					if user in channel.blindusers:
 						channel.blindusers.remove(user)
+				if len(channel.users) == 0:
+					del self._root.channels[chan]
 				self._root.broadcast('LEFT %s %s %s'%(chan, user, reason), chan, user)
 
 			battle_id = client.current_battle
