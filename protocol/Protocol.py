@@ -1032,6 +1032,8 @@ class Protocol:
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			channel.removeUser(client)
+			if len(self._root.channels[chan].users) == 0:
+				del self._root.channels[chan]
 
 	def in_MAPGRADES(self, client, grades=None):
 		'''
