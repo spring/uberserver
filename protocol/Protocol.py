@@ -103,7 +103,7 @@ restricted = {
 	'GETLOBBYVERSION',
 	'GETLASTLOGINTIME',
 	'GETACCOUNTACCESS',
-	'SETACCESS','DEBUG', 'ALLCHANNELS',
+	'SETACCESS','DEBUG',
 	'SETINGAMETIME',],
 }
 
@@ -2442,15 +2442,6 @@ class Protocol:
 		else: client.debug = not client.debug
 
 		client.Send('SERVERMSG Debug messages: %s' % ('on' and client.debug or 'off'))
-	def in_ALLCHANNELS(self, client):
-		client.Send("SERVERMSG this command is only for debugging, can be removed / don't use in productive!")
-		client.Send("SERVERMSG listing all channels:")
-		client.Send("SERVERMSG name usercount users")
-		for c in  self._root.channels.iterkeys():
-			names = ""
-			for u in self._root.channels[c].users:
-				names += " " + self._root.clientFromUsername(u).username
-			client.Send("SERVERMSG #%s %d %s" %(c, len(self._root.channels[c].users), names))
 
 	def in_RELOAD(self, client):
 		'''
