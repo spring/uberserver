@@ -103,6 +103,7 @@ restricted = {
 	'GETLOBBYVERSION',
 	'GETLASTLOGINTIME',
 	'GETACCOUNTACCESS',
+	'FORCEJOIN',
 	'SETACCESS','DEBUG',
 	],
 }
@@ -925,6 +926,23 @@ class Protocol:
 				message = self._time_until(m['expires']) + (' by IP.' if m['ip'] else '.')
 				client.Send('MUTELIST %s, %s' % (user, message))
 			client.Send('MUTELISTEND')
+
+	def in_FORCEJOIN(self, client, user, chan, key=None):
+		'''
+		Force a user to join a channel.
+
+		@required.str username: user to send to
+		@required.str channel: target channel
+		@optional.str password: channel password
+		'''
+		for char in chan:
+			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
+				client.Send('SERVERMSG %s Unicode channels are not allowed.' % chan)
+				return
+		if user in self._root.usernames:
+			self._handle(self._root.usernames[user], "JOIN %s %s" % (chan, key))
+		else:
+			client.Send('SERVERMSG %s user not found' % user)
 
 	def in_JOIN(self, client, chan, key=None):
 		'''
