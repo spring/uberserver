@@ -104,7 +104,7 @@ restricted = {
 	'GETLASTLOGINTIME',
 	'GETACCOUNTACCESS',
 	'SETACCESS','DEBUG',
-	'SETINGAMETIME',],
+	],
 }
 
 restricted_list = []
@@ -2208,20 +2208,6 @@ class Protocol:
 		user = self.clientFromUsername(username)
 		if user and 'lobby_id' in dir(user):
 			client.Send('SERVERMSG <%s> is using %s'%(user.username, user.lobby_id))
-
-	def in_SETINGAMETIME(self, client, username, minutes):
-		'''
-		Set the ingame time of target user.
-
-		@required.str username: The target user.
-		@required.int minutes: The new ingame time to set.
-		'''
-		user = self.clientFromUsername(username)
-		if user:
-			user.ingame_time = int(minutes)
-			self.userdb.save_user(user)
-			client.Send('SERVERMSG Ingame time for <%s> successfully set to %s' % (username, minutes))
-			self.in_GETINGAMETIME(client, username)
 
 	def in_SETBOTMODE(self, client, username, mode):
 		'''
