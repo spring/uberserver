@@ -99,7 +99,7 @@ restricted = {
 	'ADMINBROADCAST', 'BROADCAST','BROADCASTEX','RELOAD',
 	#########
 	# users
-	'FORGEMSG','FORGEREVERSEMSG',
+	'FORGEREVERSEMSG',
 	'GETLOBBYVERSION',
 	'GETLASTLOGINTIME',
 	'GETACCOUNTACCESS',
@@ -2174,21 +2174,6 @@ class Protocol:
 				client.Send('SERVERMSG Password changed successfully to %s' % newpassword)
 			else:
 				client.Send('SERVERMSG Incorrect old password.')
-
-	def in_FORGEMSG(self, client, user, msg):
-		'''
-		Forge a message to target user.
-		Note: this is currently disabled.
-
-		@required.str username: The target user.
-		@required.str message: The raw message to send to them.
-		'''
-		if not 'admin' in client.accesslevels:
-		    return
-
-		if user in self._root.usernames:
-			self._root.console_write('FORGEMSG %s %s %s' %(client.username, user, msg))
-			self._root.usernames[user].Send(msg)
 
 	def in_USERID(self, client, user_id):
 		client.last_id = user_id
