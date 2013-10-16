@@ -2258,6 +2258,7 @@ class Protocol:
 				if not res:
 					client.Send("SERVERMSG invalid password specified: %s" %(reason))
 					return
+				self._root.console_write('Handler %s: <%s> changed password of <%s>.' % (client.handler.num, client.username, username))
 				user.password = newpass
 				self.userdb.save_user(user)
 				client.Send('SERVERMSG Password for <%s> successfully changed to %s' % (username, newpass))
