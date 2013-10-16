@@ -294,6 +294,8 @@ class UsersHandler:
 		# TODO: add owner field to the database for bans
 		session = self.sessionmaker()
 		entry = session.query(User).filter(User.username==username).first()
+		if not entry:
+			return "Couldn't ban %s, user doesn't exist" % (username)
 		end_time = datetime.now() + timedelta(duration)
 		ban = Ban(reason, end_time)
 		session.add(ban)
