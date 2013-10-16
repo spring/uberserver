@@ -301,7 +301,8 @@ class UsersHandler:
 		session.add(ban)
 		ban.entries.append(AggregateBan('user', username))
 		ban.entries.append(AggregateBan('ip', entry.last_ip))
-		ban.entries.append(AggregateBan('userid', entry.last_id))
+		# userid has to many duplicates, can't be used,
+		#ban.entries.append(AggregateBan('userid', entry.last_id))
 		session.commit()
 		session.close()
 		return 'Successfully banned %s for %s days.' % (username, duration)
