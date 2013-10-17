@@ -262,19 +262,29 @@ class DataHandler:
 
 	def event_loop(self):
 		start = time.time()
-		lastsave = lastmute = lastidle = start
+		lastsave = lastmute = lastidle = lastload = start
+		load = 0
+		try:
+			os.getloadavg()
+			hasload = True
+		except:
+			hasload = False
 		while self.running:
 			now = time.time()
+			if hasload and now - lastload > 1: # only fetch load when available & last fetch was >1 sec ago
+				lastload = now
+				load, _, _ = os.getloadavg()
 			try:
-				if now - lastmute >= 1:
+				if load > 8: # if load is higher than this, skip some steps
+					pass
+				elif now - lastmute >= 1:
 					lastmute = now
 					self.mute_timeout_step()
-
-				if now - lastidle > 10:
+				elif now - lastidle > 10:
 					lastidle = now
 					self.idle_timeout_step()
-				
-				self.console_print_step()
+				else:
+					self.console_print_step()
 			except:
 				self.error(traceback.format_exc())	
 				
