@@ -1,110 +1,54 @@
-import random
-random.seed()
+from pygeoip import pygeoip
+
+dbfile = 'GeoIP.dat'
 
 def update():
-	import urllib, zipfile, sys, os
-	from ip2c import makedb
-	
-	url = 'http://ip-to-country.webhosting.info/downloads/ip-to-country.csv.zip'
-	isGeo = False
-	
-	print '\nDownloading IP2Country database from \n[%s]\n'%url
-	urlfile = urllib.urlopen(url)
-	
-	length = int(urlfile.info()['content-length'])
-	
-	inc_bytes = True
-	total_bytes = 0
-	linestatus = 50
-	print 'Length: %s bytes'%length
-	iteration = -1
-	bytes = ''
-	
-	while inc_bytes:
-		inc_bytes = urlfile.read(1024)
-		if inc_bytes:
-			bytes += inc_bytes
-		total_bytes += len(inc_bytes)
-		linestatus += 1
-		if linestatus == 51:
-			iteration += 1
-			if iteration > 0:
-				sys.stdout.write(' [%s]'%(('%i%%'%(total_bytes*100/length)).rjust(4)))
-			print '\n'+('%iK -> '%(iteration*50)).rjust(10),
-			linestatus = 1
-		if linestatus % 10 == 1 and linestatus > 1:
-			print ' ',
-		if bytes:
-			sys.stdout.write('.')
-			sys.stdout.flush()
-	
-	just = 50 - linestatus + 5 - (linestatus / 10)
-	sys.stdout.write((' [%s]'%(('%i%%'%(total_bytes*100/length)).rjust(4))).rjust(just+6))
-	
-	print '\n\nDownload complete: %s/%s\n'%(total_bytes, length)
-	
-	temp = open('ip-to-country.csv.zip', 'wb')
-	temp.write(bytes)
-	temp.close()
-	
-	zipdb = zipfile.ZipFile('ip-to-country.csv.zip', 'r')
-	csvfile = open('ip-to-country.csv', 'w')
-	csvfile.write(zipdb.read(zipdb.namelist()[0]))
-	zipdb.close()
-	
-	csvfile.close()
-	
-	
-	print 'Making database...'
-	makedb.readFile('ip-to-country.csv', isGeo)
-	
-	print '\nCleaning up...'
-	os.remove('ip-to-country.csv.zip')
-	os.remove('ip-to-country.csv')
-	
-	print '\nDone.\n'
+	gzipfile = dbfile + ".gz"
+	f = open(gzipfile, 'w')
+	dburl = 'http://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz'
+	import urllib2
+	import gzip
+	print("Downloading %s ..." %(dburl))
+	response = urllib2.urlopen(dburl)
+	f.write(response.read())
+	f.close()
+	print("done!")
+	f = gzip.open(gzipfile)
+	db = open(dbfile, 'w')
+	db.write(f.read())
+	f.close()
+	db.close()
 
 try:
-	from ip2c.ip2country import ip2country
-	ip2c = ip2country()
-	working = True
-except IOError:
-	working = False
-	print 'IP2Country database initialization failed. Attempting to update.'
+	f=open(dbfile,'r')
+	f.close()
+except:
+	print("%s doesn't exist, downloading..." % (dbfile))
+	update()
+
+def loaddb():
+	global geoip
 	try:
-		update()
-		from ip2c.ip2country import ip2country
-		ip2c = ip2country()
-		working = True
+		geoip = pygeoip.Database('GeoIP.dat')
+		return True
 	except:
-		print 'Update failed.'
-except ImportError:
-	working = False
-	print 'ip2c module not found. IP2Country lookups not available.'
-	print 'run fetch_deps.py to fetch it'
+		return False
+
+working = loaddb()
+
 
 def lookup(ip):
 	if not working: return '??'
-	index = ip2c.lookup(ip)
-	if index == -1:
-		cc = '??'
-	elif index == -2: # no ip specified
-		cc = '??'
-		print 'No IP specified'
-	elif index == -3: # invalid ip2country database
-		print 'IP2Country database failure.'
-		cc = '??'
-	else:
-		cc = ip2c.countryCode(index)
-	return cc
-
-def randomcc():
-	if not working: return '??'
-	cclen = len(ip2c.countryname)
-	return ip2c.countryCode( random.randint(2, cclen)-1 )
+	addrinfo = geoip.lookup(ip)
+	if not addrinfo.country: return '??'
+	return addrinfo.country
 
 def reloaddb():
-	if not working:
-		return
-	ip2c = ip2country()
+	if not working: return
+	loaddb()
+
+#print lookup("37.187.59.77")
+#print lookup("77.64.139.108")
+#print lookup("8.8.8.8")
+#print lookup("0.0.0.0")
 
