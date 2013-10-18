@@ -46,9 +46,15 @@ def lookup(ip):
 def reloaddb():
 	if not working: return
 	loaddb()
-
-#print lookup("37.187.59.77")
-#print lookup("77.64.139.108")
-#print lookup("8.8.8.8")
-#print lookup("0.0.0.0")
-
+"""
+print lookup("37.187.59.77")
+print lookup("77.64.139.108")
+print lookup("8.8.8.8")
+print lookup("0.0.0.0")
+import csv
+with open('/tmp/test.csv', 'rb') as csvfile:
+	reader = csv.reader(csvfile, delimiter=' ', quotechar='"')
+	for row in reader:
+		ip = row[0]
+		print("%s %s" %(ip, lookup(row[0])))
+"""
