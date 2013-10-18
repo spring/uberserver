@@ -4,25 +4,12 @@ antispam - 'antispam':{'enabled':True, 'quiet':False, 'agressiveness':1, 'bonusl
 channel configuration (antispam) - copy from chanserv to sayhooks
 
 update chanserv to check if user is in database before performing actions
-loading and saving of channels from sql; proper syncing of everything to the sql database
 
 after release:
 new protocol with "newprotocol" in lobby name/version - poll lobby developers for alternatives
 quietness? (whether to print sayhooks actions)
-maybe still send quiet actions to admins/owner
-deny commands and raise errors for invalid args, saying "talk to your lobby dev"?
-
-web interface:
-php wrapper with https login
-instead of using LOGIN, use WEBLOGIN
-
-webinterface returns raw html
-
-could also use mod_proxy and run another open port.
 
 thoughts:
-
-LAN mode can be SQLite with autoregistration?
 
 outgoing protocol class too - useful for abstracting protocol version differences.
 
