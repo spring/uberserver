@@ -147,8 +147,10 @@ class Protocol:
 			if not client == self._root.usernames[user]:
 				client.removing = False # 'cause we really aren't anymore
 				return
-
-			self.userdb.end_session(client.db_id)
+			try:
+				self.userdb.end_session(client.db_id)
+			except Exception, e:
+				self._root.console_write('Handler %s: <%s> %s Error writing to db in _remove: %s '%(client.handler.num, client.username, client.session_id, e.message))
 
 			channels = list(client.channels)
 			del self._root.usernames[user]
@@ -657,8 +659,12 @@ class Protocol:
 			origpassword = password # store for later use when ghosting
 			m = md5(password)
 			password = base64.b64encode(m.digest())
-
-		good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
+		try:
+			good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
+		except Exception, e:
+			self._root.console_write('Handler %s: <%s> %s Error reading from db in in_LOGIN %s '%(client.handler.num, client.username, client.session_id, e.message))
+			good = False
+			reason = "db error"
 		if good: username = reason.username
 		if not username in self._root.usernames:
 			if good:
