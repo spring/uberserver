@@ -407,8 +407,8 @@ class UsersHandler:
 		session = self.sessionmaker()
 		entry = session.query(User).filter(User.username==username).first()
 		session.close()
-		if entry: return True, entry.register_date
-		else: return False, 'user not found in database'
+		if entry and entry.register_date: return True, entry.register_date
+		else: return False, 'user or date not found in database'
 	
 	def get_ingame_time(self, username):
 		session = self.sessionmaker()
