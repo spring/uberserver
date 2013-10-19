@@ -2093,8 +2093,10 @@ class Protocol:
 			good = True
 			username = client.username
 			reason = client.register_date
-		if good: client.Send('SERVERMSG <%s> registered on %s.' % (username, reason.isoformat()))
-		else: client.Send('SERVERMSG Database returned error when retrieving registration date for <%s> (%s)' % (username, reason))
+		if good and reason:
+			client.Send('SERVERMSG <%s> registered on %s.' % (username, reason.isoformat()))
+			return
+		client.Send("SERVERMSG Couldn't retrieve registration date for <%s> (%s)" % (username, reason))
 
 	def in_GETUSERID(self, client, username):
 		user = self.userdb.clientFromUsername(username)
