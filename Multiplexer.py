@@ -2,7 +2,7 @@ import time
 from select import * # eww hack but saves the other hack of selectively importing constants
 
 class EpollMultiplexer:
-	
+
 	def __init__(self):
 		self.args = []
 		self.filenoToSocket = {}
@@ -16,55 +16,39 @@ class EpollMultiplexer:
 		self.errMask = EPOLLERR | EPOLLHUP
 
 		self.poller = epoll()
-	
+
 	def register(self, fd):
 		fd.setblocking(0)
 		self.sockets.add(fd)
-		self.pollRegister(fd)
-	
+		fileno = fd.fileno()
+		self.filenoToSocket[fileno] = fd
+		self.socketToFileno[fd] = fileno # gotta maintain this because fileno() lookups aren't possible on closed sockets
+		self.poller.register(fileno, self.inMask | self.errMask)
+
 	def unregister(self, fd):
 		if fd in self.sockets:
 			self.sockets.remove(fd)
-			if fd in self.output:
-				self.output.remove(fd)
-			self.pollUnregister(fd)
-	
+		if fd in self.output:
+			self.output.remove(fd)
+		fileno = self.socketToFileno[fd]
+		self.poller.unregister(fileno)
+		del self.socketToFileno[fd]
+		del self.filenoToSocket[fileno]
+
 	def setoutput(self, fd, ready):
 		# this if structure means it only scans output once.
 		if not ready and fd in self.output:
 			self.output.remove(fd)
-			self.pollSetoutput(fd, ready)
 		elif ready and fd in self.sockets:
 			self.output.add(fd)
-			self.pollSetoutput(fd, ready)
-	
-	def poll(self):
-		return self.sockets, self.outputs, []
+		if not fd in self.socketToFileno: return
+		eventmask = self.inMask | self.errMask | (self.outMask if ready else 0)
+		self.poller.modify(fd, eventmask) # not valid for select.poll before python 2.6, might need to replace with register() in this context
 
 	def pump(self, callback):
 		while True:
 			inputs, outputs, errors = self.poll()
 			callback(inputs, outputs, errors)
-
-	def empty(self):
-		if not self.sockets: return True
-	
-	def pollRegister(self, fd):
-		fileno = fd.fileno()
-		self.filenoToSocket[fileno] = fd
-		self.socketToFileno[fd] = fileno # gotta maintain this because fileno() lookups aren't possible on closed sockets
-		self.poller.register(fileno, self.inMask | self.errMask)
-		
-	def pollUnregister(self, fd):
-		fileno = self.socketToFileno[fd]
-		self.poller.unregister(fileno)
-		del self.socketToFileno[fd]
-		del self.filenoToSocket[fileno]
-		
-	def pollSetoutput(self, fd, ready):
-		if not fd in self.socketToFileno: return
-		eventmask = self.inMask | self.errMask | (self.outMask if ready else 0)
-		self.poller.modify(fd, eventmask) # not valid for select.poll before python 2.6, might need to replace with register() in this context
 
 	def poll(self):
 		for i in xrange(5):
@@ -77,11 +61,11 @@ class EpollMultiplexer:
 				else:
 					raise e
 			break
-			
+
 		inputs = []
 		outputs = []
 		errors = []
-		
+
 		for fd, mask in results:
 			s = self.filenoToSocket[fd]
 			if mask & self.inMask: inputs.append(s)
