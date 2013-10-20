@@ -188,6 +188,11 @@ class DataHandler:
 			print
 			self.max_threads = 1
 			self.engine = sqlalchemy.create_engine(self.sqlurl)
+			def _fk_pragma_on_connect(dbapi_con, con_record):
+				dbapi_con.execute('PRAGMA journal_mode = MEMORY')
+				dbapi_con.execute('PRAGMA synchronous = OFF')
+			from sqlalchemy import event
+			event.listen(self.engine, 'connect', _fk_pragma_on_connect)
 		else:
 			self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.max_threads * 2, pool_recycle=300)
 
