@@ -16,7 +16,6 @@ class User(object):
 		self.ingame_time = 0
 		self.bot = 0
 		self.access = access # user, moderator, admin, bot, agreement
-		self.hook_chars = ''
 		self.mapgrades = ''
 		self.last_id = 0
 
@@ -47,7 +46,7 @@ class Rename(object):
 		return "<Rename('%s')>" % self.ip_address
 
 class Channel(object):
-	def __init__(self, name, key='', chanserv=False, owner='', topic='', topic_time=0, topic_owner='', antispam=False, admins='', autokick='ban', censor=False, antishock=False):
+	def __init__(self, name, key='', chanserv=False, owner='', topic='', topic_time=0, topic_owner='', antispam=False, admins='', autokick='ban', antishock=False):
 		self.name = name
 		self.key = key
 		self.chanserv = chanserv
@@ -58,7 +57,6 @@ class Channel(object):
 		self.antispam = antispam
 		self.admins = admins
 		self.autokick = autokick
-		self.censor = censor
 		self.antishock = antishock
 
 	def __repr__(self):
@@ -103,7 +101,6 @@ users_table = Table('users', metadata,
 	Column('ingame_time', Integer),
 	Column('access', String(32)),
 	Column('bot', Integer),
-	Column('hook_chars', String(4)),
 	Column('mapgrades', Text),
 	)
 
@@ -138,7 +135,6 @@ channels_table = Table('channels', metadata,
 	Column('topic_owner', String(40)),
 	Column('antispam', Boolean),
 	Column('autokick', String(5)),
-	Column('censor', Boolean),
 	Column('antishock', Boolean),
 	)
 
@@ -189,7 +185,6 @@ class OfflineClient:
 		self.bot = sqluser.bot
 		self.last_login = sqluser.last_login
 		self.register_date = sqluser.register_date
-		self.hook = sqluser.hook_chars
 		self.last_id = sqluser.last_id
 		self.access = sqluser.access
 
@@ -259,7 +254,6 @@ class UsersHandler:
 			reason.bot = dbuser.bot
 			reason.last_login = dbuser.last_login
 			reason.register_date = dbuser.register_date
-			reason.hook_chars = dbuser.hook_chars
 			reason.lobby_id = lobby_id
 
 		session.commit()
@@ -278,9 +272,6 @@ class UsersHandler:
 	def register_user(self, user, password, ip, country): # need to add better ban checks so it can check if an ip address is banned when registering an account :)
 		if len(user)>20: return False, 'Username too long'
 		session = self.sessionmaker()
-		if self._root.censor:
-			if not self._root.SayHooks._nasty_word_censor(user):
-				return False, 'Name failed to pass profanity filter.'
 		results = session.query(User).filter(User.username==user).first()
 		if results:
 			return False, 'Username already exists.'
@@ -358,9 +349,6 @@ class UsersHandler:
 	def rename_user(self, user, newname):
 		if len(newname)>20: return False, 'Username too long'
 		session = self.sessionmaker()
-		if self._root.censor:
-			if not self._root.SayHooks._nasty_word_censor(user):
-				return False, 'New username failed to pass profanity filter.'
 		if not newname == user:
 			results = session.query(User).filter(User.username==newname).first()
 			if results:
@@ -383,7 +371,6 @@ class UsersHandler:
 			entry.ingame_time = client.ingame_time
 			entry.access = client.access
 			entry.bot = client.bot
-			entry.hook_chars = client.hook
 			entry.last_id = client.last_id
 			entry.password = client.password
 		session.commit()
@@ -519,7 +506,6 @@ class ChannelsHandler:
 		entry.topic_owner = topic_owner
 		entry.antispam = channel.antispam
 		entry.autokick = channel.autokick
-		entry.censor = channel.censor
 		entry.antishock = channel.antishock
 
 		session.add(entry)

@@ -44,8 +44,6 @@ class DataHandler:
 		self.max_threads = 25
 		self.sqlurl = 'sqlite:///server.db'
 		self.nextbattle = 0
-		self.SayHooks = __import__('SayHooks')
-		self.censor = True
 		self.motd = None
 		self.running = True
 		
@@ -83,8 +81,6 @@ class DataHandler:
 		print '      { Uses the specified number of threads for handling clients }'
 		print '  -s, --sqlurl SQLURL'
 		print '      { Uses SQL database at the specified sqlurl for user, channel, and ban storage. }'
-		print '  -c, --no-censor'
-		print '      { Disables censoring of #main, #newbies, and usernames (default is to censor) }'
 		print '  --proxies /path/to/proxies.txt'
 		print '     { Path to proxies.txt, for trusting proxies to pass real IP through local IP }'
 		print '   -a --agreement /path/to/agreement.rtf'
@@ -166,8 +162,6 @@ class DataHandler:
 					self.sqlurl = argp[0]
 				except:
 					print 'Error specifying SQL URL'
-			elif arg in ['c', 'no-censor']:
-				self.censor = False
 			elif arg in ['a', 'agreement']:
 				try:
 					self.argeementfile = argp[0]
@@ -421,7 +415,6 @@ class DataHandler:
 		self.console_write('Reloading...')
 		self.rotatelogfile()
 		self.parseFiles()
-		reload(sys.modules['SayHooks'])
 		reload(sys.modules['protocol.AutoDict'])
 		reload(sys.modules['protocol.Channel'])
 		reload(sys.modules['protocol.Battle'])
@@ -430,7 +423,6 @@ class DataHandler:
 		reload(sys.modules['ChanServ'])
 		reload(sys.modules['Client'])
 		reload(sys.modules['SQLUsers'])
-		self.SayHooks = __import__('SayHooks')
 		ip2country.reloaddb()
 		thread.start_new_thread(self._rebind_slow, ()) # why should reloading block the thread? :)
 
