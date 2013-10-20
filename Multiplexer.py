@@ -19,10 +19,10 @@ class EpollMultiplexer:
 
 	def register(self, fd):
 		fd.setblocking(0)
-		self.sockets.add(fd)
 		fileno = fd.fileno()
 		self.filenoToSocket[fileno] = fd
 		self.socketToFileno[fd] = fileno # gotta maintain this because fileno() lookups aren't possible on closed sockets
+		self.sockets.add(fd)
 		self.poller.register(fileno, self.inMask | self.errMask)
 
 	def unregister(self, fd):
@@ -72,4 +72,3 @@ class EpollMultiplexer:
 			if mask & self.outMask: outputs.append(s)
 			if mask & self.errMask: errors.append(s)
 		return inputs, outputs, errors
-
