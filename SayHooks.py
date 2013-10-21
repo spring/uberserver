@@ -165,33 +165,8 @@ def _chan_msg_filter(self, client, chan, msg):
 def hook_SAY(self, client, chan, msg):
 	user = client.username
 	channel = self._root.channels[chan]
-	if client.hook and msg.startswith(client.hook):
-		access = []
-		
-		if 'admin' in client.accesslevels: admin = True
-		else: admin = False
-		if 'mod' in client.accesslevels: mod = True
-		else: mod = False
-		
-		if channel.isAdmin(client):
-			access.append('admin')
-			access.append('adminchan')
-		if channel.isMod(client):
-			access.append('mod')
-			access.append('modchan')
-		if channel.isFounder(client):
-			access.append('chanowner')
-		if channel.isOp(client):
-			access.append('chanadmin')
-
-		access.append('public')
-		access.append('chanpublic')
-		good, reason = _do(client, chan, user, msg[len(client.hook):], access)
-		if not good:
-			client.Send('CHANNELMESSAGE %s %s'%(chan, reason))
-	else:
-		msg = _chan_msg_filter(self, client, chan, msg)
-		return msg
+	msg = _chan_msg_filter(self, client, chan, msg)
+	return msg
 
 def hook_SAYEX(self, client, chan, msg):
 	msg = _chan_msg_filter(self, client, chan, msg)
@@ -202,22 +177,6 @@ def hook_SAYPRIVATE(self, client, target, msg):
 
 def hook_SAYBATTLE(self, client, battle_id, msg):
 	return msg # no way to respond in battles atm
-	user = client.username
-	if client.hook and msg.startswith(client.hook):
-		access = []
-
-		if 'admin' in client.accesslevels: admin = True
-		else: admin = False
-		if 'mod' in client.accesslevels: mod = True
-		else: mod = False
-
-		access.append('battlepublic')
-
-		if self._root.battles[battle_id].host == user:
-			access.append('battlehost')
-
-		good, reason = _do(client, battle_id, user, msg[len(client.hook):], access)
-	else: return msg
 
 def __find_command(rights, command):
 	function, exists = None, False

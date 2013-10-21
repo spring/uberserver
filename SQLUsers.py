@@ -16,7 +16,6 @@ class User(object):
 		self.ingame_time = 0
 		self.bot = 0
 		self.access = access # user, moderator, admin, bot, agreement
-		self.hook_chars = ''
 		self.mapgrades = ''
 		self.last_id = 0
 
@@ -103,7 +102,6 @@ users_table = Table('users', metadata,
 	Column('ingame_time', Integer),
 	Column('access', String(32)),
 	Column('bot', Integer),
-	Column('hook_chars', String(4)),
 	Column('mapgrades', Text),
 	)
 
@@ -189,7 +187,6 @@ class OfflineClient:
 		self.bot = sqluser.bot
 		self.last_login = sqluser.last_login
 		self.register_date = sqluser.register_date
-		self.hook = sqluser.hook_chars
 		self.last_id = sqluser.last_id
 		self.access = sqluser.access
 
@@ -259,7 +256,6 @@ class UsersHandler:
 			reason.bot = dbuser.bot
 			reason.last_login = dbuser.last_login
 			reason.register_date = dbuser.register_date
-			reason.hook_chars = dbuser.hook_chars
 			reason.lobby_id = lobby_id
 
 		session.commit()
@@ -383,7 +379,6 @@ class UsersHandler:
 			entry.ingame_time = client.ingame_time
 			entry.access = client.access
 			entry.bot = client.bot
-			entry.hook_chars = client.hook
 			entry.last_id = client.last_id
 			entry.password = client.password
 		session.commit()

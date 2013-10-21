@@ -681,7 +681,6 @@ class Protocol:
 					client.local_ip = local_ip
 
 				client.ingame_time = reason.ingame_time
-				client.hook = reason.hook_chars
 
 				if reason.id == None:
 					client.db_id = client.session_id
