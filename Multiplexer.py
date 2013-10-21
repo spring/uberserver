@@ -17,33 +17,33 @@ class EpollMultiplexer:
 
 		self.poller = epoll()
 
-	def register(self, fd):
-		fd.setblocking(0)
-		fileno = fd.fileno()
-		self.filenoToSocket[fileno] = fd
-		self.socketToFileno[fd] = fileno # gotta maintain this because fileno() lookups aren't possible on closed sockets
-		self.sockets.add(fd)
+	def register(self, s):
+		s.setblocking(0)
+		fileno = s.fileno()
+		self.filenoToSocket[fileno] = s
+		self.socketToFileno[s] = fileno # gotta maintain this because fileno() lookups aren't possible on closed sockets
+		self.sockets.add(s)
 		self.poller.register(fileno, self.inMask | self.errMask)
 
-	def unregister(self, fd):
-		if fd in self.sockets:
-			self.sockets.remove(fd)
-		if fd in self.output:
-			self.output.remove(fd)
-		fileno = self.socketToFileno[fd]
+	def unregister(self, s):
+		if s in self.sockets:
+			self.sockets.remove(s)
+		if s in self.output:
+			self.output.remove(s)
+		fileno = self.socketToFileno[s]
 		self.poller.unregister(fileno)
-		del self.socketToFileno[fd]
+		del self.socketToFileno[s]
 		del self.filenoToSocket[fileno]
 
-	def setoutput(self, fd, ready):
+	def setoutput(self, s, ready):
 		# this if structure means it only scans output once.
-		if not ready and fd in self.output:
-			self.output.remove(fd)
-		elif ready and fd in self.sockets:
-			self.output.add(fd)
-		if not fd in self.socketToFileno: return
+		if not ready and s in self.output:
+			self.output.remove(s)
+		elif ready and s in self.sockets:
+			self.output.add(s)
+		if not s in self.socketToFileno: return
 		eventmask = self.inMask | self.errMask | (self.outMask if ready else 0)
-		self.poller.modify(fd, eventmask) # not valid for select.poll before python 2.6, might need to replace with register() in this context
+		self.poller.modify(s, eventmask) # not valid for select.poll before python 2.6, might need to replace with register() in this context
 
 	def pump(self, callback):
 		while True:
