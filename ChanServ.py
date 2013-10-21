@@ -32,45 +32,34 @@ class ChanServ:
 		self.HandleMessage(None, user, msg)
 
 	def HandleMessage(self, chan, user, msg):
-		if msg.startswith('!'):
-			msg = msg.lstrip('!')
-			if msg.lower() == 'help':
-				help = self.Help(user)
-				self.Send(['SAYPRIVATE %s %s'%(user, s) for s in help.split('\n')])
-			else:
-				args = None
-				if msg.count(' ') >= 2:	# case cmd blah blah+
-					splitmsg = msg.split(' ',2)
-					if splitmsg[1].startswith('#'): # case cmd #chan arg+
-						cmd, chan, args = splitmsg
-						chan = chan.lstrip('#')
-					else: # case cmd arg arg+
-						cmd, args = msg.split(' ',1)
-				elif msg.count(' ') == 1: # case cmd arg
-					splitmsg = msg.split(' ')
-					if splitmsg[1].startswith('#'): # case cmd #chan
-						cmd, chan = splitmsg
-						chan = chan.lstrip('#')
-					else: # case cmd arg
-						cmd, args = splitmsg
-				else: # case cmd
-					cmd = msg
-				if not chan: return
-				response = self.HandleCommand(chan, user, cmd, args)
-				if response:
-					if type(response) in (str, unicode):
-						self.Send('SAYPRIVATE %s %s ' % (user, response))
-					if type(response) in (list, tuple, set):
-						for msg in response:
-							self.Send('SAYPRIVATE %s %s'%(user, msg))
+		msg = msg.lstrip('!')
+		args = None
+		if msg.count(' ') >= 2:	# case cmd blah blah+
+			splitmsg = msg.split(' ',2)
+			if splitmsg[1].startswith('#'): # case cmd #chan arg+
+				cmd, chan, args = splitmsg
+				chan = chan.lstrip('#')
+			else: # case cmd arg arg+
+				cmd, args = msg.split(' ',1)
+		elif msg.count(' ') == 1: # case cmd arg
+			splitmsg = msg.split(' ')
+			if splitmsg[1].startswith('#'): # case cmd #chan
+				cmd, chan = splitmsg
+				chan = chan.lstrip('#')
+			else: # case cmd arg
+				cmd, args = splitmsg
+		else: # case cmd
+			cmd = msg
+		response = self.HandleCommand(chan, user, cmd, args)
+		if response:
+			self.Send(['SAYPRIVATE %s %s'%(user, s) for s in response.split('\n')])
 
-	def Help(self, user):
-		return 'Hello, %s!\nI am an automated channel service bot,\nfor the full list of commands, see http://springrts.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
-	
 	def HandleCommand(self, chan, user, cmd, args=None):
 		client = self.client._protocol.clientFromUsername(user)
 		cmd = cmd.lower()
-		
+		if cmd == 'help':
+			return 'Hello, %s!\nI am an automated channel service bot,\nfor the full list of commands, see http://springrts.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
+
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			access = channel.getAccess(client)
@@ -239,18 +228,14 @@ class ChanServ:
 					return '#%s: User <%s> does not exist.' % (chan, args)
 			elif not chan in self._root.channels:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to register a channel' % chan
-		return ''
+		return 'command "%s" not found' %(cmd)
 	
 	def Send(self, msg):
 		if type(msg) == list or type(msg) == tuple:
 			for s in msg:
 				self.client._protocol._handle( self.client, s )
-		elif type(msg) == str:
-			if '\n' in msg:
-				for s in msg.split('\n'):
-					self.client._protocol._handle( self.client, s )
-			else:
-				self.client._protocol._handle( self.client, msg )
+		else:
+			self.client._protocol._handle( self.client, msg )
 
 class ChanServClient(Client):
 	'this object is chanserv implemented through the standard client interface'
