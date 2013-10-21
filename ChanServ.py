@@ -17,20 +17,14 @@ class ChanServ:
 			if msg.count(' '):
 				cmd, args = msg.split(' ', 1)
 				if cmd == 'SAID':
-					self.handleSAID(args)
+					chan, user, msg = args.split(' ',2)
+					self.HandleMessage(chan, user, msg)
 				if cmd == 'SAIDPRIVATE':
-					self.handleSAIDPRIVATE(args)
+					user, msg = args.split(' ', 1)
+					self.HandleMessage(None, user, msg)
 		except:
 			self._root.error(traceback.format_exc())
 	
-	def handleSAID(self, msg):
-		chan, user, msg = msg.split(' ',2)
-		self.HandleMessage(chan, user, msg)
-
-	def handleSAIDPRIVATE(self, msg):
-		user, msg = msg.split(' ', 1)
-		self.HandleMessage(None, user, msg)
-
 	def HandleMessage(self, chan, user, msg):
 		msg = msg.lstrip('!')
 		args = None
