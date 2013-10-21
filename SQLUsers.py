@@ -554,8 +554,9 @@ class ChannelsHandler:
 	def unRegister(self, client, channel):
 		session = self.sessionmaker()
 		entry = session.query(Channel).filter(Channel.name == channel.name).first()
-		session.delete(entry)
-		session.commit()
+		if entry:
+			session.delete(entry)
+			session.commit()
 		session.close()
 	
 
