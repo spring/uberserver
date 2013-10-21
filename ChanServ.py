@@ -14,14 +14,15 @@ class ChanServ:
 	
 	def Handle(self, msg):
 		try:
-			if msg.count(' '):
-				cmd, args = msg.split(' ', 1)
-				if cmd == 'SAID':
-					chan, user, msg = args.split(' ',2)
-					self.HandleMessage(chan, user, msg)
-				if cmd == 'SAIDPRIVATE':
-					user, msg = args.split(' ', 1)
-					self.HandleMessage(None, user, msg)
+			if not msg.count(' '):
+				return
+			cmd, args = msg.split(' ', 1)
+			if cmd == 'SAID':
+				chan, user, msg = args.split(' ',2)
+				self.HandleMessage(chan, user, msg)
+			if cmd == 'SAIDPRIVATE':
+				user, msg = args.split(' ', 1)
+				self.HandleMessage(None, user, msg)
 		except:
 			self._root.error(traceback.format_exc())
 	
@@ -222,7 +223,7 @@ class ChanServ:
 					return '#%s: User <%s> does not exist.' % (chan, args)
 			elif not chan in self._root.channels:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to register a channel' % chan
-		return 'command "%s" not found' %(cmd)
+		return 'command "%s" not found, use "!help" to get help!' %(cmd)
 	
 	def Send(self, msg):
 		if type(msg) == list or type(msg) == tuple:
