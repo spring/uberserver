@@ -78,7 +78,6 @@ restricted = {
 	'GETINGAMETIME',
 	'GETREGISTRATIONDATE',
 	'HOOK',
-	'KILLALL',
 	'MYSTATUS',
 	'PORTTEST',
 	'UPTIME',
@@ -2328,14 +2327,6 @@ class Protocol:
 			client.Send('SERVERMSG You\'ve kicked <%s> from the server.' % user)
 			kickeduser.SendNow('SERVERMSG You\'ve been kicked from server by <%s>%s' % (client.username, reason))
 			kickeduser.Remove('Kicked from server')
-
-	def in_KILLALL(self, client):
-		'''
-		Kick all non-admins from the server.
-		'''
-		for client in self._root.clients.values():
-			if not client.isAdmin():
-				client.Remove('all clients killed')
 
 	def in_TESTLOGIN(self, client, username, password):
 		'''
