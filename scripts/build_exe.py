@@ -28,6 +28,7 @@ setup(
 				'Multiplexer',
 				'NATServer',
 				'Protocol',
+				'SayHooks',
 				'SQLUsers',
 				'tasserver',
 			],

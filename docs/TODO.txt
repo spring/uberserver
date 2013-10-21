@@ -1,11 +1,13 @@
 to fix/add:
 
 antispam - 'antispam':{'enabled':True, 'quiet':False, 'agressiveness':1, 'bonuslength':100, 'duration':900}
+channel configuration (antispam) - copy from chanserv to sayhooks
 
 update chanserv to check if user is in database before performing actions
 
 after release:
 new protocol with "newprotocol" in lobby name/version - poll lobby developers for alternatives
+quietness? (whether to print sayhooks actions)
 
 thoughts:
 

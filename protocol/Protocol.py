@@ -44,6 +44,7 @@ restricted = {
 	'REMOVESTARTRECT',
 	'RING',
 	'SAYBATTLE',
+	'SAYBATTLEHOOKED',
 	'SAYBATTLEEX',
 	'SAYBATTLEPRIVATE',
 	'SAYBATTLEPRIVATEEX',
@@ -64,9 +65,11 @@ restricted = {
 	'MUTE',
 	'MUTELIST',
 	'SAY',
+	'SAYHOOKED',
 	'SAYEX',
 	'SAYPRIVATE',
 	'SAYPRIVATEEX',
+	'SAYPRIVATEHOOKED',
 	'SETCHANNELKEY',
 	'UNMUTE',
 	########
@@ -74,6 +77,7 @@ restricted = {
 	'CHANGEPASSWORD',
 	'GETINGAMETIME',
 	'GETREGISTRATIONDATE',
+	'HOOK',
 	'KILLALL',
 	'MYSTATUS',
 	'PORTTEST',
@@ -125,6 +129,7 @@ class Protocol:
 		self._root = root
 		self.handler = handler
 		self.userdb = root.getUserDB()
+		self.SayHooks = root.SayHooks
 		self.dir = dir(self)
 		self.agreement = root.agreement
 		self.stats = {}
@@ -681,6 +686,7 @@ class Protocol:
 					client.local_ip = local_ip
 
 				client.ingame_time = reason.ingame_time
+				client.hook = reason.hook_chars
 
 				if reason.id == None:
 					client.db_id = client.session_id
@@ -743,6 +749,60 @@ class Protocol:
 			client.access = 'fresh'
 			self._calc_access_status(client)
 
+	def in_HOOK(self, client, chars=''):
+		'''
+		Enable SAY hooking for this client session.
+
+		@required.str chars: When a SAY command in a channel is prefixed with these characters, the server will intercept and pass to a command hook system.
+		'''
+		chars = chars.strip()
+		if chars.count(' '): return
+		client.hook = chars
+		if chars:
+			client.Send('SERVERMSG Hooking commands enabled. Use help if you don\'t know what you\'re doing. Prepend commands with "%s"'%chars)
+		elif client.hook:
+			client.Send('SERVERMSG Hooking commands disabled.')
+		self.userdb.save_user(client)
+
+	def in_SAYHOOKED(self, client, chan, msg):
+		'''
+		Execute a hooked command in a channel.
+		This allows clients to decide when to hook commands instead of depending on the server's default method.
+
+		@required.str channel: The channel in which to run the command.
+		@required.str message: The hooked text to parse as a command.
+		'''
+		if not msg: return
+		if chan in self._root.channels:
+			channel = self._root.channels[chan]
+			user = client.username
+			if user in channel.users:
+				self.SayHooks.hook_SAY(self, client, chan, msg)
+
+	def in_SAYPRIVATEHOOKED(self, client, user, msg):
+		'''
+		Execute a hooked command in a private message.
+		This allows clients to decide when to hook commands instead of depending on the server's default method.
+
+		@required.str user: The user for which to run the command.
+		@required.str message: The hooked text to parse as a command.
+		'''
+		if not msg: return
+		user = client.username
+		self.SayHooks.hook_SAYPRIVATE(self, client, user, msg)
+
+	def in_SAYBATTLEHOOKED(self, client, msg):
+		'''
+		Execute a hooked command in a battle.
+		This allows clients to decide when to hook commands instead of depending on the server's default method.
+
+		@required.str message: The hooked text to parse as a command.
+		'''
+		battle_id = client.current_battle
+		if not battle_id in self._root.battles: return
+		if not client in self._root.battles['users']: return
+		self.SayHooks.hook_SAYBATTLE(self, client, battle_id, msg)
+
 	def in_SAY(self, client, chan, msg):
 		'''
 		Send a message to all users in specified channel.
@@ -756,6 +816,7 @@ class Protocol:
 			channel = self._root.channels[chan]
 			user = client.username
 			if user in channel.users:
+				msg = self.SayHooks.hook_SAY(self, client, chan, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel # nevermind, i just need to add inchan :>
 				if not msg or not msg.strip(): return
 				if channel.isMuted(client):
 					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
@@ -775,6 +836,7 @@ class Protocol:
 			channel = self._root.channels[chan]
 			user  = client.username
 			if user in channel.users:
+				msg = self.SayHooks.hook_SAYEX(self, client, chan, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel
 				if not msg or not msg.strip(): return
 				if channel.isMuted(client):
 					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
@@ -790,6 +852,7 @@ class Protocol:
 		'''
 		if not msg: return
 		if user in self._root.usernames:
+			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
 			if not msg or not msg.strip(): return
 			client.Send('SAYPRIVATE %s %s'%(user, msg))
 			self._root.usernames[user].Send('SAIDPRIVATE %s %s'%(client.username, msg))
@@ -803,6 +866,7 @@ class Protocol:
 		'''
 		if not msg: return
 		if user in self._root.usernames:
+			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
 			if not msg or not msg.strip(): return
 			client.Send('SAYPRIVATEEX %s %s'%(user, msg))
 			self._root.usernames[user].Send('SAIDPRIVATEEX %s %s'%(client.username, msg))
@@ -1153,6 +1217,7 @@ class Protocol:
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
 			user = client.username
+			msg = self.SayHooks.hook_SAYBATTLE(self, client, battle_id, msg)
 			if not msg or not msg.strip(): return
 			self.broadcast_SendBattle(battle, 'SAIDBATTLE %s %s' % (user, msg))
 
@@ -2388,6 +2453,7 @@ class Protocol:
 		Parts reloaded:
 		ChanServ.py
 		Protocol.py
+		SayHooks.py
 
 		User databases reloaded:
 		SQLUsers.py

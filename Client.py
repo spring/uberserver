@@ -55,6 +55,7 @@ class Client:
 		self.hostport = None
 		self.udpport = 0
 		self.bot = 0
+		self.hook = ''
 		self.floodlimit = {'fresh':{'msglength':1024, 'bytespersecond':1024, 'seconds':2},
 							'user':{'msglength':1024, 'bytespersecond':1024, 'seconds':10},
 							'bot':{'msglength':1024, 'bytespersecond':10240, 'seconds':5},
