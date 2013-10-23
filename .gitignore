@@ -5,5 +5,7 @@
 /server.log*
 /server.db
 /deps.zip
-/ip2c
-/ip2cntry.dat
+/GeoIP.dat
+/GeoIP.dat.gz
+/bad_sites.txt
+/bad_words.txt
