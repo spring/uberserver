@@ -46,7 +46,7 @@ class ChanServ:
 		else: # case cmd
 			cmd = msg
 		response = self.HandleCommand(chan, user, cmd, args)
-		if response:
+		if not chan and response:
 			self.Send(['SAYPRIVATE %s %s'%(user, s) for s in response.split('\n')])
 
 	def HandleCommand(self, chan, user, cmd, args=None):
