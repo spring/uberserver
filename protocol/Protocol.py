@@ -1695,15 +1695,6 @@ class Protocol:
 		user.Send('RING %s' % (client.username))
 
 
-	def in_FORCEJOINBATTLE(self, client, username, battleid):
-		user = self._root.clientFromUsername(username)
-
-		if not user: return
-		if not 'mod' in client.accesslevels:
-		    return
-
-		user.Send('FORCEJOINBATTLE %s' % (battleid))
-
 
 	def in_ADDSTARTRECT(self, client, allyno, left, top, right, bottom):
 		'''
