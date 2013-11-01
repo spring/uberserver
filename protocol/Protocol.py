@@ -1664,14 +1664,18 @@ class Protocol:
 		@required.str username: The target user.
 		@optional.str reason: A reason for kicking the user..
 		'''
-		if chan in self._root.channels:
-			channel = self._root.channels[chan]
-			if channel.isOp(client):
-				target = self._root.clientFromUsername(username)
-				if target and username in channel.users:
-					channel.kickUser(client, target, reason)
-				else:
-					client.Send('SERVERMSG <%s> not in channel #%s' % (username, chan))
+		if not chan in self._root.channels:
+			client.Send('SERVERMSG channel <%s> does not exist!' % (chan))
+			return
+		channel = self._root.channels[chan]
+		if not (channel.isOp(client) or 'mod' in client.accesslevels):
+			client.Send('SERVERMSG access denied')
+		target = self._root.clientFromUsername(username)
+		if target and username in channel.users:
+			channel.kickUser(client, target, reason)
+			client.Send('SERVERMSG <%s> kicked from channel #%s' % (username, chan))
+		else:
+			client.Send('SERVERMSG <%s> not in channel #%s' % (username, chan))
 
 	def in_RING(self, client, username):
 		'''
