@@ -99,7 +99,7 @@ restricted = {
 	'GETLASTLOGINTIME',
 	'GETACCOUNTACCESS',
 	'FORCEJOIN',
-	'SETACCESS','DEBUG',
+	'SETACCESS',
 	],
 }
 
@@ -421,6 +421,7 @@ class Protocol:
 		'given a username, returns a client object from memory or the database'
 		client = self._root.clientFromUsername(username)
 		if not client:
+			print("%s not online!" % (username))
 			client = self.userdb.clientFromUsername(username)
 			if client:
 				client.db_id = client.id
@@ -1701,7 +1702,6 @@ class Protocol:
 		user.Send('RING %s' % (client.username))
 
 
-
 	def in_ADDSTARTRECT(self, client, allyno, left, top, right, bottom):
 		'''
 		Add a start rectangle for an ally team.
@@ -2359,20 +2359,6 @@ class Protocol:
 				if username in self._root.usernames:
 					self._root.broadcast('CLIENTSTATUS %s %s'%(username, user.status))
 				self.userdb.save_user(user)
-
-	def in_DEBUG(self, client, enabled=None):
-		'''
-		Enable or toggle showing debug messages from the server to the current client.
-		This allows admins to see exceptions thrown by the server.
-
-		optional.bool enabled: Set the debug mode directly.
-		If omitted, debug mode will be toggled.
-		'''
-		if enabled == 'on':	client.debug = True
-		elif enabled == 'off': client.debug = False
-		else: client.debug = not client.debug
-
-		client.Send('SERVERMSG Debug messages: %s' % ('on' and client.debug or 'off'))
 
 	def in_RELOAD(self, client):
 		'''
