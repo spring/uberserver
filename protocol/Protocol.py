@@ -1702,7 +1702,7 @@ class Protocol:
 		if not 'mod' in client.accesslevels:
 		    return
 
-		user.send('FORCEJOINBATTLE %s' % (battleid))
+		user.Send('FORCEJOINBATTLE %s' % (battleid))
 
 
 	def in_ADDSTARTRECT(self, client, allyno, left, top, right, bottom):
