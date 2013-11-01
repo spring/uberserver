@@ -1234,11 +1234,11 @@ class Protocol:
 					return
 
 				if battle.passworded:
-					if not password == battle.password:
-						client.Send('SERVERMESSAGE Incorrect password for target battle.')
-						return
-					else:
+					if password == battle.password:
 						user.Send('FORCEJOINBATTLE %s %s' % (target_battle, password))
+					else:
+						client.Send('SERVERMESSAGE Incorrect password for target battle.')
+					return
 
 				user.Send('FORCEJOINBATTLE %s' % (target_battle))
 
