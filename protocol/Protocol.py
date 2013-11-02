@@ -491,7 +491,7 @@ class Protocol:
 		ubattle.update({'ip':translated_ip})
 		if client.compat['extendedBattles']:
 			client.Send('BATTLEOPENEDEX %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
-		else if client.compat['cleanupBattles']:
+		elif client.compat['cleanupBattles']:
 			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s\t%(engine)s\t%(version)s\t%(map)s\t%(title)s\t%(modname)s' % ubattle)
 		else:
 			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
