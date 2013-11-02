@@ -1213,36 +1213,39 @@ class Protocol:
 		@required.int battle_id: The destination battle.
 		@optional.str password: The battle's password, if required.
 		'''
-		user = self.clientFromUsername(username)
-		if user:
-			battlehost = False
-			battle_id = user.current_battle
-			if battle_id in self._root.battles:
-				battle = self._root.battles[battle_id]
-				if client.username == battle.host:
-					battlehost = True
+		if not battlehost and not 'mod' in client.accesslevels:
+			client.Send('SERVERMESSAGE You are not allowed to force this user into battle.')
+			return
 
-			if not target_battle in self._root.battles:
-				client.Send('SERVERMESSAGE Target battle does not exist.')
-				return
-			target = self._root.battles[target_battle]
+		if not username in self._root.usernames:
+			client.Send("SERVERMESSAGE user %s not found!" %(username))
+			return
+		user = self._root.usernames[username]
+		battlehost = False
+		battle_id = user.current_battle
+		if battle_id in self._root.battles:
+			battle = self._root.battles[battle_id]
+			if client.username == battle.host:
+				battlehost = True
 
-			if not battlehost and not 'mod' in client.accesslevels:
-				client.Send('SERVERMESSAGE You are not allowed to force this user into battle.')
-				return
+		if not target_battle in self._root.battles:
+			client.Send('SERVERMESSAGE Target battle does not exist.')
+			return
+		target = self._root.battles[target_battle]
 
-			if not user.compat['matchmaking']:
-				client.Send('SERVERMESSAGE This user does not subscribe to matchmaking.')
-				return
 
-			if target.passworded:
-				if password == target.password:
-					user.Send('FORCEJOINBATTLE %s %s' % (target_battle, password))
-				else:
-					client.Send('SERVERMESSAGE Incorrect password for target battle.')
-				return
+		if not user.compat['matchmaking']:
+			client.Send('SERVERMESSAGE This user does not subscribe to matchmaking.')
+			return
 
-			user.Send('FORCEJOINBATTLE %s' % (target_battle))
+		if target.passworded:
+			if password == target.password:
+				user.Send('FORCEJOINBATTLE %s %s' % (target_battle, password))
+			else:
+				client.Send('SERVERMESSAGE Incorrect password for target battle.')
+			return
+
+		user.Send('FORCEJOINBATTLE %s' % (target_battle))
 
 	def in_JOINBATTLEACCEPT(self, client, username):
 		'''
