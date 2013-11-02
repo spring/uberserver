@@ -1221,30 +1221,28 @@ class Protocol:
 				battlehost = True
 
 		if not battlehost and not 'mod' in client.accesslevels:
-			client.Send('SERVERMESSAGE You are not allowed to force this user into battle.')
+			client.Send('FORCEJOINBATTLEFAILED You are not allowed to force this user into battle.')
 			return
 
 		if not username in self._root.usernames:
-			client.Send("SERVERMESSAGE user %s not found!" %(username))
+			client.Send("FORCEJOINBATTLEFAILED user %s not found!" %(username))
 			return
-		user = self._root.usernames[username]
 
+		user = self._root.usernames[username]
 		if not user.compat['matchmaking']:
-			client.Send('SERVERMESSAGE This user does not subscribe to matchmaking.')
+			client.Send('FORCEJOINBATTLEFAILED This user does not subscribe to matchmaking.')
 			return
 
 		if not target_battle in self._root.battles:
-			client.Send('SERVERMESSAGE Target battle does not exist.')
+			client.Send('FORCEJOINBATTLEFAILED Target battle does not exist.')
 			return
+
 		target = self._root.battles[target_battle]
-
-
-
 		if target.passworded:
 			if password == target.password:
 				user.Send('FORCEJOINBATTLE %s %s' % (target_battle, password))
 			else:
-				client.Send('SERVERMESSAGE Incorrect password for target battle.')
+				client.Send('FORCEJOINBATTLEFAILED Incorrect password for target battle.')
 			return
 
 		user.Send('FORCEJOINBATTLE %s' % (target_battle))
