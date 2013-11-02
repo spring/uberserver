@@ -421,7 +421,6 @@ class Protocol:
 		'given a username, returns a client object from memory or the database'
 		client = self._root.clientFromUsername(username)
 		if not client:
-			print("%s not online!" % (username))
 			client = self.userdb.clientFromUsername(username)
 			if client:
 				client.db_id = client.id
