@@ -1213,6 +1213,13 @@ class Protocol:
 		@required.int battle_id: The destination battle.
 		@optional.str password: The battle's password, if required.
 		'''
+		battlehost = False
+		battle_id = user.current_battle
+		if battle_id in self._root.battles:
+			battle = self._root.battles[battle_id]
+			if client.username == battle.host:
+				battlehost = True
+
 		if not battlehost and not 'mod' in client.accesslevels:
 			client.Send('SERVERMESSAGE You are not allowed to force this user into battle.')
 			return
@@ -1221,12 +1228,6 @@ class Protocol:
 			client.Send("SERVERMESSAGE user %s not found!" %(username))
 			return
 		user = self._root.usernames[username]
-		battlehost = False
-		battle_id = user.current_battle
-		if battle_id in self._root.battles:
-			battle = self._root.battles[battle_id]
-			if client.username == battle.host:
-				battlehost = True
 
 		if not target_battle in self._root.battles:
 			client.Send('SERVERMESSAGE Target battle does not exist.')
