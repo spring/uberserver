@@ -1092,7 +1092,7 @@ class Protocol:
 			int(battle_id), int(type), int(natType), int(passworded), int(port), int32(maphash)
 		except Exception, e:
 			client.Send('OPENBATTLEFAILED Invalid argument type, send this to your lobby dev: id=%s type=%s natType=%s passworded=%s port=%s maphash=%s - %s' %
-						(battle_id, type, natType, passworded, port, maphash, e))
+						(battle_id, type, natType, passworded, port, maphash, e.replace("\n", "")))
 			return
 
 		client.current_battle = battle_id
