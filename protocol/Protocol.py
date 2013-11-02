@@ -635,10 +635,16 @@ class Protocol:
 					'eb': 'extendedBattles',	# extended battle commands with support for engine/version
 					'm': 'matchmaking',			# FORCEJOINBATTLE from battle hosts for matchmaking
 				}
-
+				unsupported = ""
 				for flag in flags:
 					if flag in flag_map:
 						client.compat[flag_map[flag]] = True
+					else:
+						unsupported +=  " " +flag
+				if len(unsupported)>0:
+					# FIXME: enable this
+					# client.Send("SERVERMSG Unsupported compatibility flag(s) in LOGIN: %s" % (unsupported))
+					self._root.console_write('Handler %s: <%s> %s Unsupported compatibility flag(s) in_LOGIN: %s ' % (client.handler.num, username, client.session_id, unsupported))
 
 			if user_id.replace('-','',1).isdigit():
 				user_id = int(user_id)
