@@ -8,7 +8,7 @@ class Battle(AutoDict):
 						authed_users=set(), bots={}, script_tags={},
 						replay_script={}, replay=False,
 						sending_replay_script=False, locked=False,
-						engine=None, version=None, extended=False):
+						engine=None, version=None):
 		self._root = root
 		self.id = id
 		self.type = type
@@ -34,7 +34,6 @@ class Battle(AutoDict):
 
 		self.engine = (engine or 'spring').lower()
 		self.version = version or root.latestspringversion
-		self.extended = extended
 
 		self.bots = bots
 		self.script_tags = script_tags

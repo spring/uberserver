@@ -1064,7 +1064,8 @@ class Protocol:
 						root=self._root, id=battle_id, type=type, natType=int(natType),
 						password=password, port=port, maxplayers=maxplayers, hashcode=hashcode,
 						rank=rank, maphash=maphash, map=map, title=title, modname=modname,
-						passworded=passworded, host=host, users=[host], extended=False
+						passworded=passworded, host=host, users=[host],
+						engine=engine, version=version
 					)
 		ubattle = battle.copy()
 
@@ -1135,7 +1136,7 @@ class Protocol:
 						password=password, port=port, maxplayers=maxplayers, hashcode=hashcode,
 						rank=rank, maphash=maphash, map=map, title=title, modname=modname,
 						passworded=passworded, host=host, users=[host],
-						engine=engine, version=version, extended=True
+						engine=engine, version=version
 					)
 		ubattle = battle.copy()
 
