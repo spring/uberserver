@@ -489,10 +489,12 @@ class Protocol:
 			translated_ip = host.ip_address
 
 		ubattle.update({'ip':translated_ip})
-		if client.compat['extendedBattles']:
+		if client.compat['cleanupBattles']:
+			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s\t%(version)s\t%(map)s\t%(title)s\t%(modname)s' % ubattle)
+		elif client.compat['extendedBattles']: #FIXME: this shouldn't be used at all
+			ubattle.engine = ubattle.engine.replace(" ", "")
+			ubattle.version = ubattle.engine.replace(" ", "")
 			client.Send('BATTLEOPENEDEX %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
-		elif client.compat['cleanupBattles']:
-			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s\t%(engine)s\t%(version)s\t%(map)s\t%(title)s\t%(modname)s' % ubattle)
 		else:
 			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
 
