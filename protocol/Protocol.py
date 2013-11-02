@@ -491,10 +491,9 @@ class Protocol:
 		ubattle.update({'ip':translated_ip})
 		if client.compat['extendedBattles']:
 			client.Send('BATTLEOPENEDEX %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
+		else if client.compat['cleanupBattles']:
+			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s\t%(engine)s\t%(version)s\t%(map)s\t%(title)s\t%(modname)s' % ubattle)
 		else:
-			if not (battle.engine == 'spring' and (battle.version == self._root.latestspringversion or battle.version == self._root.latestspringversion + '.0')):
-				ubattle['title'] = 'Incompatible (%(engine)s %(version)s) %(title)s' % ubattle
-
 			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
 
 	def client_RemoveBattle(self, client, battle):
@@ -628,12 +627,13 @@ class Protocol:
 						flags.add(flag)
 
 				flag_map = {
-					'a': 'accountIDs',			# send account IDs in ADDUSER
-					'b': 'battleAuth',			# JOINBATTLEREQUEST/ACCEPT/DENY
-					'sp': 'scriptPassword',		# scriptPassword in JOINEDBATTLE
-					'et': 'sendEmptyTopic',		# send NOCHANNELTOPIC on join if channel has no topic
-					'eb': 'extendedBattles',	# extended battle commands with support for engine/version
-					'm': 'matchmaking',			# FORCEJOINBATTLE from battle hosts for matchmaking
+					'a': 'accountIDs',       # send account IDs in ADDUSER
+					'b': 'battleAuth',       # JOINBATTLEREQUEST/ACCEPT/DENY
+					'sp': 'scriptPassword',  # scriptPassword in JOINEDBATTLE
+					'et': 'sendEmptyTopic',  # send NOCHANNELTOPIC on join if channel has no topic
+					'eb': 'extendedBattles', # extended battle commands with support for engine/version
+					'm': 'matchmaking',      # FORCEJOINBATTLE from battle hosts for matchmaking
+					'cl': 'cleanupBattles',  # cleaned up BATTLEOPENED / OPENBATTLE
 				}
 				unsupported = ""
 				for flag in flags:
@@ -1033,6 +1033,8 @@ class Protocol:
 		@required.sint modhash: Mod hash, as returned by unitsync.dll.
 		@required.int rank: Recommended minimum rank to join the battle. Current ranks range from 0-7.
 		@required.sint maphash: Map hash, as returned by unitsync.dll.
+		@required.sentence.str engine: The engine name, lowercase, with no spaces.
+		@required.sentence.str version: The engine version.
 		@required.sentence.str mapName: The map name.
 		@required.sentence.str title: The battle's title.
 		@required.sentence.str modName: The mod name.
@@ -1040,17 +1042,39 @@ class Protocol:
 		if client.current_battle in self._root.battles:
 			self.in_LEAVEBATTLE(client)
 
-		if sentence_args.count('\t') > 1:
-			map, title, modname = sentence_args.split('\t',2)
-
-			if not modname:
-				client.Send('OPENBATTLEFAILED No mod name specified.')
-				return
-			if not map:
-				client.Send('OPENBATTLEFAILED No map name specified.')
-				return
+		if client.compat['cleanupBattle']:
+			if sentence_args.count('\t') > 4:
+				engine, version, map, title, modname = sentence_args.split('\t', 4)
+				if not engine:
+					client.Send('OPENBATTLEFAILED No engine specified.')
+					return False
+				if not version:
+					client.Send('OPENBATTLEFAILED No engine version specified.')
+					return False
+				if not map:
+					client.Send('OPENBATTLEFAILED No map name specified.')
+					return False
+				if not title:
+					client.Send('OPENBATTLEFAILED No title name specified.')
+					return False
+				if not modname:
+					client.Send('OPENBATTLEFAILED No game name specified.')
+					return False
+			else:
+				client.Send('OPENBATTLEFAILED To few arguments.')
+				return False
 		else:
-			return False
+			if sentence_args.count('\t') > 1:
+				map, title, modname = sentence_args.split('\t',2)
+
+				if not modname:
+					client.Send('OPENBATTLEFAILED No game name specified.')
+					return
+				if not map:
+					client.Send('OPENBATTLEFAILED No map name specified.')
+					return
+			else:
+				return False
 		battle_id = str(self._root.nextbattle)
 		self._root.nextbattle += 1
 		client.current_battle = battle_id
