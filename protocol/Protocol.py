@@ -1042,8 +1042,10 @@ class Protocol:
 		if client.current_battle in self._root.battles:
 			self.in_LEAVEBATTLE(client)
 
-		if client.compat['cleanupBattle']:
-			if sentence_args.count('\t') > 4:
+		engine = 'spring'
+		version = self._root.latestspringversion
+		if client.compat['cleanupBattles']:
+			if sentence_args.count('\t') > 3:
 				engine, version, map, title, modname = sentence_args.split('\t', 4)
 				if not engine:
 					client.Send('OPENBATTLEFAILED No engine specified.')
@@ -1075,13 +1077,23 @@ class Protocol:
 					return
 			else:
 				return False
+
 		battle_id = str(self._root.nextbattle)
 		self._root.nextbattle += 1
-		client.current_battle = battle_id
+
 		if password == '*':
 			passworded = 0
 		else:
 			passworded = 1
+
+		try:
+			int(battle_id), int(type), int(natType), int(passworded), int(port), int32(maphash)
+		except Exception, e:
+			client.Send('OPENBATTLEFAILED Invalid argument type, send this to your lobby dev: id=%s type=%s natType=%s passworded=%s port=%s maphash=%s - %s' %
+						(battle_id, type, natType, passworded, port, maphash, e))
+			return
+
+		client.current_battle = battle_id
 
 		host = client.username
 		battle = Battle(
@@ -1093,13 +1105,6 @@ class Protocol:
 					)
 		ubattle = battle.copy()
 
-		try:
-			int(battle_id), int(type), int(natType), int(passworded), int(port), int32(maphash)
-		except:
-			client.current_battle = None
-			client.Send('OPENBATTLEFAILED Invalid argument type, send this to your lobby dev:'
-						'id=%(id)s type=%(type)s natType=%(natType)s passworded=%(passworded)s port=%(port)s maphash=%(maphash)s' % ubattle)
-			return
 
 		self.broadcast_AddBattle(battle)
 		self._root.battles[battle_id] = battle
