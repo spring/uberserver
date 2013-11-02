@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# coding=utf-8
+
 import inspect, time, re
 import base64
 try: from hashlib import md5
