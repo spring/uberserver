@@ -2143,7 +2143,11 @@ class Protocol:
 				client.Send('SERVERMSG Incorrect old password.')
 
 	def in_USERID(self, client, user_id):
-		client.last_id = user_id
+		'''
+		Set the lobby id
+		@required.int userid
+		'''
+		client.last_id = int32(user_id)
 		self.userdb.save_user(client)
 
 	def in_FORGEREVERSEMSG(self, client, user, msg):
