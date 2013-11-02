@@ -506,6 +506,9 @@ class Protocol:
 			ubattle['version'] = ubattle['version'].replace(" ", "")
 			client.Send('BATTLEOPENEDEX %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
 		else:
+			# give client without version support a hint, that this battle is incompatible to his version
+			if not (battle.engine == 'spring' and (battle.version == self._root.latestspringversion or battle.version == self._root.latestspringversion + '.0')):
+				ubattle['title'] = 'Incompatible (%(engine)s %(version)s) %(title)s' % ubattle
 			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
 
 	def client_RemoveBattle(self, client, battle):
