@@ -15,7 +15,7 @@ ranks = (5, 15, 30, 100, 300, 1000, 3000, 10000)
 
 restricted = {
 'disabled':[],
-'everyone':['HASH','EXIT','PING'],
+'everyone':['HASH','EXIT','PING', 'LISTCOMPFLAGS'],
 'fresh':['LOGIN','REGISTER'],
 'agreement':['CONFIRMAGREEMENT'],
 'user':[
@@ -118,6 +118,16 @@ def int32(x):
 	if val >  2147483647 : raise OverflowError
 	if val < -2147483648 : raise OverflowError
 	return val
+
+flag_map = {
+	'a': 'accountIDs',       # send account IDs in ADDUSER
+	'b': 'battleAuth',       # JOINBATTLEREQUEST/ACCEPT/DENY
+	'sp': 'scriptPassword',  # scriptPassword in JOINEDBATTLE
+	'et': 'sendEmptyTopic',  # send NOCHANNELTOPIC on join if channel has no topic
+	'eb': 'extendedBattles', # deprecated use cl instead: extended battle commands with support for engine/version
+	'm': 'matchmaking',      # FORCEJOINBATTLE from battle hosts for matchmaking
+	'cl': 'cleanupBattles',  # BATTLEOPENED / OPENBATTLE with support for engine/version
+}
 
 class Protocol:
 	def __init__(self, root, handler):
@@ -468,7 +478,7 @@ class Protocol:
 
 	def client_AddUser(self, client, user):
 		'sends the protocol for adding a user'
-		if client.compat['accountIDs']:
+		if client.compat['a']: #accountIDs
 			client.Send('ADDUSER %s %s %s %s' % (user.username, user.country_code, user.cpu, user.db_id))
 		else:
 			client.Send('ADDUSER %s %s %s' % (user.username, user.country_code, user.cpu))
@@ -489,11 +499,11 @@ class Protocol:
 			translated_ip = host.ip_address
 
 		ubattle.update({'ip':translated_ip})
-		if client.compat['cleanupBattles']:
+		if client.compat['cl']: #supports cleanupBattles
 			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s\t%(version)s\t%(map)s\t%(title)s\t%(modname)s' % ubattle)
-		elif client.compat['extendedBattles']: #FIXME: this shouldn't be used at all
-			ubattle.engine = ubattle.engine.replace(" ", "")
-			ubattle.version = ubattle.engine.replace(" ", "")
+		elif client.compat['eb']: #FIXME: this shouldn't be used at all, supports extendedBattles
+			ubattle['engine'] = ubattle['engine'].replace(" ", "")
+			ubattle['version'] = ubattle['version'].replace(" ", "")
 			client.Send('BATTLEOPENEDEX %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
 		else:
 			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
@@ -628,24 +638,14 @@ class Protocol:
 					else:
 						flags.add(flag)
 
-				flag_map = {
-					'a': 'accountIDs',       # send account IDs in ADDUSER
-					'b': 'battleAuth',       # JOINBATTLEREQUEST/ACCEPT/DENY
-					'sp': 'scriptPassword',  # scriptPassword in JOINEDBATTLE
-					'et': 'sendEmptyTopic',  # send NOCHANNELTOPIC on join if channel has no topic
-					'eb': 'extendedBattles', # extended battle commands with support for engine/version
-					'm': 'matchmaking',      # FORCEJOINBATTLE from battle hosts for matchmaking
-					'cl': 'cleanupBattles',  # cleaned up BATTLEOPENED / OPENBATTLE
-				}
 				unsupported = ""
 				for flag in flags:
-					if flag in flag_map:
-						client.compat[flag_map[flag]] = True
-					else:
+					client.compat[flag] = True
+					if not flag in flag_map:
 						unsupported +=  " " +flag
 				if len(unsupported)>0:
 					# FIXME: enable this
-					# client.Send("SERVERMSG Unsupported compatibility flag(s) in LOGIN: %s" % (unsupported))
+					# client.Send("SERVERMSG Unsupported/unknown compatibility flag(s) in LOGIN: %s" % (unsupported))
 					self._root.console_write('Handler %s: <%s> %s Unsupported compatibility flag(s) in_LOGIN: %s ' % (client.handler.num, username, client.session_id, unsupported))
 
 			if user_id.replace('-','',1).isdigit():
@@ -975,7 +975,7 @@ class Protocol:
 				# http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#CHANNELTOPIC:server
 				topictime = int(topic['time'])*1000
 				client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topictime, topic['text']))
-			elif client.compat['sendEmptyTopic']:
+			elif client.compat['et']: # supports sendEmptyTopic
 				client.Send('NOCHANNELTOPIC %s' % chan)
 
 		# disabled because irc bridge spams JOIN commands
@@ -1046,7 +1046,7 @@ class Protocol:
 
 		engine = 'spring'
 		version = self._root.latestspringversion
-		if client.compat['cleanupBattles']:
+		if client.compat['cl']: #supports cleanupBattles
 			if sentence_args.count('\t') > 3:
 				engine, version, map, title, modname = sentence_args.split('\t', 4)
 				if not engine:
@@ -1145,7 +1145,7 @@ class Protocol:
 			map, title, modname = sentence_args.split('\t', 2)
 
 			if not modname:
-				client.Send('OPENBATTLEFAILED No mod name specified.')
+				client.Send('OPENBATTLEFAILED No game name specified.')
 				return
 			if not map:
 				client.Send('OPENBATTLEFAILED No map name specified.')
@@ -1267,7 +1267,7 @@ class Protocol:
 			return
 
 		user = self._root.usernames[username]
-		if not user.compat['matchmaking']:
+		if not user.compat['m']:
 			client.Send('FORCEJOINBATTLEFAILED This user does not subscribe to matchmaking.')
 			return
 
@@ -1340,7 +1340,7 @@ class Protocol:
 			if not username in battle.users:
 				host = self._root.clientFromUsername(battle.host)
 				if battle.passworded == 1 and not battle.password == password:
-					if not (host.compat['battleAuth'] and username in battle.authed_users):
+					if not (host.compat['b'] and username in battle.authed_users): # supports battleAuth
 						client.Send('JOINBATTLEFAILED Incorrect password.')
 						return
 				if battle.locked:
@@ -1349,7 +1349,7 @@ class Protocol:
 				if username in host.battle_bans: # TODO: make this depend on db_id instead
 					client.Send('JOINBATTLEFAILED <%s> has banned you from their battles.' % battle.host)
 					return
-				if host.compat['battleAuth'] and not username in battle.authed_users:
+				if host.compat['b'] and not username in battle.authed_users: # supports battleAuth
 					battle.pending_users.add(username)
 					host.Send('JOINBATTLEREQUEST %s %s' % (username, client.ip_address))
 					return
@@ -1368,7 +1368,7 @@ class Protocol:
 				self._root.broadcast('JOINEDBATTLE %s %s' % (battle_id, username), ignore=(battle.host, username))
 
 				scriptPassword = client.scriptPassword
-				if host.compat['scriptPassword'] and scriptPassword:
+				if host.compat['sp'] and scriptPassword: # supports scriptPassword
 					host.Send('JOINEDBATTLE %s %s %s' % (battle_id, username, scriptPassword))
 					client.Send('JOINEDBATTLE %s %s %s' % (battle_id, username, scriptPassword))
 				else:
@@ -2332,6 +2332,15 @@ class Protocol:
 		if reason: reason = 'Quit: %s' % reason
 		else: reason = 'Quit'
 		client.Remove(reason)
+
+	def in_LISTCOMPFLAGS(self, client):
+		flags = ""
+		for flag in flag_map:
+			if len(flags)>0:
+				flags += " " + flag
+			else:
+				flags = flag
+		client.Send("COMPFLAGS %s" %(flags))
 
 	def in_BAN(self, client, username, duration, reason):
 		'''
