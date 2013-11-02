@@ -1229,15 +1229,16 @@ class Protocol:
 			return
 		user = self._root.usernames[username]
 
+		if not user.compat['matchmaking']:
+			client.Send('SERVERMESSAGE This user does not subscribe to matchmaking.')
+			return
+
 		if not target_battle in self._root.battles:
 			client.Send('SERVERMESSAGE Target battle does not exist.')
 			return
 		target = self._root.battles[target_battle]
 
 
-		if not user.compat['matchmaking']:
-			client.Send('SERVERMESSAGE This user does not subscribe to matchmaking.')
-			return
 
 		if target.passworded:
 			if password == target.password:
