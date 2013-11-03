@@ -438,6 +438,16 @@ class Protocol:
 			return False, 'Username is too long.'
 		return True, ""
 
+	def _validChannelSyntax(self, channel):
+		'checks if usernames syntax is correct / doesn''t contain invalid chars'
+		for char in channel:
+			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
+				return False, 'Unicode channel names are currently disallowed.'
+		if len(channel) > 20:
+			return False, 'Channelname is too long.'
+		return True, ""
+
+
 	def clientFromID(self, db_id):
 		'given a user database id, returns a client object from memory or the database'
 		return self._root.clientFromID(db_id) or self.userdb.clientFromID(db_id)
@@ -908,10 +918,11 @@ class Protocol:
 		@required.str channel: target channel
 		@optional.str password: channel password
 		'''
-		for char in chan:
-			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
-				client.Send('SERVERMSG %s Unicode channels are not allowed.' % chan)
-				return
+		ok, reason = self._validChannelSyntax(chan)
+		if not ok:
+			client.Send('SERVERMSG %s' % reason)
+			return
+
 		if user in self._root.usernames:
 			self._handle(self._root.usernames[user], "JOIN %s %s" % (chan, key))
 		else:
@@ -924,12 +935,9 @@ class Protocol:
 		@required.str channel: The target channel.
 		@optional.str password: The password to use for joining if channel is locked.
 		'''
-		for char in chan:
-			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
-				client.Send('JOINFAILED %s Unicode channels are not allowed.' % chan)
-				return
-		if len(chan) > 20:
-			client.Send('JOINFAILED %s Channel name is too long.' % chan)
+		ok, reason = self._validChannelSyntax(chan)
+		if not ok:
+			client.Send('JOINFAILED %s' % reason)
 			return
 
 		alreadyaliased = []
