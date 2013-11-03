@@ -30,7 +30,7 @@ class DataHandler:
 		self.agreementfile = 'agreement.rtf'
 		self.agreement = []
 		self.server = 'TASServer'
-		self.server_version = 0.35
+		self.server_version = 0.36
 		self.sighup = False
 		
 		self.chanserv = None
