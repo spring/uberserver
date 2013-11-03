@@ -157,10 +157,6 @@ class Protocol:
 			if not client == self._root.usernames[user]:
 				client.removing = False # 'cause we really aren't anymore
 				return
-			try:
-				self.userdb.end_session(client.db_id)
-			except Exception, e:
-				self._root.console_write('Handler %s: <%s> %s Error writing to db in _remove: %s '%(client.handler.num, client.username, client.session_id, e.message))
 
 			channels = list(client.channels)
 			del self._root.usernames[user]
@@ -182,6 +178,10 @@ class Protocol:
 				self.in_LEAVEBATTLE(client)
 
 			self.broadcast_RemoveUser(client)
+			try:
+				self.userdb.end_session(client.db_id)
+			except Exception, e:
+				self._root.console_write('Handler %s: <%s> %s Error writing to db in _remove: %s '%(client.handler.num, client.username, client.session_id, e.message))
 		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
 
 	def _handle(self, client, msg):
