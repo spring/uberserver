@@ -467,6 +467,8 @@ class DataHandler:
 			if os.path.exists(oldfilename):
 				os.remove(oldfilename)
 			os.rename(self.logfilename, oldfilename)
+		except OSError as e:
+			print("Error rotaing logfile %s"% (e.strerror))
 		except IOError as e:
 			print("Error rotaing logfile %s"% (e.strerror))
 		self.logfile = file(self.logfilename, 'w')
