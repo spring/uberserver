@@ -46,7 +46,7 @@ class ChanServ:
 		else: # case cmd
 			cmd = msg
 		response = self.HandleCommand(chan, user, cmd, args)
-		if not chan and response:
+		if response:
 			self.Send(['SAYPRIVATE %s %s'%(user, s) for s in response.split('\n')])
 
 	def HandleCommand(self, chan, user, cmd, args=None):
@@ -223,7 +223,8 @@ class ChanServ:
 					return '#%s: User <%s> does not exist.' % (chan, args)
 			elif not chan in self._root.channels:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to register a channel' % chan
-		return 'command "%s" not found, use "!help" to get help!' %(cmd)
+		if not chan:
+			return 'command "%s" not found, use "!help" to get help!' %(cmd)
 	
 	def Send(self, msg):
 		if type(msg) == list or type(msg) == tuple:
