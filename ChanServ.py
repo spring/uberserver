@@ -17,6 +17,9 @@ class ChanServ:
 			if not msg.count(' '):
 				return
 			cmd, args = msg.split(' ', 1)
+			if cmd == 'SAID':
+				chan, user, msg = args.split(' ',2)
+				self.HandleMessage(chan, user, msg)
 			if cmd == 'SAIDPRIVATE':
 				user, msg = args.split(' ', 1)
 				self.HandleMessage(None, user, msg)
