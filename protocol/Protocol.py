@@ -402,6 +402,11 @@ class Protocol:
 			for key, value in replace.iteritems():
 				line = line.replace(key, value)
 			client.Send('MOTD %s' % line)
+	def _checkCompat(self, client):
+		'check the compatibility flags of client and report possible/upcoming problems to it'
+		if not client.compat['sp']: # blocks protocol increase to 0.37
+			client.Send("MOTD Your client doesn't support the 'sp' compatibility flag, please upgrade it!")
+			self._root.console_write('Handler %s: <%s> %s old client missing compat flag: sp '%(client.handler.num, client.username, client.session_id))
 
 	def _validPasswordSyntax(self, password):
 		'checks if a password is correctly encoded base64(md5())'
@@ -714,6 +719,7 @@ class Protocol:
 				client.Send('ACCEPTED %s'%username)
 
 				self._sendMotd(client)
+				self._checkCompat(client)
 				self.broadcast_AddUser(client)
 
 				usernames = dict(self._root.usernames) # cache them here in case anyone joins/leaves or hosts/closes a battle
