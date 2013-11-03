@@ -50,7 +50,7 @@ class ChanServ:
 		client = self.client._protocol.clientFromUsername(user)
 		cmd = cmd.lower()
 		if cmd == 'help':
-			return 'Hello, %s!\nI am an automated channel service bot,\nfor the full list of commands, see http://springrts.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
+			return 'Hello, %s!\nI am an automated channel service bot from uberserver,\nfor the full list of commands, see http://springrts.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
 
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
