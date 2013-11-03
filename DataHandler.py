@@ -266,19 +266,18 @@ class DataHandler:
 			f.close()
 			if data:
 				for line in data.split('\n'):
-					if not ':' in line: continue
-					left, right = line.split(':', 1)
-					left = left.lower()
-					if ' ' in left:
-						name, version = left.rsplit(' ',1)
-					else:
-						name, version = left, 'default'
+					if len(line)== 0 or line[0] == "#": continue
+					try:
+						name, version, options, filename, url, desc = line.split('|', 5)
+					except:
+						print("Invalid line in updates.txt: %s" %(line))
+						continue
+					name = name.lower()
 					if not name in self.updates:
 						self.updates[name] = {}
 					if not version in self.updates[name]:
 						self.updates[name][version] = {}
-					self.updates[name][version] = right
-
+					self.updates[name][version] = options + " " + filename + "\t" + url + "\t" + desc
 
 	def getUserDB(self):
 		return self.userdb

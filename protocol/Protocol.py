@@ -15,7 +15,13 @@ ranks = (5, 15, 30, 100, 300, 1000, 3000, 10000)
 
 restricted = {
 'disabled':[],
-'everyone':['HASH','EXIT','PING', 'LISTCOMPFLAGS', 'REQUESTUPDATEFILE'],
+'everyone':[
+	'HASH',
+	'EXIT',
+	'PING',
+	'LISTCOMPFLAGS',
+	'REQUESTUPDATEFILE' # deprecated
+	],
 'fresh':['LOGIN','REGISTER'],
 'agreement':['CONFIRMAGREEMENT'],
 'user':[
@@ -2047,6 +2053,7 @@ class Protocol:
 		'''
 		Request the server to send you an update.
 
+		@deprecated
 		@required.str name: The name of the update to request.
 		@optional.str version: The version to request. If not provided or found, the default version will be used.
 		'''
@@ -2061,8 +2068,8 @@ class Protocol:
 			update = updates[name]
 			if version in updates[name]:
 				client.Send('OFFERFILE %s' % update[version])
-			elif 'default' in updates[name]:
-				client.Send('OFFERFILE %s' % update['default'])
+			elif '*' in updates[name]:
+				client.Send('OFFERFILE %s' % update['*'])
 
 	def in_UPTIME(self, client):
 		'''
