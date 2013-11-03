@@ -527,6 +527,8 @@ class Protocol:
 		if client.compat['cl']: #supports cleanupBattles
 			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s\t%(version)s\t%(map)s\t%(title)s\t%(modname)s' % ubattle)
 		elif client.compat['eb']: #FIXME: this shouldn't be used at all, supports extendedBattles
+			if (' ' in ubattle['engine']) or (' ' in  ubattle['version']):
+				ubattle['title'] = 'Incompatible (%(engine)s %(version)s) %(title)s' % ubattle
 			ubattle['engine'] = ubattle['engine'].split(" ")[0]
 			ubattle['version'] = ubattle['version'].split(" ")[0]
 			client.Send('BATTLEOPENEDEX %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
