@@ -414,6 +414,10 @@ class Protocol:
 			client.Send("MOTD Your client doesn't support the 'sp' compatibility flag, please upgrade it!")
 			client.Send("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.36")
 			self._root.console_write('Handler %s: <%s> %s old client missing compat flag: sp '%(client.handler.num, client.username, client.session_id))
+		if client.compat['eb']: # cl should be used (bugfixed version of eb)
+			client.Send("MOTD Your client uses the 'eb' compatibility flag, 'cl' should be used instead, please upgrade it!")
+			client.Send("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
+			self._root.console_write('Handler %s: <%s> %s old client missing compat flag: sp '%(client.handler.num, client.username, client.session_id))
 
 	def _validPasswordSyntax(self, password):
 		'checks if a password is correctly encoded base64(md5())'
@@ -513,8 +517,8 @@ class Protocol:
 		if client.compat['cl']: #supports cleanupBattles
 			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s\t%(version)s\t%(map)s\t%(title)s\t%(modname)s' % ubattle)
 		elif client.compat['eb']: #FIXME: this shouldn't be used at all, supports extendedBattles
-			ubattle['engine'] = ubattle['engine'].replace(" ", "")
-			ubattle['version'] = ubattle['version'].replace(" ", "")
+			ubattle['engine'] = ubattle['engine'].split(" ")[0]
+			ubattle['version'] = ubattle['version'].split(" ")[0]
 			client.Send('BATTLEOPENEDEX %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
 		else:
 			# give client without version support a hint, that this battle is incompatible to his version
