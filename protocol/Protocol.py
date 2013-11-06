@@ -421,6 +421,8 @@ class Protocol:
 
 	def _validPasswordSyntax(self, password):
 		'checks if a password is correctly encoded base64(md5())'
+		if not password:
+			return False, 'Empty passwords are not allowed.'
 		try:
 			md5str = base64.b64decode(password)
 		except Exception, e:
@@ -431,6 +433,8 @@ class Protocol:
 
 	def _validUsernameSyntax(self, username):
 		'checks if usernames syntax is correct / doesn''t contain invalid chars'
+		if not username:
+			return False, 'Invalid username.'
 		for char in username:
 			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
 				return False, 'Unicode names are currently disallowed.'
@@ -646,8 +650,9 @@ class Protocol:
 		et: When client joins a channel, sends NOCHANNELTOPIC if the channel has no topic.
 		eb: Enables receiving extended battle commands, like BATTLEOPENEDEX
 		'''
-		if not username:
-			client.Send('DENIED Invalid username.')
+		ok, reason = self._validUsernameSyntax(username)
+		if not ok:
+			client.Send("DENIED %s" %(reason))
 			return
 
 		try: int(cpu)
@@ -688,10 +693,21 @@ class Protocol:
 		else:
 			lobby_id = sentence_args
 			user_id = 0
+
+		if not password:
+			client.Send("DENIED Empty password")
+			return
+
 		if client.hashpw:
 			origpassword = password # store for later use when ghosting
 			m = md5(password)
 			password = base64.b64encode(m.digest())
+
+		ok, reason = self._validPasswordSyntax(password)
+		if not ok:
+			client.Send("DENIED %s" %(reason))
+			return
+
 		try:
 			good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 		except Exception, e:
@@ -2071,6 +2087,9 @@ class Protocol:
 		@required.str name: The name of the update to request.
 		@optional.str version: The version to request. If not provided or found, the default version will be used.
 		'''
+		if client.compat['cl']:
+			client.Send('SERVERMSG REQUESTUPDATEFILE not supported with cl compatibility flag')
+			return
 		nameAndVersion = nameAndVersion.lower()
 		if ' ' in nameAndVersion:
 			name, version = nameAndVersion.rsplit(' ',1)
