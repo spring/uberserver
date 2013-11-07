@@ -143,6 +143,7 @@ class ChanServ:
 				if access in ['mod', 'founder', 'op']:
 					if not args: return '#%s: You must specify a channel key to lock a channel' % chan
 					channel.setKey(client, args)
+					self.channeldb.setKey(channel, args)
 					## STUBS ARE BELOW
 					return '#%s: Locked' % chan
 				else:
@@ -150,6 +151,7 @@ class ChanServ:
 			elif cmd == 'unlock':
 				if access in ['mod', 'founder', 'op']:
 					channel.setKey(client, '*')
+					self.channeldb.setkey(channel, '*')
 					return '#%s: Unlocked' % chan
 				else:
 					return '#%s: You do not have permission to unlock the channel' % chan

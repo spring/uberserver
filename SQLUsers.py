@@ -542,6 +542,14 @@ class ChannelsHandler:
 			session.commit()
 		session.close()
 
+	def setKey(self, chan, key):
+		session = self.sessionmaker()
+		entry = session.query(Channel).filter(Channel.name == chan.name).first()
+		if entry:
+			entry.key = key
+			session.commit()
+		session.close()
+
 	def register(self, channel, client, target):
 		session = self.sessionmaker()
 		entry = session.query(Channel).filter(Channel.name == channel.name)
