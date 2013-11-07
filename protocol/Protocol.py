@@ -2499,10 +2499,10 @@ class Protocol:
 		'''
 		if not 'admin' in client.accesslevels:
 		    return
+		self._root.reload()
 		self._root.console_write("Stats of command usage:")
 		for k,v in self.stats.iteritems():
 			self._root.console_write("%s %d" % (k, v))
-		self._root.reload()
 
 def make_docs():
 	response = []
