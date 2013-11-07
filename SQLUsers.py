@@ -229,6 +229,8 @@ class UsersHandler:
 	def login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		session = self.sessionmaker()
 
+		if self._root.censor and not self._root.SayHooks._nasty_word_censor(username):
+			return False, 'Name failed to pass profanity filter.'
 		good = True
 		dbuser = session.query(User).filter(User.username==username, User.password == password).first() # should only ever be one user with each name so we can just grab the first one :)
 		if not dbuser:
