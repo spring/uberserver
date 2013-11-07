@@ -227,14 +227,17 @@ class UsersHandler:
 		return False, ""
 		
 	def login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
-		session = self.sessionmaker()
 
 		if self._root.censor and not self._root.SayHooks._nasty_word_censor(username):
 			return False, 'Name failed to pass profanity filter.'
+
+		session = self.sessionmaker()
 		good = True
 		dbuser = session.query(User).filter(User.username==username, User.password == password).first() # should only ever be one user with each name so we can just grab the first one :)
 		if not dbuser:
+			session.close()
 			return False, 'Invalid username or password'
+
 
 		now = datetime.now()
 		banned, dbban = self.check_ban(username, ip, user_id, now)
@@ -275,12 +278,13 @@ class UsersHandler:
 
 	def register_user(self, user, password, ip, country): # need to add better ban checks so it can check if an ip address is banned when registering an account :)
 		if len(user)>20: return False, 'Username too long'
-		session = self.sessionmaker()
 		if self._root.censor:
 			if not self._root.SayHooks._nasty_word_censor(user):
 				return False, 'Name failed to pass profanity filter.'
+		session = self.sessionmaker()
 		results = session.query(User).filter(User.username==user).first()
 		if results:
+			session.close()
 			return False, 'Username already exists.'
 		entry = User(user, password, ip)
 		session.add(entry)
@@ -293,6 +297,7 @@ class UsersHandler:
 		session = self.sessionmaker()
 		entry = session.query(User).filter(User.username==username).first()
 		if not entry:
+			session.close()
 			return "Couldn't ban %s, user doesn't exist" % (username)
 		end_time = datetime.now() + timedelta(duration)
 		ban = Ban(reason, end_time)
