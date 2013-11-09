@@ -94,6 +94,7 @@ except KeyboardInterrupt:
 except:
 	_root.error(traceback.format_exc())
 	_root.console_write('Deep error, exiting...')
+	_root.console_print_step() # try to flush output buffer to log file
 
 # _root.console_write('Killing handlers.')
 # for handler in _root.clienthandlers:
