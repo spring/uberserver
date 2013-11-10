@@ -33,8 +33,8 @@ class EpollMultiplexer:
 		if s in self.socketToFileno:
 			fileno = self.socketToFileno[s]
 			self.poller.unregister(fileno)
+			del self.socketToFileno[s]
 			del self.filenoToSocket[fileno]
-		del self.socketToFileno[s]
 
 	def setoutput(self, s, ready):
 		# this if structure means it only scans output once.
