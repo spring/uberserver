@@ -68,7 +68,10 @@ class EpollMultiplexer:
 		errors = []
 
 		for fd, mask in results:
-			s = self.filenoToSocket[fd]
+			try:
+				s = self.filenoToSocket[fd]
+			except: # FIXME: socket was already deleted, shouldn't happen, but does!
+				continue
 			if mask & self.inMask: inputs.append(s)
 			if mask & self.outMask: outputs.append(s)
 			if mask & self.errMask: errors.append(s)
