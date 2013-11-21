@@ -78,6 +78,7 @@ class Client:
 		
 		now = time.time()
 		self.last_login = now
+		self.failed_logins = 0
 		self.register_date = now
 		self.lastdata = now
 		self.last_id = 0

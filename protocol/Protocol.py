@@ -651,8 +651,12 @@ class Protocol:
 		et: When client joins a channel, sends NOCHANNELTOPIC if the channel has no topic.
 		eb: Enables receiving extended battle commands, like BATTLEOPENEDEX
 		'''
+		if client.failed_logins > 2:
+			client.Send("DENIED to many failed logins")
+			return
 		ok, reason = self._validUsernameSyntax(username)
 		if not ok:
+			client.failed_logins = failed_logins + 1
 			client.Send("DENIED %s" %(reason))
 			return
 
@@ -696,6 +700,7 @@ class Protocol:
 			user_id = 0
 
 		if not password:
+			client.failed_logins = client.failed_logins + 1
 			client.Send("DENIED Empty password")
 			return
 
@@ -706,6 +711,7 @@ class Protocol:
 
 		ok, reason = self._validPasswordSyntax(password)
 		if not ok:
+			client.failed_logins = client.failed_logins + 1
 			client.Send("DENIED %s" %(reason))
 			return
 
@@ -786,9 +792,11 @@ class Protocol:
 				client.Send('LOGININFOEND')
 			else:
 				self._root.console_write('Handler %s: Failed to log in user <%s> on session %s: %s'%(client.handler.num, username, client.session_id, reason))
+				client.failed_logins = client.failed_logins + 1
 				client.Send('DENIED %s'%reason)
 		else: #user is alreaddy logged in
 			self._root.console_write('Handler %s: Failed to log in user <%s> on session %s. (already logged in)'%(client.handler.num, username, client.session_id))
+			client.failed_logins = client.failed_logins + 1
 			client.Send('DENIED Already logged in.')
 
 	def in_CONFIRMAGREEMENT(self, client):
