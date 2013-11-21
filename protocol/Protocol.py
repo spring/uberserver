@@ -652,12 +652,11 @@ class Protocol:
 		eb: Enables receiving extended battle commands, like BATTLEOPENEDEX
 		'''
 		if client.failed_logins > 2:
-			client.Send("DENIED to many failed logins")
+			self.out_DENIED("to many failed logins")
 			return
 		ok, reason = self._validUsernameSyntax(username)
 		if not ok:
-			client.failed_logins = failed_logins + 1
-			client.Send("DENIED %s" %(reason))
+			self.out_DENIED("DENIED %s" %(reason))
 			return
 
 		try: int(cpu)
@@ -700,8 +699,7 @@ class Protocol:
 			user_id = 0
 
 		if not password:
-			client.failed_logins = client.failed_logins + 1
-			client.Send("DENIED Empty password")
+			self.out_DENIED("Empty password")
 			return
 
 		if client.hashpw:
@@ -711,8 +709,7 @@ class Protocol:
 
 		ok, reason = self._validPasswordSyntax(password)
 		if not ok:
-			client.failed_logins = client.failed_logins + 1
-			client.Send("DENIED %s" %(reason))
+			self.out_DENIED("DENIED %s" %(reason))
 			return
 
 		try:
@@ -791,13 +788,9 @@ class Protocol:
 
 				client.Send('LOGININFOEND')
 			else:
-				self._root.console_write('Handler %s: Failed to log in user <%s> on session %s: %s'%(client.handler.num, username, client.session_id, reason))
-				client.failed_logins = client.failed_logins + 1
-				client.Send('DENIED %s'%reason)
+				self.out_DENIED(reason)
 		else: #user is alreaddy logged in
-			self._root.console_write('Handler %s: Failed to log in user <%s> on session %s. (already logged in)'%(client.handler.num, username, client.session_id))
-			client.failed_logins = client.failed_logins + 1
-			client.Send('DENIED Already logged in.')
+			self.out_DENIED('Already logged in.')
 
 	def in_CONFIRMAGREEMENT(self, client):
 		'Confirm the terms of service as shown with the AGREEMENT commands. Users must accept the terms of service to use their account.'
@@ -1104,33 +1097,33 @@ class Protocol:
 			if sentence_args.count('\t') > 3:
 				engine, version, map, title, modname = sentence_args.split('\t', 4)
 				if not engine:
-					client.Send('OPENBATTLEFAILED No engine specified.')
+					self.out_OPENBATTLEFAILED(client, 'No engine specified.')
 					return False
 				if not version:
-					client.Send('OPENBATTLEFAILED No engine version specified.')
+					self.out_OPENBATTLEFAILED(client, 'No engine version specified.')
 					return False
 				if not map:
-					client.Send('OPENBATTLEFAILED No map name specified.')
+					self.out_OPENBATTLEFAILED(client, 'No map name specified.')
 					return False
 				if not title:
-					client.Send('OPENBATTLEFAILED No title name specified.')
+					self.out_OPENBATTLEFAILED(client, 'No title name specified.')
 					return False
 				if not modname:
-					client.Send('OPENBATTLEFAILED No game name specified.')
+					self.out_OPENBATTLEFAILED(client, 'No game name specified.')
 					return False
 			else:
-				client.Send('OPENBATTLEFAILED To few arguments.')
+				self.out_OPENBATTLEFAILED(client, 'To few arguments.')
 				return False
 		else:
 			if sentence_args.count('\t') > 1:
 				map, title, modname = sentence_args.split('\t',2)
 
 				if not modname:
-					client.Send('OPENBATTLEFAILED No game name specified.')
-					return
+					self.out_OPENBATTLEFAILED(client, 'No game name specified.')
+					return False
 				if not map:
-					client.Send('OPENBATTLEFAILED No map name specified.')
-					return
+					self.out_OPENBATTLEFAILED(client, 'No map name specified.')
+					return False
 			else:
 				return False
 
@@ -1145,9 +1138,9 @@ class Protocol:
 		try:
 			int(battle_id), int(type), int(natType), int(passworded), int(port), int32(maphash)
 		except Exception, e:
-			client.Send('OPENBATTLEFAILED Invalid argument type, send this to your lobby dev: id=%s type=%s natType=%s passworded=%s port=%s maphash=%s - %s' %
+			self.out_OPENBATTLEFAILED(client, 'Invalid argument type, send this to your lobby dev: id=%s type=%s natType=%s passworded=%s port=%s maphash=%s - %s' %
 						(battle_id, type, natType, passworded, port, maphash, e.replace("\n", "")))
-			return
+			return False
 
 		client.current_battle = battle_id
 
@@ -1199,10 +1192,10 @@ class Protocol:
 			map, title, modname = sentence_args.split('\t', 2)
 
 			if not modname:
-				client.Send('OPENBATTLEFAILED No game name specified.')
+				self.out_OPENBATTLEFAILED(client, 'No game name specified.')
 				return
 			if not map:
-				client.Send('OPENBATTLEFAILED No map name specified.')
+				self.out_OPENBATTLEFAILED(client, 'No map name specified.')
 				return
 		else:
 			return False
@@ -1229,7 +1222,7 @@ class Protocol:
 			int(battle_id), int(type), int(natType), int(passworded), int(port), int32(maphash)
 		except:
 			client.current_battle = None
-			client.Send('OPENBATTLEFAILED Invalid argument type, send this to your lobby dev:'
+			self.out_OPENBATTLEFAILED(client, 'Invalid argument type, send this to your lobby dev:'
 						'id=%(id)s type=%(type)s natType=%(natType)s passworded=%(passworded)s port=%(port)s maphash=%(maphash)s' % ubattle)
 			return
 
@@ -2512,6 +2505,24 @@ class Protocol:
 		self._root.console_write("Stats of command usage:")
 		for k,v in self.stats.iteritems():
 			self._root.console_write("%s %d" % (k, v))
+	# Begin outgoing protocol section #
+	#
+	# any function definition beginning with out_ and ending with capital letters
+	# is a definition of an outgoing command.
+	def out_DENIED(self, client, reason):
+		'''
+			response to LOGIN
+		'''
+		client.failed_logins = failed_logins + 1
+		client.Send("DENIED %s" %(reason))
+		self._root.console_write('Handler %s: Failed to log in user <%s> on session %s: %s'%(client.handler.num, username, client.session_id, reason))
+
+	def out_OPENBATTLEFAILED(self, client, reason):
+		'''
+			response to OPENBATTLE
+		'''
+		client.Send('OPENBATTLEFAILED %s' % (reason))
+
 
 def make_docs():
 	response = []
