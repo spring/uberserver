@@ -2515,7 +2515,7 @@ class Protocol:
 		'''
 		client.failed_logins = client.failed_logins + 1
 		client.Send("DENIED %s" %(reason))
-		self._root.console_write('Handler %s: Failed to log in user <%s> on session %s: %s'%(client.handler.num, username, client.session_id, reason))
+		self._root.console_write('Handler %s: Failed to log in user <%s> on session %s: %s'%(client.handler.num, client.username, client.session_id, reason))
 
 	def out_OPENBATTLEFAILED(self, client, reason):
 		'''
