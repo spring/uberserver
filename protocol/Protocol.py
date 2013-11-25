@@ -652,11 +652,11 @@ class Protocol:
 		eb: Enables receiving extended battle commands, like BATTLEOPENEDEX
 		'''
 		if client.failed_logins > 2:
-			self.out_DENIED(client, "to many failed logins")
+			self.out_DENIED(client, username, "to many failed logins")
 			return
 		ok, reason = self._validUsernameSyntax(username)
 		if not ok:
-			self.out_DENIED(client, "DENIED %s" %(reason))
+			self.out_DENIED(client, username, reason)
 			return
 
 		try: int(cpu)
@@ -699,7 +699,7 @@ class Protocol:
 			user_id = 0
 
 		if not password:
-			self.out_DENIED(client, "Empty password")
+			self.out_DENIED(client, username, "Empty password")
 			return
 
 		if client.hashpw:
@@ -709,7 +709,7 @@ class Protocol:
 
 		ok, reason = self._validPasswordSyntax(password)
 		if not ok:
-			self.out_DENIED(client, "DENIED %s" %(reason))
+			self.out_DENIED(client, username, reason)
 			return
 
 		try:
@@ -788,9 +788,9 @@ class Protocol:
 
 				client.Send('LOGININFOEND')
 			else:
-				self.out_DENIED(client, reason)
+				self.out_DENIED(client, username, reason)
 		else: #user is alreaddy logged in
-			self.out_DENIED(client, 'Already logged in.')
+			self.out_DENIED(client, username, 'Already logged in.')
 
 	def in_CONFIRMAGREEMENT(self, client):
 		'Confirm the terms of service as shown with the AGREEMENT commands. Users must accept the terms of service to use their account.'
@@ -2509,13 +2509,13 @@ class Protocol:
 	#
 	# any function definition beginning with out_ and ending with capital letters
 	# is a definition of an outgoing command.
-	def out_DENIED(self, client, reason):
+	def out_DENIED(self, client, username, reason):
 		'''
 			response to LOGIN
 		'''
 		client.failed_logins = client.failed_logins + 1
 		client.Send("DENIED %s" %(reason))
-		self._root.console_write('Handler %s: Failed to log in user <%s> on session %s: %s'%(client.handler.num, client.username, client.session_id, reason))
+		self._root.console_write('Handler %s: Failed to log in user <%s> on session %s: %s'%(client.handler.num, username, client.session_id, reason))
 
 	def out_OPENBATTLEFAILED(self, client, reason):
 		'''
