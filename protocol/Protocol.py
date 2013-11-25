@@ -683,8 +683,7 @@ class Protocol:
 					if not flag in flag_map:
 						unsupported +=  " " +flag
 				if len(unsupported)>0:
-					# FIXME: enable this
-					# client.Send("SERVERMSG Unsupported/unknown compatibility flag(s) in LOGIN: %s" % (unsupported))
+					client.Send("SERVERMSG Unsupported/unknown compatibility flag(s) in LOGIN: %s" % (unsupported))
 					self._root.console_write('Handler %s: <%s> %s Unsupported compatibility flag(s) in_LOGIN: %s ' % (client.handler.num, username, client.session_id, unsupported))
 
 			if user_id.replace('-','',1).isdigit():
