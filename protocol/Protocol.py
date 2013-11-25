@@ -652,11 +652,11 @@ class Protocol:
 		eb: Enables receiving extended battle commands, like BATTLEOPENEDEX
 		'''
 		if client.failed_logins > 2:
-			self.out_DENIED("to many failed logins")
+			self.out_DENIED(client, "to many failed logins")
 			return
 		ok, reason = self._validUsernameSyntax(username)
 		if not ok:
-			self.out_DENIED("DENIED %s" %(reason))
+			self.out_DENIED(client, "DENIED %s" %(reason))
 			return
 
 		try: int(cpu)
@@ -699,7 +699,7 @@ class Protocol:
 			user_id = 0
 
 		if not password:
-			self.out_DENIED("Empty password")
+			self.out_DENIED(client, "Empty password")
 			return
 
 		if client.hashpw:
@@ -709,7 +709,7 @@ class Protocol:
 
 		ok, reason = self._validPasswordSyntax(password)
 		if not ok:
-			self.out_DENIED("DENIED %s" %(reason))
+			self.out_DENIED(client, "DENIED %s" %(reason))
 			return
 
 		try:
@@ -788,9 +788,9 @@ class Protocol:
 
 				client.Send('LOGININFOEND')
 			else:
-				self.out_DENIED(reason)
+				self.out_DENIED(client, reason)
 		else: #user is alreaddy logged in
-			self.out_DENIED('Already logged in.')
+			self.out_DENIED(client, 'Already logged in.')
 
 	def in_CONFIRMAGREEMENT(self, client):
 		'Confirm the terms of service as shown with the AGREEMENT commands. Users must accept the terms of service to use their account.'
@@ -2513,7 +2513,7 @@ class Protocol:
 		'''
 			response to LOGIN
 		'''
-		client.failed_logins = failed_logins + 1
+		client.failed_logins = client.failed_logins + 1
 		client.Send("DENIED %s" %(reason))
 		self._root.console_write('Handler %s: Failed to log in user <%s> on session %s: %s'%(client.handler.num, username, client.session_id, reason))
 
