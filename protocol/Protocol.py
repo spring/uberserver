@@ -722,10 +722,10 @@ class Protocol:
 			self._root.console_write('Handler %s: <%s> %s Error reading from db in in_LOGIN %s '%(client.handler.num, client.username, client.session_id, e.message))
 			good = False
 			reason = "db error"
-		if good: username = reason.username
 		if not good:
 			self.out_DENIED(client, username, reason)
 			return
+		username = reason.username
 		client.logged_in = True
 		client.access = reason.access
 		self._calc_access(client)
@@ -772,8 +772,8 @@ class Protocol:
 
 		usernames = dict(self._root.usernames) # cache them here in case anyone joins/leaves or hosts/closes a battle
 		for user in usernames:
-				addclient = usernames[user]
-				client.AddUser(addclient)
+			addclient = usernames[user]
+			client.AddUser(addclient)
 
 		battles = dict(self._root.battles)
 		for battle in battles:
