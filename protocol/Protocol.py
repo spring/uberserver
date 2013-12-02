@@ -651,6 +651,11 @@ class Protocol:
 		et: When client joins a channel, sends NOCHANNELTOPIC if the channel has no topic.
 		eb: Enables receiving extended battle commands, like BATTLEOPENEDEX
 		'''
+
+		if username in self._root.usernames: # FIXME: this check should come after client.failed_logins, but is checked first because of a springie bug
+			self.out_DENIED(client, username, 'Already logged in.')
+			return
+
 		if client.failed_logins > 2:
 			self.out_DENIED(client, username, "to many failed logins")
 			return
@@ -718,78 +723,75 @@ class Protocol:
 			good = False
 			reason = "db error"
 		if good: username = reason.username
-		if not username in self._root.usernames:
-			if good:
-				client.logged_in = True
-				client.access = reason.access
-				self._calc_access(client)
-				client.username = reason.username
-				client.password = reason.password
-				client.lobby_id = reason.lobby_id
-				client.bot = reason.bot
-				client.register_date = reason.register_date
-				client.last_login = reason.last_login
-				client.cpu = cpu
+		if not good:
+			self.out_DENIED(client, username, reason)
+			return
+		client.logged_in = True
+		client.access = reason.access
+		self._calc_access(client)
+		client.username = reason.username
+		client.password = reason.password
+		client.lobby_id = reason.lobby_id
+		client.bot = reason.bot
+		client.register_date = reason.register_date
+		client.last_login = reason.last_login
+		client.cpu = cpu
 
-				client.local_ip = None
-				if local_ip.startswith('127.') or not validateIP(local_ip):
-					client.local_ip = client.ip_address
-				else:
-					client.local_ip = local_ip
+		client.local_ip = None
+		if local_ip.startswith('127.') or not validateIP(local_ip):
+			client.local_ip = client.ip_address
+		else:
+			client.local_ip = local_ip
 
-				client.ingame_time = reason.ingame_time
+		client.ingame_time = reason.ingame_time
 
-				if reason.id == None:
-					client.db_id = client.session_id
-				else:
-					client.db_id = reason.id
-				if client.ip_address in self._root.trusted_proxies:
-					client.setFlagByIP(local_ip, False)
+		if reason.id == None:
+			client.db_id = client.session_id
+		else:
+			client.db_id = reason.id
+		if client.ip_address in self._root.trusted_proxies:
+			client.setFlagByIP(local_ip, False)
 
-				if client.access == 'agreement':
-					self._root.console_write('Handler %s: Sent user <%s> the terms of service on session %s.'%(client.handler.num, username, client.session_id))
-					for line in self.agreement:
-						client.Send("AGREEMENT %s" %(line))
-					client.Send('AGREEMENTEND')
-					return
-				self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s %s.'%(client.handler.num, username, client.session_id, client.access))
+		if client.access == 'agreement':
+			self._root.console_write('Handler %s: Sent user <%s> the terms of service on session %s.'%(client.handler.num, username, client.session_id))
+			for line in self.agreement:
+				client.Send("AGREEMENT %s" %(line))
+			client.Send('AGREEMENTEND')
+			return
+		self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s %s.'%(client.handler.num, username, client.session_id, client.access))
 
 
-				self._root.db_ids[client.db_id] = client
-				self._root.usernames[username] = client
+		self._root.db_ids[client.db_id] = client
+		self._root.usernames[username] = client
 
-				client.Send('ACCEPTED %s'%username)
+		client.Send('ACCEPTED %s'%username)
 
-				self._sendMotd(client)
-				self._checkCompat(client)
-				self.broadcast_AddUser(client)
+		self._sendMotd(client)
+		self._checkCompat(client)
+		self.broadcast_AddUser(client)
 
-				usernames = dict(self._root.usernames) # cache them here in case anyone joins/leaves or hosts/closes a battle
-				for user in usernames:
-						addclient = usernames[user]
-						client.AddUser(addclient)
+		usernames = dict(self._root.usernames) # cache them here in case anyone joins/leaves or hosts/closes a battle
+		for user in usernames:
+				addclient = usernames[user]
+				client.AddUser(addclient)
 
-				battles = dict(self._root.battles)
-				for battle in battles:
-					battle = battles[battle]
-					ubattle = battle.copy()
-					client.AddBattle(battle)
-					client.SendBattle(battle, 'UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % ubattle)
-					for user in battle.users:
-						if not user == battle.host:
-							client.SendBattle(battle, 'JOINEDBATTLE %s %s' % (battle.id, user))
+		battles = dict(self._root.battles)
+		for battle in battles:
+			battle = battles[battle]
+			ubattle = battle.copy()
+			client.AddBattle(battle)
+			client.SendBattle(battle, 'UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % ubattle)
+			for user in battle.users:
+				if not user == battle.host:
+					client.SendBattle(battle, 'JOINEDBATTLE %s %s' % (battle.id, user))
 
-				client.status = self._calc_status(client, 0)
-				self.broadcast_SendUser(client, 'CLIENTSTATUS %s %s'%(username, client.status))
-				for user in usernames:
-					if user == username: continue # potential problem spot, might need to check to make sure username is still in user db
-					client.SendUser(user, 'CLIENTSTATUS %s %s'%(user, usernames[user].status))
+		client.status = self._calc_status(client, 0)
+		self.broadcast_SendUser(client, 'CLIENTSTATUS %s %s'%(username, client.status))
+		for user in usernames:
+			if user == username: continue # potential problem spot, might need to check to make sure username is still in user db
+			client.SendUser(user, 'CLIENTSTATUS %s %s'%(user, usernames[user].status))
 
-				client.Send('LOGININFOEND')
-			else:
-				self.out_DENIED(client, username, reason)
-		else: #user is alreaddy logged in
-			self.out_DENIED(client, username, 'Already logged in.')
+		client.Send('LOGININFOEND')
 
 	def in_CONFIRMAGREEMENT(self, client):
 		'Confirm the terms of service as shown with the AGREEMENT commands. Users must accept the terms of service to use their account.'
