@@ -214,18 +214,18 @@ class Protocol:
 
 		if command in restricted_list:
 			if not command in access:
-				client.Send('SERVERMSG %s failed. Insufficient rights.'%command)
+				self.out_SERVERMSG(client, '%s failed. Insufficient rights.' % command)
 				return False
 		else:
 			if not 'user' in client.accesslevels:
-				client.Send('SERVERMSG %s failed. Insufficient rights.'%command)
+				self.out_SERVERMSG(client, '%s failed. Insufficient rights.'%command)
 				return False
 
 		funcname = 'in_%s' % command
 		if funcname in self.dir:
 			function = getattr(self, funcname)
 		else:
-			client.Send('SERVERMSG %s failed. Command does not exist.'%(command))
+			self.out_SERVERMSG(client, '%s failed. Command does not exist.'%(command))
 			return False
 
 		# update statistics
@@ -247,7 +247,7 @@ class Protocol:
 		# check if we've got enough words for filling the required args
 		required_args = total_args - optional_args
 		if numspaces < required_args:
-			client.Send('SERVERMSG %s failed. Incorrect arguments.'%(command))
+			self.out_SERVERMSG(client, '%s failed. Incorrect arguments.'%(command))
 			return False
 		if required_args == 0 and numspaces == 0:
 			function(client)
@@ -264,7 +264,7 @@ class Protocol:
 		#try:
 		#	function(*([client]+arguments))
 		#except TypeError:
-		#	client.Send('SERVERMSG %s failed. Incorrect arguments.'%command.partition('in_')[2])
+		#	self.out_SERVERMSG(client, '%s failed. Incorrect arguments.'%command.partition('in_')[2])
 		return True
 
 	def _bin2dec(self, s):
@@ -627,9 +627,9 @@ class Protocol:
 		'''
 		client.hashpw = not client.hashpw
 		if client.hashpw:
-			client.Send('SERVERMSG Your password will be hashed for you when you login.')
+			self.out_SERVERMSG(client, 'Your password will be hashed for you when you login.')
 		else:
-			client.Send('SERVERMSG Auto-Password hashing disabled.')
+			self.out_SERVERMSG(client, 'Auto-Password hashing disabled.')
 
 	def in_LOGIN(self, client, username, password='', cpu='0', local_ip='', sentence_args=''):
 		'''
@@ -683,7 +683,7 @@ class Protocol:
 					if not flag in flag_map:
 						unsupported +=  " " +flag
 				if len(unsupported)>0:
-					client.Send("SERVERMSG Unsupported/unknown compatibility flag(s) in LOGIN: %s" % (unsupported))
+					self.out_SERVERMSG(client, 'Unsupported/unknown compatibility flag(s) in LOGIN: %s' % (unsupported))
 					self._root.console_write('Handler %s: <%s> %s Unsupported compatibility flag(s) in_LOGIN: %s ' % (client.handler.num, username, client.session_id, unsupported))
 
 			if user_id.replace('-','',1).isdigit():
@@ -939,13 +939,13 @@ class Protocol:
 		'''
 		ok, reason = self._validChannelSyntax(chan)
 		if not ok:
-			client.Send('SERVERMSG %s' % reason)
+			self.out_SERVERMSG(client, '%s' % reason)
 			return
 
 		if user in self._root.usernames:
 			self._handle(self._root.usernames[user], "JOIN %s %s" % (chan, key))
 		else:
-			client.Send('SERVERMSG %s user not found' % user)
+			self.out_SERVERMSG(client, '%s user not found' % user)
 
 	def in_JOIN(self, client, chan, key=None):
 		'''
@@ -1527,7 +1527,7 @@ class Protocol:
 				if battle.sending_replay_script:
 					if len(battle.replay_script) > 512 and len('\n'.join(battle.replay_script)) > 512*1024:
 						battle.sending_replay_script = False
-						client.Send('SERVERMSG Script too long (over 512KB). Discarding.')
+						self.out_SERVERMSG(client, 'Script too long (over 512KB). Discarding.')
 					else:
 						battle.replay_script.append('%s\n'%scriptline)
 
@@ -1595,10 +1595,10 @@ class Protocol:
 			if int(battlestatus) < 1:
 				battlestatus = str(int(battlestatus) + 2147483648)
 		except:
-			client.Send('SERVERMSG MYBATTLESTATUS failed - invalid status (%s).'%battlestatus)
+			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid status (%s).'%battlestatus)
 			return
 		if not myteamcolor.isdigit():
-			client.Send('SERVERMSG MYBATTLESTATUS failed - invalid teamcolor (%s).'%myteamcolor)
+			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid teamcolor (%s).'%myteamcolor)
 			return
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
@@ -1667,7 +1667,7 @@ class Protocol:
 		@required.int status: A bitfield of your status. The server forces a few values itself, as well.
 		'''
 		if not status.isdigit():
-			client.Send('SERVERMSG MYSTATUS failed - invalid status.')
+			self.out_SERVERMSG(client, 'MYSTATUS failed - invalid status.')
 			return
 		was_ingame = client.is_ingame
 		client.status = self._calc_status(client, status)
@@ -1707,7 +1707,7 @@ class Protocol:
 				channels.append(channel)
 
 		if not channels:
-			client.Send('SERVERMSG No channels are currently visible (they must be registered and unlocked).')
+			self.out_SERVERMSG(client, 'No channels are currently visible (they must be registered and unlocked).')
 			return
 
 		for channel in channels:
@@ -1752,17 +1752,17 @@ class Protocol:
 		@optional.str reason: A reason for kicking the user..
 		'''
 		if not chan in self._root.channels:
-			client.Send('SERVERMSG channel <%s> does not exist!' % (chan))
+			self.out_SERVERMSG(client, 'channel <%s> does not exist!' % (chan))
 			return
 		channel = self._root.channels[chan]
 		if not (channel.isOp(client) or 'mod' in client.accesslevels):
-			client.Send('SERVERMSG access denied')
+			self.out_SERVERMSG(client, 'access denied')
 		target = self._root.clientFromUsername(username)
 		if target and username in channel.users:
 			channel.kickUser(client, target, reason)
-			client.Send('SERVERMSG <%s> kicked from channel #%s' % (username, chan))
+			self.out_SERVERMSG(client, '<%s> kicked from channel #%s' % (username, chan))
 		else:
-			client.Send('SERVERMSG <%s> not in channel #%s' % (username, chan))
+			self.out_SERVERMSG(client, '<%s> not in channel #%s' % (username, chan))
 
 	def in_RING(self, client, username):
 		'''
@@ -1915,7 +1915,7 @@ class Protocol:
 					else:
 						self.in_LEAVEBATTLE(kickuser)
 			else:
-				client.Send('SERVERMSG You must be the battle host to kick from a battle.')
+				self.out_SERVERMSG(client, 'You must be the battle host to kick from a battle.')
 
 	def in_FORCETEAMNO(self, client, username, teamno):
 		'''
@@ -2052,7 +2052,7 @@ class Protocol:
 			battle = self._root.battles[battle_id]
 			self.in_KICKFROMBATTLE(client, battle.host)
 		else:
-			client.Send('SERVERMSG Invalid battle ID.')
+			self.out_SERVERMSG(client, 'Invalid battle ID.')
 
 	def in_GETINGAMETIME(self, client, username=None):
 		'''
@@ -2067,18 +2067,18 @@ class Protocol:
 		if username and 'mod' in client.accesslevels:
 			if username in self._root.usernames: # maybe abstract in the datahandler to automatically query SQL for users not logged in.
 				ingame_time = int(self._root.usernames[username].ingame_time)
-				client.Send('SERVERMSG <%s> has an ingame time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
+				self.out_SERVERMSG(client, '<%s> has an ingame time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
 			else:
 				good, data = self.userdb.get_ingame_time(username)
 				if good:
 					ingame_time = int(data)
-					client.Send('SERVERMSG <%s> has an ingame time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
-				else: client.Send('SERVERMSG Database returned error when retrieving ingame time for <%s> (%s)' % (username, data))
+					self.out_SERVERMSG(client, '<%s> has an ingame time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
+				else: self.out_SERVERMSG(client, 'Database returned error when retrieving ingame time for <%s> (%s)' % (username, data))
 		elif not username:
 			ingame_time = int(client.ingame_time)
-			client.Send('SERVERMSG Your ingame time is %d minutes (%d hours).'%(ingame_time, ingame_time / 60))
+			self.out_SERVERMSG(client, 'Your ingame time is %d minutes (%d hours).'%(ingame_time, ingame_time / 60))
 		else:
-			client.Send('SERVERMSG You can\'t get the ingame time of other users.')
+			self.out_SERVERMSG(client, 'You can\'t get the ingame time of other users.')
 
 	def in_REQUESTUPDATEFILE(self, client, nameAndVersion):
 		'''
@@ -2089,7 +2089,7 @@ class Protocol:
 		@optional.str version: The version to request. If not provided or found, the default version will be used.
 		'''
 		if client.compat['cl']:
-			client.Send('SERVERMSG REQUESTUPDATEFILE not supported with cl compatibility flag')
+			self.out_SERVERMSG(client, 'REQUESTUPDATEFILE not supported with cl compatibility flag')
 			return
 		nameAndVersion = nameAndVersion.lower()
 		if ' ' in nameAndVersion:
@@ -2109,7 +2109,7 @@ class Protocol:
 		'''
 		Get the server's uptime.
 		'''
-		client.Send('SERVERMSG Server uptime is %s.' % self._time_since(self._root.start_time))
+		self.out_SERVERMSG(client, 'Server uptime is %s.' % self._time_since(self._root.start_time))
 
 	def in_GETLASTLOGINTIME(self, client, username):
 		'''
@@ -2119,8 +2119,8 @@ class Protocol:
 		'''
 		if username:
 			good, data = self.userdb.get_lastlogin(username)
-			if good: client.Send('SERVERMSG <%s> last logged in on %s.' % (username, data.isoformat()))
-			else: client.Send('SERVERMSG Database returned error when retrieving last login time for <%s> (%s)' % (username, data))
+			if good: self.out_SERVERMSG(client, '<%s> last logged in on %s.' % (username, data.isoformat()))
+			else: self.out_SERVERMSG(client, 'Database returned error when retrieving last login time for <%s> (%s)' % (username, data))
 
 	def in_GETREGISTRATIONDATE(self, client, username=None):
 		'''
@@ -2142,24 +2142,24 @@ class Protocol:
 			username = client.username
 			reason = client.register_date
 		if good and reason:
-			client.Send('SERVERMSG <%s> registered on %s.' % (username, reason.isoformat()))
+			self.out_SERVERMSG(client, '<%s> registered on %s.' % (username, reason.isoformat()))
 			return
-		client.Send("SERVERMSG Couldn't retrieve registration date for <%s> (%s)" % (username, reason))
+		self.out_SERVERMSG(client, "Couldn't retrieve registration date for <%s> (%s)" % (username, reason))
 
 	def in_GETUSERID(self, client, username):
 		user = self.userdb.clientFromUsername(username)
 		if user:
-			client.Send('SERVERMSG The ID for <%s> is %s' % (username, user.last_id))
+			self.out_SERVERMSG(client, 'The ID for <%s> is %s' % (username, user.last_id))
 		else:
-			client.Send('SERVERMSG User not found.')
+			self.out_SERVERMSG(client, 'User not found.')
 
 	def in_GENERATEUSERID(self, client, username):
 		user = self._root.clientFromUsername(username)
 		if user:
-			client.Send('SERVERMSG The ID for <%s> requested' % (username))
+			self.out_SERVERMSG(client, 'The ID for <%s> requested' % (username))
 			user.Send('ACQUIREUSERID')
 		else:
-			client.Send('SERVERMSG User not found.')
+			self.out_SERVERMSG(client, 'User not found.')
 
 	def in_GETACCOUNTACCESS(self, client, username):
 		'''
@@ -2170,9 +2170,9 @@ class Protocol:
 		'''
 		good, data = self.userdb.get_account_access(username)
 		if good:
-			client.Send('SERVERMSG Account access for <%s>: %s' % (username, data))
+			self.out_SERVERMSG(client, 'Account access for <%s>: %s' % (username, data))
 		else:
-			client.Send('SERVERMSG Database returned error when retrieving account access for <%s> (%s)' % (username, data))
+			self.out_SERVERMSG(client, 'Database returned error when retrieving account access for <%s> (%s)' % (username, data))
 
 	def in_FINDIP(self, client, address):
 		'''
@@ -2183,13 +2183,13 @@ class Protocol:
 		results = self.userdb.find_ip(address)
 		for entry in results:
 			if entry.username in self._root.usernames:
-				client.Send('SERVERMSG <%s> is currently bound to %s.' % (entry.username, address))
+				self.out_SERVERMSG(client, '<%s> is currently bound to %s.' % (entry.username, address))
 			else:
 				if entry.last_login:
 					lastlogin = entry.last_login.isoformat()
 				else:
 					lastlogin = "Unknown"
-				client.Send('SERVERMSG <%s> was recently bound to %s at %s' % (entry.username, address, lastlogin))
+				self.out_SERVERMSG(client, '<%s> was recently bound to %s at %s' % (entry.username, address, lastlogin))
 
 	def in_GETLASTIP(self, client, username):
 		'''
@@ -2204,12 +2204,12 @@ class Protocol:
 		@required.str username: The target user.
 		'''
 		if username in self._root.usernames:
-			client.Send('SERVERMSG <%s> is currently bound to %s' % (username, self._root.usernames[username].ip_address))
+			self.out_SERVERMSG(client, '<%s> is currently bound to %s' % (username, self._root.usernames[username].ip_address))
 			return
 
 		ip = self.userdb.get_ip(username)
 		if ip:
-			client.Send('SERVERMSG <%s> was recently bound to %s' % (username, ip))
+			self.out_SERVERMSG(client, '<%s> was recently bound to %s' % (username, ip))
 
 	def in_RENAMEACCOUNT(self, client, newname):
 		'''
@@ -2219,19 +2219,19 @@ class Protocol:
 		'''
 		good, reason = self._validUsernameSyntax(newname)
 		if not good:
-			client.Send('SERVERMSG %s' %(reason))
+			self.out_SERVERMSG(client, '%s' %(reason))
 			return
 
 		user = client.username
 		if user == newname:
-			client.Send('SERVERMSG You already have that username.')
+			self.out_SERVERMSG(client, 'You already have that username.')
 			return
 		good, reason = self.userdb.rename_user(user, newname)
 		if good:
-			client.SendNow('SERVERMSG Your account has been renamed to <%s>. Reconnect with the new username (you will now be automatically disconnected).' % newname)
+			self.out_SERVERMSG(client, 'Your account has been renamed to <%s>. Reconnect with the new username (you will now be automatically disconnected).' % newname)
 			client.Remove('renaming')
 		else:
-			client.Send('SERVERMSG Failed to rename to <%s>: %s' % (newname, reason))
+			self.out_SERVERMSG(client, 'Failed to rename to <%s>: %s' % (newname, reason))
 
 	def in_CHANGEPASSWORD(self, client, oldpassword, newpassword):
 		'''
@@ -2242,16 +2242,16 @@ class Protocol:
 		'''
 		good, reason = self._validPasswordSyntax(newpassword)
 		if not good:
-			client.Send('SERVERMSG %s' % (reason))
+			self.out_SERVERMSG(client, '%s' % (reason))
 			return
 		user = self.userdb.clientFromUsername(client.username)
 		if user:
 			if user.password == oldpassword:
 				user.password = newpassword
 				self.userdb.save_user(user)
-				client.Send('SERVERMSG Password changed successfully to %s' % newpassword)
+				self.out_SERVERMSG(client, 'Password changed successfully to %s' % newpassword)
 			else:
-				client.Send('SERVERMSG Incorrect old password.')
+				self.out_SERVERMSG(client, 'Incorrect old password.')
 
 	def in_USERID(self, client, user_id):
 		'''
@@ -2270,7 +2270,7 @@ class Protocol:
 		@required.str message: The message to forge from them.
 		'''
 		#!!Aegis!! - we need this for quickmatching!! Dont remove it, its for nightwatch
-		#client.Send('SERVERMSG Forging messages is disabled.')
+		#self.out_SERVERMSG(client, 'Forging messages is disabled.')
 		#client.Remove('admin abuse')
 		#return
 
@@ -2289,7 +2289,7 @@ class Protocol:
 		'''
 		user = self.clientFromUsername(username)
 		if user and 'lobby_id' in dir(user):
-			client.Send('SERVERMSG <%s> is using %s'%(user.username, user.lobby_id))
+			self.out_SERVERMSG(client, '<%s> is using %s'%(user.username, user.lobby_id))
 
 	def in_SETBOTMODE(self, client, username, mode):
 		'''
@@ -2303,7 +2303,7 @@ class Protocol:
 			bot = (mode.lower() in ('true', 'yes', '1'))
 			user.bot = bot
 			self.userdb.save_user(user)
-			client.Send('SERVERMSG Botmode for <%s> successfully changed to %s' % (username, bot))
+			self.out_SERVERMSG(client, 'Botmode for <%s> successfully changed to %s' % (username, bot))
 
 	def in_CHANGEACCOUNTPASS(self, client, username, newpass):
 		'''
@@ -2316,16 +2316,16 @@ class Protocol:
 		user = self.userdb.clientFromUsername(username)
 		if user:
 			if user.access in ('mod', 'admin') and not client.access == 'admin':
-				client.Send('SERVERMSG You have insufficient access to change moderator passwords.')
+				self.out_SERVERMSG(client, 'You have insufficient access to change moderator passwords.')
 			else:
 				res, reason = self._validPasswordSyntax(newpass)
 				if not res:
-					client.Send("SERVERMSG invalid password specified: %s" %(reason))
+					self.out_SERVERMSG(client, "invalid password specified: %s" %(reason))
 					return
 				self._root.console_write('Handler %s: <%s> changed password of <%s>.' % (client.handler.num, client.username, username))
 				user.password = newpass
 				self.userdb.save_user(user)
-				client.Send('SERVERMSG Password for <%s> successfully changed to %s' % (username, newpass))
+				self.out_SERVERMSG(client, 'Password for <%s> successfully changed to %s' % (username, newpass))
 
 	def in_BROADCAST(self, client, msg):
 		'''
@@ -2358,7 +2358,7 @@ class Protocol:
 		@required.str version: The new version to apply.
 		'''
 		self._root.latestspringversion = version
-		client.Send('SERVERMSG Latest spring version is now set to: %s' % version)
+		self.out_SERVERMSG(client, 'Latest spring version is now set to: %s' % version)
 
 	def in_KICKUSER(self, client, user, reason=''):
 		'''
@@ -2377,8 +2377,8 @@ class Protocol:
 			if not quiet:
 				for chan in list(kickeduser.channels):
 					self._root.broadcast('CHANNELMESSAGE %s <%s> kicked <%s> from the server%s'%(chan, client.username, user, reason),chan)
-			client.Send('SERVERMSG You\'ve kicked <%s> from the server.' % user)
-			kickeduser.SendNow('SERVERMSG You\'ve been kicked from server by <%s>%s' % (client.username, reason))
+			self.out_SERVERMSG(client, 'You\'ve kicked <%s> from the server.' % user)
+			kickeduser.out_SERVERMSG(kickeduser, 'You\'ve been kicked from server by <%s>%s' % (client.username, reason))
 			kickeduser.Remove('Kicked from server')
 
 	def in_TESTLOGIN(self, client, username, password):
@@ -2423,10 +2423,10 @@ class Protocol:
 		'''
 		try: duration = float(duration)
 		except:
-			client.Send('SERVERMSG Duration must be a float (the ban duration in days)')
+			self.out_SERVERMSG(client, 'Duration must be a float (the ban duration in days)')
 			return
 		response = self.userdb.ban_user(client.username, username, duration, reason)
-		if response: client.Send('SERVERMSG %s' % response)
+		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_UNBAN(self, client, username):
 		'''
@@ -2435,7 +2435,7 @@ class Protocol:
 		@required.str username: The target user.
 		'''
 		response = self.userdb.unban_user(username)
-		if response: client.Send('SERVERMSG %s' % response)
+		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_BANIP(self, client, ip, duration, reason):
 		'''
@@ -2447,9 +2447,9 @@ class Protocol:
 		'''
 		try: duration = float(duration)
 		except:
-			client.Send('SERVERMSG Duration must be a float (the ban duration in days)')
+			self.out_SERVERMSG(client, 'Duration must be a float (the ban duration in days)')
 		response = self.userdb.ban_ip(client.username, ip, duration, reason)
-		if response: client.Send('SERVERMSG %s' % response)
+		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_UNBANIP(self, client, ip):
 		'''
@@ -2458,14 +2458,14 @@ class Protocol:
 		@required.str ip: The target IP.
 		'''
 		response = self.userdb.unban_ip(ip)
-		if response: client.Send('SERVERMSG %s' % response)
+		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_BANLIST(self, client):
 		'''
 		Retrieve a list of all bans currently active on the server.
 		'''
 		for entry in self.userdb.banlist():
-			client.Send('SERVERMSG %s' % entry)
+			self.out_SERVERMSG(client, '%s' % entry)
 
 	def in_SETACCESS(self, client, username, access):
 		'''
@@ -2521,6 +2521,12 @@ class Protocol:
 			response to OPENBATTLE
 		'''
 		client.Send('OPENBATTLEFAILED %s' % (reason))
+
+	def out_SERVERMSG(self, client, message):
+		'''
+			send a message to the client
+		'''
+		client.Send('SERVERMESSAGE %s' %(message))
 
 
 def make_docs():
