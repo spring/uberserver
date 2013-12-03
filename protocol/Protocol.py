@@ -653,7 +653,7 @@ class Protocol:
 		'''
 
 		if username in self._root.usernames: # FIXME: this check should come after client.failed_logins, but is checked first because of a springie bug
-			self.out_DENIED(client, username, 'Already logged in.')
+			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
 
 		if client.failed_logins > 2:
@@ -2510,11 +2510,12 @@ class Protocol:
 	#
 	# any function definition beginning with out_ and ending with capital letters
 	# is a definition of an outgoing command.
-	def out_DENIED(self, client, username, reason):
+	def out_DENIED(self, client, username, reason, inc = True):
 		'''
 			response to LOGIN
 		'''
-		client.failed_logins = client.failed_logins + 1
+		if inc:
+			client.failed_logins = client.failed_logins + 1
 		client.Send("DENIED %s" %(reason))
 		self._root.console_write('Handler %s: Failed to log in user <%s> on session %s: %s'%(client.handler.num, username, client.session_id, reason))
 
