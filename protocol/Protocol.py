@@ -2380,7 +2380,7 @@ class Protocol:
 				for chan in list(kickeduser.channels):
 					self._root.broadcast('CHANNELMESSAGE %s <%s> kicked <%s> from the server%s'%(chan, client.username, user, reason),chan)
 			self.out_SERVERMSG(client, 'You\'ve kicked <%s> from the server.' % user)
-			kickeduser.out_SERVERMSG(kickeduser, 'You\'ve been kicked from server by <%s>%s' % (client.username, reason))
+			self.out_SERVERMSG(kickeduser, 'You\'ve been kicked from server by <%s>%s' % (client.username, reason))
 			kickeduser.Remove('Kicked from server')
 
 	def in_TESTLOGIN(self, client, username, password):
