@@ -652,7 +652,7 @@ class Protocol:
 		eb: Enables receiving extended battle commands, like BATTLEOPENEDEX
 		'''
 
-		if username in self._root.usernames: # FIXME: this check should come after client.failed_logins, but is checked first because of a springie bug
+		if username in self._root.usernames: # FIXME: is checked first because of a springie bug
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
 
@@ -759,6 +759,7 @@ class Protocol:
 			client.Send('AGREEMENTEND')
 			return
 
+		# needs to be checked directly before it is added, to make it somelike atomic as we have no locking over threads
 		if username in self._root.usernames:
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
