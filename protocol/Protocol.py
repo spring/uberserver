@@ -758,9 +758,12 @@ class Protocol:
 				client.Send("AGREEMENT %s" %(line))
 			client.Send('AGREEMENTEND')
 			return
+
+		if username in self._root.usernames:
+			self.out_DENIED(client, username, 'Already logged in.', False)
+			return
+
 		self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s %s.'%(client.handler.num, username, client.session_id, client.access))
-
-
 		self._root.db_ids[client.db_id] = client
 		self._root.usernames[username] = client
 
@@ -2529,7 +2532,7 @@ class Protocol:
 		'''
 			send a message to the client
 		'''
-		client.Send('SERVERMESSAGE %s' %(message))
+		client.Send('SERVERMSG %s' %(message))
 
 
 def make_docs():
