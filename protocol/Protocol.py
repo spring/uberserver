@@ -2536,7 +2536,7 @@ class Protocol:
 			for user in self._root.channels[channel].users:
 				if not user in self._root.usernames:
 					self._root.console_write("deleting user %s from channel %s" %( user, channel))
-					del self._root.channels[channel].users[user]
+					self._root.channels[channel].users.remove(user)
 			if len(self._root.channels[channel].users) == 0:
 				del self._root.channels[channel]
 				self._root.console_write("deleting empty channel %s" % channel)
