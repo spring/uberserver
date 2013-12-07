@@ -2521,10 +2521,12 @@ class Protocol:
 		for battle in tmpbattle:
 			for user in self._root.battles[battle].users:
 				if not user in self._root.usernames:
-					del battle.users[user]
+					self._root.console_write("deleting user in battle %s" % user)
+					#del battle.users[user]
 					nuser = nuser + 1
 			if not self._root.battles[battle].host in self._root.usernames:
-				del self._root.battles[battle]
+				self._root.console_write("deleting battle %s" % battle)
+				#del self._root.battles[battle]
 				nbattle = nbattle + 1
 				continue
 
@@ -2532,9 +2534,11 @@ class Protocol:
 		for channel in self._root.channels:
 			for user in self._root.channels[channel].users:
 				if not user in self._root.usernames:
-					del self._root.channels[channel].users[user]
+					self._root.console_write("deleting user %s from channel %s" %( user, channel))
+					#del self._root.channels[channel].users[user]
 			if len(self._root.channels[channel].users) == 0:
-				del self._root.channels[chan]
+				#del self._root.channels[channel]
+				self._root.console_write("deleting empty channel %s" % channel)
 				nchan = nchan + 1
 
 		#cleanup users
