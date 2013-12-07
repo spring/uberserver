@@ -97,6 +97,7 @@ restricted = {
 	#########
 	# server
 	'ADMINBROADCAST', 'BROADCAST','BROADCASTEX','RELOAD',
+	'CLEANUP',
 	'SETLATESTSPRINGVERSION',
 	#########
 	# users
@@ -2510,6 +2511,39 @@ class Protocol:
 		self._root.console_write("Stats of command usage:")
 		for k,v in self.stats.iteritems():
 			self._root.console_write("%s %d" % (k, v))
+
+	def in_CLEANUP(self, client):
+		nchan = 0
+		nbattle = 0
+		nuser = 0
+		#cleanup battles
+		tmpbattle = self._root.battles.copy()
+		for battle in tmpbattle:
+			for user in self._root.battles[battle].users:
+				if not user in self._root.usernames:
+					del battle.users[user]
+					nuser = nuser + 1
+			if not self._root.battles[battle].host in self._root.usernames:
+				del self._root.battles[battle]
+				nbattle = nbattle + 1
+				continue
+
+		#cleanup channels
+		for channel in self._root.channels:
+			for user in self._root.channels[channel].users:
+				if not user in self._root.usernames:
+					del self._root.channels[channel].users[user]
+			if len(self._root.channels[channel].users) == 0:
+				del self._root.channels[chan]
+				nchan = nchan + 1
+
+		#cleanup users
+		#for user in self._root.usernames:
+
+		#cleanup clients
+		self.out_SERVERMSG(client, "deleted %d %d %d" %(nchan, nbattle, nuser))
+
+
 	# Begin outgoing protocol section #
 	#
 	# any function definition beginning with out_ and ending with capital letters
