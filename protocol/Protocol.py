@@ -2531,7 +2531,8 @@ class Protocol:
 				continue
 
 		#cleanup channels
-		for channel in self._root.channels:
+		tmpchannels = self._root.channels.copy()
+		for channel in tmpchannels:
 			for user in self._root.channels[channel].users:
 				if not user in self._root.usernames:
 					self._root.console_write("deleting user %s from channel %s" %( user, channel))
