@@ -108,9 +108,6 @@ class Client:
 		now = int(time.time())
 		self.lastdata = now # data received, store time to detect disconnects
 
-		if self.username == 'Nightwatch':
-			limit = {'disabled': True}
-
 		if not 'disabled' in limit:
 			msglength = limit['msglength']
 			bytespersecond = limit['bytespersecond']
