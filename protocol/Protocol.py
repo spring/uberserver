@@ -101,7 +101,6 @@ restricted = {
 	'SETLATESTSPRINGVERSION',
 	#########
 	# users
-	'FORGEREVERSEMSG',
 	'GETLOBBYVERSION',
 	'GETLASTLOGINTIME',
 	'GETACCOUNTACCESS',
@@ -2267,26 +2266,6 @@ class Protocol:
 		'''
 		client.last_id = int32(user_id)
 		self.userdb.save_user(client)
-
-	def in_FORGEREVERSEMSG(self, client, user, msg):
-		'''
-		Forge a message from target user.
-		Note: this is currently disabled.
-
-		@required.str username: The target user.
-		@required.str message: The message to forge from them.
-		'''
-		#!!Aegis!! - we need this for quickmatching!! Dont remove it, its for nightwatch
-		#self.out_SERVERMSG(client, 'Forging messages is disabled.')
-		#client.Remove('admin abuse')
-		#return
-
-		if not 'admin' in client.accesslevels:
-		    return
-
-		if user in self._root.usernames:
-			self._root.console_write('FORGEREVERSEMSG %s %s %s' %(client.username, user, msg))
-			self._handle(self._root.usernames[user], msg)
 
 	def in_GETLOBBYVERSION(self, client, username):
 		'''
