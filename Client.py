@@ -57,9 +57,9 @@ class Client:
 		self.bot = 0
 		self.floodlimit = {'fresh':{'msglength':1024, 'bytespersecond':1024, 'seconds':2},
 							'user':{'msglength':1024, 'bytespersecond':1024, 'seconds':10},
-							'bot':{'msglength':1024, 'bytespersecond':10240, 'seconds':5},
-							'mod':{'msglength':10240, 'bytespersecond':10240, 'seconds':10},
-							'admin':{'disabled':True},}
+							'bot':{'msglength':1024, 'bytespersecond':10000, 'seconds':5},
+							'mod':{'msglength':10000, 'bytespersecond':10000, 'seconds':10},
+							'admin':{'msglength':10000, 'bytespersecond':20000, 'seconds':10},}
 		self.msglengthhistory = {}
 		self.lastsaid = {}
 		self.nl = '\n'
