@@ -107,24 +107,24 @@ class Client:
 		now = int(time.time())
 		self.lastdata = now # data received, store time to detect disconnects
 
-		if not 'disabled' in limit:
-			msglength = limit['msglength']
-			bytespersecond = limit['bytespersecond']
-			seconds = limit['seconds']
-			if now in self.msglengthhistory:
-				self.msglengthhistory[now] += len(data)
+		msglength = limit['msglength']
+		bytespersecond = limit['bytespersecond']
+		seconds = limit['seconds']
+		if now in self.msglengthhistory:
+			self.msglengthhistory[now] += len(data)
+		else:
+			self.msglengthhistory[now] = len(data)
+		total = 0
+		for iter in dict(self.msglengthhistory):
+			if iter < now - (seconds-1):
+				del self.msglengthhistory[iter]
 			else:
-				self.msglengthhistory[now] = len(data)
-			total = 0
-			for iter in dict(self.msglengthhistory):
-				if iter < now - (seconds-1):
-					del self.msglengthhistory[iter]
-				else:
-					total += self.msglengthhistory[iter]
-			if total > (bytespersecond * seconds):
-				self.SendNow('SERVERMSG No flooding (over %s per second for %s seconds)'%(bytespersecond, seconds))
-				self.Remove('Kicked for flooding')
-				return
+				total += self.msglengthhistory[iter]
+		if total > (bytespersecond * seconds):
+			self.SendNow('SERVERMSG No flooding (over %s per second for %s seconds)'%(bytespersecond, seconds))
+			self.Remove('Kicked for flooding')
+			return
+
 		self.data += data
 		if self.data.count('\n') > 0:
 			data = self.data.split('\n')
