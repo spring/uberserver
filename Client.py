@@ -59,7 +59,7 @@ class Client:
 							'user':{'msglength':1024, 'bytespersecond':1024, 'seconds':10},
 							'bot':{'msglength':1024, 'bytespersecond':10000, 'seconds':5},
 							'mod':{'msglength':10000, 'bytespersecond':10000, 'seconds':10},
-							'admin':{'msglength':10000, 'bytespersecond':20000, 'seconds':10},}
+							'admin':{'msglength':10000, 'bytespersecond':100000, 'seconds':10},}
 		self.msglengthhistory = {}
 		self.lastsaid = {}
 		self.nl = '\n'
@@ -101,8 +101,7 @@ class Client:
 			self._protocol = protocol
 
 	def Handle(self, data):
-		if self.bot and not (self.access in self.floodlimit and 'disabled' in self.floodlimit[self.access]): limit = self.floodlimit['bot']
-		elif self.access in self.floodlimit: limit = self.floodlimit[self.access]
+		if self.access in self.floodlimit: limit = self.floodlimit[self.access]
 		else: limit = self.floodlimit['user']
 
 		now = int(time.time())
