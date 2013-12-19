@@ -767,6 +767,7 @@ class Protocol:
 		self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s %s.'%(client.handler.num, username, client.session_id, client.access))
 		self._root.db_ids[client.db_id] = client
 		self._root.usernames[username] = client
+		client.status = self._calc_status(client, 0)
 
 		client.Send('ACCEPTED %s'%username)
 
@@ -789,7 +790,6 @@ class Protocol:
 				if not user == battle.host:
 					client.SendBattle(battle, 'JOINEDBATTLE %s %s' % (battle.id, user))
 
-		client.status = self._calc_status(client, 0)
 		self.broadcast_SendUser(client, 'CLIENTSTATUS %s %s'%(username, client.status))
 		for user in usernames:
 			if user == username: continue # potential problem spot, might need to check to make sure username is still in user db
