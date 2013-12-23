@@ -155,6 +155,9 @@ class Protocol:
 			if client.static: return # static clients don't disconnect
 			client.removing = True
 			user = client.username
+			if not client == self._root.usernames[user]:
+				client.removing = False # 'cause we really aren't anymore
+				return
 
 			channels = list(client.channels)
 			del self._root.usernames[user]
