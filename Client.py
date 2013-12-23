@@ -143,7 +143,8 @@ class Client:
 		self.handler.finishRemove(self, reason)
 
 	def Send(self, msg):
-		if not msg: return
+		# don't append new data to send buffer when client gets removed
+		if not msg or self.removing: return
 
 		if self.handler.thread == thread.get_ident():
 			msg = self.msg_id + msg
@@ -152,7 +153,7 @@ class Client:
 		self.handler.poller.setoutput(self.conn, True)
 
 	def SendNow(self, msg):
-		if self.sendError: return
+		if self.sendError or self.removing: return
 		if not msg: return
 		try:
 			self.conn.send(msg+self.nl)
@@ -161,6 +162,11 @@ class Client:
 			self.Remove("SendNow(): Socket error: %s" % (str(e)))
 
 	def FlushBuffer(self):
+		# client gets removed, clean buffers
+		if self.removing:
+			self.sendbuffer = []
+			self.sendingmessage = None
+			return
 		if not self.sendingmessage:
 			message = ''
 			while not message:
