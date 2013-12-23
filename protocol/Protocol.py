@@ -164,7 +164,7 @@ class Protocol:
 			for chan in channels:
 				channel = self._root.channels[chan]
 				if user in channel.users:
-					self.in_LEAVE(client, chan)
+					self.in_LEAVE(client, chan, reason)
 
 			battle_id = client.current_battle
 			if battle_id:
@@ -1041,7 +1041,7 @@ class Protocol:
 			if channel.isOp(client):
 				channel.setKey(client, key)
 
-	def in_LEAVE(self, client, chan):
+	def in_LEAVE(self, client, chan, reason=None):
 		'''
 		Leave target channel.
 
@@ -1049,7 +1049,7 @@ class Protocol:
 		'''
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
-			channel.removeUser(client)
+			channel.removeUser(client, reason)
 			if len(self._root.channels[chan].users) == 0:
 				del self._root.channels[chan]
 

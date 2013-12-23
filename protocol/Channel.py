@@ -43,7 +43,7 @@ class Channel(AutoDict):
 			self.users.append(username)
 			self.broadcast('JOINED %s %s' % (self.name, username))
 
-	def removeUser(self, client, reason=''):
+	def removeUser(self, client, reason=None):
 		chan = self.name
 		username = client.username
 
@@ -54,8 +54,10 @@ class Channel(AutoDict):
 
 			if self.name in client.channels:
 				client.channels.remove(chan)
-
-			self._root.broadcast('LEFT %s %s' % (chan, username), chan, self.blindusers)
+			if reason and len(reason) > 0:
+				self._root.broadcast('LEFT %s %s %s' % (chan, username, reason), chan, self.blindusers)
+			else:
+				self._root.broadcast('LEFT %s %s' % (chan, username), chan, self.blindusers)
 
 	def isAdmin(self, client):
 		return client and ('admin' in client.accesslevels)
