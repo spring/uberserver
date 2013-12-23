@@ -1,8 +1,15 @@
 from datetime import datetime, timedelta
 
-from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean, Text, DateTime
-from sqlalchemy.orm import mapper, sessionmaker, relation
-from sqlalchemy.exc import IntegrityError
+try:
+	from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean, Text, DateTime
+	from sqlalchemy.orm import mapper, sessionmaker, relation
+	from sqlalchemy.exc import IntegrityError
+except ImportError, e:
+	print("ERROR: sqlalchemy isn't installed: " + str(e))
+	print("ERROR: please install sqlalchemy, on debian the command is sth. like: ")
+	print("sudo apt-get install python-sqlalchemy")
+	import sys
+	sys.exit(1)
 
 metadata = MetaData()
 
