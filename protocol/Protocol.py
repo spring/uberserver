@@ -2493,7 +2493,7 @@ class Protocol:
 			for user in self._root.battles[battle].users:
 				if not user in self._root.usernames:
 					self._root.console_write("deleting user in battle %s" % user)
-					del battle.users[user]
+					self._root.battles[battle].users.remove(user)
 					nuser = nuser + 1
 			if not self._root.battles[battle].host in self._root.usernames:
 				self._root.console_write("deleting battle %s" % battle)
