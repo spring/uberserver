@@ -167,12 +167,7 @@ class Protocol:
 			for chan in channels:
 				channel = self._root.channels[chan]
 				if user in channel.users:
-					channel.users.remove(user)
-					if user in channel.blindusers:
-						channel.blindusers.remove(user)
-					self._root.broadcast('LEFT %s %s %s'%(chan, user, reason), chan, user)
-				elif len(channel.users) == 0:
-					del self._root.channels[chan]
+					self.in_LEAVE(client, chan)
 
 			battle_id = client.current_battle
 			if battle_id:
