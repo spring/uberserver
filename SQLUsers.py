@@ -23,7 +23,6 @@ class User(object):
 		self.ingame_time = 0
 		self.bot = 0
 		self.access = access # user, moderator, admin, bot, agreement
-		self.mapgrades = ''
 		self.last_id = 0
 
 	def __repr__(self):
@@ -109,7 +108,6 @@ users_table = Table('users', metadata,
 	Column('ingame_time', Integer),
 	Column('access', String(32)),
 	Column('bot', Integer),
-	Column('mapgrades', Text),
 	)
 
 logins_table = Table('logins', metadata, 
