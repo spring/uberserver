@@ -11,6 +11,7 @@ import socket
 from Channel import Channel
 from Battle import Battle
 
+# rank, ingame time in hours
 ranks = (5, 15, 30, 100, 300, 1000, 3000, 10000)
 
 restricted = {
@@ -321,7 +322,7 @@ class Protocol:
 		else:
 			access = 0
 		bot = int(client.bot)
-		ingame_time = float(client.ingame_time/60) # hours
+		ingame_time = int(client.ingame_time)/60 # hours
 
 		rank = 0
 		for t in ranks:
