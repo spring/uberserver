@@ -47,7 +47,6 @@ class DataHandler:
 		self.SayHooks = __import__('SayHooks')
 		self.censor = True
 		self.motd = None
-		self.updates = {}
 		self.running = True
 		
 		self.trusted_proxies = []
@@ -86,8 +85,6 @@ class DataHandler:
 		print '      { Uses SQL database at the specified sqlurl for user, channel, and ban storage. }'
 		print '  -c, --no-censor'
 		print '      { Disables censoring of #main, #newbies, and usernames (default is to censor) }'
-		print '  --updates /path/to/updates.txt'
-		print '     { Path to updates.txt, for using Spring update system. }'
 		print '  --proxies /path/to/proxies.txt'
 		print '     { Path to proxies.txt, for trusting proxies to pass real IP through local IP }'
 		print '   -a --agreement /path/to/agreement.rtf'
@@ -171,8 +168,6 @@ class DataHandler:
 					print 'Error specifying SQL URL'
 			elif arg in ['c', 'no-censor']:
 				self.censor = False
-			elif arg == 'updates':
-				self.updatefile = argp[0]
 			elif arg in ['a', 'agreement']:
 				try:
 					self.argeementfile = argp[0]
@@ -259,25 +254,6 @@ class DataHandler:
 		for line in ins:
 			self.agreement.append(line.rstrip('\r\n'))
 		ins.close()
-		if self.updatefile:
-			self.updates = {}
-			f = open(self.updatefile, 'r')
-			data = f.read()
-			f.close()
-			if data:
-				for line in data.split('\n'):
-					if len(line)== 0 or line[0] == "#": continue
-					try:
-						name, version, options, filename, url, desc = line.split('|', 5)
-					except:
-						print("Invalid line in updates.txt: %s" %(line))
-						continue
-					name = name.lower()
-					if not name in self.updates:
-						self.updates[name] = {}
-					if not version in self.updates[name]:
-						self.updates[name][version] = {}
-					self.updates[name][version] = options + " " + filename + "\t" + url + "\t" + desc
 
 	def getUserDB(self):
 		return self.userdb

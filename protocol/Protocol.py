@@ -21,7 +21,6 @@ restricted = {
 	'EXIT',
 	'PING',
 	'LISTCOMPFLAGS',
-	'REQUESTUPDATEFILE' # deprecated
 	],
 'fresh':['LOGIN','REGISTER'],
 'agreement':['CONFIRMAGREEMENT'],
@@ -2064,31 +2063,6 @@ class Protocol:
 			self.out_SERVERMSG(client, 'Your ingame time is %d minutes (%d hours).'%(ingame_time, ingame_time / 60))
 		else:
 			self.out_SERVERMSG(client, 'You can\'t get the ingame time of other users.')
-
-	def in_REQUESTUPDATEFILE(self, client, nameAndVersion):
-		'''
-		Request the server to send you an update.
-
-		@deprecated
-		@required.str name: The name of the update to request.
-		@optional.str version: The version to request. If not provided or found, the default version will be used.
-		'''
-		if client.compat['cl']:
-			self.out_SERVERMSG(client, 'REQUESTUPDATEFILE not supported with cl compatibility flag')
-			return
-		nameAndVersion = nameAndVersion.lower()
-		if ' ' in nameAndVersion:
-			name, version = nameAndVersion.rsplit(' ',1)
-		else:
-			name, version = nameAndVersion, 'default'
-
-		updates = self._root.updates
-		if name in updates:
-			update = updates[name]
-			if version in updates[name]:
-				client.Send('OFFERFILE %s' % update[version])
-			elif '*' in updates[name]:
-				client.Send('OFFERFILE %s' % update['*'])
 
 	def in_UPTIME(self, client):
 		'''
