@@ -55,7 +55,6 @@ restricted = {
 	'RING',
 	'SAYBATTLE',
 	'SAYBATTLEEX',
-	'SAYBATTLEPRIVATE',
 	'SAYBATTLEPRIVATEEX',
 	'SCRIPT',
 	'SCRIPTEND',
@@ -1257,22 +1256,6 @@ class Protocol:
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
 			self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg))
-
-	def in_SAYBATTLEPRIVATE(self, client, username, msg):
-		'''
-		Send a message to one target user in your current battle.
-		[host]
-
-		@required.str username: The user to receive your message.
-		@required.str message: The message to send.
-		'''
-		battle_id = client.current_battle
-		if battle_id in self._root.battles:
-			battle = self._root.battles[battle_id]
-			if client.username == battle.host and username in battle.users:
-				user = self.clientFromUsername(username)
-				if user:
-					user.Send('SAIDBATTLE %s %s' % (client.username, msg))
 
 	def in_SAYBATTLEPRIVATEEX(self, client, username, msg):
 		'''
