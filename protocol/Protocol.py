@@ -2415,13 +2415,17 @@ class Protocol:
 		Access levels: user, mod, admin
 		'''
 		user = self.clientFromUsername(username)
-		if access in ('user', 'mod', 'admin'):
-			if user:
-				user.access = access
-				self._calc_access_status(user)
-				if username in self._root.usernames:
-					self._root.broadcast('CLIENTSTATUS %s %s'%(username, user.status))
-				self.userdb.save_user(user)
+		if not user:
+			self.out_SERVERMSG("User not found.")
+			return
+		if not access in ('user', 'mod', 'admin'):
+			self.out_SERVERMSG("Invalid access mode, only user, mod, admin is valid.")
+			return
+		user.access = access
+		self._calc_access_status(user)
+		if username in self._root.usernames:
+			self._root.broadcast('CLIENTSTATUS %s %s'%(username, user.status))
+		self.userdb.save_user(user)
 
 	def in_RELOAD(self, client):
 		'''
