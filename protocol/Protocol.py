@@ -208,10 +208,12 @@ class Protocol:
 		if command in restricted_list:
 			if not command in access:
 				self.out_SERVERMSG(client, '%s failed. Insufficient rights.' % command)
+				self._root.console_write('Handler %s:id:%s <%s> Insufficient rights: %s'%(client.handler.num, client.session_id, client.username, command))
 				return False
 		else:
 			if not 'user' in client.accesslevels:
 				self.out_SERVERMSG(client, '%s failed. Insufficient rights.'%command)
+				self._root.console_write('Handler %s:id:%s <%s> Insufficient rights: %s'%(client.handler.num, client.session_id, client.username, command))
 				return False
 
 		funcname = 'in_%s' % command
@@ -219,6 +221,7 @@ class Protocol:
 			function = getattr(self, funcname)
 		else:
 			self.out_SERVERMSG(client, '%s failed. Command does not exist.'%(command))
+			self._root.console_write('Handler %s:id:%s <%s> invalid command: %s'%(client.handler.num, client.session_id, client.username, command))
 			return False
 
 		# update statistics
