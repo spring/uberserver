@@ -29,6 +29,7 @@ restricted = {
 	# battle
 	'ADDBOT',
 	'ADDSTARTRECT',
+	'CHANGEEMAIL',
 	'DISABLEUNITS',
 	'ENABLEUNITS',
 	'ENABLEALLUNITS',
@@ -2470,6 +2471,29 @@ class Protocol:
 		#cleanup clients
 		self.out_SERVERMSG(client, "deleted %d %d %d" %(nchan, nbattle, nuser))
 
+	def in_CHANGEEMAIL(self, client, newmail = None, username = None):
+		'''
+		Set the email address of target user.
+
+		@optional.str email: Email address to set. if empty current email address will be shown
+		@optional.str username: username to set the email address
+		'''
+
+		if not newmail:
+			self.out_SERVERMSG(client,"current email is %s" %(client.email))
+			return
+		if not username:
+			client.email = newmail
+			self.userdb.save_user(client)
+			self.out_SERVERMSG(client,"changed password to %s"%(client.email))
+			return
+		user = self.userdb.clientFromUsername(username)
+		if user.access in ('mod', 'admin') and not client.access == 'admin': #disallow mods to change other mods / admins email
+			self.out_SERVERMSG(client,"access denied")
+			return
+		user.email = newmail
+		self.userdb.save_user(user)
+		self.out_SERVERMSG(client,"changed password to %s"%(user.email))
 
 	# Begin outgoing protocol section #
 	#

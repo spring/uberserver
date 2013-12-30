@@ -24,6 +24,7 @@ class User(object):
 		self.bot = 0
 		self.access = access # user, moderator, admin, bot, agreement
 		self.last_id = 0
+		self.email = ""
 
 	def __repr__(self):
 		return "<User('%s', '%s')>" % (self.username, self.password)
@@ -107,6 +108,7 @@ users_table = Table('users', metadata,
 	Column('last_id', String(128)),
 	Column('ingame_time', Integer),
 	Column('access', String(32)),
+	Column('email', String(254)), # http://www.rfc-editor.org/errata_search.php?rfc=3696&eid=1690
 	Column('bot', Integer),
 	)
 
@@ -393,6 +395,7 @@ class UsersHandler:
 			entry.bot = client.bot
 			entry.last_id = client.last_id
 			entry.password = client.password
+			entry.email = client.email
 		session.commit()
 		session.close()
 	
