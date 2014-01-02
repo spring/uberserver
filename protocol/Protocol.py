@@ -1368,7 +1368,11 @@ class Protocol:
 					return
 				if host.compat['b'] and not username in battle.authed_users: # supports battleAuth
 					battle.pending_users.add(username)
-					host.Send('JOINBATTLEREQUEST %s %s' % (username, client.ip_address))
+					if client.ip_address in self._root.trusted_proxies:
+						client_ip = client.local_ip
+					else:
+						client_ip = client.ip_address
+					host.Send('JOINBATTLEREQUEST %s %s' % (username, client_ip))
 					return
 				battle_users = battle.users
 				battle_bots = battle.bots
