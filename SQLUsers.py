@@ -339,7 +339,7 @@ class UsersHandler:
 		ban.entries.append(AggregateBan('ip', ip))
 		session.commit()
 		session.close()
-		return 'Successfully banned %s for %s days.' (ip, duration)
+		return 'Successfully banned %s for %s days.' % (ip, duration)
 
 	def unban_ip(self, ip):
 		session = self.sessionmaker()
