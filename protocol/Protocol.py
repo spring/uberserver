@@ -55,6 +55,8 @@ restricted = {
 	'RING',
 	'SAYBATTLE',
 	'SAYBATTLEEX',
+	'SAYBATTLEPRIVATE',
+	'SAYBATTLEPRIVATEEX',
 	'SCRIPT',
 	'SCRIPTEND',
 	'SCRIPTSTART',
@@ -101,6 +103,7 @@ restricted = {
 	'SETLATESTSPRINGVERSION',
 	#########
 	# users
+	'FORGEREVERSEMSG',
 	'GETLASTLOGINTIME',
 	'GETACCOUNTACCESS',
 	'FORCEJOIN',
@@ -1259,6 +1262,38 @@ class Protocol:
 			battle = self._root.battles[battle_id]
 			self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg))
 
+	def in_SAYBATTLEPRIVATE(self, client, username, msg):
+		'''
+		Send a message to one target user in your current battle.
+		[host]
+
+		@required.str username: The user to receive your message.
+		@required.str message: The message to send.
+		'''
+		battle_id = client.current_battle
+		if battle_id in self._root.battles:
+			battle = self._root.battles[battle_id]
+			if client.username == battle.host and username in battle.users:
+				user = self.clientFromUsername(username)
+				if user:
+					user.Send('SAIDBATTLE %s %s' % (client.username, msg))
+
+	def in_SAYBATTLEPRIVATEEX(self, client, username, msg):
+		'''
+		Send an action to one target user in your current battle.
+		[host]
+
+		@required.str username: The user to receive your action.
+		@required.str message: The action to send.
+		'''
+		battle_id = client.current_battle
+		if battle_id in self._root.battles:
+			battle = self._root.battles[battle_id]
+			if client.username == battle.host and username in battle.users:
+				user = self.clientFromUsername(username)
+				if user:
+					user.Send('SAIDBATTLEEX %s %s' % (client.username, msg))
+
 	def in_FORCEJOINBATTLE(self, client, username, target_battle, password=None):
 		'''
 		Instruct a user in your battle to join another.
@@ -2210,6 +2245,26 @@ class Protocol:
 		'''
 		client.last_id = int32(user_id)
 		self.userdb.save_user(client)
+
+	def in_FORGEREVERSEMSG(self, client, user, msg):
+		'''
+		Forge a message from target user.
+		Note: this is currently disabled.
+
+		@required.str username: The target user.
+		@required.str message: The message to forge from them.
+		'''
+		#!!Aegis!! - we need this for quickmatching!! Dont remove it, its for nightwatch
+		#self.out_SERVERMSG(client, 'Forging messages is disabled.')
+		#client.Remove('admin abuse')
+		#return
+
+		if not 'admin' in client.accesslevels:
+		    return
+
+		if user in self._root.usernames:
+			self._root.console_write('FORGEREVERSEMSG %s %s %s' %(client.username, user, msg))
+			self._handle(self._root.usernames[user], msg)
 
 	def in_GETLOBBYVERSION(self, client, username):
 		'''
