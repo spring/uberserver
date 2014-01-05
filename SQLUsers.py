@@ -336,7 +336,7 @@ class UsersHandler:
 		end_time = datetime.now() + timedelta(duration)
 		ban = Ban(reason, end_time)
 		session.add(ban)
-		ban.entries.append(AggregateBan('ip'), ip)
+		ban.entries.append(AggregateBan('ip', ip))
 		session.commit()
 		session.close()
 		return 'Successfully banned %s for %s days.' (ip, duration)
