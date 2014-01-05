@@ -2243,7 +2243,11 @@ class Protocol:
 		Set the lobby id
 		@required.int userid
 		'''
-		client.last_id = int32(user_id)
+		try:
+			client.last_id = int32(user_id)
+		except: # this is harsh, but some clients/users seems to need this
+			client.Remove('Invalid USERID, int32 excepted got %s' %(str(user_id)))
+			return
 		self.userdb.save_user(client)
 
 	def in_FORGEREVERSEMSG(self, client, user, msg):
