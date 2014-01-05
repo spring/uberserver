@@ -2548,7 +2548,7 @@ class Protocol:
 		if not username:
 			client.email = newmail
 			self.userdb.save_user(client)
-			self.out_SERVERMSG(client,"changed password to %s"%(client.email))
+			self.out_SERVERMSG(client,"changed email to %s"%(client.email))
 			return
 		user = self.userdb.clientFromUsername(username)
 		if user.access in ('mod', 'admin') and not client.access == 'admin': #disallow mods to change other mods / admins email
@@ -2556,7 +2556,7 @@ class Protocol:
 			return
 		user.email = newmail
 		self.userdb.save_user(user)
-		self.out_SERVERMSG(client,"changed password to %s"%(user.email))
+		self.out_SERVERMSG(client,"changed email to %s"%(user.email))
 
 	# Begin outgoing protocol section #
 	#
