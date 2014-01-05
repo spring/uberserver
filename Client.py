@@ -52,6 +52,7 @@ class Client:
 		
 		self.username = ''
 		self.password = ''
+		self.email = ''
 		self.hostport = None
 		self.udpport = 0
 		self.bot = 0
