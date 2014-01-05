@@ -121,9 +121,10 @@ class Client:
 			else:
 				total += self.msglengthhistory[iter]
 		if total > (bytespersecond * seconds):
-			self.SendNow('SERVERMSG No flooding (over %s per second for %s seconds)'%(bytespersecond, seconds))
-			self.Remove('Kicked for flooding')
-			return
+			if not self.access in ('bot', 'admin', 'mod'): # FIXME: no flood limit for these atm, need to rewrite flood limit to server-side shaping/bandwith limiting
+				self.SendNow('SERVERMSG No flooding (over %s per second for %s seconds)'%(bytespersecond, seconds))
+				self.Remove('Kicked for flooding')
+				return
 
 		self.data += data
 		if self.data.count('\n') > 0:
