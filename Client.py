@@ -36,6 +36,7 @@ class Client:
 		self.sendingmessage = ''
 		self.logged_in = False
 		self.status = '12'
+		self.is_ingame = False
 		self.cpu = 0
 		self.access = 'fresh'
 		self.accesslevels = ['fresh','everyone']
