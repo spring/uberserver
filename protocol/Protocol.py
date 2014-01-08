@@ -211,21 +211,18 @@ class Protocol:
 
 		if command in restricted_list:
 			if not command in access:
-				self.out_SERVERMSG(client, '%s failed. Insufficient rights.' % command)
-				self._root.console_write('Handler %s:id:%s <%s> Insufficient rights: %s'%(client.handler.num, client.session_id, client.username, command))
+				self.out_SERVERMSG(client, '%s failed. Insufficient rights.' % command, True)
 				return False
 		else:
 			if not 'user' in client.accesslevels:
-				self.out_SERVERMSG(client, '%s failed. Insufficient rights.'%command)
-				self._root.console_write('Handler %s:id:%s <%s> Insufficient rights: %s'%(client.handler.num, client.session_id, client.username, command))
+				self.out_SERVERMSG(client, '%s failed. Insufficient rights.'%command, True)
 				return False
 
 		funcname = 'in_%s' % command
 		if funcname in self.dir:
 			function = getattr(self, funcname)
 		else:
-			self.out_SERVERMSG(client, '%s failed. Command does not exist.'%(command))
-			self._root.console_write('Handler %s:id:%s <%s> invalid command: %s'%(client.handler.num, client.session_id, client.username, command))
+			self.out_SERVERMSG(client, '%s failed. Command does not exist.'%(command), True)
 			return False
 
 		# update statistics
@@ -688,8 +685,7 @@ class Protocol:
 					if not flag in flag_map:
 						unsupported +=  " " +flag
 				if len(unsupported)>0:
-					self.out_SERVERMSG(client, 'Unsupported/unknown compatibility flag(s) in LOGIN: %s' % (unsupported))
-					self._root.console_write('Handler %s: <%s> %s Unsupported compatibility flag(s) in_LOGIN: %s ' % (client.handler.num, username, client.session_id, unsupported))
+					self.out_SERVERMSG(client, 'Unsupported/unknown compatibility flag(s) in LOGIN: %s' % (unsupported), True)
 
 			if user_id.replace('-','',1).isdigit():
 				user_id = int(user_id)
@@ -1665,7 +1661,7 @@ class Protocol:
 					maphash = int32(maphash)
 				except:
 					maphash = 0
-					self.out_SERVERMSG(client, "Invalid map hash send: %s %s " %(str(mapname),str(maphash)), True)
+					self.out_SERVERMSG(client, "UPDATEBATTLEINFO failed - Invalid map hash send: %s %s " %(str(mapname),str(maphash)), True)
 				old = battle.copy()
 				updated = {'id':battle_id, 'locked':int(locked), 'maphash':maphash, 'map':mapname}
 				battle.update(**updated)
@@ -1682,7 +1678,7 @@ class Protocol:
 		@required.int status: A bitfield of your status. The server forces a few values itself, as well.
 		'''
 		if not status.isdigit():
-			self.out_SERVERMSG(client, 'MYSTATUS failed - invalid status.')
+			self.out_SERVERMSG(client, 'MYSTATUS failed - invalid status.', True)
 			return
 		was_ingame = client.is_ingame
 		client.status = self._calc_status(client, status)
