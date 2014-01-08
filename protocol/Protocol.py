@@ -1664,8 +1664,8 @@ class Protocol:
 				try:
 					maphash = int32(maphash)
 				except:
-					self.out_SERVERMSG(client, "Invalid map hash send: %s" %(str(maphash)))
-					return
+					maphash = 0
+					self.out_SERVERMSG(client, "Invalid map hash send: %s %s " %(str(mapname),str(maphash)), True)
 				old = battle.copy()
 				updated = {'id':battle_id, 'locked':int(locked), 'maphash':maphash, 'map':mapname}
 				battle.update(**updated)
@@ -2582,11 +2582,13 @@ class Protocol:
 		'''
 		client.Send('OPENBATTLEFAILED %s' % (reason))
 
-	def out_SERVERMSG(self, client, message):
+	def out_SERVERMSG(self, client, message, log = False):
 		'''
 			send a message to the client
 		'''
 		client.Send('SERVERMSG %s' %(message))
+		if log:
+			self._root.console_write('Handler %s: %s' % (client.handler.num, message))
 
 
 def make_docs():
