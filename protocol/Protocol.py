@@ -1661,6 +1661,11 @@ class Protocol:
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
 			if battle.host == client.username:
+				try:
+					maphash = int32(maphash)
+				except:
+					self.out_SERVERMSG(client, "Invalid map hash send: %s" %(str(maphash)))
+					return
 				old = battle.copy()
 				updated = {'id':battle_id, 'locked':int(locked), 'maphash':maphash, 'map':mapname}
 				battle.update(**updated)
