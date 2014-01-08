@@ -1660,8 +1660,8 @@ class Protocol:
 				try:
 					maphash = int32(maphash)
 				except:
-					maphash = 0
 					self.out_SERVERMSG(client, "UPDATEBATTLEINFO failed - Invalid map hash send: %s %s " %(str(mapname),str(maphash)), True)
+					maphash = 0
 				old = battle.copy()
 				updated = {'id':battle_id, 'locked':int(locked), 'maphash':maphash, 'map':mapname}
 				battle.update(**updated)
