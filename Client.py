@@ -58,10 +58,10 @@ class Client:
 		self.udpport = 0
 		self.bot = 0
 		self.floodlimit = {'fresh':{'msglength':1024, 'bytespersecond':1024, 'seconds':2},
-							'user':{'msglength':1024, 'bytespersecond':1024, 'seconds':10},
-							'bot':{'msglength':1024, 'bytespersecond':10000, 'seconds':5},
-							'mod':{'msglength':10000, 'bytespersecond':10000, 'seconds':10},
-							'admin':{'msglength':10000, 'bytespersecond':100000, 'seconds':10},}
+					'user':{'msglength':1024, 'bytespersecond':1024, 'seconds':10},
+					'bot':{'msglength':1024, 'bytespersecond':10000, 'seconds':5},
+					'mod':{'msglength':10000, 'bytespersecond':10000, 'seconds':10},
+					'admin':{'msglength':10000, 'bytespersecond':100000, 'seconds':10},}
 		self.msglengthhistory = {}
 		self.lastsaid = {}
 		self.nl = '\n'
@@ -123,10 +123,11 @@ class Client:
 			else:
 				total += self.msglengthhistory[iter]
 		if total > (bytespersecond * seconds):
-			if not self.access in ('bot', 'admin', 'mod'): # FIXME: no flood limit for these atm, need to rewrite flood limit to server-side shaping/bandwith limiting
-				self.SendNow('SERVERMSG No flooding (over %s per second for %s seconds)'%(bytespersecond, seconds))
-				self.Remove('Kicked for flooding')
-				return
+			if not self.access in ('admin', 'mod'):
+				if not self.bot == 1: # FIXME: no flood limit for these atm, need to rewrite flood limit to server-side shaping/bandwith limiting
+					self.SendNow('SERVERMSG No flooding (over %s per second for %s seconds)'%(bytespersecond, seconds))
+					self.Remove('Kicked for flooding (%s)' %(self.access))
+					return
 
 		self.data += data
 		if self.data.count('\n') > 0:
