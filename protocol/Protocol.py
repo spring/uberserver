@@ -1137,7 +1137,7 @@ class Protocol:
 			passworded = 1
 
 		try:
-			int(battle_id), int(type), int(natType), int(passworded), int(port), int32(maphash)
+			int(battle_id), int(type), int(natType), int(passworded), int(port), int32(maphash), int32(hashcode)
 		except Exception, e:
 			self.out_OPENBATTLEFAILED(client, 'Invalid argument type, send this to your lobby dev: id=%s type=%s natType=%s passworded=%s port=%s maphash=%s - %s' %
 						(battle_id, type, natType, passworded, port, maphash, e.replace("\n", "")))
@@ -1220,7 +1220,7 @@ class Protocol:
 		ubattle = battle.copy()
 
 		try:
-			int(battle_id), int(type), int(natType), int(passworded), int(port), int32(maphash)
+			int(battle_id), int(type), int(natType), int(passworded), int(port), int32(maphash), int32(hashcode)
 		except:
 			client.current_battle = None
 			self.out_OPENBATTLEFAILED(client, 'Invalid argument type, send this to your lobby dev:'
