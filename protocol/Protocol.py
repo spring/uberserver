@@ -1139,8 +1139,8 @@ class Protocol:
 		try:
 			int(battle_id), int(type), int(natType), int(passworded), int(port), int32(maphash), int32(hashcode)
 		except Exception, e:
-			self.out_OPENBATTLEFAILED(client, 'Invalid argument type, send this to your lobby dev: id=%s type=%s natType=%s passworded=%s port=%s maphash=%s - %s' %
-						(battle_id, type, natType, passworded, port, maphash, e.replace("\n", "")))
+			self.out_OPENBATTLEFAILED(client, 'Invalid argument type, send this to your lobby dev: id=%s type=%s natType=%s passworded=%s port=%s maphash=%s gamehash=%s - %s' %
+						(battle_id, type, natType, passworded, port, maphash, hashcode, e.replace("\n", "")))
 			return False
 
 		client.current_battle = battle_id
@@ -1224,7 +1224,7 @@ class Protocol:
 		except:
 			client.current_battle = None
 			self.out_OPENBATTLEFAILED(client, 'Invalid argument type, send this to your lobby dev:'
-						'id=%(id)s type=%(type)s natType=%(natType)s passworded=%(passworded)s port=%(port)s maphash=%(maphash)s' % ubattle)
+						'id=%(id)s type=%(type)s natType=%(natType)s passworded=%(passworded)s port=%(port)s maphash=%(maphash)s gamehash=%s' % (ubattle, hashcode))
 			return
 
 		self.broadcast_AddBattle(battle)
