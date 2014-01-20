@@ -2438,6 +2438,7 @@ class Protocol:
 		try: duration = float(duration)
 		except:
 			self.out_SERVERMSG(client, 'Duration must be a float (the ban duration in days)')
+			return
 		response = self.userdb.ban_ip(client.username, ip, duration, reason)
 		if response: self.out_SERVERMSG(client, '%s' % response)
 
