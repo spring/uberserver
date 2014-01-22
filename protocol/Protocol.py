@@ -1662,6 +1662,7 @@ class Protocol:
 				except:
 					self.out_SERVERMSG(client, "UPDATEBATTLEINFO failed - Invalid map hash send: %s %s " %(str(mapname),str(maphash)), True)
 					maphash = 0
+					return
 				old = battle.copy()
 				updated = {'id':battle_id, 'locked':int(locked), 'maphash':maphash, 'map':mapname}
 				battle.update(**updated)
@@ -2578,6 +2579,7 @@ class Protocol:
 			response to OPENBATTLE
 		'''
 		client.Send('OPENBATTLEFAILED %s' % (reason))
+		self._root.console_write('Handler %s: OPENBATTLEFAILED: %s' % (client.handler.num, reason))
 
 	def out_SERVERMSG(self, client, message, log = False):
 		'''
