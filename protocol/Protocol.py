@@ -2587,7 +2587,7 @@ class Protocol:
 		'''
 		client.Send('SERVERMSG %s' %(message))
 		if log:
-			self._root.console_write('Handler %s: %s' % (client.handler.num, message))
+			self._root.console_write('Handler %s <%s>: %s' % (client.handler.num, client.username, message))
 
 
 def make_docs():
