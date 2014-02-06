@@ -2254,16 +2254,11 @@ class Protocol:
 
 	def in_FORGEREVERSEMSG(self, client, user, msg):
 		'''
-		Forge a message from target user.
-		Note: this is currently disabled.
-
-		@required.str username: The target user.
-		@required.str message: The message to forge from them.
+		deprecated
 		'''
-		#!!Aegis!! - we need this for quickmatching!! Dont remove it, its for nightwatch
-		#self.out_SERVERMSG(client, 'Forging messages is disabled.')
-		#client.Remove('admin abuse')
-		#return
+		if client.compat['cl']:
+			self.out_SERVERMSG(client, 'Forging messages is deprecated.')
+			return
 
 		if not 'admin' in client.accesslevels:
 		    return
@@ -2544,6 +2539,9 @@ class Protocol:
 		@optional.str email: Email address to set. if empty current email address will be shown
 		@optional.str username: username to set the email address
 		'''
+		if not client.compat['cl']:
+			self.out_SERVERMSG(client, "compatibility flag cl needed")
+			return
 
 		if not newmail:
 			self.out_SERVERMSG(client,"current email is %s" %(client.email))
