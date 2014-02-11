@@ -1224,7 +1224,7 @@ class Protocol:
 		except:
 			client.current_battle = None
 			self.out_OPENBATTLEFAILED(client, 'Invalid argument type, send this to your lobby dev:'
-						'id=%(id)s type=%(type)s natType=%(natType)s passworded=%(passworded)s port=%(port)s maphash=%(maphash)s gamehash=%(hashcode)s' % (ubattl))
+						'id=%(id)s type=%(type)s natType=%(natType)s passworded=%(passworded)s port=%(port)s maphash=%(maphash)s gamehash=%(hashcode)s' % (ubattle))
 			return
 
 		self.broadcast_AddBattle(battle)
