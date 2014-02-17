@@ -2577,7 +2577,7 @@ class Protocol:
 			response to OPENBATTLE
 		'''
 		client.Send('OPENBATTLEFAILED %s' % (reason))
-		self._root.console_write('Handler %s: OPENBATTLEFAILED: %s' % (client.handler.num, reason))
+		self._root.console_write('Handler %s: <%s> OPENBATTLEFAILED: %s' % (client.handler.num, client.username, reason))
 
 	def out_SERVERMSG(self, client, message, log = False):
 		'''
