@@ -411,11 +411,11 @@ class Protocol:
 		if not client.compat['sp']: # blocks protocol increase to 0.37
 			client.Send("MOTD Your client doesn't support the 'sp' compatibility flag, please upgrade it!")
 			client.Send("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.36")
-			self._root.console_write('Handler %s: <%s> %s old client missing compat flag: sp '%(client.handler.num, client.username, client.session_id))
+			self._root.console_write('Handler %s: <%s> %s client "%s" missing compat flag: sp '%(client.handler.num, client.username, client.lobby_id, client.session_id))
 		if not client.compat['cl']: # cl should be used (bugfixed version of eb)
 			client.Send("MOTD Your client doesn't support the 'cl' compatibility flag, please upgrade it!")
 			client.Send("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
-			self._root.console_write('Handler %s: <%s> %s old client missing compat flag: cl '%(client.handler.num, client.username, client.session_id))
+			self._root.console_write('Handler %s: <%s> %s client "%s" missing compat flag: cl '%(client.handler.num, client.username, client.lobby_id, client.session_id))
 
 	def _validPasswordSyntax(self, password):
 		'checks if a password is correctly encoded base64(md5())'
