@@ -2526,11 +2526,9 @@ class Protocol:
 				self._root.console_write("deleting empty channel %s" % channel)
 				nchan = nchan + 1
 
-		#cleanup users
-		#for user in self._root.usernames:
+		self.userdb.clean_users()
 
-		#cleanup clients
-		self.out_SERVERMSG(client, "deleted %d %d %d" %(nchan, nbattle, nuser))
+		self.out_SERVERMSG(client, "deleted channels: %d battles: %d users: %d" %(nchan, nbattle, nuser))
 
 	def in_CHANGEEMAIL(self, client, newmail = None, username = None):
 		'''
