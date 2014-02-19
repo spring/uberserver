@@ -491,13 +491,13 @@ class UsersHandler:
 		session = self.sessionmaker()
 		now = datetime.now()
 		#delete users:
-		# which didn't accept aggreement after two days
-		session.query(User).filter(User.register_date < now - timedelta(days=2)).filter(User.access == "agreement").delete()
+		# which didn't accept aggreement after one day
+		session.query(User).filter(User.register_date < now - timedelta(days=1)).filter(User.access == "agreement").delete()
 
 		# which have no ingame time, last login > 90 days and no bot
-		session.query(User).filter(User.ingame_time == 0).filter(User.last_login < now - timedelta(days=90)).filter(User.bot == 0).delete()
+		session.query(User).filter(User.ingame_time == 0).filter(User.last_login < now - timedelta(days=90)).filter(User.bot == 0).filter(User.access == "user").delete()
 
-		# last login > 2 years
+		# last login > 3 years
 		session.query(User).filter(User.last_login < now - timedelta(days=1095)).delete()
 
 		session.commit()
