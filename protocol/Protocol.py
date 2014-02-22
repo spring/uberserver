@@ -138,9 +138,8 @@ flag_map = {
 }
 
 class Protocol:
-	def __init__(self, root, handler):
+	def __init__(self, root):
 		self._root = root
-		self.handler = handler
 		self.userdb = root.getUserDB()
 		self.SayHooks = root.SayHooks
 		self.dir = dir(self)

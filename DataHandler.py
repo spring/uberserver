@@ -224,7 +224,7 @@ class DataHandler:
 		
 		self.parseFiles()
 
-		self.protocol = Protocol(self, None)
+		self.protocol = Protocol(self)
 	
 	def parseFiles(self):
 		if os.path.isfile('motd.txt'):

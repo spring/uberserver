@@ -9,7 +9,7 @@ class Dispatcher:
 		self.poller = Multiplexer.EpollMultiplexer()
 		self.socketmap = {}
 		self.workers = []
-		self.protocol = Protocol.Protocol(root, self)
+		self.protocol = Protocol.Protocol(root)
 		# legacy vars
 		self.thread = thread.get_ident()
 		self.num = 0
