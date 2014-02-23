@@ -993,7 +993,7 @@ class Protocol:
 				client.Send('CLIENTS %s %s' % (chan, user))
 		else:
 			if not channel.isFounder(client):
-				if channel.key and not nolock and not channel.key == key:
+				if channel.key and not nolock and not channel.key in (key, None, '*', ''):
 					client.Send('JOINFAILED %s Invalid key' % chan)
 					return
 				elif channel.autokick == 'ban' and client.db_id in channel.ban:
