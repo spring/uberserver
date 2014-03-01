@@ -3,6 +3,7 @@
 
 import thread, traceback, signal, socket, sys
 from urllib2 import urlopen
+import re
 
 from DataHandler import DataHandler
 from Client import Client
@@ -62,7 +63,7 @@ _root.console_write('Detecting online IP:')
 try:
 	timeout = socket.getdefaulttimeout()
 	socket.setdefaulttimeout(5)
-	web_addr = urlopen('http://api.externalip.net/ip').read()
+	web_addr = re.findall("(\d+\.\d+\.\d+\.\d+)",urlopen('http://checkip.dyndns.org').read())[0]
 	socket.setdefaulttimeout(timeout)
 	_root.console_write(web_addr)
 except:
