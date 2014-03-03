@@ -62,7 +62,7 @@ _root.console_write('Detecting online IP:')
 try:
 	timeout = socket.getdefaulttimeout()
 	socket.setdefaulttimeout(5)
-	web_addr = urlopen('http://api.externalip.net/ip').read()
+	web_addr = urlopen('http://lobby.springrts.com/getip.php').read()
 	socket.setdefaulttimeout(timeout)
 	_root.console_write(web_addr)
 except:
