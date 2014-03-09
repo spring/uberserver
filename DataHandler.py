@@ -408,7 +408,7 @@ class DataHandler:
 				del chan['name'] # 'cause we're passing it ourselves
 				self.channels[channel] = sys.modules['protocol.Protocol'].Channel(self, channel, **chan)
 			
-			self.protocol = Protocol(self, None)
+			self.protocol = Protocol(self)
 		except:
 			self.error(traceback.format_exc())
 			

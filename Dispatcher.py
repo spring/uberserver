@@ -54,7 +54,7 @@ class Dispatcher:
 		except: self._root.error(traceback.format_exc())
 
 	def rebind(self):
-		self.protocol = Protocol.Protocol(self._root, self)
+		self.protocol = Protocol.Protocol(self._root)
 		for client in self._root.clients.values():
 			client.Bind(protocol=self.protocol)
 
