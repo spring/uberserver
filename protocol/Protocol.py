@@ -690,7 +690,7 @@ class Protocol:
 			try:
 				client.last_id = int32(user_id)
 			except:
-				self.out_SERVERMSG(client, 'Invalid userID specified: %s' % (user_id))
+				self.out_SERVERMSG(client, 'Invalid userID specified: %s' % (user_id), True)
 		else:
 			lobby_id = sentence_args
 
