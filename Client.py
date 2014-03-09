@@ -160,7 +160,7 @@ class Client:
 		if self.sendError or self.removing: return
 		if not msg: return
 		try:
-			self.conn.send(msg+self.nl)
+			self.conn.send(msg.encode("utf-8")+self.nl)
 		except socket.error, e:
 			self.sendError = True
 			self.Remove("SendNow(): Socket error: %s" % (str(e)))
@@ -181,7 +181,7 @@ class Client:
 			self.sendingmessage = message
 		senddata = self.sendingmessage# [:64] # smaller chunks interpolate better, maybe base this off of number of clients?
 		try:
-			sent = self.conn.send(senddata)
+			sent = self.conn.send(senddata.encode("utf-8"))
 			self.sendingmessage = self.sendingmessage[sent:] # only removes the number of bytes sent
 		except UnicodeDecodeError:
 			self.sendingmessage = None

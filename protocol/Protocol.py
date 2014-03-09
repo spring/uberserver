@@ -182,6 +182,7 @@ class Protocol:
 		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
 
 	def _handle(self, client, msg):
+		msg = msg.decode('utf-8')
 		if msg.startswith('#'):
 			test = msg.split(' ')[0][1:]
 			if test.isdigit():
