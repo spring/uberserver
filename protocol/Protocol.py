@@ -127,6 +127,12 @@ def int32(x):
 	if val < -2147483648 : raise OverflowError
 	return val
 
+def uint32(x):
+	val = int(x)
+	if val > 4294967296 : raise OverflowError
+	if val < 0 : raise OverflowError
+	return val
+
 flag_map = {
 	'a': 'accountIDs',       # send account IDs in ADDUSER
 	'b': 'battleAuth',       # JOINBATTLEREQUEST/ACCEPT/DENY
@@ -688,7 +694,7 @@ class Protocol:
 				if len(unsupported)>0:
 					self.out_SERVERMSG(client, 'Unsupported/unknown compatibility flag(s) in LOGIN: %s' % (unsupported), True)
 			try:
-				client.last_id = int32(user_id)
+				client.last_id = uint32(user_id)
 			except:
 				self.out_SERVERMSG(client, 'Invalid userID specified: %s' % (user_id), True)
 		else:
@@ -2242,7 +2248,7 @@ class Protocol:
 		@required.int userid
 		'''
 		try:
-			client.last_id = int32(user_id)
+			client.last_id = uint32(user_id)
 		except: # this is harsh, but some clients/users seems to need this
 			client.Remove('Invalid USERID, int32 excepted got %s' %(str(user_id)))
 			return
