@@ -663,6 +663,7 @@ class Protocol:
 
 		try: int(cpu)
 		except: cpu = '0'
+		user_id = 0
 
 		if not validateIP(local_ip): local_ip = client.ip_address
 		if '\t' in sentence_args:
@@ -686,17 +687,12 @@ class Protocol:
 						unsupported +=  " " +flag
 				if len(unsupported)>0:
 					self.out_SERVERMSG(client, 'Unsupported/unknown compatibility flag(s) in LOGIN: %s' % (unsupported), True)
-
-			if user_id.replace('-','',1).isdigit():
-				user_id = int(user_id)
-				if user_id > 2147483647:
-					user_id &= 2147483647
-					user_id *= -1
-			else:
-				user_id = 'None'
+			try:
+				client.last_id = int32(user_id)
+			except:
+				self.out_SERVERMSG(client, 'Invalid userID specified: %s' % (user_id))
 		else:
 			lobby_id = sentence_args
-			user_id = 0
 
 		if not password:
 			self.out_DENIED(client, username, "Empty password")
