@@ -92,7 +92,7 @@ restricted = {
 	'BAN', 'BANIP', 'UNBAN', 'UNBANIP', 'BANLIST',
 	'CHANGEACCOUNTPASS',
 	'KICKUSER', 'FINDIP', 'GETIP', 'GETLASTLOGINTIME','GETUSERID'
-	'FORCECLOSEBATTLE', 'SETBOTMODE', 'TESTLOGIN', 'GENERATEUSERID'
+	'SETBOTMODE', 'TESTLOGIN', 'GENERATEUSERID'
 	'GETLOBBYVERSION',
 	],
 'admin':[
@@ -2054,19 +2054,6 @@ class Protocol:
 					del self._root.usernames[battle.bots[name]['owner']].battle_bots[name]
 					del battle.bots[name]
 					self._root.broadcast_battle('REMOVEBOT %s %s'%(battle_id, name), battle_id)
-
-	def in_FORCECLOSEBATTLE(self, client, battle_id=None):
-		'''
-		Force a battle to close.
-
-		@optional.int battle_id: The battle ID to close. Defaults to current battle.
-		'''
-		if not battle_id: battle_id = client.current_battle
-		if battle_id in self._root.battles:
-			battle = self._root.battles[battle_id]
-			self.in_KICKFROMBATTLE(client, battle.host)
-		else:
-			self.out_SERVERMSG(client, 'Invalid battle ID.')
 
 	def in_GETINGAMETIME(self, client, username=None):
 		'''
