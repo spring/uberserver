@@ -1790,7 +1790,7 @@ class Protocol:
 		if not user: return
 		if not 'mod' in client.accesslevels:
 			battle_id = client.current_battle
-			if battle_id:
+			if battle_id and battle_id in self._root.battles:
 				battle = self._root.battles[battle_id]
 				if not battle.host in (client.username, username):
 					return
