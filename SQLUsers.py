@@ -311,7 +311,7 @@ class UsersHandler:
 		ban = Ban(reason, end_time)
 		session.add(ban)
 		ban.entries.append(AggregateBan('user', username))
-		ban.entries.append(AggregateBan('ip', entry.last_ip))
+		#ban.entries.append(AggregateBan('ip', entry.last_ip))
 		# userid has to many duplicates, can't be used,
 		#ban.entries.append(AggregateBan('userid', entry.last_id))
 		session.commit()
