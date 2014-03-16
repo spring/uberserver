@@ -92,7 +92,7 @@ restricted = {
 	'BAN', 'BANIP', 'UNBAN', 'UNBANIP', 'BANLIST',
 	'CHANGEACCOUNTPASS',
 	'KICKUSER', 'FINDIP', 'GETIP', 'GETLASTLOGINTIME','GETUSERID'
-	'SETBOTMODE', 'TESTLOGIN', 'GENERATEUSERID'
+	'SETBOTMODE', 'TESTLOGIN', 'GENERATEUSERID',
 	'GETLOBBYVERSION',
 	],
 'admin':[
@@ -214,15 +214,12 @@ class Protocol:
 		access = []
 		for level in client.accesslevels:
 			access += restricted[level]
-
-		if command in restricted_list:
-			if not command in access:
-				self.out_SERVERMSG(client, '%s failed. Insufficient rights.' % command, True)
-				return False
-		else:
-			if not 'user' in client.accesslevels:
-				self.out_SERVERMSG(client, '%s failed. Insufficient rights.'%command, True)
-				return False
+		if not command in restricted_list:
+			self.out_SERVERMSG(client, '%s failed. Command does not exist.'%command, True)
+			return False
+		if not command in access:
+			self.out_SERVERMSG(client, '%s failed. Insufficient rights.' % command, True)
+			return False
 
 		funcname = 'in_%s' % command
 		if funcname in self.dir:
