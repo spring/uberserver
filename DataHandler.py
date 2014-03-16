@@ -322,7 +322,7 @@ class DataHandler:
 	def console_print_step(self):
 		try:
 			while self.console_buffer:
-				line = self.console_buffer.pop(0)
+				line = self.console_buffer.pop(0).encode("utf-8")
 				print line
 				if self.log:
 					self.logfile.write(line+'\n')
