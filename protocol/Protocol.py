@@ -1021,7 +1021,7 @@ class Protocol:
 					topictime = int(topic['time'])
 				else:
 					topictime = int(topic['time'])*1000
-				client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topictime, topic['text']))
+				client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topictime, topic['text'].decode("utf-8")))
 			elif client.compat['et']: # supports sendEmptyTopic
 				client.Send('NOCHANNELTOPIC %s' % chan)
 
