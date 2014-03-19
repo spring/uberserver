@@ -70,18 +70,6 @@ class Channel(object):
 	def __repr__(self):
 		return "<Channel('%s')>" % self.name
 
-class ChanUser(object):
-	def __init__(self, name, channel, admin=False, banned='', allowed=False, mute=0):
-		self.name = name
-		self.channel = channel
-		self.admin = admin
-		self.banned = banned
-		self.allowed = allowed
-		self.mute = mute
-
-	def __repr__(self):
-		return "<ChanUser('%s')>" % self.name
-
 class Ban(object):
 	def __init__(self, reason, end_time):
 		self.reason = reason
@@ -147,16 +135,6 @@ channels_table = Table('channels', metadata,
 	Column('antishock', Boolean),
 	)
 
-chanuser_table = Table('chanuser', metadata,
-	Column('id', Integer, primary_key=True),
-	Column('name', String(40)),
-	Column('channel', String(40)),
-	Column('admin', Boolean),
-	Column('banned', Boolean),
-	Column('allowed', Boolean),
-	Column('mute', Integer),
-	)
-
 bans_table = Table('ban_groups', metadata, # server bans
 	Column('id', Integer, primary_key=True),
 	Column('reason', Text),
@@ -177,7 +155,6 @@ mapper(User, users_table, properties={
 mapper(Login, logins_table)
 mapper(Rename, renames_table)
 mapper(Channel, channels_table)
-mapper(ChanUser, chanuser_table)
 mapper(Ban, bans_table, properties={
 	'entries':relation(AggregateBan, backref='ban', cascade="all, delete, delete-orphan"),
 	})
