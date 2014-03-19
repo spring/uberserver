@@ -102,6 +102,7 @@ users_table = Table('users', metadata,
 
 logins_table = Table('logins', metadata, 
 	Column('id', Integer, primary_key=True),
+	Column('user_dbid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('ip_address', String(15), nullable=False),
 	Column('time', DateTime),
 	Column('lobby_id', String(128)),
@@ -110,14 +111,13 @@ logins_table = Table('logins', metadata,
 	Column('country', String(4)),
 	Column('end', DateTime),
 	Column('user_id', String(128)),
-	Column('user_dbid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	)
 
 renames_table = Table('renames', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('original', String(40)),
-	Column('new', String(40)),
+	Column('new', String(40)), # FIXME: not needed
 	Column('time', DateTime),
 	)
 
@@ -125,23 +125,25 @@ channels_table = Table('channels', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('name', String(40), unique=True),
 	Column('key', String(32)),
-	Column('owner', String(40)),
+	Column('owner', String(40)), #FIXME: delete, use owner_userid
+	Column('owner_userid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # user owner id
 	Column('topic', Text),
 	Column('topic_time', DateTime),
-	Column('topic_owner', String(40)),
+	Column('topic_owner', String(40)), #FIXME: delete, use topic_userid
+	Column('topic_userid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # topic owner id
 	Column('antispam', Boolean),
 	Column('autokick', String(5)),
 	Column('censor', Boolean),
 	Column('antishock', Boolean),
 	)
 
-bans_table = Table('ban_groups', metadata, # server bans
+bans_table = Table('ban_groups', metadata, # FIXME: remove, use ban_ip / ban_user
 	Column('id', Integer, primary_key=True),
 	Column('reason', Text),
 	Column('end_time', DateTime),
 	)
 
-aggregatebans_table = Table('ban_items', metadata, # server bans
+aggregatebans_table = Table('ban_items', metadata, # FIXME: remove, use ban_ip / ban_user
 	Column('id', Integer, primary_key=True),
 	Column('type', String(10)), # what exactly is banned (username, ip, subnet, hostname, (ip) range, userid, )
 	Column('data', String(60)), # regex would be cool
@@ -152,6 +154,35 @@ mapper(User, users_table, properties={
 	'logins':relation(Login, backref='user', cascade="all, delete, delete-orphan"),
 	'renames':relation(Rename, backref='user', cascade="all, delete, delete-orphan"),
 	})
+
+banip_table = Table('ban_ip', metadata, # server bans
+	Column('id', Integer, primary_key=True),
+	Column('ip', String(60)), #ip which is banned
+	Column('reason', Text),
+	Column('end_time', DateTime),
+	)
+class BanIP(object):
+	def __init__(ip = None, reason = "", end_time = datetime.now()):
+		self.ip = ip
+		self.reason = reason
+		self.end_time = end_time
+mapper(BanIP, banip_table)
+
+banuser_table = Table('ban_user', metadata, # server bans
+	Column('id', Integer, primary_key=True),
+	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # user id which is banned
+	Column('reason', Text),
+	Column('end_time', DateTime),
+	)
+
+class BanUser(object):
+	def __init__(user = None, reason = "", end_time = datetime.now()):
+		self.user = user
+		self.reason = reason
+		self.end_time = end_time
+mapper(BanUser, banuser_table)
+
+
 mapper(Login, logins_table)
 mapper(Rename, renames_table)
 mapper(Channel, channels_table)
