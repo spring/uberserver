@@ -122,12 +122,12 @@ logins_table = Table('logins', metadata,
 	Column('country', String(4)),
 	Column('end', DateTime),
 	Column('user_id', String(128)),
-	Column('user_dbid', Integer, ForeignKey('users.id')),
+	Column('user_dbid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	)
 
 renames_table = Table('renames', metadata,
 	Column('id', Integer, primary_key=True),
-	Column('user_id', Integer, ForeignKey('users.id')),
+	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('original', String(40)),
 	Column('new', String(40)),
 	Column('time', DateTime),
@@ -492,7 +492,7 @@ class UsersHandler:
 		now = datetime.now()
 		#delete users:
 		# which didn't accept aggreement after one day
-		session.query(User).filter(User.register_date < now - timedelta(days=1)).filter(User.access == "agreement").delete()
+		session.query(User).filter(User.register_date < now - timedelta(hours=1)).filter(User.access == "agreement").delete()
 
 		# which have no ingame time, last login > 90 days and no bot
 		session.query(User).filter(User.ingame_time == 0).filter(User.last_login < now - timedelta(days=90)).filter(User.bot == 0).filter(User.access == "user").delete()
