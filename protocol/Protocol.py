@@ -453,14 +453,17 @@ class Protocol:
 		return True, ""
 
 
-	def clientFromID(self, db_id):
+	def clientFromID(self, db_id, fromdb = False):
 		'given a user database id, returns a client object from memory or the database'
-		return self._root.clientFromID(db_id) or self.userdb.clientFromID(db_id)
+		user = self._root.clientFromID(db_id)
+		if user: return user
+		if not fromdb: return None
+		return self.userdb.clientFromID(db_id)
 
-	def clientFromUsername(self, username):
+	def clientFromUsername(self, username, fromdb = False):
 		'given a username, returns a client object from memory or the database'
 		client = self._root.clientFromUsername(username)
-		if not client:
+		if fromdb and not client:
 			client = self.userdb.clientFromUsername(username)
 			if client:
 				client.db_id = client.id
@@ -616,7 +619,7 @@ class Protocol:
 		if good:
 			self._root.console_write('Handler %s: Successfully registered user <%s> on session %s.'%(client.handler.num, username, client.session_id))
 			client.Send('REGISTRATIONACCEPTED')
-			self.userdb.clientFromUsername(username).access = 'agreement'
+			self.clientFromUsername(username, True).access = 'agreement'
 		else:
 			self._root.console_write('Handler %s: Registration failed for user <%s> on session %s.'%(client.handler.num, username, client.session_id))
 			client.Send('REGISTRATIONDENIED %s'%reason)
@@ -925,7 +928,7 @@ class Protocol:
 			client.Send('MUTELISTBEGIN %s' % chan)
 			for user in mutelist:
 				m = mutelist[user].copy()
-				user = self.clientFromID(user).username
+				user = self.clientFromUsername(user).username
 				message = self._time_until(m['expires']) + (' by IP.' if m['ip'] else '.')
 				client.Send('MUTELIST %s, %s' % (user, message))
 			client.Send('MUTELISTEND')
@@ -1346,7 +1349,7 @@ class Protocol:
 			if username in battle.pending_users:
 				battle.pending_users.remove(username)
 				battle.authed_users.add(username)
-				user = self._root.clientFromUsername(username)
+				user = self.clientFromUsername(username)
 				if user:
 					self.in_JOINBATTLE(user, battle_id)
 
@@ -1364,7 +1367,7 @@ class Protocol:
 			if not client.username == battle.host: return
 			if username in battle.pending_users:
 				battle.pending_users.remove(username)
-				user = self._root.clientFromUsername(username)
+				user = self.clientFromUsername(username)
 				if user:
 					user.Send('JOINBATTLEFAILED %s%s' % ('Denied by host', (' ('+reason+')' if reason else '')))
 
@@ -1385,7 +1388,7 @@ class Protocol:
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
 			if not username in battle.users:
-				host = self._root.clientFromUsername(battle.host)
+				host = self.clientFromUsername(battle.host)
 				if battle.passworded == 1 and not battle.password == password:
 					if not (host.compat['b'] and username in battle.authed_users): # supports battleAuth
 						client.Send('JOINBATTLEFAILED Incorrect password.')
@@ -1768,7 +1771,7 @@ class Protocol:
 		channel = self._root.channels[chan]
 		if not (channel.isOp(client) or 'mod' in client.accesslevels):
 			self.out_SERVERMSG(client, 'access denied')
-		target = self._root.clientFromUsername(username)
+		target = self.clientFromUsername(username)
 		if target and username in channel.users:
 			channel.kickUser(client, target, reason)
 			self.out_SERVERMSG(client, '<%s> kicked from channel #%s' % (username, chan))
@@ -1782,7 +1785,7 @@ class Protocol:
 
 		@required.str username: The target user.
 		'''
-		user = self._root.clientFromUsername(username)
+		user = self.clientFromUsername(username)
 
 		if not user: return
 		if not 'mod' in client.accesslevels:
@@ -2120,14 +2123,14 @@ class Protocol:
 		self.out_SERVERMSG(client, "Couldn't retrieve registration date for <%s> (%s)" % (username, reason))
 
 	def in_GETUSERID(self, client, username):
-		user = self.userdb.clientFromUsername(username)
+		user = self.clientFromUsername(username, True)
 		if user:
 			self.out_SERVERMSG(client, 'The ID for <%s> is %s' % (username, user.last_id))
 		else:
 			self.out_SERVERMSG(client, 'User not found.')
 
 	def in_GENERATEUSERID(self, client, username):
-		user = self._root.clientFromUsername(username)
+		user = self.clientFromUsername(username)
 		if user:
 			self.out_SERVERMSG(client, 'The ID for <%s> requested' % (username))
 			user.Send('ACQUIREUSERID')
@@ -2217,7 +2220,7 @@ class Protocol:
 		if not good:
 			self.out_SERVERMSG(client, '%s' % (reason))
 			return
-		user = self.userdb.clientFromUsername(client.username)
+		user = self.clientFromUsername(client.username, True)
 		if user:
 			if user.password == oldpassword:
 				user.password = newpassword
@@ -2259,7 +2262,7 @@ class Protocol:
 
 		@required.str username: The target user.
 		'''
-		user = self.clientFromUsername(username)
+		user = self.clientFromUsername(username, True)
 		if user and 'lobby_id' in dir(user):
 			self.out_SERVERMSG(client, '<%s> is using %s'%(user.username, user.lobby_id))
 
@@ -2270,7 +2273,7 @@ class Protocol:
 		@required.str username: The target user.
 		@required.bool mode: The resulting bot mode.
 		'''
-		user = self.clientFromUsername(username)
+		user = self.clientFromUsername(username, True)
 		if user:
 			bot = (mode.lower() in ('true', 'yes', '1'))
 			user.bot = bot
@@ -2285,7 +2288,7 @@ class Protocol:
 		@required.str username: The target user.
 		@required.str password: The new password.
 		'''
-		user = self.userdb.clientFromUsername(username)
+		user = self.clientFromUsername(username, True)
 		if user:
 			if user.access in ('mod', 'admin') and not client.access == 'admin':
 				self.out_SERVERMSG(client, 'You have insufficient access to change moderator passwords.')
@@ -2360,7 +2363,7 @@ class Protocol:
 		@required.str username: The target user.
 		@required.str password: The password to try.
 		'''
-		user = self.userdb.clientFromUsername(username)
+		user = self.clientFromUsername(username, True)
 		if user and user.password == password:
 			client.Send('TESTLOGINACCEPT %s %s' % (user.username, user.id))
 		else:
@@ -2535,7 +2538,7 @@ class Protocol:
 			self.userdb.save_user(client)
 			self.out_SERVERMSG(client,"changed email to %s"%(client.email))
 			return
-		user = self.userdb.clientFromUsername(username)
+		user = self.clientFromUsername(username, True)
 		if user.access in ('mod', 'admin') and not client.access == 'admin': #disallow mods to change other mods / admins email
 			self.out_SERVERMSG(client,"access denied")
 			return

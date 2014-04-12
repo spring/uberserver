@@ -59,7 +59,7 @@ class ChanServ:
 			channel = self._root.channels[chan]
 			access = channel.getAccess(client)
 			if cmd == 'info':
-				founder = self.client._protocol.clientFromID(channel.owner)
+				founder = self.client._protocol.clientFromID(channel.owner, True)
 				if founder: founder = 'Founder is <%s>' % founder.username
 				else: founder = 'No founder is registered'
 				admins = []
