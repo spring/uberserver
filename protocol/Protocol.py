@@ -201,7 +201,12 @@ class Protocol:
 		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
 
 	def _handle(self, client, msg):
-		msg = msg.decode('utf-8')
+		try:
+			msg = msg.decode('utf-8')
+		except:
+			self.out_SERVERMSG("Invalid utf-8 received, skipped message", True)
+			return
+			
 		if msg.startswith('#'):
 			test = msg.split(' ')[0][1:]
 			if test.isdigit():
