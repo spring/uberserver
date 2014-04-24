@@ -89,16 +89,29 @@ restricted = {
 	'RENAMEACCOUNT',
 	'USERID'],
 'mod':[
-	'BAN', 'BANIP', 'UNBAN', 'UNBANIP', 'BANLIST',
+	'BAN',
+	'BANIP',
+	'UNBAN',
+	'UNBANIP',
+	'BANLIST',
 	'CHANGEACCOUNTPASS',
-	'KICKUSER', 'FINDIP', 'GETIP', 'GETLASTLOGINTIME','GETUSERID'
-	'SETBOTMODE', 'TESTLOGIN', 'GENERATEUSERID',
+	'KICKUSER',
+	'FINDIP',
+	'GETIP',
+	'GETLASTLOGINTIME',
+	'GETUSERID',
+	'SETBOTMODE',
+	'TESTLOGIN',
+	'GENERATEUSERID',
 	'GETLOBBYVERSION',
 	],
 'admin':[
 	#########
 	# server
-	'ADMINBROADCAST', 'BROADCAST','BROADCASTEX','RELOAD',
+	'ADMINBROADCAST',
+	'BROADCAST',
+	'BROADCASTEX',
+	'RELOAD',
 	'CLEANUP',
 	'SETLATESTSPRINGVERSION',
 	#########
@@ -2593,4 +2606,3 @@ if __name__ == '__main__':
 	f.close()
 
 	print 'Protocol documentation written to docs/protocol.txt'
-
