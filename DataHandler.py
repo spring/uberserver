@@ -274,14 +274,9 @@ class DataHandler:
 		except:
 			hasload = False
 		while self.running:
-			now = time.time()
-			if hasload and now - lastload > 1: # only fetch load when available & last fetch was >1 sec ago
-				lastload = now
-				load, _, _ = os.getloadavg()
 			try:
-				if load > 8: # if load is higher than this, skip some steps
-					pass
-				elif now - lastmute >= 1:
+				now = time.time()
+				if now - lastmute >= 1:
 					lastmute = now
 					self.mute_timeout_step()
 				elif now - lastidle > 10:
@@ -291,7 +286,6 @@ class DataHandler:
 					self.console_print_step()
 			except:
 				self.error(traceback.format_exc())	
-				
 			time.sleep(max(0.1, 1 - (time.time() - start)))
 
 	def mute_timeout_step(self):
