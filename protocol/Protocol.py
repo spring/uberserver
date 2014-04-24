@@ -2378,7 +2378,7 @@ class Protocol:
 		'''
 		user = self.clientFromUsername(username, True)
 		if user and user.password == password:
-			client.Send('TESTLOGINACCEPT %s %s' % (user.username, user.id))
+			client.Send('TESTLOGINACCEPT %s %s' % (user.username, user.db_id))
 		else:
 			client.Send('TESTLOGINDENY')
 
