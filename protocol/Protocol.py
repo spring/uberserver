@@ -204,7 +204,8 @@ class Protocol:
 		try:
 			msg = msg.decode('utf-8')
 		except:
-			self.out_SERVERMSG(client, "Invalid utf-8 received, skipped message", True)
+			msg = ":".join("{:02x}".format(ord(c)) for c in msg)
+			self.out_SERVERMSG(client, "Invalid utf-8 received, skipped message %s" %(msg), True)
 			return
 			
 		if msg.startswith('#'):
