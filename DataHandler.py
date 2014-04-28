@@ -299,7 +299,9 @@ class DataHandler:
 					expiretime = mutelist[db_id]['expires']
 					if 0 < expiretime and expiretime < now:
 						del channel.mutelist[db_id]
-						channel.channelMessage('<%s> has been unmuted (mute expired).' % self.protocol.clientFromID(db_id).username)
+						client = self.protocol.clientFromID(db_id)
+						if client:
+							channel.channelMessage('<%s> has been unmuted (mute expired).' % client.username)
 		except:
 			self.error(traceback.format_exc())
 
