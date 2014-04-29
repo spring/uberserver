@@ -206,7 +206,7 @@ class Protocol:
 		except:
 			msg = ":".join("{:02x}".format(ord(c)) for c in msg)
 			self.out_SERVERMSG(client, "Invalid utf-8 received, skipped message %s" %(msg), True)
-			return
+			#return #FIXME, reenable until https://github.com/Yaribz/SPADS/issues/4 is fixed
 			
 		if msg.startswith('#'):
 			test = msg.split(' ')[0][1:]
