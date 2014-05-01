@@ -156,11 +156,14 @@ class Client:
 		self.sendbuffer.append(msg+self.nl)
 		self.handler.poller.setoutput(self.conn, True)
 
-	def SendNow(self, msg):
+	def SendNow(self, msg, encode=True):
 		if self.sendError or self.removing: return
 		if not msg: return
 		try:
-			self.conn.send(msg.encode("utf-8")+self.nl)
+			if encode:
+				self.conn.send(msg.encode("utf-8") + self.nl)
+			else:
+				self.conn.send(msg + self.nl)
 		except socket.error, e:
 			self.sendError = True
 			self.Remove("SendNow(): Socket error: %s" % (str(e)))

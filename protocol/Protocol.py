@@ -203,14 +203,11 @@ class Protocol:
 	def _handle(self, client, msg):
 		try:
 			msg = msg.decode('utf-8')
+			self.binary = False
 		except:
 			err = ":".join("{:02x}".format(ord(c)) for c in msg)
 			self.out_SERVERMSG(client, "Invalid utf-8 received, skipped message %s" %(err), True)
-			try:
-				msg = msg.decode('latin-1')
-			except:
-				self._root.console_write("Can't decode as latin-1 as well")
-				
+			self.binary = True
 			#return #FIXME, reenable until https://github.com/Yaribz/SPADS/issues/4 is fixed
 			
 		if msg.startswith('#'):
@@ -878,7 +875,10 @@ class Protocol:
 		if user in self._root.usernames:
 			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
 			if not msg or not msg.strip(): return
-			client.Send('SAYPRIVATE %s %s'%(user, msg))
+			if self.binary:
+				client.SendNow('SAYPRIVATE %s %s'%(user, msg), False) #FIXME: bad hack to fix binary data, should use Send()!!!!
+			else:
+				client.Send('SAYPRIVATE %s %s'%(user, msg))
 			self._root.usernames[user].Send('SAIDPRIVATE %s %s'%(client.username, msg))
 
 	def in_SAYPRIVATEEX(self, client, user, msg):
