@@ -1048,7 +1048,12 @@ class Protocol:
 					topictime = int(topic['time'])
 				else:
 					topictime = int(topic['time'])*1000
-				client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topictime, topic['text'].decode("utf-8")))
+				try:
+					top = topic['text'].decode("utf-8")
+				except:
+					top = "Invalid utf-8 encoding"
+					self._root.console_write("%s for channel topic: %s" %(top, chan))
+				client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topictime, top))
 			elif client.compat['et']: # supports sendEmptyTopic
 				client.Send('NOCHANNELTOPIC %s' % chan)
 
