@@ -144,6 +144,8 @@ class Client:
 						self._protocol._handle(self,cmd)
 
 	def Remove(self, reason='Quit'):
+		while self.sendbuffer:
+			self.FlushBuffer()
 		self.handler.finishRemove(self, reason)
 
 	def Send(self, msg):
@@ -193,6 +195,7 @@ class Client:
 			if e == errno.EAGAIN:
 				return
 			self.Remove("FlushBuffer(): Socket error: %s" %(str(e)))
+			self.sendbuffer = []
 		
 		self.handler.poller.setoutput(self.conn, bool(self.sendbuffer or self.sendingmessage))
 	
