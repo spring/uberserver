@@ -406,11 +406,12 @@ class Protocol:
 
 	def _time_until(self, timestamp):
 		'given a future timestamp, as returned by time.time(), returns a human-readable relative time'
-		seconds = timestamp - time.time()
+		now = time.time()
+		seconds = timestamp - now
 		if seconds <= 0:
 			return 'forever'
 		else:
-			seconds = seconds - time.time()
+			seconds = seconds - now
 			return self._time_format(seconds)
 
 	def _time_since(self, timestamp):
