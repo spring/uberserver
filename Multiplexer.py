@@ -4,12 +4,10 @@ from select import * # eww hack but saves the other hack of selectively importin
 class EpollMultiplexer:
 
 	def __init__(self):
-		self.args = []
 		self.filenoToSocket = {}
 		self.socketToFileno = {}
 		self.sockets = set([])
 		self.output = set([])
-		self.args = []
 
 		self.inMask = EPOLLIN | EPOLLPRI
 		self.outMask = EPOLLOUT
@@ -52,16 +50,14 @@ class EpollMultiplexer:
 			callback(inputs, outputs, errors)
 
 	def poll(self):
-		for i in xrange(5):
-			try:
-				results = self.poller.poll(*self.args)
-			except IOError, e:
-				if e[0] == 4:
-					# interrupted system call - this happens when any signal is triggered
-					continue
-				else:
-					raise e
-			break
+		try:
+			results = self.poller.poll()
+		except IOError, e:
+			if e[0] == 4:
+				# interrupted system call - this happens when any signal is triggered
+				pass
+			else:
+				raise e
 
 		inputs = []
 		outputs = []
