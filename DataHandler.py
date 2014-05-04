@@ -27,8 +27,10 @@ class DataHandler:
 		self.log = False
 		self.logfile = None
 		self.logfilename = 'server.log'
-		self.agreementfile = 'agreement.rtf'
-		self.agreement = []
+		self.agreementfile = 'agreement.rtf' #FIXME: remove/deprecated
+		self.agreementfileplain = 'agreement.txt'
+		self.agreement = [] #FIXME: remove
+		self.agreementplain = []
 		self.server = 'TASServer'
 		self.server_version = 0.36
 		self.sighup = False
@@ -87,7 +89,7 @@ class DataHandler:
 		print '      { Disables censoring of #main, #newbies, and usernames (default is to censor) }'
 		print '  --proxies /path/to/proxies.txt'
 		print '     { Path to proxies.txt, for trusting proxies to pass real IP through local IP }'
-		print '   -a --agreement /path/to/agreement.rtf'
+		print '   -a --agreement /path/to/agreement.txt'
 		print '     { sets the pat to the agreement file which is sent to a client registering at the server }'
 		print 'SQLURL Examples:'
 		#print '  "sqlite:///:memory:" or "sqlite:///"'
@@ -173,6 +175,11 @@ class DataHandler:
 					self.argeementfile = argp[0]
 				except:
 					print 'Error reading agreement file'
+			elif arg in ['p', 'agreementplain']:
+				try:
+					self.argeementfileplain = argp[0]
+				except:
+					print 'Error reading agreement file'
 			elif arg == 'proxies':
 				try:
 					self.trusted_proxyfile = argp[0]
@@ -253,6 +260,9 @@ class DataHandler:
 		ins = open(self.agreementfile, "r" )
 		for line in ins:
 			self.agreement.append(line.rstrip('\r\n'))
+		ins = open(self.agreementfileplain, "r" )
+		for line in ins:
+			self.agreementplain.append(line.rstrip('\r\n'))
 		ins.close()
 
 	def getUserDB(self):

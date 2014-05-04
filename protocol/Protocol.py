@@ -154,6 +154,7 @@ flag_map = {
 	'eb': 'extendedBattles', # deprecated use cl instead: extended battle commands with support for engine/version
 	'm': 'matchmaking',      # FORCEJOINBATTLE from battle hosts for matchmaking
 	'cl': 'cleanupBattles',  # BATTLEOPENED / OPENBATTLE with support for engine/version
+	'p':  'agreementPlain',  # AGREEMENT is plaintext
 }
 
 class Protocol:
@@ -163,6 +164,7 @@ class Protocol:
 		self.SayHooks = root.SayHooks
 		self.dir = dir(self)
 		self.agreement = root.agreement
+		self.agreementplain = root.agreementplain
 		self.stats = {}
 
 	def _new(self, client):
@@ -445,6 +447,10 @@ class Protocol:
 			client.Send("MOTD Your client doesn't support the 'cl' compatibility flag, please upgrade it!")
 			client.Send("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
 			self._root.console_write('Handler %s:%s <%s> client "%s" missing compat flag: cl '%(client.handler.num, client.username, client.session_id, client.lobby_id))
+		if not client.compat['p']:
+			client.Send("MOTD Your client doesn't support the 'p' compatibility flag, please upgrade it!")
+			client.Send("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
+			self._root.console_write('Handler %s:%s <%s> client "%s" missing compat flag: p '%(client.handler.num, client.username, client.session_id, client.lobby_id))
 
 	def _validPasswordSyntax(self, password):
 		'checks if a password is correctly encoded base64(md5())'
@@ -636,6 +642,10 @@ class Protocol:
 			client.Send("REGISTRATIONDENIED %s" % (reason))
 			return
 
+		if client.hashpw:
+			m = md5(password)
+			password = base64.b64encode(m.digest())
+
 		good, reason = self._validPasswordSyntax(password)
 		if not good:
 			client.Send("REGISTRATIONDENIED %s" % (reason))
@@ -778,7 +788,11 @@ class Protocol:
 
 		if client.access == 'agreement':
 			self._root.console_write('Handler %s: Sent user <%s> the terms of service on session %s.'%(client.handler.num, username, client.session_id))
-			for line in self.agreement:
+			if client.compat['p']:
+				agreement = self.agreementplain
+			else:
+				agreement = self.agreement
+			for line in agreement:
 				client.Send("AGREEMENT %s" %(line))
 			client.Send('AGREEMENTEND')
 			return
