@@ -50,8 +50,9 @@ class EpollMultiplexer:
 			callback(inputs, outputs, errors)
 
 	def poll(self):
+		results = []
 		try:
-			results = self.poller.poll()
+			results = self.poller.poll(10)
 		except IOError, e:
 			if e[0] == 4:
 				# interrupted system call - this happens when any signal is triggered
