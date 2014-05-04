@@ -1756,15 +1756,13 @@ class Protocol:
 			return
 
 		for channel in channels:
-			chaninfo = '%s %s'%(channel.name, len(channel.users))
 			topic = channel.topic
 			if topic:
 				try:
-					topic['text'] = topic['text'].encode("utf-8")
+					top = topic['text'].decode("utf-8")
 				except:
-					topic['text'] = "Invalid utf-8"
-				chaninfo = '%s %s'%(chaninfo, topic['text']) # TASClient doesn't show the topic in CHANNELS unless it has a space, by the way.
-			client.Send('CHANNEL %s'%chaninfo)
+					top = "Invalid utf-8"
+			client.Send('CHANNEL %s %d %s'% (channel.name, len(channel.users), top))
 		client.Send('ENDOFCHANNELS')
 
 	def in_CHANNELTOPIC(self, client, chan, topic):
