@@ -233,6 +233,9 @@ class Protocol:
 			command = msg
 		command = command.upper()
 
+		if self.binary and not command in ("SAYPRIVATE"): #HACK for spads
+			return
+
 		access = []
 		for level in client.accesslevels:
 			access += restricted[level]
@@ -875,12 +878,11 @@ class Protocol:
 		'''
 		if not msg: return
 		if user in self._root.usernames:
-			if self.binary:
-				client.Send('SAYPRIVATE %s %s'%(user, msg), True) #FIXME: bad hack to fix binary data, should use Send()!!!!
-			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
+			if not self.binary:
+				msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
 			if not msg or not msg.strip(): return
-			client.Send('SAYPRIVATE %s %s'%(user, msg))
-			self._root.usernames[user].Send('SAIDPRIVATE %s %s'%(client.username, msg))
+			client.Send('SAYPRIVATE %s %s'%(user, msg), self.binary) #FIXME: bad hack to fix binary data, should use Send()!!!!
+			self._root.usernames[user].Send('SAIDPRIVATE %s %s' %(user, msg), self.binary)
 
 	def in_SAYPRIVATEEX(self, client, user, msg):
 		'''
