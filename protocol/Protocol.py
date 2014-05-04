@@ -167,7 +167,8 @@ class Protocol:
 
 	def _new(self, client):
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0'))
-		client.SendNow(login_string)
+		client.Send(login_string)
+		client.FlushBuffer()
 
 	def _remove(self, client, reason='Quit'):
 		if client.username and client.username in self._root.usernames:
@@ -874,12 +875,11 @@ class Protocol:
 		'''
 		if not msg: return
 		if user in self._root.usernames:
+			if self.binary:
+				client.Send('SAYPRIVATE %s %s'%(user, msg), True) #FIXME: bad hack to fix binary data, should use Send()!!!!
 			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
 			if not msg or not msg.strip(): return
-			if self.binary:
-				client.SendNow('SAYPRIVATE %s %s'%(user, msg), False) #FIXME: bad hack to fix binary data, should use Send()!!!!
-			else:
-				client.Send('SAYPRIVATE %s %s'%(user, msg))
+			client.Send('SAYPRIVATE %s %s'%(user, msg))
 			self._root.usernames[user].Send('SAIDPRIVATE %s %s'%(client.username, msg))
 
 	def in_SAYPRIVATEEX(self, client, user, msg):

@@ -125,7 +125,7 @@ class Client:
 		if total > (bytespersecond * seconds):
 			if not self.access in ('admin', 'mod'):
 				if not self.bot == 1: # FIXME: no flood limit for these atm, need to rewrite flood limit to server-side shaping/bandwith limiting
-					self.SendNow('SERVERMSG No flooding (over %s per second for %s seconds)'%(bytespersecond, seconds))
+					self.Send('SERVERMSG No flooding (over %s per second for %s seconds)'%(bytespersecond, seconds))
 					self.Remove('Kicked for flooding (%s)' %(self.access))
 					return
 
@@ -148,27 +148,17 @@ class Client:
 			self.FlushBuffer()
 		self.handler.finishRemove(self, reason)
 
-	def Send(self, msg):
+	def Send(self, msg, binary=False):
 		# don't append new data to send buffer when client gets removed
 		if not msg or self.removing: return
 
 		if self.handler.thread == thread.get_ident():
 			msg = self.msg_id + msg
-			
-		self.sendbuffer.append(msg+self.nl)
+		if binary:
+			self.sendbuffer.append(msg+self.nl)
+		else:
+			self.sendbuffer.append(msg.encode("utf-8")+self.nl)
 		self.handler.poller.setoutput(self.conn, True)
-
-	def SendNow(self, msg, encode=True):
-		if self.sendError or self.removing: return
-		if not msg: return
-		try:
-			if encode:
-				self.conn.send(msg.encode("utf-8") + self.nl)
-			else:
-				self.conn.send(msg + self.nl)
-		except socket.error, e:
-			self.sendError = True
-			self.Remove("SendNow(): Socket error: %s" % (str(e)))
 
 	def FlushBuffer(self):
 		# client gets removed, clean buffers
@@ -186,7 +176,7 @@ class Client:
 			self.sendingmessage = message
 		senddata = self.sendingmessage# [:64] # smaller chunks interpolate better, maybe base this off of number of clients?
 		try:
-			sent = self.conn.send(senddata.encode("utf-8"))
+			sent = self.conn.send(senddata)
 			self.sendingmessage = self.sendingmessage[sent:] # only removes the number of bytes sent
 		except UnicodeDecodeError:
 			self.sendingmessage = None

@@ -309,10 +309,10 @@ class DataHandler:
 		now = time.time()
 		for client in self.clients.values():
 			if not client.logged_in and client.last_login < now - 60:
-				client.SendNow("SERVERMSG timed out, no login within 60 seconds!")
+				client.Send("SERVERMSG timed out, no login within 60 seconds!")
 				client.Remove("Connection timed out, didn't login")
 			elif client.lastdata < now - 60:
-				client.SendNow("SERVERMSG timed out, no data or PING received for >60 seconds, closing connection")
+				client.Send("SERVERMSG timed out, no data or PING received for >60 seconds, closing connection")
 				client.Remove("Connection timed out")
 
 	def console_print_step(self):
