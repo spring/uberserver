@@ -2284,7 +2284,7 @@ class Protocol:
 		try:
 			client.last_id = uint32(user_id)
 		except: # this is harsh, but some clients/users seems to need this
-			client.Remove('Invalid USERID, int32 excepted got %s' %(str(user_id)))
+			client.Remove('Invalid USERID, uint32 excepted got %s' %(str(user_id)))
 			return
 		self.userdb.save_user(client)
 
