@@ -168,7 +168,7 @@ class Protocol:
 	def _new(self, client):
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0'))
 		client.Send(login_string)
-		client.FlushBuffer()
+		client.FlushBuffer() #FIXME: shouldn't be required
 
 	def _remove(self, client, reason='Quit'):
 		if client.username and client.username in self._root.usernames:
