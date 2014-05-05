@@ -890,12 +890,13 @@ class Protocol:
 		@required.str message: The message to send.
 		'''
 		if not msg: return
-		if user in self._root.usernames:
+		receiver = self.clientFromUsername(user)
+		if receiver:
 			if not self.binary:
 				msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
 				if not msg or not msg.strip(): return
 			client.Send('SAYPRIVATE %s %s'%(user, msg), self.binary) #FIXME: bad hack to fix binary data, should use Send()!!!!
-			self._root.usernames[user].Send('SAIDPRIVATE %s %s' %(user, msg), self.binary)
+			receiver.Send('SAIDPRIVATE %s %s' %(client.username, msg), self.binary)
 
 	def in_SAYPRIVATEEX(self, client, user, msg):
 		'''
