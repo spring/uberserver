@@ -318,6 +318,7 @@ class DataHandler:
 	def idle_timeout_step(self):
 		now = time.time()
 		for client in self.clients.values():
+			if client.static: continue
 			if not client.logged_in and client.last_login < now - 60:
 				client.Send("SERVERMSG timed out, no login within 60 seconds!")
 				client.Remove("Connection timed out, didn't login")
