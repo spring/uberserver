@@ -86,8 +86,8 @@ restricted = {
 	'MYSTATUS',
 	'PORTTEST',
 	'UPTIME',
-	'RENAMEACCOUNT',
-	'USERID'],
+	'RENAMEACCOUNT'
+	],
 'mod':[
 	'BAN',
 	'BANIP',
@@ -102,7 +102,6 @@ restricted = {
 	'GETUSERID',
 	'SETBOTMODE',
 	'TESTLOGIN',
-	'GENERATEUSERID',
 	'GETLOBBYVERSION',
 	],
 'admin':[
@@ -2176,14 +2175,6 @@ class Protocol:
 		else:
 			self.out_SERVERMSG(client, 'User not found.')
 
-	def in_GENERATEUSERID(self, client, username):
-		user = self.clientFromUsername(username)
-		if user:
-			self.out_SERVERMSG(client, 'The ID for <%s> requested' % (username))
-			user.Send('ACQUIREUSERID')
-		else:
-			self.out_SERVERMSG(client, 'User not found.')
-
 	def in_GETACCOUNTACCESS(self, client, username):
 		'''
 		Get the account access bitfield for target user.
@@ -2275,18 +2266,6 @@ class Protocol:
 				self.out_SERVERMSG(client, 'Password changed successfully to %s' % newpassword)
 			else:
 				self.out_SERVERMSG(client, 'Incorrect old password.')
-
-	def in_USERID(self, client, user_id):
-		'''
-		Set the lobby id
-		@required.int userid
-		'''
-		try:
-			client.last_id = uint32(user_id)
-		except: # this is harsh, but some clients/users seems to need this
-			client.Remove('Invalid USERID, uint32 excepted got %s' %(str(user_id)))
-			return
-		self.userdb.save_user(client)
 
 	def in_FORGEREVERSEMSG(self, client, user, msg):
 		'''
