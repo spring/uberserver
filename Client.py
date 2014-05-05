@@ -184,8 +184,8 @@ class Client:
 		except socket.error, e:
 			if e == errno.EAGAIN:
 				return
-			self.Remove("FlushBuffer(): Socket error: %s" %(str(e)))
 			self.sendbuffer = []
+			self.handler.finishRemove(self, "FlushBuffer(): Socket error: %s" %(str(e)))
 		
 		self.handler.poller.setoutput(self.conn, bool(self.sendbuffer or self.sendingmessage))
 	
