@@ -29,6 +29,7 @@ class ChanServ:
 	def HandleMessage(self, chan, user, msg):
 		msg = msg.lstrip('!')
 		args = None
+		if user == 'ChanServ': return # safety, shouldn't be needed
 		if msg.count(' ') >= 2:	# case cmd blah blah+
 			splitmsg = msg.split(' ',2)
 			if splitmsg[1].startswith('#'): # case cmd #chan arg+
@@ -272,10 +273,7 @@ class ChanServClient(Client):
 	def Remove(self, reason=None):
 		pass
 
-	def Send(self, msg):
-		self.SendNow(msg)
-
-	def SendNow(self, msg):
+	def Send(self, msg, binary=False):
 		if not msg: return
 		self.ChanServ.Handle(msg)
 
