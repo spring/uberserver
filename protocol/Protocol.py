@@ -969,7 +969,9 @@ class Protocol:
 			for user in mutelist:
 				m = mutelist[user].copy()
 				message = self._time_until(m['expires']) + (' by IP.' if m['ip'] else '.')
-				client.Send('MUTELIST %s, %s' % (user, message))
+				user = self.clientFromID(user)
+				if user:
+					client.Send('MUTELIST %s, %s' % (user.username, message))
 			client.Send('MUTELISTEND')
 
 	def in_FORCEJOIN(self, client, user, chan, key=None):
