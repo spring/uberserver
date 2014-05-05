@@ -895,7 +895,7 @@ class Protocol:
 			if not self.binary:
 				msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
 				if not msg or not msg.strip(): return
-			client.Send('SAYPRIVATE %s %s'%(user, msg), self.binary) #FIXME: bad hack to fix binary data, should use Send()!!!!
+			client.Send('SAYPRIVATE %s %s'%(user, msg), self.binary)
 			receiver.Send('SAIDPRIVATE %s %s' %(client.username, msg), self.binary)
 
 	def in_SAYPRIVATEEX(self, client, user, msg):
