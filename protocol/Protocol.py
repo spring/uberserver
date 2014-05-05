@@ -207,8 +207,8 @@ class Protocol:
 			msg = msg.decode('utf-8')
 			self.binary = False
 		except:
-			err = ":".join("{:02x}".format(ord(c)) for c in msg)
-			self.out_SERVERMSG(client, "Invalid utf-8 received, skipped message %s" %(err), True)
+			#err = ":".join("{:02x}".format(ord(c)) for c in msg)
+			#self.out_SERVERMSG(client, "Invalid utf-8 received, skipped message %s" %(err), True)
 			self.binary = True
 			#return #FIXME, reenable until https://github.com/Yaribz/SPADS/issues/4 is fixed
 			
