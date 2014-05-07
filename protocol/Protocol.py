@@ -235,6 +235,8 @@ class Protocol:
 		command = command.upper()
 
 		if self.binary and not command in ("SAYPRIVATE"): #HACK for spads
+			err = ":".join("{:02x}".format(ord(c)) for c in msg)
+			self.out_SERVERMSG(client, "Invalid utf-8 received, skipped message %s" %(err), True)
 			return
 
 		access = []
