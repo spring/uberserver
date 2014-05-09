@@ -469,18 +469,18 @@ class Protocol:
 			return False, 'Invalid username.'
 		for char in username:
 			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
-				return False, 'Unicode names are currently disallowed.'
+				return False, 'Only ASCII chars, [], _, 0-9 are allowed in usernames.'
 		if len(username) > 20:
-			return False, 'Username is too long.'
+			return False, 'Username is too long, max is 20 chars.'
 		return True, ""
 
 	def _validChannelSyntax(self, channel):
 		'checks if usernames syntax is correct / doesn''t contain invalid chars'
 		for char in channel:
 			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
-				return False, 'Unicode channel names are currently disallowed.'
+				return False, 'Only ASCII chars, [], _, 0-9 are allowed in channel names.'
 		if len(channel) > 20:
-			return False, 'Channelname is too long.'
+			return False, 'Channelname is too long, max is 20 chars.'
 		return True, ""
 
 
