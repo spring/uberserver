@@ -96,7 +96,7 @@ class ChanServ:
 					if not args: return '#%s: You must specify a new founder' % chan
 					target = self.client._protocol.clientFromUsername(args)
 					if not target: return '#%s: cannot assign founder status to a user who does not exist'
-					channel.changeFounder(client, target)
+					channel.setFounder(client, target)
 					channel.channelMessage('%s Founder has been changed to <%s>' % (chan, args))
 					return '#%s: Successfully changed founder to <%s>' % (chan, args)
 				else:
