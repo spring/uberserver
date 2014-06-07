@@ -50,7 +50,7 @@ try:
 	thread.start_new_thread(natserver.start,())
 	natserver.bind(_root)
 except socket.error:
-	print 'Error: Could not start NAT server - hole punching will be unavailable.'
+	print('Error: Could not start NAT server - hole punching will be unavailable.')
 
 _root.console_write()
 _root.console_write('Detecting local IP:')
@@ -137,7 +137,7 @@ if memdebug:
 			return '\n'.join(['%s%s:\n%s\t%s' % (tabs, key, tabs, output[key]) for key in output]) if output else {}
 		except: return 'no __dict__'
 	
-	print 'Dumping memleak info.'
+	print('Dumping memleak info.')
 	f = open('dump.txt', 'w')
 	f.write(dump(_root))
 	f.close()

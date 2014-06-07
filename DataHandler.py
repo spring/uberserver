@@ -63,55 +63,55 @@ class DataHandler:
 		thread.start_new_thread(self.event_loop, ())
 
 	def showhelp(self):
-		print 'Usage: server.py [OPTIONS]...'
-		print 'Starts uberserver.'
-		print
-		print 'Options:'
-		print '  -h, --help'
-		print '      { Displays this screen then exits }'
-		print '  -p, --port number'
-		print '      { Server will host on this port (default is 8200) }'
-		print '  -n, --natport number'
-		print '      { Server will use this port for NAT transversal (default is 8201) }'
-		print '  -g, --loadargs filename'
-		print '      { Reads additional command-line arguments from file }'
-		print '  -o, --output /path/to/file.log'
-		print '      { Writes console output to file (for logging) }'
-		print '  -u, --sighup'
-		print '      { Reload the server on SIGHUP (if SIGHUP is supported by OS) }'
-		print '  -v, --latestspringversion version'
-		print '      { Sets latest Spring version to this string. Defaults to "*" }'
-		print '  -m, --maxthreads number'
-		print '      { Uses the specified number of threads for handling clients }'
-		print '  -s, --sqlurl SQLURL'
-		print '      { Uses SQL database at the specified sqlurl for user, channel, and ban storage. }'
-		print '  -c, --no-censor'
-		print '      { Disables censoring of #main, #newbies, and usernames (default is to censor) }'
-		print '  --proxies /path/to/proxies.txt'
-		print '     { Path to proxies.txt, for trusting proxies to pass real IP through local IP }'
-		print '   -a --agreement /path/to/agreement.txt'
-		print '     { sets the pat to the agreement file which is sent to a client registering at the server }'
-		print 'SQLURL Examples:'
-		#print '  "sqlite:///:memory:" or "sqlite:///"'
-		#print '     { both make a temporary database in memory }'
-		print '  "sqlite:////absolute/path/to/database.txt"'
-		print '     { uses a database in the file specified }'
-		print '  "sqlite:///relative/path/to/database.txt"'
-		print '     { note sqlite is slower than a real SQL server }'
-		print '  "mysql://user:password@server:port/database?charset=utf8&use_unicode=0"'
-		print '     { requires the MySQLdb module }'
-		print '  "oracle://user:password@server:port/database"'
-		print '     { requires the cx_Oracle module }'
-		print '  "postgres://user:password@server:port/database"'
-		print '     { requires the psycopg2 module }'
-		print '  "mssql://user:password@server:port/database"'
-		print '     { requires pyodbc (recommended) or adodbapi or pymssql }'
-		print '  "firebird://user:password@server:port/database"'
-		print '     { requires the kinterbasdb module }'
-		print
-		print 'Usage example (this is what the test server uses at the moment):'
-		print ' server.py -p 8300 -n 8301'
-		print
+		print('Usage: server.py [OPTIONS]...')
+		print('Starts uberserver.')
+		print()
+		print('Options:')
+		print('  -h, --help')
+		print('      { Displays this screen then exits }')
+		print('  -p, --port number')
+		print('      { Server will host on this port (default is 8200) }')
+		print('  -n, --natport number')
+		print('      { Server will use this port for NAT transversal (default is 8201) }')
+		print('  -g, --loadargs filename')
+		print('      { Reads additional command-line arguments from file }')
+		print('  -o, --output /path/to/file.log')
+		print('      { Writes console output to file (for logging) }')
+		print('  -u, --sighup')
+		print('      { Reload the server on SIGHUP (if SIGHUP is supported by OS) }')
+		print('  -v, --latestspringversion version')
+		print('      { Sets latest Spring version to this string. Defaults to "*" }')
+		print('  -m, --maxthreads number')
+		print('      { Uses the specified number of threads for handling clients }')
+		print('  -s, --sqlurl SQLURL')
+		print('      { Uses SQL database at the specified sqlurl for user, channel, and ban storage. }')
+		print('  -c, --no-censor')
+		print('      { Disables censoring of #main, #newbies, and usernames (default is to censor) }')
+		print('  --proxies /path/to/proxies.txt')
+		print('     { Path to proxies.txt, for trusting proxies to pass real IP through local IP }')
+		print('   -a --agreement /path/to/agreement.txt')
+		print('     { sets the pat to the agreement file which is sent to a client registering at the server }')
+		print('SQLURL Examples:')
+		#print('  "sqlite:///:memory:" or "sqlite:///"')
+		#print('     { both make a temporary database in memory }')
+		print('  "sqlite:////absolute/path/to/database.txt"')
+		print('     { uses a database in the file specified }')
+		print('  "sqlite:///relative/path/to/database.txt"')
+		print('     { note sqlite is slower than a real SQL server }')
+		print('  "mysql://user:password@server:port/database?charset=utf8&use_unicode=0"')
+		print('     { requires the MySQLdb module }')
+		print('  "oracle://user:password@server:port/database"')
+		print('     { requires the cx_Oracle module }')
+		print('  "postgres://user:password@server:port/database"')
+		print('     { requires the psycopg2 module }')
+		print('  "mssql://user:password@server:port/database"')
+		print('     { requires pyodbc (recommended) or adodbapi or pymssql }')
+		print('  "firebird://user:password@server:port/database"')
+		print('     { requires the kinterbasdb module }')
+		print()
+		print('Usage example (this is what the test server uses at the moment):')
+		print(' server.py -p 8300 -n 8301')
+		print()
 		exit()
 	def parseArgv(self, argv):
 		'parses command-line options'
@@ -147,52 +147,52 @@ class DataHandler:
 				self.showhelp()
 			if arg in ['p', 'port']:
 				try: self.port = int(argp[0])
-				except: print 'Invalid port specification'
+				except: print('Invalid port specification')
 			elif arg in ['n', 'natport']:
 				try: self.natport = int(argp[0])
-				except: print 'Invalid NAT port specification'
+				except: print('Invalid NAT port specification')
 			elif arg in ['o', 'output']:
 				try: self.logfilename = argp[0]
-				except: print 'Error specifying log location'
+				except: print('Error specifying log location')
 				self.rotatelogfile()
 			elif arg in ['u', 'sighup']:
 				self.sighup = True
 			elif arg in ['v', 'latestspringversion']:
 				try: self.latestspringversion = argp[0] # ' '.join(argp) # shouldn't have spaces
-				except: print 'Error specifying latest spring version'
+				except: print('Error specifying latest spring version')
 			elif arg in ['m', 'maxthreads']:
 				try: self.max_threads = int(argp[0])
-				except: print 'Error specifing max threads'
+				except: print('Error specifing max threads')
 			elif arg in ['s', 'sqlurl']:
 				try:
 					self.sqlurl = argp[0]
 				except:
-					print 'Error specifying SQL URL'
+					print('Error specifying SQL URL')
 			elif arg in ['c', 'no-censor']:
 				self.censor = False
 			elif arg in ['a', 'agreement']:
 				try:
 					self.argeementfile = argp[0]
 				except:
-					print 'Error reading agreement file'
+					print('Error reading agreement file')
 			elif arg in ['p', 'agreementplain']:
 				try:
 					self.argeementfileplain = argp[0]
 				except:
-					print 'Error reading agreement file'
+					print('Error reading agreement file')
 			elif arg == 'proxies':
 				try:
 					self.trusted_proxyfile = argp[0]
 					open(self.trusted_proxyfile, 'r').close()
 				except:
-					print 'Error opening trusted proxy file.'
+					print('Error opening trusted proxy file.')
 					self.trusted_proxyfile = None
 		sqlalchemy = __import__('sqlalchemy')
 		if self.sqlurl.startswith('sqlite'):
-			print 'Multiple threads are not supported with sqlite, forcing a single thread'
-			print 'Please note the server performance will not be optimal'
-			print 'You might want to install a real database server or use LAN mode'
-			print
+			print('Multiple threads are not supported with sqlite, forcing a single thread')
+			print('Please note the server performance will not be optimal')
+			print('You might want to install a real database server or use LAN mode')
+			print()
 			self.max_threads = 1
 			self.engine = sqlalchemy.create_engine(self.sqlurl)
 			def _fk_pragma_on_connect(dbapi_con, con_record):
@@ -337,9 +337,9 @@ class DataHandler:
 			if self.logfile:
 				self.logfile.flush()
 		except:
-			print separator
-			print traceback.format_exc()
-			print separator
+			print(separator)
+			print(traceback.format_exc())
+			print(separator)
 
 	def error(self, error):
 		error = '%s\n%s\n%s'%(separator,error,separator)
@@ -455,6 +455,6 @@ class DataHandler:
 		except IOError as e:
 			print("Error rotaing logfile %s"% (e.strerror))
 		self.logfile = file(self.logfilename, 'w')
-		print 'Logging enabled at: %s' % self.logfilename
+		print('Logging enabled at: %s' % self.logfilename)
 		self.log = True
 
