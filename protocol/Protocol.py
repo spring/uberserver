@@ -2279,7 +2279,7 @@ class Protocol:
 			return
 
 		if not (msg and msg.split(' ')[1] in ("LEAVEBATTLE", "JOINBATTLE")):
-			self.out_SERVERMSG(client, "Invalid call to FORGEREVERSEMSG, this command is deprecated, don't use it!", True)
+			self.out_SERVERMSG(client, "Invalid call to FORGEREVERSEMSG, this command is deprecated, don't use it: %s" %(msg), True)
 			return
 
 		if user in self._root.usernames:
