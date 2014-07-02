@@ -702,7 +702,7 @@ class Protocol:
 			self.out_DENIED(client, username, reason)
 			return
 
-		try: int(cpu)
+		try: int32(cpu)
 		except: cpu = '0'
 		user_id = 0
 
