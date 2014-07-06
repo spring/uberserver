@@ -2282,6 +2282,10 @@ class Protocol:
 			self.out_SERVERMSG(client, "Invalid call to FORGEREVERSEMSG, this command is deprecated, don't use it: %s" %(msg), True)
 			return
 
+		if not client.username == "Nightwatch":
+			self.out_SERVERMSG(client, "Forging messages is deprecated, only exception for Nightwatch exists", True)
+			return
+
 		if user in self._root.usernames:
 			self._root.console_write('FORGEREVERSEMSG %s %s %s' %(client.username, user, msg))
 			self._handle(self._root.usernames[user], msg)
