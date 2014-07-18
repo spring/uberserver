@@ -257,9 +257,11 @@ class DataHandler:
 					
 					if proxy:
 						self.trusted_proxies.add(proxy)
+		self.agreement = []
 		ins = open(self.agreementfile, "r" )
 		for line in ins:
 			self.agreement.append(line.rstrip('\r\n'))
+		self.agreementplain = []
 		ins = open(self.agreementfileplain, "r" )
 		for line in ins:
 			self.agreementplain.append(line.rstrip('\r\n'))
