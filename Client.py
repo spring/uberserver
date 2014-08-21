@@ -186,6 +186,7 @@ class Client:
 				return
 			self.sendbuffer = []
 			self.handler.finishRemove(self, "FlushBuffer(): Socket error: %s" %(str(e)))
+			return
 		
 		self.handler.poller.setoutput(self.conn, bool(self.sendbuffer or self.sendingmessage))
 	
