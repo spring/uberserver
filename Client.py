@@ -161,7 +161,7 @@ class Client:
 		self.handler.poller.setoutput(self.conn, True)
 
 	def FlushBuffer(self):
-		# client gets removed, clean buffers
+		# client gets removed, delete buffers
 		if self.removing:
 			self.sendbuffer = []
 			self.sendingmessage = None
@@ -185,8 +185,7 @@ class Client:
 			if e == errno.EAGAIN:
 				return
 			self.sendbuffer = []
-			self.handler.finishRemove(self, "FlushBuffer(): Socket error: %s" %(str(e)))
-			return
+			self.sendingmessage = None
 		
 		self.handler.poller.setoutput(self.conn, bool(self.sendbuffer or self.sendingmessage))
 	
