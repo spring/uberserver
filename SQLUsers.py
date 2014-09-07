@@ -260,10 +260,13 @@ class UsersHandler:
 		if banned:
 			good = False
 			timeleft = int((dbban.end_time - now).total_seconds())
-			if timeleft > 60 * 60 * 24:
-				reason = 'You are banned: (%s) days remaining: %s' % (timeleft / (60 * 60 * 24)  , dbban.reason)
+			reason = 'You are banned: (%s) ' %(dbban.reason)
+			if timeleft > 60 * 60 * 24 * 1000:
+				reason += 'forever!'
+			elif timeleft > 60 * 60 * 24:
+				reason += 'days remaining: %s' % (timeleft / (60 * 60 * 24))
 			else:
-				reason = 'You are banned: (%s) hours remaining: %s' % ((timeleft / (60 * 60)), dbban.reason )
+				reason += 'hours remaining: %s' % (timeleft / (60 * 60))
 		dbuser.logins.append(Login(now, ip, lobby_id, user_id, cpu, local_ip, country))
 		dbuser.last_login = now
 		dbuser.time = now
