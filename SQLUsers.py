@@ -12,7 +12,20 @@ except ImportError, e:
 	sys.exit(1)
 
 metadata = MetaData()
-
+##########################################
+users_table = Table('users', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('username', String(40), unique=True),
+	Column('password', String(64)),
+	Column('register_date', DateTime),
+	Column('last_login', DateTime),
+	Column('last_ip', String(15)), # would need update for ipv6
+	Column('last_id', String(128)),
+	Column('ingame_time', Integer),
+	Column('access', String(32)),
+	Column('email', String(254)), # http://www.rfc-editor.org/errata_search.php?rfc=3696&eid=1690
+	Column('bot', Integer),
+	)
 class User(object):
 	def __init__(self, username, password, last_ip, access='agreement'):
 		self.username = username
@@ -28,7 +41,19 @@ class User(object):
 
 	def __repr__(self):
 		return "<User('%s', '%s')>" % (self.username, self.password)
-
+##########################################
+logins_table = Table('logins', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('user_dbid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('ip_address', String(15), nullable=False),
+	Column('time', DateTime),
+	Column('lobby_id', String(128)),
+	Column('cpu', Integer),
+	Column('local_ip', String(15)), # needs update for ipv6
+	Column('country', String(4)),
+	Column('end', DateTime),
+	Column('user_id', String(128)),
+	)
 class Login(object):
 	def __init__(self, now, ip_address, lobby_id, user_id, cpu, local_ip, country):
 		self.time = now
@@ -42,7 +67,15 @@ class Login(object):
 
 	def __repr__(self):
 		return "<Login('%s', '%s')>" % (self.ip_address, self.time)
-
+mapper(Login, logins_table)
+##########################################
+renames_table = Table('renames', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('original', String(40)),
+	Column('new', String(40)), # FIXME: not needed
+	Column('time', DateTime),
+	)
 class Rename(object):
 	def __init__(self, original, new):
 		self.original = original
@@ -51,7 +84,27 @@ class Rename(object):
 		
 	def __repr__(self):
 		return "<Rename('%s')>" % self.ip_address
-
+mapper(Rename, renames_table)
+mapper(User, users_table, properties={
+	'logins':relation(Login, backref='user', cascade="all, delete, delete-orphan"),
+	'renames':relation(Rename, backref='user', cascade="all, delete, delete-orphan"),
+	})
+##########################################
+channels_table = Table('channels', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('name', String(40), unique=True),
+	Column('key', String(32)),
+	Column('owner', String(40)), #FIXME: delete, use owner_userid
+	Column('owner_userid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # user owner id
+	Column('topic', Text),
+	Column('topic_time', DateTime),
+	Column('topic_owner', String(40)), #FIXME: delete, use topic_userid
+	Column('topic_userid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # topic owner id
+	Column('antispam', Boolean),
+	Column('autokick', String(5)),
+	Column('censor', Boolean),
+	Column('antishock', Boolean),
+	)
 class Channel(object):
 	def __init__(self, name, key='', chanserv=False, owner='', topic='', topic_time=0, topic_owner='', antispam=False, admins='', autokick='ban', censor=False, antishock=False):
 		self.name = name
@@ -69,64 +122,8 @@ class Channel(object):
 
 	def __repr__(self):
 		return "<Channel('%s')>" % self.name
-
-users_table = Table('users', metadata,
-	Column('id', Integer, primary_key=True),
-	Column('username', String(40), unique=True),
-	Column('password', String(64)),
-	Column('register_date', DateTime),
-	Column('last_login', DateTime),
-	Column('last_ip', String(15)), # would need update for ipv6
-	Column('last_id', String(128)),
-	Column('ingame_time', Integer),
-	Column('access', String(32)),
-	Column('email', String(254)), # http://www.rfc-editor.org/errata_search.php?rfc=3696&eid=1690
-	Column('bot', Integer),
-	)
-
-logins_table = Table('logins', metadata, 
-	Column('id', Integer, primary_key=True),
-	Column('user_dbid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
-	Column('ip_address', String(15), nullable=False),
-	Column('time', DateTime),
-	Column('lobby_id', String(128)),
-	Column('cpu', Integer),
-	Column('local_ip', String(15)), # needs update for ipv6
-	Column('country', String(4)),
-	Column('end', DateTime),
-	Column('user_id', String(128)),
-	)
-
-renames_table = Table('renames', metadata,
-	Column('id', Integer, primary_key=True),
-	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
-	Column('original', String(40)),
-	Column('new', String(40)), # FIXME: not needed
-	Column('time', DateTime),
-	)
-
-channels_table = Table('channels', metadata,
-	Column('id', Integer, primary_key=True),
-	Column('name', String(40), unique=True),
-	Column('key', String(32)),
-	Column('owner', String(40)), #FIXME: delete, use owner_userid
-	Column('owner_userid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # user owner id
-	Column('topic', Text),
-	Column('topic_time', DateTime),
-	Column('topic_owner', String(40)), #FIXME: delete, use topic_userid
-	Column('topic_userid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # topic owner id
-	Column('antispam', Boolean),
-	Column('autokick', String(5)),
-	Column('censor', Boolean),
-	Column('antishock', Boolean),
-	)
-
-mapper(User, users_table, properties={
-	'logins':relation(Login, backref='user', cascade="all, delete, delete-orphan"),
-	'renames':relation(Rename, backref='user', cascade="all, delete, delete-orphan"),
-	})
-
-
+mapper(Channel, channels_table)
+##########################################
 banip_table = Table('ban_ip', metadata, # server bans
 	Column('id', Integer, primary_key=True),
 	Column('issuer_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # user which set ban
@@ -143,8 +140,7 @@ class BanIP(object):
 		self.end_time = end_time
 		self.updated = datetime.now()
 mapper(BanIP, banip_table)
-
-
+##########################################
 banuser_table = Table('ban_user', metadata, # server bans
 	Column('id', Integer, primary_key=True),
 	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # user id which is banned
@@ -153,7 +149,6 @@ banuser_table = Table('ban_user', metadata, # server bans
 	Column('end_time', DateTime),
 	Column('updated', DateTime),
 	)
-
 class BanUser(object):
 	def __init__(self, user_id = None, issuer_id = None, reason = "", end_time = datetime.now()):
 		self.user_id = user_id
@@ -162,10 +157,7 @@ class BanUser(object):
 		self.end_time = end_time
 		self.updated = datetime.now()
 mapper(BanUser, banuser_table)
-
-mapper(Login, logins_table)
-mapper(Rename, renames_table)
-mapper(Channel, channels_table)
+##########################################
 
 #metadata.create_all(engine)
 
