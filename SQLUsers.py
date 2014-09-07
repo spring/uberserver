@@ -70,22 +70,6 @@ class Channel(object):
 	def __repr__(self):
 		return "<Channel('%s')>" % self.name
 
-class Ban(object):
-	def __init__(self, reason, end_time):
-		self.reason = reason
-		self.end_time = end_time
-	
-	def __repr__(self):
-		return "<Ban('%s')>" % self.end_time
-
-class AggregateBan(object):
-	def __init__(self, type, data):
-		self.type = type
-		self.data = data
-	
-	def __repr__(self):
-		return "<AggregateBan('%s')('%s')>" % (self.type, self.data)
-
 users_table = Table('users', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('username', String(40), unique=True),
@@ -137,59 +121,51 @@ channels_table = Table('channels', metadata,
 	Column('antishock', Boolean),
 	)
 
-bans_table = Table('ban_groups', metadata, # FIXME: remove, use ban_ip / ban_user
-	Column('id', Integer, primary_key=True),
-	Column('reason', Text),
-	Column('end_time', DateTime),
-	)
-
-aggregatebans_table = Table('ban_items', metadata, # FIXME: remove, use ban_ip / ban_user
-	Column('id', Integer, primary_key=True),
-	Column('type', String(10)), # what exactly is banned (username, ip, subnet, hostname, (ip) range, userid, )
-	Column('data', String(60)), # regex would be cool
-	Column('ban_id', Integer, ForeignKey('ban_groups.id')),
-	)
-
 mapper(User, users_table, properties={
 	'logins':relation(Login, backref='user', cascade="all, delete, delete-orphan"),
 	'renames':relation(Rename, backref='user', cascade="all, delete, delete-orphan"),
 	})
 
+
 banip_table = Table('ban_ip', metadata, # server bans
 	Column('id', Integer, primary_key=True),
+	Column('issuer_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # user which set ban
 	Column('ip', String(60)), #ip which is banned
 	Column('reason', Text),
 	Column('end_time', DateTime),
+	Column('updated', DateTime),
 	)
 class BanIP(object):
-	def __init__(ip = None, reason = "", end_time = datetime.now()):
+	def __init__(self, ip = None, issuer_id = None, reason = "", end_time = datetime.now()):
+		self.issuer_id = issuer_id
 		self.ip = ip
 		self.reason = reason
 		self.end_time = end_time
+		self.updated = datetime.now()
 mapper(BanIP, banip_table)
+
 
 banuser_table = Table('ban_user', metadata, # server bans
 	Column('id', Integer, primary_key=True),
 	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # user id which is banned
+	Column('issuer_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # user which set ban
 	Column('reason', Text),
 	Column('end_time', DateTime),
+	Column('updated', DateTime),
 	)
 
 class BanUser(object):
-	def __init__(user = None, reason = "", end_time = datetime.now()):
-		self.user = user
+	def __init__(self, user_id = None, issuer_id = None, reason = "", end_time = datetime.now()):
+		self.user_id = user_id
+		self.issuer_id = issuer_id
 		self.reason = reason
 		self.end_time = end_time
+		self.updated = datetime.now()
 mapper(BanUser, banuser_table)
-
 
 mapper(Login, logins_table)
 mapper(Rename, renames_table)
 mapper(Channel, channels_table)
-mapper(Ban, bans_table, properties={
-	'entries':relation(AggregateBan, backref='ban', cascade="all, delete, delete-orphan"),
-	})
-mapper(AggregateBan, aggregatebans_table)
 
 #metadata.create_all(engine)
 
@@ -226,20 +202,14 @@ class UsersHandler:
 		if not entry: return None
 		return OfflineClient(entry)
 	
-	def check_ban(self, user=None, ip=None, userid=None, now=None):
+	def check_ban(self, user, ip, userid, now):
 		session = self.sessionmaker()
-		results = session.query(Ban).join(AggregateBan)
-		# FIXME
-		#subnetbans = results.filter(AggregateBan.type=='subnet').first()
-		userban = results.filter(AggregateBan.type=='user', AggregateBan.data==user, now <= Ban.end_time).first()
-		ipban = results.filter(AggregateBan.type=='ip', AggregateBan.data==ip, now <= Ban.end_time).first()
-		useridban = results.filter(AggregateBan.type=='userid', AggregateBan.data==userid, now <= Ban.end_time).first()
-		
+		userban = session.query(BanUser).filter(BanUser.user_id==userid, now <= BanUser.end_time).first()
+		if not userban:
+			ipban = session.query(BanIP).filter(BanIP.ip==ip, now <= BanIP.end_time).first()
 		session.close()
-		#if subnetbans: return True, subnetbans
 		if userban: return True, userban
 		if ipban: return True, ipban
-		if useridban: return True, useridban
 		return False, ""
 		
 	def login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
@@ -256,7 +226,7 @@ class UsersHandler:
 
 
 		now = datetime.now()
-		banned, dbban = self.check_ban(username, ip, user_id, now)
+		banned, dbban = self.check_ban(username, ip, dbuser.id, now)
 		if banned:
 			good = False
 			timeleft = int((dbban.end_time - now).total_seconds())
@@ -312,29 +282,27 @@ class UsersHandler:
 		return True, 'Account registered successfully.'
 	
 	def ban_user(self, owner, username, duration, reason):
-		# TODO: add owner field to the database for bans
 		session = self.sessionmaker()
 		entry = session.query(User).filter(User.username==username).first()
 		if not entry:
 			session.close()
 			return "Couldn't ban %s, user doesn't exist" % (username)
 		end_time = datetime.now() + timedelta(duration)
-		ban = Ban(reason, end_time)
+		ban = BanUser(entry.id, owner.db_id, reason, end_time)
 		session.add(ban)
-		ban.entries.append(AggregateBan('user', username))
-		#ban.entries.append(AggregateBan('ip', entry.last_ip))
-		# userid has to many duplicates, can't be used,
-		#ban.entries.append(AggregateBan('userid', entry.last_id))
 		session.commit()
 		session.close()
 		return 'Successfully banned %s for %s days.' % (username, duration)
 	
 	def unban_user(self, username):
 		session = self.sessionmaker()
-		results = session.query(AggregateBan).filter(AggregateBan.type=='user').filter(AggregateBan.data==username)
+		client = self.clientFromUsername(username)
+		if not client:
+			return "User %s doesn't exist" % username
+		results = session.query(BanUser).filter(BanUser.user_id==client.id)
 		if results:
 			for result in results:
-				session.delete(result.ban)
+				session.delete(result)
 			session.commit()
 			session.close()
 			return 'Successfully unbanned %s.' % username
@@ -346,19 +314,18 @@ class UsersHandler:
 		# TODO: add owner field to the database for bans
 		session = self.sessionmaker()
 		end_time = datetime.now() + timedelta(duration)
-		ban = Ban(reason, end_time)
+		ban = BanIP(ip, owner.db_id, reason, end_time)
 		session.add(ban)
-		ban.entries.append(AggregateBan('ip', ip))
 		session.commit()
 		session.close()
 		return 'Successfully banned %s for %s days.' % (ip, duration)
 
 	def unban_ip(self, ip):
 		session = self.sessionmaker()
-		results = session.query(AggregateBan).filter(AggregateBan.type=='ip').filter(AggregateBan.data==ip)
+		results = session.query(BanIP).filter(BanIP.ip==ip)
 		if results:
 			for result in results:
-				session.delete(result.ban)
+				session.delete(result)
 			session.commit()
 			session.close()
 			return 'Successfully unbanned %s.' % ip
@@ -369,11 +336,10 @@ class UsersHandler:
 	def banlist(self):
 		session = self.sessionmaker()
 		banlist = []
-		for ban in session.query(Ban):
-			current_ban = '%s (%s)' % (ban.end_time, ban.reason)
-			for entry in ban.entries:
-				current_ban += ' (%s - %s)' % (entry.type, entry.data)
-			banlist.append(current_ban)
+		for ban in session.query(BanIP):
+			banlist.append('ip: %s end: %s reason: %s' % (ban.ip, ban.end_time, ban.reason))
+		for ban in session.query(BanUser):
+			banlist.append('userid: %s end: %s reason: %s' % (ban.user_id, ban.end_time, ban.reason))
 		session.close()
 		return banlist
 

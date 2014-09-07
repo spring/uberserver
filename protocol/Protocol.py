@@ -2439,7 +2439,7 @@ class Protocol:
 		except:
 			self.out_SERVERMSG(client, 'Duration must be a float (the ban duration in days)')
 			return
-		response = self.userdb.ban_user(client.username, username, duration, reason)
+		response = self.userdb.ban_user(client, username, duration, reason)
 		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_UNBAN(self, client, username):
@@ -2463,7 +2463,7 @@ class Protocol:
 		except:
 			self.out_SERVERMSG(client, 'Duration must be a float (the ban duration in days)')
 			return
-		response = self.userdb.ban_ip(client.username, ip, duration, reason)
+		response = self.userdb.ban_ip(client, ip, duration, reason)
 		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_UNBANIP(self, client, ip):
