@@ -2272,7 +2272,8 @@ class Protocol:
 
 	def in_FORGEREVERSEMSG(self, client, user, msg):
 		'''
-		deprecated
+		deprecated, TODO: will be removed on 7.12.2014:
+			https://github.com/ZeroK-RTS/Zero-K-Infrastructure/issues/19
 		'''
 		if client.compat['cl']:
 			self.out_SERVERMSG(client, 'Forging messages is deprecated.')
