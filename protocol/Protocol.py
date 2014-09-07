@@ -1348,9 +1348,16 @@ class Protocol:
 		@required.int battle_id: The destination battle.
 		@optional.str password: The battle's password, if required.
 		'''
-		battlehost = False
+
+		if not username in self._root.usernames:
+			client.Send("FORCEJOINBATTLEFAILED user %s not found!" %(username))
+			return
+
+		user = self.clientFromUsername(username)
 		battle_id = user.current_battle
-		if battle_id in self._root.battles:
+
+		battlehost = False
+		if battle_id in self._root.battles: # check if target user is in the battle of the sender
 			battle = self._root.battles[battle_id]
 			if client.username == battle.host:
 				battlehost = True
@@ -1359,9 +1366,6 @@ class Protocol:
 			client.Send('FORCEJOINBATTLEFAILED You are not allowed to force this user into battle.')
 			return
 
-		if not username in self._root.usernames:
-			client.Send("FORCEJOINBATTLEFAILED user %s not found!" %(username))
-			return
 
 		user = self._root.usernames[username]
 		if not user.compat['m']:
