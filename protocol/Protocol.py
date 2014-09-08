@@ -2270,7 +2270,7 @@ class Protocol:
 			if user.password == oldpassword:
 				user.password = newpassword
 				self.userdb.save_user(user)
-				self.out_SERVERMSG(client, 'Password changed successfully to %s' % newpassword)
+				self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
 			else:
 				self.out_SERVERMSG(client, 'Incorrect old password.')
 
