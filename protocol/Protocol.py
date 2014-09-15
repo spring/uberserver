@@ -483,7 +483,12 @@ class Protocol:
 			return False, 'Channelname is too long, max is 20 chars.'
 		return True, ""
 
-
+	def _isNoob(self, client):
+		'check if a client is a newbie, returns true if he is and pms him abouth that'
+		if not client.access in ('mod', 'admin') and not client.bot and (client.ingame_time > 0):
+			self.out_SERVERMSG(client, "You are not allowed to do this, you need to play a bit more, please ask in a channel!", True)
+			return
+		return True
 	def clientFromID(self, db_id, fromdb = False):
 		'given a user database id, returns a client object from memory or the database'
 		user = self._root.clientFromID(db_id)
@@ -890,9 +895,7 @@ class Protocol:
 		@required.str message: The message to send.
 		'''
 		if not msg: return
-		if not client.access in ('mod', 'admin') and not client.bot and (client.ingame_time > 0):
-			self.out_SERVERMSG(client, "You are not allowed to send private messages, you need to play a bit more, please ask in a channel!", True)
-			return
+		if self._isNoob(client): return
 		receiver = self.clientFromUsername(user)
 		if receiver:
 			if not self.binary:
@@ -909,9 +912,7 @@ class Protocol:
 		@required.str message: The action to send.
 		'''
 		if not msg: return
-		if not client.access in ('mod', 'admin') and not client.bot and (client.ingame_time > 0):
-			self.out_SERVERMSG(client, "You are not allowed to send private messages, you need to play a bit more, please ask in a channel!", True)
-			return
+		if self._isNoob(client): return
 		if user in self._root.usernames:
 			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
 			if not msg or not msg.strip(): return
@@ -1844,6 +1845,7 @@ class Protocol:
 
 		@required.str username: The target user.
 		'''
+		if self._isNoob(client): return
 		user = self.clientFromUsername(username)
 
 		if not user: return
