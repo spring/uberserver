@@ -487,8 +487,8 @@ class Protocol:
 		'check if a client is a newbie, returns true if he is and pms him abouth that'
 		if not client.access in ('mod', 'admin') and not client.bot and not (client.ingame_time > 0):
 			self.out_SERVERMSG(client, "You are not allowed to do this, you need to play a bit more, please ask in a channel!", True)
-			return
-		return True
+			return True
+		return False
 	def clientFromID(self, db_id, fromdb = False):
 		'given a user database id, returns a client object from memory or the database'
 		user = self._root.clientFromID(db_id)
