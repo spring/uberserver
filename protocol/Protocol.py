@@ -890,6 +890,9 @@ class Protocol:
 		@required.str message: The message to send.
 		'''
 		if not msg: return
+		if not client.access in ('mod', 'admin') and not client.bot and (client.ingame_time > 0):
+			self.out_SERVERMSG(client, "You are not allowed to send private messages, you need to play a bit more, please ask in a channel!", True)
+			return
 		receiver = self.clientFromUsername(user)
 		if receiver:
 			if not self.binary:
@@ -906,6 +909,9 @@ class Protocol:
 		@required.str message: The action to send.
 		'''
 		if not msg: return
+		if not client.access in ('mod', 'admin') and not client.bot and (client.ingame_time > 0):
+			self.out_SERVERMSG(client, "You are not allowed to send private messages, you need to play a bit more, please ask in a channel!", True)
+			return
 		if user in self._root.usernames:
 			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
 			if not msg or not msg.strip(): return
