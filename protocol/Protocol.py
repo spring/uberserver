@@ -486,7 +486,7 @@ class Protocol:
 	def _isNoob(self, client):
 		'check if a client is a newbie, returns true if he is and pms him abouth that'
 		if not client.access in ('mod', 'admin') and not client.bot and not (client.ingame_time > 0):
-			self.out_SERVERMSG(client, "You are not allowed to do this, you need to play a bit more, please ask in a channel!", True)
+			self.out_SERVERMSG(client, "You are not allowed to do this, you need to play a bit more, please ask in the channel #main!", True)
 			return True
 		return False
 	def clientFromID(self, db_id, fromdb = False):
