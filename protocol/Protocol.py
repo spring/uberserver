@@ -2578,10 +2578,18 @@ class Protocol:
 		self.userdb.save_user(user)
 		self.out_SERVERMSG(client,"changed email to %s"%(user.email))
 
-	def in_FORCECLIENTBATTLE(self, client, user, status):
+	def in_FORCECLIENTBATTLE(self, client, user, tags):
+		'''
+		set a value in a battle, for example:
+
+		@required username: username for which the tags are changed
+		@required tags: tags to be set, see SETSCRIPTTAGS, current supported tags:
+				status=<battlestatus> <color>
+			see MYBATTLESTATUS
+		'''
 		if not self.canForceBattle(client, username):
 			return
-		tags = self.parseTags(status)
+		tags = self.parseTags(tags)
 		for key, value in tags.iteritems():
 			try:
 				if key == "status":
