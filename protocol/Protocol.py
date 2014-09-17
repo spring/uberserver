@@ -2028,7 +2028,7 @@ class Protocol:
 			return
 		client = self._root.usernames[username]
 		client.teamcolor = teamcolor
-		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), battle_id)
+		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), client.current_battle)
 
 	def in_FORCESPECTATORMODE(self, client, username):
 		'''
