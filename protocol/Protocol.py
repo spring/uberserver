@@ -1381,7 +1381,7 @@ class Protocol:
 		battle_id = user.current_battle
 
 		battlehost = False
-		if self.canForceBattle(client, username):
+		if self._canForceBattle(client, username):
 			battlehost = True
 
 		if not battlehost and not 'mod' in client.accesslevels:
@@ -1899,7 +1899,7 @@ class Protocol:
 
 		@required.int allyno: The ally number for the rectangle.
 		'''
-		if not self.canForceBattle(client, username):
+		if not self._canForceBattle(client, username):
 			return
 		del battle.startrects[allyno]
 		self._root.broadcast_battle('REMOVESTARTRECT %s' % allyno, client.current_battle, [client.username])
@@ -1911,7 +1911,7 @@ class Protocol:
 
 		@required.str units: A string-separated list of unit names to disable.
 		'''
-		if not self.canForceBattle(client, username):
+		if not self._canForceBattle(client, username):
 			return
 		units = units.split(' ')
 		disabled_units = []
@@ -1930,7 +1930,7 @@ class Protocol:
 
 		@required.str units: A string-separated list of unit names to enable.
 		'''
-		if not self.canForceBattle(client, username):
+		if not self._canForceBattle(client, username):
 			return
 		units = units.split(' ')
 		enabled_units = []
@@ -1947,7 +1947,7 @@ class Protocol:
 		Enable all units.
 		[host]
 		'''
-		if not self.canForceBattle(client, username):
+		if not self._canForceBattle(client, username):
 			return
 		battle.disabled_units = []
 		self._root.broadcast_battle('ENABLEALLUNITS', battle_id, client.username)
@@ -1960,7 +1960,7 @@ class Protocol:
 		@required.str username: The player to handicap.
 		@required.int handicap: The percentage of handicap to give (1-100).
 		'''
-		if not self.canForceBattle(client, username):
+		if not self._canForceBattle(client, username):
 			return
 
 		if not value.isdigit() or not int(value) in range(0, 101):
@@ -1977,7 +1977,7 @@ class Protocol:
 
 		@required.str username: The player to kick.
 		'''
-		if not self.canForceBattle(client, username):
+		if not self._canForceBattle(client, username):
 			return
 		kickuser = self._root.usernames[username]
 		kickuser.Send('FORCEQUITBATTLE')
@@ -1996,7 +1996,7 @@ class Protocol:
 		@required.str username: The target player.
 		@required.int teamno: The team to assign them.
 		'''
-		if not self.canForceBattle(client, username):
+		if not self._canForceBattle(client, username):
 			return
 		client = self._root.usernames[username]
 		client.battlestatus['id'] = self._dec2bin(teamno, 4)
@@ -2010,7 +2010,7 @@ class Protocol:
 		@required.str username: The target player.
 		@required.int teamno: The ally team to assign them.
 		'''
-		if not self.canForceBattle(client, username):
+		if not self._canForceBattle(client, username):
 			return
 		client = self._root.usernames[username]
 		client.battlestatus['ally'] = self._dec2bin(allyno, 4)
@@ -2024,7 +2024,7 @@ class Protocol:
 		@required.str username: The target player.
 		@required.sint teamcolor: The color to assign, represented with hex 0xBBGGRR as a signed integer.
 		'''
-		if not self.canForceBattle(client, username):
+		if not self._canForceBattle(client, username):
 			return
 		client = self._root.usernames[username]
 		client.teamcolor = teamcolor
@@ -2037,7 +2037,7 @@ class Protocol:
 
 		@required.str username: The target player.
 		'''
-		if not self.canForceBattle(client, username):
+		if not self._canForceBattle(client, username):
 			return
 
 		client = self._root.usernames[username]
@@ -2587,7 +2587,7 @@ class Protocol:
 				status=<battlestatus> <color>
 			see MYBATTLESTATUS
 		'''
-		if not self.canForceBattle(client, username):
+		if not self._canForceBattle(client, username):
 			return
 		tags = self.parseTags(tags)
 		for key, value in tags.iteritems():
