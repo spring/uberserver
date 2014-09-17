@@ -1899,9 +1899,9 @@ class Protocol:
 
 		@required.int allyno: The ally number for the rectangle.
 		'''
-		if not self._canForceBattle(client, username):
+		if not self._canForceBattle(client):
 			return
-		del battle.startrects[allyno]
+		del self._root.battles[client.current_battle].startrects[allyno]
 		self._root.broadcast_battle('REMOVESTARTRECT %s' % allyno, client.current_battle, [client.username])
 
 	def in_DISABLEUNITS(self, client, units):
@@ -2000,7 +2000,7 @@ class Protocol:
 			return
 		client = self._root.usernames[username]
 		client.battlestatus['id'] = self._dec2bin(teamno, 4)
-		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), battle_id)
+		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), client.current_battle)
 
 	def in_FORCEALLYNO(self, client, username, allyno):
 		'''
@@ -2014,7 +2014,7 @@ class Protocol:
 			return
 		client = self._root.usernames[username]
 		client.battlestatus['ally'] = self._dec2bin(allyno, 4)
-		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), battle_id)
+		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), client.current_battle)
 
 	def in_FORCETEAMCOLOR(self, client, username, teamcolor):
 		'''
@@ -2042,9 +2042,10 @@ class Protocol:
 
 		client = self._root.usernames[username]
 		if client.battlestatus['mode'] == '1':
+			battle = self._root.battles[client.current_battle]
 			battle.spectators += 1
 			client.battlestatus['mode'] = '0'
-			self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), battle_id)
+			self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), client.current_battle)
 			self._root.broadcast('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % battle.copy())
 
 	def in_ADDBOT(self, client, name, battlestatus, teamcolor, AIDLL):
