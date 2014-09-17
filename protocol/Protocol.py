@@ -1947,7 +1947,7 @@ class Protocol:
 		Enable all units.
 		[host]
 		'''
-		if not self._canForceBattle(client, username):
+		if not self._canForceBattle(client):
 			return
 		battle.disabled_units = []
 		self._root.broadcast_battle('ENABLEALLUNITS', battle_id, client.username)
