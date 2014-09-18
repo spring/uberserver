@@ -2276,15 +2276,15 @@ class Protocol:
 			https://github.com/ZeroK-RTS/Zero-K-Infrastructure/issues/19
 		'''
 		if client.compat['cl']:
-			self.out_SERVERMSG(client, 'Forging messages is deprecated.')
+			self.out_SERVERMSG(client, 'Forging messages is deprecated and will be removed on 7.12.2014.')
 			return
 
 		if not (msg and msg.split(' ')[0] in ("LEAVEBATTLE", "JOINBATTLE")):
-			self.out_SERVERMSG(client, "Invalid call to FORGEREVERSEMSG, this command is deprecated, don't use it: %s" %(msg), True)
+			self.out_SERVERMSG(client, "Invalid call to FORGEREVERSEMSG, this command is deprecated and will be removed on 7.12.2014, don't use it: %s" %(msg), True)
 			return
 
 		if not client.username == "Nightwatch":
-			self.out_SERVERMSG(client, "Forging messages is deprecated, only exception for Nightwatch exists", True)
+			self.out_SERVERMSG(client, "Forging messages is deprecated, only exception for Nightwatch exists and will be removed on 7.12.2014", True)
 			return
 
 		if user in self._root.usernames:
