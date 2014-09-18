@@ -85,7 +85,6 @@ restricted = {
 	'GETREGISTRATIONDATE',
 	'MYSTATUS',
 	'PORTTEST',
-	'UPTIME',
 	'RENAMEACCOUNT',
 	'SETBATTLE'
 	],
@@ -2129,12 +2128,6 @@ class Protocol:
 			self.out_SERVERMSG(client, 'Your ingame time is %d minutes (%d hours).'%(ingame_time, ingame_time / 60))
 		else:
 			self.out_SERVERMSG(client, 'You can\'t get the ingame time of other users.')
-
-	def in_UPTIME(self, client):
-		'''
-		Get the server's uptime.
-		'''
-		self.out_SERVERMSG(client, 'Server uptime is %s.' % self._time_since(self._root.start_time))
 
 	def in_GETLASTLOGINTIME(self, client, username):
 		'''
