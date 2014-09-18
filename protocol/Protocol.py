@@ -1982,6 +1982,7 @@ class Protocol:
 			return
 		kickuser = self._root.usernames[username]
 		kickuser.Send('FORCEQUITBATTLE')
+		battle = self._root.battles[client.current_battle]
 		if username == battle.host:
 			self.broadcast_RemoveBattle(battle)
 			del self._root.battles[battle_id]
