@@ -1902,7 +1902,8 @@ class Protocol:
 		'''
 		if not self._canForceBattle(client):
 			return
-		del self._root.battles[client.current_battle].startrects[allyno]
+		battle = self._root.battles[client.current_battle]
+		del battle.startrects[allyno]
 		self._root.broadcast_battle('REMOVESTARTRECT %s' % allyno, client.current_battle, [client.username])
 
 	def in_DISABLEUNITS(self, client, units):
@@ -1954,7 +1955,7 @@ class Protocol:
 			return
 		battle = self._root.battles[client.current_battle]
 		battle.disabled_units = []
-		self._root.broadcast_battle('ENABLEALLUNITS', client.current_host, client.username)
+		self._root.broadcast_battle('ENABLEALLUNITS', client.current_battle, client.username)
 
 	def in_HANDICAP(self, client, username, value):
 		'''
