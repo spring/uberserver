@@ -1916,6 +1916,7 @@ class Protocol:
 			return
 		units = units.split(' ')
 		disabled_units = []
+		battle = self._root.battles[client.current_battle]
 		for unit in units:
 			if not unit in battle.disabled_units:
 				battle.disabled_units.append(unit)
@@ -1935,6 +1936,7 @@ class Protocol:
 			return
 		units = units.split(' ')
 		enabled_units = []
+		battle = self._root.battles[client.current_battle]
 		for unit in units:
 			if unit in battle.disabled_units:
 				battle.disabled_units.remove(unit)
@@ -1950,8 +1952,9 @@ class Protocol:
 		'''
 		if not self._canForceBattle(client):
 			return
+		battle = self._root.battles[client.current_battle]
 		battle.disabled_units = []
-		self._root.broadcast_battle('ENABLEALLUNITS', battle_id, client.username)
+		self._root.broadcast_battle('ENABLEALLUNITS', client.current_host, client.username)
 
 	def in_HANDICAP(self, client, username, value):
 		'''
