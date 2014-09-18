@@ -509,6 +509,10 @@ class Protocol:
 			return True
 		return False
 
+	def _informErrors(self, client):
+		if client.lobby_id in ("SpringLobby 0.188 (win x32)"):
+			client.Send("SAYPRIVATE ChanServ The autoupdater of SpringLobby 0.188 is broken, please manually update: http://springrts.com/phpbb/viewtopic.php?f=64&t=31224")
+
 	def clientFromID(self, db_id, fromdb = False):
 		'given a user database id, returns a client object from memory or the database'
 		user = self._root.clientFromID(db_id)
@@ -858,6 +862,7 @@ class Protocol:
 			client.SendUser(user, 'CLIENTSTATUS %s %s'%(user, usernames[user].status))
 
 		client.Send('LOGININFOEND')
+		self._informErrors(client)
 
 	def in_CONFIRMAGREEMENT(self, client):
 		'Confirm the terms of service as shown with the AGREEMENT commands. Users must accept the terms of service to use their account.'
