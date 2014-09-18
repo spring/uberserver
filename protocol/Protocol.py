@@ -87,7 +87,7 @@ restricted = {
 	'PORTTEST',
 	'UPTIME',
 	'RENAMEACCOUNT',
-	'FORCECLIENTBATTLE'
+	'SETBATTLE'
 	],
 'mod':[
 	'BAN',
@@ -2579,7 +2579,7 @@ class Protocol:
 		self.userdb.save_user(user)
 		self.out_SERVERMSG(client,"changed email to %s"%(user.email))
 
-	def in_FORCECLIENTBATTLE(self, client, user, tags):
+	def in_SETBATTLE(self, client, user, tags):
 		'''
 		set a value in a battle, for example:
 
@@ -2597,9 +2597,9 @@ class Protocol:
 					status, color = value.split(" ")
 					self.in_MYBATTLESTATUS(client, status, color)
 				else:
-					self.out_FAILED(client, "FORCECLIENTBATTLE", "unknown tag %s=%s" % (key, value), True)
+					self.out_FAILED(client, "SETBATTLE", "unknown tag %s=%s" % (key, value), True)
 			except:
-				self.out_FAILED(client, "FORCECLIENTBATTLE", "invalid tag received %s=%s" % (key, value), True)
+				self.out_FAILED(client, "SETBATTLE", "invalid tag received %s=%s" % (key, value), True)
 
 	# Begin outgoing protocol section #
 	#
