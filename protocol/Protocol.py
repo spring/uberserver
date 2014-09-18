@@ -3,6 +3,7 @@
 
 import inspect, time, re
 import base64
+import json
 try: from hashlib import md5
 except: md5 = __import__('md5').new
 
@@ -2579,27 +2580,43 @@ class Protocol:
 		self.userdb.save_user(user)
 		self.out_SERVERMSG(client,"changed email to %s"%(user.email))
 
-	def in_SETBATTLE(self, client, user, tags):
+	def in_SETBATTLE(self, tags):
 		'''
 		set a value in a battle, for example:
 
-		@required username: username for which the tags are changed
 		@required tags: tags to be set, see SETSCRIPTTAGS, current supported tags:
 				status=<battlestatus> <color>
-			see MYBATTLESTATUS
+			{ "username": {
+				"user1" {
+					"status": 1,
+					"color" : 2
+					}
+				}
+			}
+			(without newline)
 		'''
-		if not self._canForceBattle(client, username):
+		try:
+			data = json.loads(tags)
+		except:
+			self.out_FAILED(client, "SETBATTLE", "invalid json format", True)
 			return
-		tags = self.parseTags(tags)
-		for key, value in tags.iteritems():
-			try:
-				if key == "status":
-					status, color = value.split(" ")
-					self.in_MYBATTLESTATUS(client, status, color)
-				else:
-					self.out_FAILED(client, "SETBATTLE", "unknown tag %s=%s" % (key, value), True)
-			except:
-				self.out_FAILED(client, "SETBATTLE", "invalid tag received %s=%s" % (key, value), True)
+		try:
+			for key, value in tags.iteritems():
+				if key == "username":
+					for subkey, subvalue in value.iteritems():
+						if not self._canForceBattle(client, subvalue):
+							return
+						username = subvalue
+						user = self.clientFromName(username)
+						for subsubkey, subsubvalue in subvalue.iteritems():
+							if subsubkey == "status":
+								self.in_MYBATTLESTATUS(client, subsubvalue, client.color)
+							if subsubkey == "color":
+								self.in_MYBATTLESTATUS(client, client.status, subsubvalue)
+						else:
+							self.out_FAILED(client, "SETBATTLE", "unknown tag %s=%s" % (key, value), True)
+		except:
+			self.out_FAILED(client, "SETBATTLE", "couldn't handle values", True)
 
 	# Begin outgoing protocol section #
 	#
