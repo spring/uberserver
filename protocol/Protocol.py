@@ -46,7 +46,6 @@ restricted = {
 	'JOINBATTLEDENY',
 	'KICKFROMBATTLE',
 	'LEAVEBATTLE',
-	'MAPGRADES',
 	'MYBATTLESTATUS',
 	'OPENBATTLE',
 	'OPENBATTLEEX',
@@ -1135,13 +1134,6 @@ class Protocol:
 			channel.removeUser(client, reason)
 			if len(self._root.channels[chan].users) == 0:
 				del self._root.channels[chan]
-
-	def in_MAPGRADES(self, client, grades=None):
-		'''
-		Stub.
-		Replies with MAPGRADESFAILED to keep old clients happy.
-		'''
-		client.Send('MAPGRADESFAILED Not implemented.')
 
 	def in_OPENBATTLE(self, client, type, natType, password, port, maxplayers, hashcode, rank, maphash, sentence_args):
 		'''
