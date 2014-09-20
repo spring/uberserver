@@ -1881,13 +1881,13 @@ class Protocol:
 		@required.float right: The right side of the rectangle.
 		@required.float bottom: The bottom side of the rectangle.
 		'''
-		battle_id = client.current_battle
-		if battle_id in self._root.battles:
-			battle = self._root.battles[battle_id]
-			if battle.host == client.username:
-				rect = {'left':left, 'top':top, 'right':right, 'bottom':bottom}
-				battle.startrects[allyno] = rect
-				self._root.broadcast_battle('ADDSTARTRECT %s' % (allyno)+' %(left)s %(top)s %(right)s %(bottom)s' %(rect), client.current_battle, [client.username])
+		if not self._canForceBattle(client):
+			return
+		allyno = int32(allyno)
+		battle = self._root.battles[client.current_battle]
+		rect = {'left':left, 'top':top, 'right':right, 'bottom':bottom}
+		battle.startrects[allyno] = rect
+		self._root.broadcast_battle('ADDSTARTRECT %s' % (allyno)+' %(left)s %(top)s %(right)s %(bottom)s' %(rect), client.current_battle, [client.username])
 
 	def in_REMOVESTARTRECT(self, client, allyno):
 		'''
@@ -1898,6 +1898,7 @@ class Protocol:
 		'''
 		if not self._canForceBattle(client):
 			return
+		allyno = int32(allyno)
 		battle = self._root.battles[client.current_battle]
 		del battle.startrects[allyno]
 		self._root.broadcast_battle('REMOVESTARTRECT %s' % allyno, client.current_battle, [client.username])
