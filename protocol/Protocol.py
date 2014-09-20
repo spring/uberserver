@@ -437,19 +437,22 @@ class Protocol:
 				line = line.replace(key, value)
 			client.Send('MOTD %s' % line)
 	def _checkCompat(self, client):
+		missing_flags = ""
 		'check the compatibility flags of client and report possible/upcoming problems to it'
 		if not client.compat['sp']: # blocks protocol increase to 0.37
 			client.Send("MOTD Your client doesn't support the 'sp' compatibility flag, please upgrade it!")
 			client.Send("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.36")
-			self._root.console_write('Handler %s:%s <%s> client "%s" missing compat flag: sp '%(client.handler.num, client.username, client.session_id, client.lobby_id))
+			missing_flags += 'sp'
 		if not client.compat['cl']: # cl should be used (bugfixed version of eb)
 			client.Send("MOTD Your client doesn't support the 'cl' compatibility flag, please upgrade it!")
 			client.Send("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
-			self._root.console_write('Handler %s:%s <%s> client "%s" missing compat flag: cl '%(client.handler.num, client.username, client.session_id, client.lobby_id))
+			missing_flags += ('cl')
 		if not client.compat['p']:
 			client.Send("MOTD Your client doesn't support the 'p' compatibility flag, please upgrade it!")
-			client.Send("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
-			self._root.console_write('Handler %s:%s <%s> client "%s" missing compat flag: p '%(client.handler.num, client.username, client.session_id, client.lobby_id))
+			client.Send("MOTD see htpp://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
+			missing_flags += ('p')
+		if len(missing_flags) > 0:
+			self._root.console_write('Handler %s:%s <%s> client "%s" missing compat flags: %s '%(client.handler.num, client.session_id, client.username, client.lobby_id, missing_flags))
 
 	def _validPasswordSyntax(self, password):
 		'checks if a password is correctly encoded base64(md5())'
