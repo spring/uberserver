@@ -1557,21 +1557,21 @@ class Protocol:
 
 		@required.str tags: A space-separated list of tags.
 		'''
-		battle_id = client.current_battle
-		if battle_id in self._root.battles:
-			battle = self._root.battles[battle_id]
-			if client.username == battle.host:
-				rem = set()
-				for tag in set(tags.split(' ')):
-					try:
-						# this means we only broadcast removed tags if they existed
-						del battle.script_tags[tag]
-						rem.add(tag)
-					except KeyError:
-						pass
-				if not rem:
-					return
-				self._root.broadcast_battle('REMOVESCRIPTTAGS %s'%' '.join(rem), battle_id)
+		if not self._canForceBattle(client):
+			return
+
+		battle = self._root.battles[client.current_battle]
+		rem = set()
+		for tag in set(tags.split(' ')):
+			try:
+				# this means we only broadcast removed tags if they existed
+				del battle.script_tags[tag]
+				rem.add(tag)
+			except KeyError:
+				pass
+		if not rem:
+			return
+		self._root.broadcast_battle('REMOVESCRIPTTAGS %s'%' '.join(rem), battle_id)
 
 	def in_SCRIPTSTART(self, client):
 		'''
