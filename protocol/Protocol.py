@@ -199,7 +199,7 @@ class Protocol:
 			try:
 				self.userdb.end_session(client.db_id)
 			except Exception, e:
-				self._root.console_write('Handler %s: <%s> %s Error writing to db in _remove: %s '%(client.handler.num, client.username, client.session_id, e.message))
+				self._root.console_write('Handler %s:%s <%s> Error writing to db in _remove: %s '%(client.handler.num, client.session_id, client.username, e.message))
 		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
 
 	def _handle(self, client, msg):
@@ -682,11 +682,11 @@ class Protocol:
 
 		good, reason = self.userdb.register_user(username, password, client.ip_address, client.country_code)
 		if good:
-			self._root.console_write('Handler %s: Successfully registered user <%s> on session %s.'%(client.handler.num, username, client.session_id))
+			self._root.console_write('Handler %s:%s Successfully registered user <%s>.'%(client.handler.num, client.session_id, username))
 			client.Send('REGISTRATIONACCEPTED')
 			self.clientFromUsername(username, True).access = 'agreement'
 		else:
-			self._root.console_write('Handler %s: Registration failed for user <%s> on session %s.'%(client.handler.num, username, client.session_id))
+			self._root.console_write('Handler %s:%s Registration failed for user <%s>.'%(client.handler.num, client.session_id, username))
 			client.Send('REGISTRATIONDENIED %s'%reason)
 
 	def in_HASH(self, client):
@@ -782,7 +782,7 @@ class Protocol:
 		try:
 			good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 		except Exception, e:
-			self._root.console_write('Handler %s: <%s> %s Error reading from db in in_LOGIN %s '%(client.handler.num, client.username, client.session_id, e.message))
+			self._root.console_write('Handler %s:%s <%s> %s Error reading from db in in_LOGIN: %s '%(client.handler.num, client.session_id, client.username, e.message))
 			good = False
 			reason = "db error"
 		if not good:
@@ -816,7 +816,7 @@ class Protocol:
 			client.setFlagByIP(local_ip, False)
 
 		if client.access == 'agreement':
-			self._root.console_write('Handler %s: Sent user <%s> the terms of service on session %s.'%(client.handler.num, username, client.session_id))
+			self._root.console_write('Handler %s:%s Sent user <%s> the terms of service on session.'%(client.handler.num, client.session_id, username))
 			if client.compat['p']:
 				agreement = self.agreementplain
 			else:
@@ -831,7 +831,7 @@ class Protocol:
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
 
-		self._root.console_write('Handler %s: Successfully logged in user <%s> on session %s %s.'%(client.handler.num, username, client.session_id, client.access))
+		self._root.console_write('Handler %s:%s Successfully logged in user <%s> %s.'%(client.handler.num, client.session_id, username, client.access))
 		self._root.db_ids[client.db_id] = client
 		self._root.usernames[username] = client
 		client.status = self._calc_status(client, 0)
@@ -2632,7 +2632,7 @@ class Protocol:
 		if inc:
 			client.failed_logins = client.failed_logins + 1
 		client.Send("DENIED %s" %(reason))
-		self._root.console_write('Handler %s: Failed to log in user <%s> on session %s: %s'%(client.handler.num, username, client.session_id, reason))
+		self._root.console_write('Handler %s:%s Failed to log in user <%s>: %s.'%(client.handler.num, client.session_id, username, reason))
 
 	def out_OPENBATTLEFAILED(self, client, reason):
 		'''
@@ -2647,7 +2647,7 @@ class Protocol:
 		'''
 		client.Send('SERVERMSG %s' %(message))
 		if log:
-			self._root.console_write('Handler %s <%s>: %s' % (client.handler.num, client.username, message))
+			self._root.console_write('Handler %s: <%s>: %s' % (client.handler.num, client.username, message))
 
 	def out_FAILED(self, client, cmd, message, log = False):
 		'''
