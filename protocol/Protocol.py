@@ -1571,7 +1571,7 @@ class Protocol:
 				pass
 		if not rem:
 			return
-		self._root.broadcast_battle('REMOVESCRIPTTAGS %s'%' '.join(rem), battle_id)
+		self._root.broadcast_battle('REMOVESCRIPTTAGS %s'%' '.join(rem), client.current_battle)
 
 	def in_SCRIPTSTART(self, client):
 		'''
