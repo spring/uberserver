@@ -517,7 +517,7 @@ class Protocol:
 		return False
 
 	def _informErrors(self, client):
-		if client.lobby_id in ("SpringLobby 0.188 (win x32)"):
+		if client.lobby_id in ("SpringLobby 0.188 (win x32)", "SpringLobby 0.200 (win x32)"):
 			client.Send("SAYPRIVATE ChanServ The autoupdater of SpringLobby 0.188 is broken, please manually update: http://springrts.com/phpbb/viewtopic.php?f=64&t=31224")
 
 	def clientFromID(self, db_id, fromdb = False):
