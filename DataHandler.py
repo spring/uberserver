@@ -365,11 +365,12 @@ class DataHandler:
 			self.console_buffer += [ strtime + line ]
 
 	
-	def multicast(self, clients, msg, ignore=()):
+	def multicast(self, clients, msg, ignore=(), sourceUser=None):
 		if type(ignore) in (str, unicode): ignore = [ignore]
 		static = []
 		for client in clients:
-			if client and not client.username in ignore:
+			if client and not client.username in ignore and \
+                            (sourceUser == None or not self.userdb.is_ignored(client.username, sourceUser)):
 				if client.static: static.append(client)
 				else: client.Send(msg)
 		
@@ -377,25 +378,25 @@ class DataHandler:
 		for client in static:
 			client.Send(msg)
 	
-	def broadcast(self, msg, chan=None, ignore=()):
+	def broadcast(self, msg, chan=None, ignore=(), sourceUser=None):
 		if type(ignore) in (str, unicode): ignore = [ignore]
 		try:
 			if chan in self.channels:
 				channel = self.channels[chan]
 				if len(channel.users) > 0:
 					clients = [self.clientFromUsername(user) for user in list(channel.users)]
-					self.multicast(clients, msg, ignore)
+					self.multicast(clients, msg, ignore, sourceUser)
 			else:
 				clients = [self.clientFromUsername(user) for user in list(self.usernames)]
-				self.multicast(clients, msg, ignore)
+				self.multicast(clients, msg, ignore, sourceUser)
 		except: self.error(traceback.format_exc())
 
-	def broadcast_battle(self, msg, battle_id, ignore=[]):
+	def broadcast_battle(self, msg, battle_id, ignore=[], sourceUser=None):
 		if type(ignore) in (str, unicode): ignore = [ignore]
 		if battle_id in self.battles:
 			battle = self.battles[battle_id]
 			clients = [self.clientFromUsername(user) for user in list(battle.users)]
-			self.multicast(clients, msg, ignore)
+			self.multicast(clients, msg, ignore, sourceUser)
 
 	def admin_broadcast(self, msg):
 		for user in dict(self.usernames):
