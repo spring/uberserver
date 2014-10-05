@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 try:
 	from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean, Text, DateTime
-	from sqlalchemy.orm import mapper, sessionmaker, relation, aliased
+	from sqlalchemy.orm import mapper, sessionmaker, relation
 	from sqlalchemy.exc import IntegrityError
 except ImportError, e:
 	print("ERROR: sqlalchemy isn't installed: " + str(e))
@@ -493,47 +493,47 @@ class UsersHandler:
 		session.commit()
 		session.close()
 
-	def ignore_user(self, user, ignore_user, reason=None):
+	def ignore_user(self, user_id, ignore_user_id, reason=None):
 		session = self.sessionmaker()
-		user = session.query(User).filter(User.username == user).one()
-		ignore_user = session.query(User).filter(User.username == ignore_user).one()
-		entry = Ignore(user.id, ignore_user.id, reason)
+		entry = Ignore(user_id, ignore_user_id, reason)
 		session.add(entry)
 		session.commit()
 		session.close()
 
-	def unignore_user(self, user, unignore_user):
+	def unignore_user(self, user_id, unignore_user_id):
 		session = self.sessionmaker()
-		user = session.query(User).filter(User.username == user).one()
-		unignore_user = session.query(User).filter(User.username == unignore_user).one()
-		entry = session.query(Ignore).filter(Ignore.user_id == user.id).filter(Ignore.ignored_user_id == unignore_user.id).one()
+		entry = session.query(Ignore).filter(Ignore.user_id == user_id).filter(Ignore.ignored_user_id == unignore_user_id).one()
 		session.delete(entry)
 		session.commit()
 		session.close()
 
-	def is_ignored(self, user, ignore_user):
+	# returns id-s of users who had their ignore removed
+	def globally_unignore_user(self, unignore_user_id):
 		session = self.sessionmaker()
-		user = session.query(User).filter(User.username == user).one()
-		ignore_user = session.query(User).filter(User.username == ignore_user).one()
-		exists = session.query(Ignore).filter(Ignore.user_id == user.id).filter(Ignore.ignored_user_id == ignore_user.id).count() > 0
+		q = session.query(Ignore).filter(Ignore.ignored_user_id == unignore_user_id)
+		userids = [ignore.user_id for ignore in q.all()]
+		# could be done in one query + hook, fix if bored
+		session.query(Ignore).filter(Ignore.ignored_user_id == unignore_user_id).delete()
+		session.commit()
+		session.close()
+		return userids
+
+	def is_ignored(self, user_id, ignore_user_id):
+		session = self.sessionmaker()
+		exists = session.query(Ignore).filter(Ignore.user_id == user_id).filter(Ignore.ignored_user_id == ignore_user_id).count() > 0
 		session.close()
 		return exists
 
-	def get_ignored_users(self, user):
+	def get_ignored_users(self, user_id):
 		session = self.sessionmaker()
-		ignoredUser = aliased(User)
-		clientUser = aliased(User)
-		users = session.query(ignoredUser.username).join(Ignore, Ignore.ignored_user_id == ignoredUser.id).join(clientUser, clientUser.id == Ignore.user_id).filter(User.username == user).all()
+		users = session.query(User.username).join(Ignore, Ignore.ignored_user_id == User.id).filter(Ignore.user_id == user_id)
 		users = [ username for username, in users ]
 		session.close()
 		return users
 
-	def get_ignore_reason(self, user, ignore_user):
+	def get_ignore_reason(self, user_id, ignore_user_id):
 		session = self.sessionmaker()
-		user = session.query(User).filter(User.username == user).one()
-		ignore_user = session.query(User).filter(User.username == ignore_user).one()
-		print user.username, ignore_user.username, user.id, ignore_user.id
-		reason = session.query(Ignore).filter(Ignore.user_id == user.id).filter(Ignore.ignored_user_id == ignore_user.id).one().reason
+		reason = session.query(Ignore).filter(Ignore.user_id == user_id).filter(Ignore.ignored_user_id == ignore_user_id).one().reason
 		session.close()
 		return reason
 
