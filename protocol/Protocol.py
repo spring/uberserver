@@ -159,7 +159,6 @@ flag_map = {
 	'm': 'matchmaking',      # FORCEJOINBATTLE from battle hosts for matchmaking
 	'cl': 'cleanupBattles',  # BATTLEOPENED / OPENBATTLE with support for engine/version
 	'p':  'agreementPlain',  # AGREEMENT is plaintext
-	'ig': 'ignoreSystem',    # IGNORE, UNIGNORE, IGNORELIST, IGNORELISTBEGIN, IGNORELIST, IGNORELISTEND commands
 }
 
 class Protocol:
