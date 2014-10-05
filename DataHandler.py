@@ -364,12 +364,13 @@ class DataHandler:
 		for line in lines:
 			self.console_buffer += [ strtime + line ]
 
-	
-	def multicast(self, clients, msg, ignore=()):
+	# the sourceClient is only sent for SAY*, and RING commands
+	def multicast(self, clients, msg, ignore=(), sourceClient=None):
 		if type(ignore) in (str, unicode): ignore = [ignore]
 		static = []
 		for client in clients:
-			if client and not client.username in ignore:
+			if client and not client.username in ignore and \
+			    (sourceClient == None or not self.userdb.is_ignored(client.username, sourceClient.username)): 
 				if client.static: static.append(client)
 				else: client.Send(msg)
 		
@@ -377,25 +378,27 @@ class DataHandler:
 		for client in static:
 			client.Send(msg)
 	
-	def broadcast(self, msg, chan=None, ignore=()):
+	# the sourceClient is only sent for SAY*, and RING commands
+	def broadcast(self, msg, chan=None, ignore=(), sourceClient=None):
 		if type(ignore) in (str, unicode): ignore = [ignore]
 		try:
 			if chan in self.channels:
 				channel = self.channels[chan]
 				if len(channel.users) > 0:
 					clients = [self.clientFromUsername(user) for user in list(channel.users)]
-					self.multicast(clients, msg, ignore)
+					self.multicast(clients, msg, ignore, sourceClient)
 			else:
 				clients = [self.clientFromUsername(user) for user in list(self.usernames)]
-				self.multicast(clients, msg, ignore)
+				self.multicast(clients, msg, ignore, sourceClient)
 		except: self.error(traceback.format_exc())
 
-	def broadcast_battle(self, msg, battle_id, ignore=[]):
+	# the sourceClient is only sent for SAY*, and RING commands
+	def broadcast_battle(self, msg, battle_id, ignore=[], sourceClient=None):
 		if type(ignore) in (str, unicode): ignore = [ignore]
 		if battle_id in self.battles:
 			battle = self.battles[battle_id]
 			clients = [self.clientFromUsername(user) for user in list(battle.users)]
-			self.multicast(clients, msg, ignore)
+			self.multicast(clients, msg, ignore, sourceClient)
 
 	def admin_broadcast(self, msg):
 		for user in dict(self.usernames):

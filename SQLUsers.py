@@ -85,10 +85,31 @@ class Rename(object):
 	def __repr__(self):
 		return "<Rename('%s')>" % self.ip_address
 mapper(Rename, renames_table)
+##########################################
+ignores_table = Table('ignores', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('ignored_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('reason', String(128)),
+	Column('time', DateTime),
+	)
+class Ignore(object):
+	def __init__(self, user_id, ignored_user_id, reason):
+		self.user_id = user_id
+		self.ignored_user_id = ignored_user_id
+		self.reason = reason
+		self.time = datetime.now()
+
+	def __repr__(self):
+		return "<Ignore('%s', '%s', '%s', '%s')>" % (self.user_id, self.ignored_user_id, self.reason, self.time)
+mapper(Ignore, ignores_table)
+##########################################
 mapper(User, users_table, properties={
 	'logins':relation(Login, backref='user', cascade="all, delete, delete-orphan"),
 	'renames':relation(Rename, backref='user', cascade="all, delete, delete-orphan"),
+	'ignores':relation(Ignore, cascade="all, delete, delete-orphan", foreign_keys=[Ignore.user_id]),
 	})
+
 ##########################################
 channels_table = Table('channels', metadata,
 	Column('id', Integer, primary_key=True),
@@ -471,6 +492,51 @@ class UsersHandler:
 
 		session.commit()
 		session.close()
+
+	def ignore_user(self, user_id, ignore_user_id, reason=None):
+		session = self.sessionmaker()
+		entry = Ignore(user_id, ignore_user_id, reason)
+		session.add(entry)
+		session.commit()
+		session.close()
+
+	def unignore_user(self, user_id, unignore_user_id):
+		session = self.sessionmaker()
+		entry = session.query(Ignore).filter(Ignore.user_id == user_id).filter(Ignore.ignored_user_id == unignore_user_id).one()
+		session.delete(entry)
+		session.commit()
+		session.close()
+
+	# returns id-s of users who had their ignore removed
+	def globally_unignore_user(self, unignore_user_id):
+		session = self.sessionmaker()
+		q = session.query(Ignore).filter(Ignore.ignored_user_id == unignore_user_id)
+		userids = [ignore.user_id for ignore in q.all()]
+		# could be done in one query + hook, fix if bored
+		session.query(Ignore).filter(Ignore.ignored_user_id == unignore_user_id).delete()
+		session.commit()
+		session.close()
+		return userids
+
+	def is_ignored(self, user_id, ignore_user_id):
+		session = self.sessionmaker()
+		exists = session.query(Ignore).filter(Ignore.user_id == user_id).filter(Ignore.ignored_user_id == ignore_user_id).count() > 0
+		session.close()
+		return exists
+
+	def get_ignore_list(self, user_id):
+		session = self.sessionmaker()
+		users = session.query(Ignore).filter(Ignore.user_id == user_id).all()
+		users = [(user.ignored_user_id, user.reason) for user in users]
+		session.close()
+		return users
+
+	def get_ignored_user_ids(self, user_id):
+		session = self.sessionmaker()
+		user_ids = session.query(Ignore.ignored_user_id).filter(Ignore.user_id == user_id).all()
+		user_ids = [user_id for user_id, in user_ids]
+		session.close()
+		return user_ids
 
 class ChannelsHandler:
 	def __init__(self, root, engine):
