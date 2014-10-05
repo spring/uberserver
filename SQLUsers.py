@@ -531,6 +531,13 @@ class UsersHandler:
 		session.close()
 		return users
 
+	def get_ignored_user_ids(self, user_id):
+		session = self.sessionmaker()
+		user_ids = session.query(Ignore.ignored_user_id).filter(Ignore.user_id == user_id).all()
+		user_ids = [user_id for user_id, in user_ids]
+		session.close()
+		return user_ids
+
 class ChannelsHandler:
 	def __init__(self, root, engine):
 		self._root = root

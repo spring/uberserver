@@ -619,12 +619,9 @@ class Protocol:
 	def is_ignored(self, client, ignoredClient):
 		return ignoredClient.db_id in client.ignored
 
-	def get_ignore_reason(self, client, ignoredClient):
-		return client.ignored[ignoredClient.db_id]
-
 	def ignore_user(self, client, ignoreClient, reason=None):
 		self.userdb.ignore_user(client.db_id, ignoreClient.db_id, reason)
-		client.ignored[ignoreClient.db_id] = reason
+		client.ignored[ignoreClient.db_id] = True
 
 	def unignore_user(self, client, unignoreClient):
 		self.userdb.unignore_user(client.db_id, unignoreClient.db_id)
@@ -855,8 +852,8 @@ class Protocol:
 		self._root.usernames[username] = client
 		client.status = self._calc_status(client, 0)
 
-		ignoreList = self.userdb.get_ignore_list(client.db_id)
-		client.ignored = {ignoredUserId:reason for (ignoredUserId, reason) in ignoreList}
+		ignoreList = self.userdb.get_ignored_user_ids(client.db_id)
+		client.ignored = {ignoredUserId:True for ignoredUserId in ignoreList}
 
 		client.Send('ACCEPTED %s'%username)
 
@@ -1101,7 +1098,7 @@ class Protocol:
 
 	def in_IGNORELIST(self, client):
 		client.Send('IGNORELISTBEGIN')
-		for (userId, reason) in client.ignored.items():
+		for (userId, reason) in self.userdb.get_ignore_list(client.db_id):
 			ignoredClient = self.clientFromID(userId, True)
 			username = ignoredClient.username
 			if reason:
