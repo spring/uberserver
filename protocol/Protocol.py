@@ -1019,7 +1019,7 @@ class Protocol:
 		@required.str username: The target user to ignore.
 		@required.str reason: Reason for the ignore.
 		'''
-		ok, reason = self._validUsernameSyntax(username)
+		ok, failReason = self._validUsernameSyntax(username)
 		if not ok:
 			self.out_SERVERMSG(client, "Invalid username format.")
 			return
@@ -1027,7 +1027,7 @@ class Protocol:
 		if not ignoreClient:
 			self.out_SERVERMSG(client, "No such user.")
 			return
-                if ignoreClient.isMod():
+                if ignoreClient.access in ('mod', 'admin'):
 			self.out_SERVERMSG(client, "Can't ignore a moderator.")
 			return
 		if username == client.username:
@@ -2564,10 +2564,10 @@ class Protocol:
 		'''
 		user = self.clientFromUsername(username)
 		if not user:
-			self.out_SERVERMSG("User not found.")
+			self.out_SERVERMSG(client, "User not found.")
 			return
 		if not access in ('user', 'mod', 'admin'):
-			self.out_SERVERMSG("Invalid access mode, only user, mod, admin is valid.")
+			self.out_SERVERMSG(client, "Invalid access mode, only user, mod, admin is valid.")
 			return
 		user.access = access
 		self._calc_access_status(user)
