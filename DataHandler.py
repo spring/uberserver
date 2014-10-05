@@ -364,7 +364,7 @@ class DataHandler:
 		for line in lines:
 			self.console_buffer += [ strtime + line ]
 
-	
+        # the sourceUser is only sent for SAY*, and RING commands
 	def multicast(self, clients, msg, ignore=(), sourceUser=None):
 		if type(ignore) in (str, unicode): ignore = [ignore]
 		static = []
@@ -378,6 +378,7 @@ class DataHandler:
 		for client in static:
 			client.Send(msg)
 	
+        # the sourceUser is only sent for SAY*, and RING commands
 	def broadcast(self, msg, chan=None, ignore=(), sourceUser=None):
 		if type(ignore) in (str, unicode): ignore = [ignore]
 		try:
@@ -391,6 +392,7 @@ class DataHandler:
 				self.multicast(clients, msg, ignore, sourceUser)
 		except: self.error(traceback.format_exc())
 
+        # the sourceUser is only sent for SAY*, and RING commands
 	def broadcast_battle(self, msg, battle_id, ignore=[], sourceUser=None):
 		if type(ignore) in (str, unicode): ignore = [ignore]
 		if battle_id in self.battles:
