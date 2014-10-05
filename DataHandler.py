@@ -364,13 +364,13 @@ class DataHandler:
 		for line in lines:
 			self.console_buffer += [ strtime + line ]
 
-        # the sourceClient is only sent for SAY*, and RING commands
+	# the sourceClient is only sent for SAY*, and RING commands
 	def multicast(self, clients, msg, ignore=(), sourceClient=None):
 		if type(ignore) in (str, unicode): ignore = [ignore]
 		static = []
 		for client in clients:
 			if client and not client.username in ignore and \
-                            (sourceClient == None or sourceClient.isMod() or not self.userdb.is_ignored(client.username, sourceClient.username)):
+			    (sourceClient == None or not self.userdb.is_ignored(client.username, sourceClient.username)): 
 				if client.static: static.append(client)
 				else: client.Send(msg)
 		
@@ -378,7 +378,7 @@ class DataHandler:
 		for client in static:
 			client.Send(msg)
 	
-        # the sourceClient is only sent for SAY*, and RING commands
+	# the sourceClient is only sent for SAY*, and RING commands
 	def broadcast(self, msg, chan=None, ignore=(), sourceClient=None):
 		if type(ignore) in (str, unicode): ignore = [ignore]
 		try:
@@ -392,7 +392,7 @@ class DataHandler:
 				self.multicast(clients, msg, ignore, sourceClient)
 		except: self.error(traceback.format_exc())
 
-        # the sourceClient is only sent for SAY*, and RING commands
+	# the sourceClient is only sent for SAY*, and RING commands
 	def broadcast_battle(self, msg, battle_id, ignore=[], sourceClient=None):
 		if type(ignore) in (str, unicode): ignore = [ignore]
 		if battle_id in self.battles:

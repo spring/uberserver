@@ -2562,7 +2562,7 @@ class Protocol:
 		@required.str access: The new access to apply.
 		Access levels: user, mod, admin
 		'''
-		user = self.clientFromUsername(username)
+		user = self.clientFromUsername(username, True)
 		if not user:
 			self.out_SERVERMSG(client, "User not found.")
 			return
@@ -2570,10 +2570,17 @@ class Protocol:
 			self.out_SERVERMSG(client, "Invalid access mode, only user, mod, admin is valid.")
 			return
 		user.access = access
-		self._calc_access_status(user)
 		if username in self._root.usernames:
+			self._calc_access_status(user)
 			self._root.broadcast('CLIENTSTATUS %s %s'%(username, user.status))
 		self.userdb.save_user(user)
+		if access in ('mod', 'admin'):
+			userIds = self.userdb.globally_unignore_user(user.db_id)
+			for userId in userIds:
+				user = self.clientFromID(userId)
+				if user:
+					client.Send('UNIGNORE %s' % (user.username))
+
 
 	def in_RELOAD(self, client):
 		'''
