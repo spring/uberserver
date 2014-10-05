@@ -1031,13 +1031,20 @@ class Protocol:
 					client.Send('MUTELIST %s, %s' % (user.username, message))
 			client.Send('MUTELISTEND')
 
-	def in_IGNORE(self, client, username, reason=None):
+	def in_IGNORE(self, client, tags):
 		'''
 		Tells the server to add the user to the client's ignore list. Doing this will prevent any SAID*, SAYPRIVATE and RING commands to be received from the ignored user.
 
 		@required.str username: The target user to ignore.
 		@required.str reason: Reason for the ignore.
 		'''
+		tags = self._parseTags(tags)
+		# should write a helper function for mandatory args..?
+		username = tags.get("userName")
+		if not username:
+			self.out_SERVERMSG(client, "Missing username argument.")
+			return
+		reason = tags.get("reason")
 		ok, failReason = self._validUsernameSyntax(username)
 		if not ok:
 			self.out_SERVERMSG(client, "Invalid username format.")
@@ -1061,16 +1068,22 @@ class Protocol:
 
 		self.ignore_user(client, ignoreClient, reason)
 		if not reason or not reason.strip(): 
-			client.Send('IGNORE %s' % (username))
+			client.Send('IGNORE userName=%s' % (username))
 		else:
-			client.Send('IGNORE %s %s' % (username, reason))
+			client.Send('IGNORE userName=%s\treason=%s' % (username, reason))
 
-	def in_UNIGNORE(self, client, username):
+	def in_UNIGNORE(self, client, tags):
 		'''
 		Tells the server to add the user to the client's ignore list. Doing this will prevent any SAID*, SAYPRIVATE and RING commands to be received from the ignored user.
 
 		@required.str username: The target user to unignore.
 		'''
+		tags = self._parseTags(tags)
+		# should write a helper function for mandatory args..?
+		username = tags.get("userName")
+		if not username:
+			self.out_SERVERMSG(client, "Missing username argument.")
+			return
 		ok, reason = self._validUsernameSyntax(username)
 		if not ok:
 			self.out_SERVERMSG(client, "Invalid username format.")
@@ -1084,7 +1097,7 @@ class Protocol:
 			return
 
 		self.unignore_user(client, unignoreClient)
-		client.Send('UNIGNORE %s' % (username))
+		client.Send('UNIGNORE userName=%s' % (username))
 
 	def in_IGNORELIST(self, client):
 		client.Send('IGNORELISTBEGIN')
@@ -1092,9 +1105,9 @@ class Protocol:
 			ignoredClient = self.clientFromID(userId, True)
 			username = ignoredClient.username
 			if reason:
-				client.Send('IGNORELIST %s %s' % (username, reason))
+				client.Send('IGNORELIST userName=%s\treason=%s' % (username, reason))
 			else:
-				client.Send('IGNORELIST %s' % (username))
+				client.Send('IGNORELIST userName=%s' % (username))
 		client.Send('IGNORELISTEND')
 
 
@@ -2602,7 +2615,7 @@ class Protocol:
 				userThatIgnored = self.clientFromID(userId)
 				if userThatIgnored:
 					userThatIgnored.ignored.pop(user.db_id)
-					userThatIgnored.Send('UNIGNORE %s' % (username))
+					userThatIgnored.Send('UNIGNORE userName=%s' % (username))
 
 
 	def in_RELOAD(self, client):
