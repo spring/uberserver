@@ -364,13 +364,13 @@ class DataHandler:
 		for line in lines:
 			self.console_buffer += [ strtime + line ]
 
-        # the sourceUser is only sent for SAY*, and RING commands
-	def multicast(self, clients, msg, ignore=(), sourceUser=None):
+        # the sourceClient is only sent for SAY*, and RING commands
+	def multicast(self, clients, msg, ignore=(), sourceClient=None):
 		if type(ignore) in (str, unicode): ignore = [ignore]
 		static = []
 		for client in clients:
 			if client and not client.username in ignore and \
-                            (sourceUser == None or not self.userdb.is_ignored(client.username, sourceUser)):
+                            (sourceClient == None or sourceClient.isMod() or not self.userdb.is_ignored(client.username, sourceClient.username)):
 				if client.static: static.append(client)
 				else: client.Send(msg)
 		
@@ -378,27 +378,27 @@ class DataHandler:
 		for client in static:
 			client.Send(msg)
 	
-        # the sourceUser is only sent for SAY*, and RING commands
-	def broadcast(self, msg, chan=None, ignore=(), sourceUser=None):
+        # the sourceClient is only sent for SAY*, and RING commands
+	def broadcast(self, msg, chan=None, ignore=(), sourceClient=None):
 		if type(ignore) in (str, unicode): ignore = [ignore]
 		try:
 			if chan in self.channels:
 				channel = self.channels[chan]
 				if len(channel.users) > 0:
 					clients = [self.clientFromUsername(user) for user in list(channel.users)]
-					self.multicast(clients, msg, ignore, sourceUser)
+					self.multicast(clients, msg, ignore, sourceClient)
 			else:
 				clients = [self.clientFromUsername(user) for user in list(self.usernames)]
-				self.multicast(clients, msg, ignore, sourceUser)
+				self.multicast(clients, msg, ignore, sourceClient)
 		except: self.error(traceback.format_exc())
 
-        # the sourceUser is only sent for SAY*, and RING commands
-	def broadcast_battle(self, msg, battle_id, ignore=[], sourceUser=None):
+        # the sourceClient is only sent for SAY*, and RING commands
+	def broadcast_battle(self, msg, battle_id, ignore=[], sourceClient=None):
 		if type(ignore) in (str, unicode): ignore = [ignore]
 		if battle_id in self.battles:
 			battle = self.battles[battle_id]
 			clients = [self.clientFromUsername(user) for user in list(battle.users)]
-			self.multicast(clients, msg, ignore, sourceUser)
+			self.multicast(clients, msg, ignore, sourceClient)
 
 	def admin_broadcast(self, msg):
 		for user in dict(self.usernames):

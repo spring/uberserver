@@ -897,7 +897,7 @@ class Protocol:
 				if channel.isMuted(client):
 					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 				else:
-					self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, client.reverse_ignore, client.username)
+					self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, client.reverse_ignore, client)
 
 	def in_SAYEX(self, client, chan, msg):
 		'''
@@ -917,7 +917,7 @@ class Protocol:
 				if channel.isMuted(client):
 					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 				else:
-					self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, client.reverse_ignore, client.username)
+					self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, client.reverse_ignore, client)
 
 	def in_SAYPRIVATE(self, client, user, msg):
 		'''
@@ -1024,8 +1024,12 @@ class Protocol:
 		if not ok:
 			self.out_SERVERMSG(client, "Invalid username format.")
 			return
-		if not self.userdb.clientFromUsername(username):
+		ignoreClient = self.clientFromUsername(username, True)
+		if not ignoreClient:
 			self.out_SERVERMSG(client, "No such user.")
+			return
+                if ignoreClient.isMod():
+			self.out_SERVERMSG(client, "Can't ignore a moderator.")
 			return
 		if username == client.username:
 			self.out_SERVERMSG(client, "Can't ignore self.")
@@ -1050,7 +1054,7 @@ class Protocol:
 		if not ok:
 			self.out_SERVERMSG(client, "Invalid username format.")
 			return
-		if not self.userdb.clientFromUsername(username):
+		if not self.clientFromUsername(username, True):
 			self.out_SERVERMSG(client, "No such user.")
 			return
 		if not self.userdb.is_ignored(client.username, username):
@@ -1384,7 +1388,7 @@ class Protocol:
 			user = client.username
 			msg = self.SayHooks.hook_SAYBATTLE(self, client, battle_id, msg)
 			if not msg or not msg.strip(): return
-			self.broadcast_SendBattle(battle, 'SAIDBATTLE %s %s' % (user, msg), client.username)
+			self.broadcast_SendBattle(battle, 'SAIDBATTLE %s %s' % (user, msg), client)
 
 	def in_SAYBATTLEEX(self, client, msg):
 		'''
@@ -1395,7 +1399,7 @@ class Protocol:
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
-			self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg), client.username)
+			self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg), client)
 
 	def in_SAYBATTLEPRIVATE(self, client, username, msg):
 		'''
