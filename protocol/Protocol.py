@@ -616,6 +616,20 @@ class Protocol:
 		'sends the protocol for removing a battle'
 		client.Send('BATTLECLOSED %s' % battle.id)
 
+	def is_ignored(self, client, ignoredClient):
+		return ignoredClient.db_id in client.ignored
+
+	def get_ignore_reason(self, client, ignoredClient):
+		return client.ignored[ignoredClient.db_id]
+
+	def ignore_user(self, client, ignoreClient, reason=None):
+		self.userdb.ignore_user(client.db_id, ignoreClient.db_id, reason)
+		client.ignored[ignoreClient.db_id] = reason
+
+	def unignore_user(self, client, unignoreClient):
+		self.userdb.unignore_user(client.db_id, unignoreClient.db_id)
+		client.ignored.pop(unignoreClient.db_id)
+
 	# Begin incoming protocol section #
 	#
 	# any function definition beginning with in_ and ending with capital letters
@@ -841,6 +855,9 @@ class Protocol:
 		self._root.usernames[username] = client
 		client.status = self._calc_status(client, 0)
 
+		ignoreList = self.userdb.get_ignore_list(client.db_id)
+		client.ignored = {ignoredUserId:reason for (ignoredUserId, reason) in ignoreList}
+
 		client.Send('ACCEPTED %s'%username)
 
 		self._sendMotd(client)
@@ -932,7 +949,7 @@ class Protocol:
 				msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
 				if not msg or not msg.strip(): return
 			client.Send('SAYPRIVATE %s %s'%(user, msg), self.binary)
-                        if not self.userdb.is_ignored(user.id, client.db_id):
+			if not self.is_ignored(receiver, client):
 				receiver.Send('SAIDPRIVATE %s %s' %(client.username, msg), self.binary)
 
 	def in_SAYPRIVATEEX(self, client, user, msg):
@@ -943,12 +960,13 @@ class Protocol:
 		@required.str message: The action to send.
 		'''
 		if not msg: return
-		if user in self._root.usernames:
+		receiver = self.clientFromUsername(user)
+		if receiver:
 			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
 			if not msg or not msg.strip(): return
 			client.Send('SAYPRIVATEEX %s %s'%(user, msg))
-			if not self.userdb.is_ignored(user.id, client.db_id):
-				self._root.usernames[user].Send('SAIDPRIVATEEX %s %s'%(client.username, msg))
+			if not self.is_ignored(receiver, client):
+				receiver.Send('SAIDPRIVATEEX %s %s'%(client.username, msg))
 
 	def in_MUTE(self, client, chan, user, duration=None, args=''):
 		'''
@@ -1012,9 +1030,10 @@ class Protocol:
 				if user:
 					client.Send('MUTELIST %s, %s' % (user.username, message))
 			client.Send('MUTELISTEND')
+
 	def in_IGNORE(self, client, username, reason=None):
 		'''
-                Tells the server to add the user to the client's ignore list. Doing this will prevent any SAID*, SAYPRIVATE and RING commands to be received from the ignored user.
+		Tells the server to add the user to the client's ignore list. Doing this will prevent any SAID*, SAYPRIVATE and RING commands to be received from the ignored user.
 
 		@required.str username: The target user to ignore.
 		@required.str reason: Reason for the ignore.
@@ -1027,17 +1046,17 @@ class Protocol:
 		if not ignoreClient:
 			self.out_SERVERMSG(client, "No such user.")
 			return
-                if ignoreClient.access in ('mod', 'admin'):
+		if ignoreClient.access in ('mod', 'admin'):
 			self.out_SERVERMSG(client, "Can't ignore a moderator.")
 			return
 		if username == client.username:
 			self.out_SERVERMSG(client, "Can't ignore self.")
 			return
-		if self.userdb.is_ignored(client.db_id, ignoreClient.db_id):
+		if self.is_ignored(client, ignoreClient):
 			self.out_SERVERMSG(client, "User is already ignored.")
 			return
 
-		self.userdb.ignore_user(client.db_id, ignoreClient.db_id, reason)
+		self.ignore_user(client, ignoreClient, reason)
 		if not reason or not reason.strip(): 
 			client.Send('IGNORE %s' % (username))
 		else:
@@ -1045,7 +1064,7 @@ class Protocol:
 
 	def in_UNIGNORE(self, client, username):
 		'''
-                Tells the server to add the user to the client's ignore list. Doing this will prevent any SAID*, SAYPRIVATE and RING commands to be received from the ignored user.
+		Tells the server to add the user to the client's ignore list. Doing this will prevent any SAID*, SAYPRIVATE and RING commands to be received from the ignored user.
 
 		@required.str username: The target user to unignore.
 		'''
@@ -1053,23 +1072,22 @@ class Protocol:
 		if not ok:
 			self.out_SERVERMSG(client, "Invalid username format.")
 			return
-                unignoreClient = self.clientFromUsername(username, True)
+		unignoreClient = self.clientFromUsername(username, True)
 		if not unignoreClient:
 			self.out_SERVERMSG(client, "No such user.")
 			return
-		if not self.userdb.is_ignored(client.db_id, unignoreClient.db_id):
+		if not self.is_ignored(client, unignoreClient):
 			self.out_SERVERMSG(client, "User is not ignored.")
 			return
 
-		self.userdb.unignore_user(client.db_id, unignoreClient.db_id)
+		self.unignore_user(client, unignoreClient)
 		client.Send('UNIGNORE %s' % (username))
 
 	def in_IGNORELIST(self, client):
-		ignoreList = self.userdb.get_ignored_users(client.db_id)
 		client.Send('IGNORELISTBEGIN')
-		for username in ignoreList:
-                        ignoredClient = self.clientFromUsername(username, True)
-			reason = self.userdb.get_ignore_reason(client.db_id, ignoredClient.db_id)
+		for (userId, reason) in client.ignored.items():
+			ignoredClient = self.clientFromID(userId, True)
+			username = ignoredClient.username
 			if reason:
 				client.Send('IGNORELIST %s %s' % (username, reason))
 			else:
@@ -1416,7 +1434,7 @@ class Protocol:
 			if client.username == battle.host and username in battle.users:
 				user = self.clientFromUsername(username)
 				if user:
-					if not self.userdb.is_ignored(user.db_id, client.db_id):
+					if not self.is_ignored(user, client):
 						user.Send('SAIDBATTLE %s %s' % (client.username, msg))
 
 	def in_SAYBATTLEPRIVATEEX(self, client, username, msg):
@@ -1433,7 +1451,7 @@ class Protocol:
 			if client.username == battle.host and username in battle.users:
 				user = self.clientFromUsername(username)
 				if user:
-					if not self.userdb.is_ignored(user.db_id, client.db_id):
+					if not self.is_ignored(user, client):
 						user.Send('SAIDBATTLEEX %s %s' % (client.username, msg))
 
 	def in_FORCEJOINBATTLE(self, client, username, target_battle, password=None):
@@ -1943,7 +1961,7 @@ class Protocol:
 			else:
 				return
 
-		if not self.userdb.is_ignored(user.db_id, client.db_id):
+		if not self.is_ignored(user, client):
 			user.Send('RING %s' % (client.username))
 
 
@@ -2574,12 +2592,14 @@ class Protocol:
 			self._calc_access_status(user)
 			self._root.broadcast('CLIENTSTATUS %s %s'%(username, user.status))
 		self.userdb.save_user(user)
+		# remove the new mod/admin from everyones ignore list and notify affected users
 		if access in ('mod', 'admin'):
 			userIds = self.userdb.globally_unignore_user(user.db_id)
 			for userId in userIds:
-				user = self.clientFromID(userId)
-				if user:
-					client.Send('UNIGNORE %s' % (user.username))
+				userThatIgnored = self.clientFromID(userId)
+				if userThatIgnored:
+					userThatIgnored.ignored.pop(user.db_id)
+					userThatIgnored.Send('UNIGNORE %s' % (username))
 
 
 	def in_RELOAD(self, client):

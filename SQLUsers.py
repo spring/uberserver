@@ -524,18 +524,12 @@ class UsersHandler:
 		session.close()
 		return exists
 
-	def get_ignored_users(self, user_id):
+	def get_ignore_list(self, user_id):
 		session = self.sessionmaker()
-		users = session.query(User.username).join(Ignore, Ignore.ignored_user_id == User.id).filter(Ignore.user_id == user_id)
-		users = [ username for username, in users ]
+		users = session.query(Ignore).filter(Ignore.user_id == user_id).all()
+		users = [(user.ignored_user_id, user.reason) for user in users]
 		session.close()
 		return users
-
-	def get_ignore_reason(self, user_id, ignore_user_id):
-		session = self.sessionmaker()
-		reason = session.query(Ignore).filter(Ignore.user_id == user_id).filter(Ignore.ignored_user_id == ignore_user_id).one().reason
-		session.close()
-		return reason
 
 class ChannelsHandler:
 	def __init__(self, root, engine):
