@@ -1055,6 +1055,9 @@ class Protocol:
 		if self.is_ignored(client, ignoreClient):
 			self.out_SERVERMSG(client, "User is already ignored.")
 			return
+		if len(client.ignored) >= 50:
+			self.out_SERVERMSG(client, "Ignore list full (50 users).")
+			return
 
 		self.ignore_user(client, ignoreClient, reason)
 		if not reason or not reason.strip(): 
