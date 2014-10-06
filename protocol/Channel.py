@@ -2,7 +2,7 @@ from AutoDict import AutoDict
 import time
 
 class Channel(AutoDict):
-	def __init__(self, root, name, users=[], blindusers=[], admins=[],
+	def __init__(self, root, name, users=[], admins=[],
 						ban={}, allow=[], autokick='ban', chanserv=False,
 						owner='', mutelist={}, antispam=False,
 						censor=False, antishock=False, topic=None,
@@ -10,7 +10,6 @@ class Channel(AutoDict):
 		self._root = root
 		self.name = name
 		self.users = users
-		self.blindusers = blindusers
 		self.admins = admins
 		self.ban = ban
 		self.allow = allow
@@ -49,15 +48,13 @@ class Channel(AutoDict):
 
 		if username in self.users:
 			self.users.remove(username)
-			if username in self.blindusers:
-				self.blindusers.remove(username)
 
 			if self.name in client.channels:
 				client.channels.remove(chan)
 			if reason and len(reason) > 0:
-				self._root.broadcast('LEFT %s %s %s' % (chan, username, reason), chan, self.blindusers)
+				self._root.broadcast('LEFT %s %s %s' % (chan, username, reason), chan)
 			else:
-				self._root.broadcast('LEFT %s %s' % (chan, username), chan, self.blindusers)
+				self._root.broadcast('LEFT %s %s' % (chan, username), chan)
 
 	def isAdmin(self, client):
 		return client and ('admin' in client.accesslevels)

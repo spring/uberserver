@@ -55,7 +55,6 @@ class DataHandler:
 		
 		self.start_time = time.time()
 		self.channels = {}
-		self.chan_alias = {}
 		self.usernames = {}
 		self.clients = {}
 		self.db_ids = {}

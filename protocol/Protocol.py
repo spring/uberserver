@@ -1138,18 +1138,6 @@ class Protocol:
 			client.Send('JOINFAILED %s' % reason)
 			return
 
-		alreadyaliased = []
-		run = True
-		blind = False
-		nolock = False
-		while run:
-			alreadyaliased.append(chan)
-			if chan in self._root.chan_alias:
-				alias = self._root.chan_alias[chan]
-				chan, blind, nolock = (alias['chan'], alias['blind'], alias['nolock'])
-				if chan in alreadyaliased: run = False # hit infinite loop
-			else:
-				run = False
 		user = client.username
 		chan = chan.lstrip('#')
 		if not chan: return
@@ -1159,54 +1147,39 @@ class Protocol:
 		else:
 			channel = self._root.channels[chan]
 		if user in channel.users:
-			if user in channel.blindusers and not blind:
-				channel.blindusers.remove(user)
-				client.Send('FORCELEAVECHANNEL %s server Vision restored.' % chan)
-				client.Send('JOIN %s' % chan)
-				client.Send('CLIENTS %s %s'%(chan, ' '.join(channel.users)))
-			elif user not in channel.blindusers and blind:
-				channel.blindusers.append(user)
-				client.Send('FORCELEAVECHANNEL %s server Going blind.' % chan)
-				client.Send('JOIN %s' % chan)
-				client.Send('CLIENTS %s %s' % (chan, user))
-		else:
-			if not channel.isFounder(client):
-				if channel.key and not nolock and not channel.key in (key, None, '*', ''):
-					client.Send('JOINFAILED %s Invalid key' % chan)
-					return
-				elif channel.autokick == 'ban' and client.db_id in channel.ban:
-					client.Send('JOINFAILED %s You are banned from the channel %s' % (chan, channel.ban[client.db_id]))
-					return
-				elif channel.autokick == 'allow' and client.db_id not in channel.allow:
-					client.Send('JOINFAILED %s You are not allowed' % chan)
-					return
-			if not chan in client.channels:
-				client.channels.append(chan)
-			client.Send('JOIN %s'%chan)
-			if not blind:
-				self._root.broadcast('JOINED %s %s' % (chan, user), chan, channel.blindusers)
-				channel.users.append(user)
-				client.Send('CLIENTS %s %s'%(chan, ' '.join(channel.users)))
-			else:
-				self._root.broadcast('JOINED %s %s'%(chan,user), chan, channel.blindusers)
-				channel.users.append(user)
-				channel.blindusers.append(user)
-				client.Send('CLIENTS %s %s'%(chan, user))
+			client.Send('JOINFAILED %s Already in channel!' % chan)
+			return
+		if not channel.isFounder(client):
+			if channel.key and not nolock and not channel.key in (key, None, '*', ''):
+				client.Send('JOINFAILED %s Invalid key' % chan)
+				return
+			elif channel.autokick == 'ban' and client.db_id in channel.ban:
+				client.Send('JOINFAILED %s You are banned from the channel %s' % (chan, channel.ban[client.db_id]))
+				return
+			elif channel.autokick == 'allow' and client.db_id not in channel.allow:
+				client.Send('JOINFAILED %s You are not allowed' % chan)
+				return
+		if not chan in client.channels:
+			client.channels.append(chan)
+		client.Send('JOIN %s'%chan)
+		self._root.broadcast('JOINED %s %s' % (chan, user), chan)
+		channel.users.append(user)
+		client.Send('CLIENTS %s %s'%(chan, ' '.join(channel.users)))
 
-			topic = channel.topic
-			if topic:
-				if client.compat['et']:
-					topictime = int(topic['time'])
-				else:
-					topictime = int(topic['time'])*1000
-				try:
-					top = topic['text'].decode("utf-8")
-				except:
-					top = "Invalid utf-8 encoding"
-					self._root.console_write("%s for channel topic: %s" %(top, chan))
-				client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topictime, top))
-			elif client.compat['et']: # supports sendEmptyTopic
-				client.Send('NOCHANNELTOPIC %s' % chan)
+		topic = channel.topic
+		if topic:
+			if client.compat['et']:
+				topictime = int(topic['time'])
+			else:
+				topictime = int(topic['time'])*1000
+			try:
+				top = topic['text'].decode("utf-8")
+			except:
+				top = "Invalid utf-8 encoding"
+				self._root.console_write("%s for channel topic: %s" %(top, chan))
+			client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topictime, top))
+		elif client.compat['et']: # supports sendEmptyTopic
+			client.Send('NOCHANNELTOPIC %s' % chan)
 
 		# disabled because irc bridge spams JOIN commands
 		#
