@@ -11,6 +11,7 @@ import traceback, sys, os
 import socket
 from Channel import Channel
 from Battle import Battle
+from Client import Client
 
 # rank, ingame time in hours
 ranks = (5, 15, 30, 100, 300, 1000, 3000, 10000)
@@ -83,6 +84,14 @@ restricted = {
 	'IGNORE',
 	'UNIGNORE',
 	'IGNORELIST',
+	########
+	# friend
+	'FRIENDREQUEST',
+	'ACCEPTFRIENDREQUEST',
+	'DECLINEFRIENDREQUEST',
+	'UNFRIEND',
+	'FRIENDLIST',
+	'FRIENDREQUESTLIST',
 	########
 	# meta
 	'CHANGEPASSWORD',
@@ -624,7 +633,11 @@ class Protocol:
 		client.Send('BATTLECLOSED %s' % battle.id)
 
 	def is_ignored(self, client, ignoredClient):
-		return ignoredClient.db_id in client.ignored
+		# verify that this is an online client (only those have an .ignored attr)
+		if self.clientFromID(client.db_id):
+			return ignoredClient.db_id in client.ignored
+		else:
+			return self.userdb.is_ignored(client.db_id, ignoredClient.db_id)
 
 	def ignore_user(self, client, ignoreClient, reason=None):
 		self.userdb.ignore_user(client.db_id, ignoreClient.db_id, reason)
@@ -1049,6 +1062,7 @@ class Protocol:
 			self.out_SERVERMSG(client, "Missing userName argument.")
 			return
 		reason = tags.get("reason")
+
 		ok, failReason = self._validUsernameSyntax(username)
 		if not ok:
 			self.out_SERVERMSG(client, "Invalid userName format.")
@@ -1113,6 +1127,128 @@ class Protocol:
 			else:
 				client.Send('IGNORELIST userName=%s' % (username))
 		client.Send('IGNORELISTEND')
+
+	# FIXME: there is currently no limit to the number of friend requests one user can send
+	def in_FRIENDREQUEST(self, client, tags):
+		tags = self._parseTags(tags)
+		# should write a helper function for mandatory args..?
+		username = tags.get("userName")
+		if not username:
+			self.out_SERVERMSG(client, "Missing userName argument.")
+			return
+		msg = tags.get("msg")
+
+		ok, failReason = self._validUsernameSyntax(username)
+		if not ok:
+			self.out_SERVERMSG(client, "Invalid userName format.")
+			return
+
+		friendRequestClient = self.clientFromUsername(username, True)
+		if not friendRequestClient:
+			self.out_SERVERMSG(client, "No such user.")
+			return
+		if username == client.username:
+			self.out_SERVERMSG(client, "Can't send friend request to self. Sorry :(")
+			return
+		if self.userdb.are_friends(client.db_id, friendRequestClient.db_id):
+			self.out_SERVERMSG(client, "Already friends with user.")
+			return
+		if self.is_ignored(friendRequestClient, client):
+			# don't send friend request if ignored
+			return
+		if self.userdb.has_friend_request(client.db_id, friendRequestClient.db_id):
+			# don't inform the user that there is already a friend request (so they won't be able to tell if they are being ignored or not)
+			return
+
+		self.userdb.add_friend_request(client.db_id, friendRequestClient.db_id, msg)
+		if self.clientFromID(friendRequestClient.db_id):
+			if msg:
+				friendRequestClient.Send('FRIENDREQUEST userName=%s\tmsg=%s' % (client.username, msg))
+			else:
+				friendRequestClient.Send('FRIENDREQUEST userName=%s' % client.username)
+
+
+	def in_ACCEPTFRIENDREQUEST(self, client, tags):
+		tags = self._parseTags(tags)
+		# should write a helper function for mandatory args..?
+		username = tags.get("userName")
+		if not username:
+			self.out_SERVERMSG(client, "Missing userName argument.")
+			return
+
+		ok, failReason = self._validUsernameSyntax(username)
+		if not ok:
+			self.out_SERVERMSG(client, "Invalid userName format.")
+			return
+
+		friendRequestClient = self.clientFromUsername(username, True)
+		if not self.userdb.has_friend_request(friendRequestClient.db_id, client.db_id):
+			self.out_SERVERMSG(client, "No such friend request.")
+			return
+
+		self.userdb.friend_users(client.db_id, friendRequestClient.db_id)
+		self.userdb.remove_friend_request(friendRequestClient.db_id, client.db_id)
+
+		client.Send('FRIEND userName=%s' % username)
+		if self.clientFromID(friendRequestClient.db_id):
+			friendRequestClient.Send('FRIEND userName=%s' % client.username)
+
+	def in_DECLINEFRIENDREQUEST(self, client, tags):
+		tags = self._parseTags(tags)
+		# should write a helper function for mandatory args..?
+		username = tags.get("userName")
+		if not username:
+			self.out_SERVERMSG(client, "Missing userName argument.")
+			return
+		ok, failReason = self._validUsernameSyntax(username)
+		if not ok:
+			self.out_SERVERMSG(client, "Invalid userName format.")
+			return
+
+		friendRequestClient = self.clientFromUsername(username, True)
+		if not self.userdb.has_friend_request(friendRequestClient.db_id, client.db_id):
+			self.out_SERVERMSG(client, "No such friend request.")
+			return
+		self.userdb.remove_friend_request(friendRequestClient.db_id, client.db_id)
+
+	def in_UNFRIEND(self, client, tags):
+		tags = self._parseTags(tags)
+		# should write a helper function for mandatory args..?
+		username = tags.get("userName")
+		if not username:
+			self.out_SERVERMSG(client, "Missing userName argument.")
+			return
+		ok, failReason = self._validUsernameSyntax(username)
+		if not ok:
+			self.out_SERVERMSG(client, "Invalid userName format.")
+			return
+
+		friendRequestClient = self.clientFromUsername(username, True)
+
+		self.userdb.unfriend_users(client.db_id, friendRequestClient.db_id)
+
+		client.Send('UNFRIEND userName=%s' % username)
+		if self.clientFromID(friendRequestClient.db_id):
+			friendRequestClient.Send('UNFRIEND userName=%s' % client.username)
+
+	def in_FRIENDREQUESTLIST(self, client):
+		client.Send('FRIENDREQUESTLISTBEGIN')
+		for (userId, msg) in self.userdb.get_friend_request_list(client.db_id):
+			friendRequestClient = self.clientFromID(userId, True)
+			username = friendRequestClient.username
+			if msg:
+				client.Send('FRIENDREQUESTLIST userName=%s\tmsg=%s' % (username, msg))
+			else:
+				client.Send('FRIENDREQUESTLIST userName=%s' % (username))
+		client.Send('FRIENDREQUESTLISTEND')
+
+	def in_FRIENDLIST(self, client):
+		client.Send('FRIENDLISTBEGIN')
+		for userId in self.userdb.get_friend_user_ids(client.db_id):
+			friendClient = self.clientFromID(userId, True)
+			username = friendClient.username
+			client.Send('FRIENDLIST userName=%s' % (username))
+		client.Send('FRIENDLISTEND')
 
 
 	def in_FORCEJOIN(self, client, user, chan, key=None):
