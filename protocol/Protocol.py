@@ -1039,12 +1039,12 @@ class Protocol:
 		# should write a helper function for mandatory args..?
 		username = tags.get("userName")
 		if not username:
-			self.out_SERVERMSG(client, "Missing username argument.")
+			self.out_SERVERMSG(client, "Missing userName argument.")
 			return
 		reason = tags.get("reason")
 		ok, failReason = self._validUsernameSyntax(username)
 		if not ok:
-			self.out_SERVERMSG(client, "Invalid username format.")
+			self.out_SERVERMSG(client, "Invalid userName format.")
 			return
 		ignoreClient = self.clientFromUsername(username, True)
 		if not ignoreClient:
@@ -1079,11 +1079,11 @@ class Protocol:
 		# should write a helper function for mandatory args..?
 		username = tags.get("userName")
 		if not username:
-			self.out_SERVERMSG(client, "Missing username argument.")
+			self.out_SERVERMSG(client, "Missing userName argument.")
 			return
 		ok, reason = self._validUsernameSyntax(username)
 		if not ok:
-			self.out_SERVERMSG(client, "Invalid username format.")
+			self.out_SERVERMSG(client, "Invalid userName format.")
 			return
 		unignoreClient = self.clientFromUsername(username, True)
 		if not unignoreClient:
