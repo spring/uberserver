@@ -1995,7 +1995,7 @@ class Protocol:
 
 		@required.str units: A string-separated list of unit names to disable.
 		'''
-		if not self._canForceBattle(client, username):
+		if not self._canForceBattle(client):
 			return
 		units = units.split(' ')
 		disabled_units = []
@@ -2006,7 +2006,7 @@ class Protocol:
 				disabled_units.append(unit)
 		if disabled_units:
 			disabled_units = ' '.join(disabled_units)
-			self._root.broadcast_battle('DISABLEUNITS %s'%disabled_units, battle_id, client.username)
+			self._root.broadcast_battle('DISABLEUNITS %s'%disabled_units, client.current_battle, client.username)
 
 	def in_ENABLEUNITS(self, client, units):
 		'''
