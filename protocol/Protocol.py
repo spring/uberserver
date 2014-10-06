@@ -365,8 +365,13 @@ class Protocol:
 		for t in ranks:
 			if ingame_time >= t:
 				rank += 1
-
-		rank1, rank2, rank3 = self._dec2bin(rank, 3)
+		rank1 = 0
+		rank2 = 0
+		rank3 = 0
+		try:
+			rank1, rank2, rank3 = self._dec2bin(rank, 3)
+		except:
+			self.out_SERVERMSG(client, "invalid status: %s" %(status), True) 
 		client.is_ingame = (ingame == '1')
 		client.away = (away == '1')
 		status = self._bin2dec('%s%s%s%s%s%s%s'%(bot, access, rank1, rank2, rank3, away, ingame))
