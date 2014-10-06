@@ -910,7 +910,7 @@ class Protocol:
 				if channel.isMuted(client):
 					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 				else:
-					self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, client.reverse_ignore, client)
+					self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, [], client)
 
 	def in_SAYEX(self, client, chan, msg):
 		'''
@@ -930,7 +930,7 @@ class Protocol:
 				if channel.isMuted(client):
 					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 				else:
-					self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, client.reverse_ignore, client)
+					self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, [], client)
 
 	def in_SAYPRIVATE(self, client, user, msg):
 		'''

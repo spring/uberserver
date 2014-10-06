@@ -66,8 +66,6 @@ class Client:
 		self.lastsaid = {}
 		self.nl = '\n'
 		self.current_channel = ''
-		self.blind_channels = []
-		self.reverse_ignore = []
 		
 		self.tokenized = False
 		self.hashpw = False
