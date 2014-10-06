@@ -1150,7 +1150,7 @@ class Protocol:
 			client.Send('JOINFAILED %s Already in channel!' % chan)
 			return
 		if not channel.isFounder(client):
-			if channel.key and not nolock and not channel.key in (key, None, '*', ''):
+			if channel.key and not channel.key in (key, None, '*', ''):
 				client.Send('JOINFAILED %s Invalid key' % chan)
 				return
 			elif channel.autokick == 'ban' and client.db_id in channel.ban:
@@ -1393,7 +1393,7 @@ class Protocol:
 			user = client.username
 			msg = self.SayHooks.hook_SAYBATTLE(self, client, battle_id, msg)
 			if not msg or not msg.strip(): return
-			self.broadcast_SendBattle(battle, 'SAIDBATTLE %s %s' % (user, msg), client)
+			self.broadcast_SendBattle(battle, 'SAIDBATTLE %s %s' % (user, msg))
 
 	def in_SAYBATTLEEX(self, client, msg):
 		'''
@@ -1404,7 +1404,7 @@ class Protocol:
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
-			self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg), client)
+			self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg))
 
 	def in_SAYBATTLEPRIVATE(self, client, username, msg):
 		'''
