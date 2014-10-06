@@ -548,12 +548,14 @@ class Protocol:
 		for name in users:
 			users[name].RemoveBattle(battle)
 
-	def broadcast_SendBattle(self, battle, data):
+	# the sourceClient is only sent for SAY*, and RING commands
+	def broadcast_SendBattle(self, battle, data, sourceClient=None):
 		'queues the protocol for sending text in a battle - experiment in loose thread-safety'
 		users = list(battle.users)
-		for name in users:
-			if name in self._root.usernames:
-				self._root.usernames[name].SendBattle(battle, data)
+		for username in users:
+			client = self.clientFromUsername(username)
+			if client and (sourceClient == None or not sourceClient.db_id in client.ignored):
+				client.SendBattle(battle, data)
 
 	def broadcast_AddUser(self, user):
 		'queues the protocol for adding a user - experiment in loose thread-safety'
@@ -1393,7 +1395,7 @@ class Protocol:
 			user = client.username
 			msg = self.SayHooks.hook_SAYBATTLE(self, client, battle_id, msg)
 			if not msg or not msg.strip(): return
-			self.broadcast_SendBattle(battle, 'SAIDBATTLE %s %s' % (user, msg))
+			self.broadcast_SendBattle(battle, 'SAIDBATTLE %s %s' % (user, msg), client)
 
 	def in_SAYBATTLEEX(self, client, msg):
 		'''
@@ -1404,7 +1406,7 @@ class Protocol:
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
-			self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg))
+			self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg), client)
 
 	def in_SAYBATTLEPRIVATE(self, client, username, msg):
 		'''
@@ -2697,7 +2699,7 @@ class Protocol:
 						if not self._canForceBattle(client, subvalue):
 							return
 						username = subvalue
-						user = self.clientFromName(username)
+						user = self.clientFromUsername(username)
 						for subsubkey, subsubvalue in subvalue.iteritems():
 							if subsubkey == "status":
 								self.in_MYBATTLESTATUS(client, subsubvalue, client.color)
