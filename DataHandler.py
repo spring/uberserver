@@ -370,7 +370,7 @@ class DataHandler:
 		static = []
 		for client in clients:
 			if client and not client.username in ignore and \
-			    (sourceClient == None or not self.userdb.is_ignored(client.username, sourceClient.username)): 
+			    (sourceClient == None or not sourceClient.db_id in client.ignored):
 				if client.static: static.append(client)
 				else: client.Send(msg)
 		
