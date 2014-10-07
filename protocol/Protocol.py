@@ -11,7 +11,6 @@ import traceback, sys, os
 import socket
 from Channel import Channel
 from Battle import Battle
-from Client import Client
 
 # rank, ingame time in hours
 ranks = (5, 15, 30, 100, 300, 1000, 3000, 10000)
