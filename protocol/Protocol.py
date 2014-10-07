@@ -2078,7 +2078,7 @@ class Protocol:
 		battle = self._root.battles[client.current_battle]
 		if username == battle.host:
 			self.broadcast_RemoveBattle(battle)
-			del self._root.battles[battle_id]
+			del self._root.battles[client.current_battle]
 		else:
 			self.in_LEAVEBATTLE(kickuser)
 
