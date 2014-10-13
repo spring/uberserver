@@ -173,44 +173,6 @@ class ChanServ:
 					else: return '#%s: <%s> not in channel' % (chan, target)
 				else:
 					return '#%s: You do not have permission to kick users from the channel' % chan
-			elif cmd == 'mute':
-				if access in ['mod', 'founder', 'op']:
-					if not args: return '#%s: You must specify a user to mute' % chan
-					else:
-						if args.count(' '): target, duration = args.split(' ', 1)
-						else:
-							target = args
-							duration = -1
-					try:
-						duration = float(duration)
-					except ValueError:
-						return '#%s: Duration must be an integer!' % chan
-					target = self.client._protocol.clientFromUsername(target)
-					channel.muteUser(client, target, duration)
-				else:
-					return '#%s: You do not have permission to mute users' % chan
-			elif cmd == 'unmute':
-				if access in ['mod', 'founder', 'op']:
-					if not args: return '#%s: You must specify a user to unmute' % chan
-					target = self.client._protocol.clientFromUsername(args)
-					channel.unmuteUser(client, target)
-				else:
-					return '#%s: You do not have permission to unmute users' % chan
-			elif cmd == 'mutelist':
-				if channel.mutelist:
-					mutelist = dict(channel.mutelist)
-					muted = ['#%s: Mute list (%i entries):  '%(chan, len(mutelist))]
-					for user in mutelist:
-						m = mutelist[user].copy()
-						client = self.client._protocol.clientFromID(user)
-						if not client:
-							del mutelist[user]
-							continue
-						message = self.client._protocol._format_time(m['expires']) + (' by IP.' if m['ip'] else '.')
-						muted.append('%s, %s' % (client.username, message))
-					return muted
-				else:
-					return '#%s: Mute list is empty!' % chan
 		
 		if cmd == 'register':
 			if client.isMod():
