@@ -2620,6 +2620,16 @@ class Protocol:
 		@required.str username: The target user.
 		@required.str password: The password to try.
 		'''
+		good, reason = self._validUsernameSyntax(username)
+		if not good:
+			client.Send('TESTLOGINDENY %s' %(reason))
+			return
+
+		good, reason = self._validPasswordSyntax(password)
+		if not good:
+			client.Send('TESTLOGINDENY %s' %(reason))
+			return
+
 		user = self.clientFromUsername(username, True)
 		if user and user.password == password:
 			client.Send('TESTLOGINACCEPT %s %s' % (user.username, user.db_id))
