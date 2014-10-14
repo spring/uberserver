@@ -1263,6 +1263,12 @@ class Protocol:
 			self.out_SERVERMSG(client, '%s' % reason)
 			return
 
+		if chan in self._root.channels:
+			channel = self._root.channels[chan]
+			if user in channel.users:
+				self.out_SERVERMSG(client, 'FORCEJOIN failed: %s Already in channel!' % chan)
+				return
+
 		if user in self._root.usernames:
 			self._handle(self._root.usernames[user], "JOIN %s %s" % (chan, key))
 		else:
