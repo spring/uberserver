@@ -27,7 +27,9 @@ class ChanServ:
 			self._root.error(traceback.format_exc())
 	
 	def HandleMessage(self, chan, user, msg):
-		if len(msg) <= 0 or msg[0] != "!":
+		if len(msg) <= 0:
+			return
+ 		if msg[0] != "!":
 			return
 		msg = msg.lstrip('!')
 		args = None
