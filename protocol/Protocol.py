@@ -1288,6 +1288,12 @@ class Protocol:
 
 		user = client.username
 		chan = chan.lstrip('#')
+
+		# FIXME: unhardcode this
+		if client.bot and chan == "newbies" and client.username != "ChanServ":
+			client.Send('JOINFAILED %s No bots allowed in #newbies!' %(chan))
+			return
+
 		if not chan: return
 		if not chan in self._root.channels:
 			channel = self._new_channel(chan)
