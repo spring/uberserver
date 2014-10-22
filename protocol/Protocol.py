@@ -181,8 +181,16 @@ class Protocol:
 
 	def _new(self, client):
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0'))
+		if self._root.redirect:
+			login_string += "\nREDIRECT " + self._root.redirect
+
 		client.Send(login_string)
 		client.FlushBuffer() #FIXME: shouldn't be required
+
+		if self._root.redirect:
+			# this will make the server not accepting any commands
+			# the client will be disconnected with "Connection timed out, didn't login"
+			client.removing = True
 
 	def _remove(self, client, reason='Quit'):
 		if client.username and client.username in self._root.usernames:
@@ -216,10 +224,6 @@ class Protocol:
 		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
 
 	def _handle(self, client, msg):
-		if self._root.redirect:
-			client.Send("REDIRECT " + self._root.redirect)
-			self._remove(client)
-			return
 		try:
 			msg = msg.decode('utf-8')
 			self.binary = False
