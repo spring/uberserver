@@ -50,6 +50,7 @@ class DataHandler:
 		self.censor = True
 		self.motd = None
 		self.running = True
+		self.redirect = None
 		
 		self.trusted_proxies = []
 		
@@ -90,6 +91,8 @@ class DataHandler:
 		print('     { Path to proxies.txt, for trusting proxies to pass real IP through local IP }')
 		print('   -a --agreement /path/to/agreement.txt')
 		print('     { sets the pat to the agreement file which is sent to a client registering at the server }')
+		print('   -r --redirect "hostname/ip port"')
+		print('     { redirects connecting clients to the given ip and port')
 		print('SQLURL Examples:')
 		#print('  "sqlite:///:memory:" or "sqlite:///"')
 		#print('     { both make a temporary database in memory }')
@@ -142,6 +145,8 @@ class DataHandler:
 
 		for arg in args:
 			argp = args[arg]
+			if arg in ['r', 'redirect']:
+				self.redirect = argp[0]
 			if arg in ['h', 'help']:
 				self.showhelp()
 			if arg in ['p', 'port']:

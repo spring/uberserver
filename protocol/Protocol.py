@@ -216,6 +216,10 @@ class Protocol:
 		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
 
 	def _handle(self, client, msg):
+		if self._root.redirect:
+			client.Send("REDIRECT " + self._root.redirect)
+			self._remove(client)
+			return
 		try:
 			msg = msg.decode('utf-8')
 			self.binary = False
