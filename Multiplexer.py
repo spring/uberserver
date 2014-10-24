@@ -42,7 +42,10 @@ class EpollMultiplexer:
 			self.output.add(s)
 		if not s in self.socketToFileno: return
 		eventmask = self.inMask | self.errMask | (self.outMask if ready else 0)
-		self.poller.modify(s, eventmask) # not valid for select.poll before python 2.6, might need to replace with register() in this context
+		try:
+			self.poller.modify(s, eventmask) # not valid for select.poll before python 2.6, might need to replace with register() in this context
+		except:
+			unregister(s)
 
 	def pump(self, callback):
 		while True:
