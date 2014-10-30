@@ -22,7 +22,6 @@ restricted = {
 	'EXIT',
 	'PING',
 	'LISTCOMPFLAGS',
-	'STATS',
 	],
 'fresh':['LOGIN','REGISTER'],
 'agreement':['CONFIRMAGREEMENT'],
@@ -2880,14 +2879,6 @@ class Protocol:
 							self.out_FAILED(client, "SETBATTLE", "unknown tag %s=%s" % (key, value), True)
 		except:
 			self.out_FAILED(client, "SETBATTLE", "couldn't handle values", True)
-
-	def in_STATS(self, client):
-		client.Send("STATS clients=%s channels=%s battles=%s uptime=%s" %(
-				str(len(self._root.usernames)),
-				str(len(self._root.channels)),
-				str(len(self._root.battles)),
-				str(int(time.time() - self._root.start_time))
-			))
 
 	# Begin outgoing protocol section #
 	#
