@@ -57,9 +57,9 @@ restricted = {
 	'SAYBATTLEEX',
 	'SAYBATTLEPRIVATE',
 	'SAYBATTLEPRIVATEEX',
-	'SCRIPT',
-	'SCRIPTEND',
-	'SCRIPTSTART',
+	#'SCRIPT',
+	#'SCRIPTEND',
+	#'SCRIPTSTART',
 	'SETSCRIPTTAGS',
 	'UPDATEBATTLEINFO',
 	'UPDATEBOT',
@@ -1816,9 +1816,7 @@ class Protocol:
 		self._root.broadcast_battle('REMOVESCRIPTTAGS %s'%' '.join(rem), client.current_battle)
 
 	def in_SCRIPTSTART(self, client):
-		'''
-		Start sending a script to server.
-		'''
+		#deprecated
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
@@ -1830,12 +1828,7 @@ class Protocol:
 					battle.sending_replay_script = True
 
 	def in_SCRIPT(self, client, scriptline):
-		'''
-		Send a line of a script to the server.
-		Note: Scripts over 512KB will be discarded.
-
-		@required.str line: Another line of the script to save in the server.
-		'''
+		#deprecated
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
@@ -1848,9 +1841,7 @@ class Protocol:
 						battle.replay_script.append('%s\n'%scriptline)
 
 	def in_SCRIPTEND(self, client):
-		'''
-		Finish sending the script.
-		'''
+		#deprecated
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
