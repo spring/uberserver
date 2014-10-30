@@ -2883,7 +2883,7 @@ class Protocol:
 
 	def in_STATS(self, client):
 		client.Send("STATS clients=%s channels=%s battles=%s uptime=%s" %(
-				str(len(self._root.clients)),
+				str(len(self._root.usernames)),
 				str(len(self._root.channels)),
 				str(len(self._root.battles)),
 				str(int(time.time() - self._root.start_time))
