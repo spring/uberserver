@@ -38,14 +38,13 @@ class EpollMultiplexer:
 		# this if structure means it only scans output once.
 		if not ready and s in self.output:
 			self.output.remove(s)
+		elif not ready:
+			return
 		elif ready and s in self.sockets:
 			self.output.add(s)
 		if not s in self.socketToFileno: return
 		eventmask = self.inMask | self.errMask | (self.outMask if ready else 0)
-		try:
-			self.poller.modify(s, eventmask) # not valid for select.poll before python 2.6, might need to replace with register() in this context
-		except:
-			unregister(s)
+		self.poller.modify(s, eventmask) # not valid for select.poll before python 2.6, might need to replace with register() in this context
 
 	def pump(self, callback):
 		while True:
