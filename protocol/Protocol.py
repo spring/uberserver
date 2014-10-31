@@ -57,9 +57,6 @@ restricted = {
 	'SAYBATTLEEX',
 	'SAYBATTLEPRIVATE',
 	'SAYBATTLEPRIVATEEX',
-	#'SCRIPT',
-	#'SCRIPTEND',
-	#'SCRIPTSTART',
 	'SETSCRIPTTAGS',
 	'UPDATEBATTLEINFO',
 	'UPDATEBOT',
@@ -1815,41 +1812,6 @@ class Protocol:
 			return
 		self._root.broadcast_battle('REMOVESCRIPTTAGS %s'%' '.join(rem), client.current_battle)
 
-	def in_SCRIPTSTART(self, client):
-		#deprecated
-		battle_id = client.current_battle
-		if battle_id in self._root.battles:
-			battle = self._root.battles[battle_id]
-			if battle.host == client.username:
-				battle.replay_script = []
-				if battle.sending_replay_script:
-					battle.sending_replay_script = False
-				else:
-					battle.sending_replay_script = True
-
-	def in_SCRIPT(self, client, scriptline):
-		#deprecated
-		battle_id = client.current_battle
-		if battle_id in self._root.battles:
-			battle = self._root.battles[battle_id]
-			if battle.host == client.username:
-				if battle.sending_replay_script:
-					if len(battle.replay_script) > 512 and len('\n'.join(battle.replay_script)) > 512*1024:
-						battle.sending_replay_script = False
-						self.out_SERVERMSG(client, 'Script too long (over 512KB). Discarding.')
-					else:
-						battle.replay_script.append('%s\n'%scriptline)
-
-	def in_SCRIPTEND(self, client):
-		#deprecated
-		battle_id = client.current_battle
-		if battle_id in self._root.battles:
-			battle = self._root.battles[battle_id]
-			if battle.host == client.username:
-				if battle.sending_replay_script:
-					battle.replay = True
-					battle.sending_replay_script = False
-
 	def in_LEAVEBATTLE(self, client):
 		'''
 		Leave current battle.
@@ -1997,11 +1959,6 @@ class Protocol:
 				if client.username == host:
 					if client.hostport:
 						self._root.broadcast_battle('HOSTPORT %i' % client.hostport, battle_id, host)
-					if battle.replay:
-						self._root.broadcast_battle('SCRIPTSTART', battle_id, client.username)
-						for line in battle.replay_script:
-							self._root.broadcast_battle('SCRIPT %s' % line, battle_id, client.username)
-						self._root.broadcast_battle('SCRIPTEND', battle_id, client.username)
 		elif was_ingame and not client.is_ingame and client.went_ingame:
 			ingame_time = (time.time() - client.went_ingame) / 60
 			if ingame_time >= 1:
