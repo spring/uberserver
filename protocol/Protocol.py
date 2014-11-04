@@ -223,12 +223,13 @@ class Protocol:
 	def _handle(self, client, msg):
 		try:
 			msg = msg.decode('utf-8')
+			# TODO: SPADS bug is fixed, remove self.binary / uncomment in half a year or so (abma, 2014.11.04)
 			self.binary = False
 		except:
 			#err = ":".join("{:02x}".format(ord(c)) for c in msg)
 			#self.out_SERVERMSG(client, "Invalid utf-8 received, skipped message %s" %(err), True)
 			self.binary = True
-			#return #FIXME, reenable until https://github.com/Yaribz/SPADS/issues/4 is fixed
+			#return
 			
 		if msg.startswith('#'):
 			test = msg.split(' ')[0][1:]
