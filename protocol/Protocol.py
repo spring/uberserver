@@ -1620,11 +1620,9 @@ class Protocol:
 		battlehost = False
 		if self._canForceBattle(client, username):
 			battlehost = True
-
-		if not battlehost and not 'mod' in client.accesslevels:
+		elif not 'mod' in client.accesslevels:
 			client.Send('FORCEJOINBATTLEFAILED You are not allowed to force this user into battle.')
 			return
-
 
 		user = self._root.usernames[username]
 		if not user.compat['m']:
