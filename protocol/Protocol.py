@@ -1307,7 +1307,6 @@ class Protocol:
 		else:
 			channel = self._root.channels[chan]
 		if user in channel.users:
-			client.Send('JOINFAILED %s Already in channel!' % chan)
 			return
 		if not channel.isFounder(client):
 			if channel.key and not channel.key in (key, None, '*', ''):
