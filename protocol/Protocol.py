@@ -362,8 +362,8 @@ class Protocol:
 		if not client.access in inherited: inherited.append(client.access)
 		client.accesslevels = inherited+['everyone']
 
-	def _calc_status(self, client, status):
-		status = self._dec2bin(status, 7)
+	def _calc_status(self, client, _status):
+		status = self._dec2bin(_status, 7)
 		bot, access, rank1, rank2, rank3, away, ingame = status[-7:]
 		rank1, rank2, rank3 = self._dec2bin(6, 3)
 		accesslist = {'user':0, 'mod':1, 'admin':1}
@@ -385,7 +385,7 @@ class Protocol:
 		try:
 			rank1, rank2, rank3 = self._dec2bin(rank, 3)
 		except:
-			self.out_SERVERMSG(client, "invalid status: %s: %s" %(rank, status), True)
+			self.out_SERVERMSG(client, "invalid status: %s: %s, decoded: %s" %(_status,rank, status), True)
 		client.is_ingame = (ingame == '1')
 		client.away = (away == '1')
 		status = self._bin2dec('%s%s%s%s%s%s%s'%(bot, access, rank1, rank2, rank3, away, ingame))
@@ -1865,10 +1865,10 @@ class Protocol:
 			if int(battlestatus) < 1:
 				battlestatus = str(int(battlestatus) + 2147483648)
 		except:
-			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid status (%s).'%battlestatus)
+			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid status (%s).'%battlestatus, True)
 			return
 		if not myteamcolor.isdigit():
-			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid teamcolor (%s).'%myteamcolor)
+			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid teamcolor (%s).'%myteamcolor, True)
 			return
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
@@ -1943,7 +1943,7 @@ class Protocol:
 		@required.int status: A bitfield of your status. The server forces a few values itself, as well.
 		'''
 		if not status.isdigit():
-			self.out_SERVERMSG(client, 'MYSTATUS failed - invalid status.', True)
+			self.out_SERVERMSG(client, 'MYSTATUS failed - invalid status %s'%(status), True)
 			return
 		was_ingame = client.is_ingame
 		client.status = self._calc_status(client, status)
