@@ -12,8 +12,10 @@ import socket
 from Channel import Channel
 from Battle import Battle
 
+# see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
+# max. 8 ranks are possible (rank 0 isn't listed)
 # rank, ingame time in hours
-ranks = (5, 15, 30, 100, 300, 1000, 3000, 10000)
+ranks = (5, 15, 30, 100, 300, 1000, 3000)
 
 restricted = {
 'disabled':[],
