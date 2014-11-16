@@ -1854,7 +1854,7 @@ class Protocol:
 				if oldspecs != specs:
 					self._root.broadcast('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % battle.copy())
 
-	def in_MYBATTLESTATUS(self, client, battlestatus, myteamcolor):
+	def in_MYBATTLESTATUS(self, client, _battlestatus, _myteamcolor):
 		'''
 		Set your status in a battle.
 
@@ -1862,13 +1862,19 @@ class Protocol:
 		@required.sint teamColor: Teamcolor to set. Format is hex 0xBBGGRR represented as decimal.
 		'''
 		try:
-			if int(battlestatus) < 1:
-				battlestatus = str(int(battlestatus) + 2147483648)
+			battlestatus = int32(_battlestatus)
 		except:
-			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid status (%s).'%battlestatus, True)
+			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid status: %s.' % (_battlestatus), True)
 			return
-		if not myteamcolor.isdigit():
-			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid teamcolor (%s).'%myteamcolor, True)
+
+		if battlestatus < 1:
+			battlestatus = battlestatus + 2147483648
+			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid status is below 1: %s.'% (_battlestatus), True)
+
+		try:
+			myteamcolor = int32(_myteamcolor)
+		except:
+			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid teamcolor: %s.'%myteamcolor, True)
 			return
 
 		battle_id = client.current_battle
