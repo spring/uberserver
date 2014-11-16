@@ -1870,6 +1870,7 @@ class Protocol:
 		if not myteamcolor.isdigit():
 			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid teamcolor (%s).'%myteamcolor, True)
 			return
+
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
@@ -1936,14 +1937,16 @@ class Protocol:
 				if oldstr != newstr:
 					self._root.broadcast(newstr)
 
-	def in_MYSTATUS(self, client, status):
+	def in_MYSTATUS(self, client, _status):
 		'''
 		Set your client status, to be relayed to all other clients.
 
 		@required.int status: A bitfield of your status. The server forces a few values itself, as well.
 		'''
-		if not status.isdigit():
-			self.out_SERVERMSG(client, 'MYSTATUS failed - invalid status %s'%(status), True)
+		try:
+			status = int32(_status)
+		except:
+			self.out_SERVERMSG(client, 'MYSTATUS failed - invalid status %s'%(_status), True)
 			return
 		was_ingame = client.is_ingame
 		client.status = self._calc_status(client, status)
