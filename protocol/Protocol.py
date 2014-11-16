@@ -828,7 +828,7 @@ class Protocol:
 		try:
 			good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 		except Exception, e:
-			self._root.console_write('Handler %s:%s <%s> %s Error reading from db in in_LOGIN: %s '%(client.handler.num, client.session_id, client.username, e.message))
+			self._root.console_write('Handler %s:%s <%s> Error reading from db in in_LOGIN: %s '%(client.handler.num, client.session_id, client.username, e.message))
 			good = False
 			reason = "db error"
 		if not good:
