@@ -1871,7 +1871,7 @@ class Protocol:
 
 		if battlestatus < 1:
 			battlestatus = battlestatus + 2147483648
-			#self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid status is below 1: %s.'% (_battlestatus), True)
+			self._root.console_write('MYBATTLESTATUS failed - invalid status is below 1: %s.'% (_battlestatus))
 
 		try:
 			myteamcolor = int32(_myteamcolor)
