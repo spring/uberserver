@@ -1758,8 +1758,7 @@ class Protocol:
 					battle_user = self._root.usernames[user]
 					battlestatus = self._calc_battlestatus(battle_user)
 					teamcolor = battle_user.teamcolor
-					if battlestatus and teamcolor:
-						client.Send('CLIENTBATTLESTATUS %s %s %s' % (user, battlestatus, teamcolor))
+					client.Send('CLIENTBATTLESTATUS %s %s %s' % (user, battlestatus, teamcolor))
 				for iter in battle_bots:
 					bot = battle_bots[iter]
 					client.Send('ADDBOT %s %s' % (battle_id, iter)+' %(owner)s %(battlestatus)s %(teamcolor)s %(AIDLL)s' % (bot))
