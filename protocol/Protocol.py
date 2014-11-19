@@ -20,8 +20,6 @@ SECURE_HASH_FUNC = CryptoHandler.SHA256_HASH_FUNC
 ENCODE_FUNC = base64.b64encode
 DECODE_FUNC = base64.b64decode
 
-AUTH_COMMANDS = ["LOGIN", "REGISTER"]
-
 
 
 # see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
@@ -306,10 +304,6 @@ class Protocol:
 			command = msg
 
 		command = command.upper()
-
-		## needed for the in_{LOGIN, REGISTER} handlers
-		## so they know to use secure DB authentication
-		client.secure_auth = ((client.use_secure_session()) and (command in AUTH_COMMANDS))
 
 
 		## HACK for spads (see above)
@@ -811,7 +805,7 @@ class Protocol:
 			client.Send("REGISTRATIONDENIED %s" % (reason))
 			return
 
-		if (client.secure_auth):
+		if (client.use_secure_session()):
 			good, reason = self._validNewPasswordSyntax(password)
 
 			if (not good):
@@ -923,7 +917,7 @@ class Protocol:
 			return
 
 		try:
-			if (client.secure_auth):
+			if (client.use_secure_session()):
 				good, reason = self._validNewPasswordSyntax(password)
 
 				if (client.has_insecure_password()):
@@ -983,7 +977,7 @@ class Protocol:
 
 		## if not a secure authentication, the client should
 		## still only be using an old-style unsalted password
-		assert((not client.secure_auth) or (not client.has_insecure_password()))
+		assert(client.use_secure_session() == (not client.has_insecure_password())
 
 		client.local_ip = None
 		if local_ip.startswith('127.') or not validateIP(local_ip):

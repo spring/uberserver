@@ -38,8 +38,6 @@ class Client(BaseClient):
 
 		## note: this NEVER becomes false after LOGIN!
 		self.logged_in = False
-		## if true, client wants encrypted LOGIN/REGISTER
-		self.secure_auth = False
 
 		self.status = '12'
 		self.is_ingame = False
@@ -127,7 +125,7 @@ class Client(BaseClient):
 
 
 	def Handle(self, data):
-		if self.access in self.floodlimit:
+		if (self.access in self.floodlimit):
 			msg_limits = self.floodlimit[self.access]
 		else:
 			msg_limits = self.floodlimit['user']
@@ -138,7 +136,7 @@ class Client(BaseClient):
 		bytespersecond = msg_limits['bytespersecond']
 		seconds = msg_limits['seconds']
 
-		if now in self.msglengthhistory:
+		if (now in self.msglengthhistory):
 			self.msglengthhistory[now] += len(data)
 		else:
 			self.msglengthhistory[now] = len(data)
@@ -146,7 +144,7 @@ class Client(BaseClient):
 		total = 0
 
 		for iter in dict(self.msglengthhistory):
-			if iter < now - (seconds - 1):
+			if (iter < now - (seconds - 1)):
 				del self.msglengthhistory[iter]
 			else:
 				total += self.msglengthhistory[iter]
@@ -159,47 +157,80 @@ class Client(BaseClient):
 					self.Remove('Kicked for flooding (%s)' % (self.access))
 					return
 
+		## keep appending until we see at least one newline
 		self.data += data
 
-		if (self.data.count('\n') > 0):
-			self.HandleProtocolCommands(self.data.split('\n'), msg_limits)
+		if (self.data.count('\n') == 0):
+			return
+
+		self.HandleProtocolCommands(self.data.split('\n'), msg_limits)
 
 
 	def HandleProtocolCommands(self, split_data, msg_limits):
+		assert(type(split_data) == list)
+
 		msg_length_limit = msg_limits['msglength']
 		check_msg_limits = (not ('disabled' in msg_limits))
 
-		(raw_commands, self.data) = (split_data[: len(split_data) - 1], split_data[len(split_data) - 1: ][0])
+		## either a list of commands, or a list of encrypted data
+		## blobs which may contain embedded (post-decryption) NLs
+		##
+		## note: will be empty if len(split_data) == 1
+		raw_data_blobs = split_data[: len(split_data) - 1]
 
-		for raw_command in raw_commands:
-			# strips leading spaces and trailing carriage return
-			stripped_command = raw_command.rstrip('\r').lstrip(' ')
+		## will be a single newline in most cases, or an incomplete
+		## command which should be saved for a later time when more
+		## data is in buffer
+		self.data = split_data[-1]
 
-			if (check_msg_limits and (len(stripped_command) > msg_length_limit)):
-				self.Send('SERVERMSG Max length exceeded (%s): no message for you.' % msg_length_limit)
+		assert(type(self.data) == str)
+
+		commands_buffer = []
+
+		for raw_data_blob in raw_data_blobs:
+			if (self.use_secure_session()):
+				## handle an encrypted client command, using the AES session key
+				## previously exchanged between client and server by SETSHAREDKEY
+				## (this includes LOGIN and REGISTER, key can be set before login)
+				##
+				## this assumes (!) a client message to be of the form
+				##   ENCODE(ENCRYPT_AES("CMD ARG1 ARG2 ...", AES_KEY))
+				## where ENCODE is the standard base64 encoding scheme
+				##
+				## if this is not the case (e.g. if a command was sent unencrypted
+				## by client after session-key exchange) the decryption will yield
+				## garbage and command will be rejected (or maybe crash the server)
+				##
+				## NOTE:
+				##   blocks of encrypted data are always base64-encoded and will be
+				##   separated by newlines, but after decryption might contain more
+				##   embedded newlines themselves (e.g. if encryption was performed
+				##   over *batches* of plaintext commands)
+				##
+				##   client -->   C=ENCODE(ENCRYPT("CMD1 ARG11 ARG12 ...\nCMD2 ARG21 ...\n"))
+				##   server --> DECRYPT(DECODE(C))="CMD1 ARG11 ARG12 ...\nCMD2 ARG21 ...\n"
+				##
+				cmd_data_blob = self.aes_cipher_obj.decrypt_bytes(raw_data_blob))
+
+				split_commands = cmd_data_blob.split('\n')
+				strip_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in split_commands]
 			else:
-				if (type(stripped_command) == str):
-					stripped_command = [stripped_command]
+				## strips leading spaces and trailing carriage returns
+				strip_commands = [(raw_data_blob.rstrip('\r')).lstrip(' ')]
 
-				for cmd in stripped_command:
-					self.HandleProtocolCommand(cmd)
+			commands_buffer += strip_commands
+
+		for command in commands_buffer:
+			if (check_msg_limits and (len(command) > msg_length_limit)):
+				self.Send('SERVERMSG message-length limit (%d) exceeded: command \"%s...\" dropped.' % (msg_length_limit, command[0: 8]))
+			else:
+				self.HandleProtocolCommand(command)
 
 	def HandleProtocolCommand(self, cmd):
-		if (self.use_secure_session()):
-			## handle an encrypted client command, using the AES session key
-			## previously exchanged between client and server by SETSHAREDKEY
-			## (this includes LOGIN and REGISTER, key can be set before login)
-			##
-			## this assumes (!) a client message to be of the form
-			##   ENCODE(ENCRYPT_AES("CMD ARG1 ARG2 ...", AES_KEY))
-			## where ENCODE is the standard base64 encoding scheme
-			##
-			## if this is not the case (e.g. if a command was sent unencrypted
-			## by client after session-key exchange) the decryption will yield
-			## garbage and command will be rejected (or maybe crash the server)
-			self._protocol._handle(self, self.aes_cipher_obj.decrypt_bytes(cmd))
-		else:
-			self._protocol._handle(self, cmd)
+		if (len(cmd) <= 1):
+			return
+
+		self._protocol._handle(self, cmd)
 
 
 	def Remove(self, reason='Quit'):
@@ -223,9 +254,9 @@ class Client(BaseClient):
 			msg = self.aes_cipher_obj.encrypt_bytes(msg)
 
 		if binary:
-			self.sendbuffer.append(msg+self.nl)
+			self.sendbuffer.append(msg + self.nl)
 		else:
-			self.sendbuffer.append(msg.encode("utf-8")+self.nl)
+			self.sendbuffer.append(msg.encode("utf-8") + self.nl)
 		self.handler.poller.setoutput(self.conn, True)
 
 	def FlushBuffer(self):
