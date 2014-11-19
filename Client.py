@@ -182,7 +182,7 @@ class Client(BaseClient):
 		if self.handler.thread == thread.get_ident():
 			msg = self.msg_id + msg
 
-		if (self.get_session_key() != ""):
+		if (self.use_secure_session()):
 			## apply server-to-client encryption
 			##
 			## note: this also automatically encodes msg

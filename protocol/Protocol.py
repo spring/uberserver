@@ -280,14 +280,14 @@ class Protocol:
 
 
 	def _handle(self, client, msg):
-		if (client.get_session_key() != ""):
+		if (client.use_secure_session()):
 			## handle an encrypted client command, using the AES session key
 			## previously exchanged between client and server by SETSHAREDKEY
 			## (this includes LOGIN and REGISTER, key can be set before login)
 			##
 			## this assumes (!) a client message to be of the form
 			##   ENCODE(ENCRYPT_AES("CMD ARG1 ARG2 ...", AES_KEY))
-			## where "ENCODE" is the standard base64 encoding scheme
+			## where ENCODE is the standard base64 encoding scheme
 			##
 			## if this is not the case (e.g. if a command was sent unencrypted
 			## by client after session-key exchange) the decryption will yield
@@ -323,7 +323,7 @@ class Protocol:
 
 		## needed for the in_{LOGIN, REGISTER} handlers
 		## so they know to use secure DB authentication
-		client.secure_auth = ((client.get_session_key() != "") and (command in AUTH_COMMANDS))
+		client.secure_auth = ((client.use_secure_session()) and (command in AUTH_COMMANDS))
 
 
 		## HACK for spads (see above)
@@ -2606,7 +2606,7 @@ class Protocol:
 		if (oldpassword == newpassword):
 			return
 
-		if (client.get_session_key() != ""):
+		if (client.use_secure_session()):
 			## secure command (meaning we want our password salted, etc.)
 			##
 			## disallow changing to new-style password if command is not
@@ -3065,14 +3065,13 @@ class Protocol:
 
 
 	##
-	## send the server's public RSA key to a client
-	## (which the client should use for SECURELOGIN
-	## and SECUREREGISTER, and for SETSHAREDKEY iff
-	## it wants all further communication encrypted)
+	## send the server's public RSA key to a client (which
+	## the client should use for SETSHAREDKEY iff it wants
+	## all further communication encrypted)
 	##
 	def in_GETPUBLICKEY(self, client):
 		## not useful to do this after key-exchange
-		if (client.get_session_key() != ""):
+		if (client.use_secure_session()):
 			return
 
 		rsa_pub_key_obj = self.rsa_cipher_obj.get_pub_key()
@@ -3084,13 +3083,13 @@ class Protocol:
 		client.Send("PUBLICKEY %s" % ENCODE_FUNC(rsa_pub_key_str))
 
 	##
-	## set the AES session key that this client and
+	## set the AES session key that *this* client and
 	## server will use to encrypt all further traffic
 	## (if not empty or too short)
 	##
 	## clients must DECODE(DECRYPT_AES(MSG, AES_KEY))
-	## any subsequent server message MSG after this
-	## returns true, where "DECODE" is the standard
+	## any subsequent server message MSG in case this
+	## returns ACCEPTED, where DECODE is the standard
 	## base64 decoding scheme
 	##
 	## NOTE: client can still accidentally leak data
