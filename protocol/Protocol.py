@@ -280,20 +280,6 @@ class Protocol:
 
 
 	def _handle(self, client, msg):
-		if (client.use_secure_session()):
-			## handle an encrypted client command, using the AES session key
-			## previously exchanged between client and server by SETSHAREDKEY
-			## (this includes LOGIN and REGISTER, key can be set before login)
-			##
-			## this assumes (!) a client message to be of the form
-			##   ENCODE(ENCRYPT_AES("CMD ARG1 ARG2 ...", AES_KEY))
-			## where ENCODE is the standard base64 encoding scheme
-			##
-			## if this is not the case (e.g. if a command was sent unencrypted
-			## by client after session-key exchange) the decryption will yield
-			## garbage and command will be rejected (or maybe crash the server)
-			msg = (client.get_aes_cipher_obj()).decrypt_bytes(msg)
-
 		try:
 			msg = msg.decode('utf-8')
 
@@ -3118,10 +3104,8 @@ class Protocol:
 		aes_key_msg = self.rsa_cipher_obj.decrypt_bytes(user_data)
 		aes_key_sig = SECURE_HASH_FUNC(aes_key_msg)
 
-		if (client.get_aes_cipher_obj() == None):
-			client.set_aes_cipher_obj(CryptoHandler.aes_cipher(""))
-
-		(client.get_aes_cipher_obj()).set_key(aes_key_sig.digest())
+		## set (or update) the client's session key
+		client.set_session_key(aes_key_sig.digest())
 
 		## notify the client that key was accepted
 		## this will be the first encrypted message

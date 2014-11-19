@@ -154,19 +154,43 @@ class Client(BaseClient):
 					return
 
 		self.data += data
-		if self.data.count('\n') > 0:
-			data = self.data.split('\n')
-			(datas, self.data) = (data[:len(data)-1], data[len(data)-1:][0])
-			for data in datas:
-				command = data.rstrip('\r').lstrip(' ') # strips leading spaces and trailing carriage return
-				if not 'disabled' in limit and len(command) > msglength:
-					self.Send('SERVERMSG Max length exceeded (%s): no message for you.'%msglength)
-				else:
-					if type(command) == str:
-						command = [command]
 
-					for cmd in command:
-						self._protocol._handle(self, cmd)
+		if (self.data.count('\n') > 0):
+			self.HandleProtocolCommands(self.data.split('\n'))
+
+
+	def HandleProtocolCommands(self, splitData):
+		(raw_commands, self.data) = (splitData[: len(splitData) - 1], splitData[len(splitData) - 1: ][0])
+
+		for raw_command in raw_commands:
+			# strips leading spaces and trailing carriage return
+			stripped_command = raw_command.rstrip('\r').lstrip(' ')
+
+			if ((not ('disabled' in limit)) and (len(stripped_command) > msglength)):
+				self.Send('SERVERMSG Max length exceeded (%s): no message for you.' % msglength)
+			else:
+				if (type(stripped_command) == str):
+					stripped_command = [stripped_command]
+
+				for cmd in stripped_command:
+					self.HandleProtocolCommand(cmd)
+
+	def HandleProtocolCommand(self, cmd):
+		if (self.use_secure_session()):
+			## handle an encrypted client command, using the AES session key
+			## previously exchanged between client and server by SETSHAREDKEY
+			## (this includes LOGIN and REGISTER, key can be set before login)
+			##
+			## this assumes (!) a client message to be of the form
+			##   ENCODE(ENCRYPT_AES("CMD ARG1 ARG2 ...", AES_KEY))
+			## where ENCODE is the standard base64 encoding scheme
+			##
+			## if this is not the case (e.g. if a command was sent unencrypted
+			## by client after session-key exchange) the decryption will yield
+			## garbage and command will be rejected (or maybe crash the server)
+			self._protocol._handle(self, self.aes_cipher_obj.decrypt_bytes(cmd))
+		else:
+			self._protocol._handle(self, cmd)
 
 
 	def Remove(self, reason='Quit'):

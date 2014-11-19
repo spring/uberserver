@@ -198,9 +198,9 @@ class ChanServ:
 	def Send(self, msg):
 		if type(msg) == list or type(msg) == tuple:
 			for s in msg:
-				self.client._protocol._handle( self.client, s.encode("utf-8") )
+				self.client.HandleProtocolCommand(s.encode("utf-8"))
 		else:
-			self.client._protocol._handle( self.client, msg.encode("utf-8") )
+			self.client.HandleProtocolCommand(msg.encode("utf-8"))
 
 class ChanServClient(Client):
 	'this object is chanserv implemented through the standard client interface'

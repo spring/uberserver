@@ -224,7 +224,7 @@ class DataHandler:
 			
 		if self.chanserv:
 			for name in channels:
-				self.chanserv.client._protocol._handle(self.chanserv.client, 'JOIN %s' % name)
+				self.chanserv.client.HandleProtocolCommand('JOIN %s' % name)
 		
 		if not self.log:
 			self.rotatelogfile()
