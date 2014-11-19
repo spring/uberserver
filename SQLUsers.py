@@ -303,17 +303,6 @@ class UsersHandler:
 		return False, ""
 
 
-	def login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
-		session = self.sessionmaker()
-		# should only ever be one user with each name so we can just grab the first one :)
-		dbuser = session.query(User).filter(User.username==username, User.password == password).first()
-
-		if (not dbuser):
-			session.close()
-			return False, 'Invalid username or password'
-
-		return (self.common_login(dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
-
 	def common_login(self, dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		if self._root.censor and not self._root.SayHooks._nasty_word_censor(username):
 			return False, 'Name failed to pass profanity filter.'
@@ -354,10 +343,17 @@ class UsersHandler:
 		session.close()
 		return good, reason
 
-	## NOTE:
-	##   should only be called for the SECURELOGIN command!
-	##
-	##   password = DECODE(ENCRYPT_RSA("", RSA_PUB_KEY))
+	def login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
+		session = self.sessionmaker()
+		# should only ever be one user with each name so we can just grab the first one :)
+		dbuser = session.query(User).filter(User.username==username, User.password == password).first()
+
+		if (not dbuser):
+			session.close()
+			return False, 'Invalid username or password'
+
+		return (self.common_login(dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
+
 	def secure_login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		session = self.sessionmaker()
 		dbuser = session.query(User).filter(User.username==username).first()
@@ -411,10 +407,6 @@ class UsersHandler:
 		session.close()
 		return True, 'Account registered successfully.'
 
-	## NOTE:
-	##   should only be called for the SECUREREGISTER command!
-	##
-	##   password = DECODE(ENCRYPT_RSA("", RSA_PUB_KEY))
 	def secure_register_user(self, username, password, ip, country):
 		status, reason = self.check_user_name(username))
 
