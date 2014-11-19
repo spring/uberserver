@@ -127,47 +127,56 @@ class Client(BaseClient):
 
 
 	def Handle(self, data):
-		if self.access in self.floodlimit: limit = self.floodlimit[self.access]
-		else: limit = self.floodlimit['user']
+		if self.access in self.floodlimit:
+			msg_limits = self.floodlimit[self.access]
+		else:
+			msg_limits = self.floodlimit['user']
 
 		now = int(time.time())
 		self.lastdata = now # data received, store time to detect disconnects
 
-		msglength = limit['msglength']
-		bytespersecond = limit['bytespersecond']
-		seconds = limit['seconds']
+		bytespersecond = msg_limits['bytespersecond']
+		seconds = msg_limits['seconds']
+
 		if now in self.msglengthhistory:
 			self.msglengthhistory[now] += len(data)
 		else:
 			self.msglengthhistory[now] = len(data)
+
 		total = 0
+
 		for iter in dict(self.msglengthhistory):
-			if iter < now - (seconds-1):
+			if iter < now - (seconds - 1):
 				del self.msglengthhistory[iter]
 			else:
 				total += self.msglengthhistory[iter]
+
 		if total > (bytespersecond * seconds):
 			if not self.access in ('admin', 'mod'):
-				if not self.bot == 1: # FIXME: no flood limit for these atm, need to rewrite flood limit to server-side shaping/bandwith limiting
-					self.Send('SERVERMSG No flooding (over %s per second for %s seconds)'%(bytespersecond, seconds))
-					self.Remove('Kicked for flooding (%s)' %(self.access))
+				if (self.bot != 1):
+					# FIXME: no flood limit for these atm, need to rewrite flood limit to server-side shaping/bandwith limiting
+					self.Send('SERVERMSG No flooding (over %s per second for %s seconds)' % (bytespersecond, seconds))
+					self.Remove('Kicked for flooding (%s)' % (self.access))
 					return
 
 		self.data += data
 
 		if (self.data.count('\n') > 0):
-			self.HandleProtocolCommands(self.data.split('\n'))
+			self.HandleProtocolCommands(self.data.split('\n'), msg_limits)
 
 
-	def HandleProtocolCommands(self, splitData):
-		(raw_commands, self.data) = (splitData[: len(splitData) - 1], splitData[len(splitData) - 1: ][0])
+	def HandleProtocolCommands(self, split_data, msg_limits):
+		msg_length_limit = msg_limits['msglength']
+		check_msg_limits = (not ('disabled' in msg_limits))
+
+		(raw_commands, self.data) = (split_data[: len(split_data) - 1], split_data[len(split_data) - 1: ][0])
 
 		for raw_command in raw_commands:
 			# strips leading spaces and trailing carriage return
 			stripped_command = raw_command.rstrip('\r').lstrip(' ')
 
-			if ((not ('disabled' in limit)) and (len(stripped_command) > msglength)):
-				self.Send('SERVERMSG Max length exceeded (%s): no message for you.' % msglength)
+			if (check_msg_limits and (len(stripped_command) > msg_length_limit)):
+				self.Send('SERVERMSG Max length exceeded (%s): no message for you.' % msg_length_limit)
 			else:
 				if (type(stripped_command) == str):
 					stripped_command = [stripped_command]
