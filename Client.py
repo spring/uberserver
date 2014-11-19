@@ -1,15 +1,16 @@
 import socket, time, sys, thread, ip2country, errno
-
 from collections import defaultdict
 
-class Client:
+from BaseClient import BaseClient
+
+class Client(BaseClient):
 	'this object represents one connected client'
 
 	def __init__(self, root, connection, address, session_id):
 		'initial setup for the connected client'
 		self._root = root
 		self.conn = connection
-		
+
 		# detects if the connection is from this computer
 		if address[0].startswith('127.'):
 			if root.online_ip:
@@ -34,7 +35,12 @@ class Client:
 		self.msg_id = ''
 		self.sendbuffer = []
 		self.sendingmessage = ''
+
+		## note: this NEVER becomes false after LOGIN!
 		self.logged_in = False
+		## if true, client wants encrypted LOGIN/REGISTER
+		self.secure_auth = False
+
 		self.status = '12'
 		self.is_ingame = False
 		self.cpu = 0
@@ -50,9 +56,10 @@ class Client:
 		self.spectator = False
 		self.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
 		self.teamcolor = '0'
-		
-		self.username = ''
-		self.password = ''
+
+		## copies of the DB User values, set on successful LOGIN
+		self.set_user_pwrd_salt("", ("", ""))
+
 		self.email = ''
 		self.hostport = None
 		self.udpport = 0
@@ -89,7 +96,23 @@ class Client:
 		self.ignored = {}
 		
 		self._root.console_write('Client connected from %s:%s, session ID %s.' % (self.ip_address, self.port, session_id))
-	
+
+
+	def set_msg_id(msg):
+		self.msg_id = ""
+
+		if (not msg.startswith('#')):
+			return msg
+
+		test = msg.split(' ')[0][1:]
+
+		if (not test.isdigit()):
+			return msg
+
+		self.msg_id = '#%s ' % test
+		return (' '.join(msg.split(' ')[1:]))
+
+
 	def setFlagByIP(self, ip, force=True):
 		cc = ip2country.lookup(ip)
 		if force or cc != '??':
@@ -101,6 +124,7 @@ class Client:
 			if not self._protocol:
 				protocol._new(self)
 			self._protocol = protocol
+
 
 	def Handle(self, data):
 		if self.access in self.floodlimit: limit = self.floodlimit[self.access]
@@ -140,8 +164,10 @@ class Client:
 				else:
 					if type(command) == str:
 						command = [command]
+
 					for cmd in command:
-						self._protocol._handle(self,cmd)
+						self._protocol._handle(self, cmd)
+
 
 	def Remove(self, reason='Quit'):
 		while self.sendbuffer:
@@ -150,10 +176,19 @@ class Client:
 
 	def Send(self, msg, binary=False):
 		# don't append new data to send buffer when client gets removed
-		if not msg or self.removing: return
+		if not msg or self.removing:
+			return
 
 		if self.handler.thread == thread.get_ident():
 			msg = self.msg_id + msg
+
+		if (self.get_session_key() != ""):
+			## apply server-to-client encryption
+			##
+			## note: this also automatically encodes msg
+			## (s.t. the protocol can remain text-based)
+			msg = self.aes_cipher_obj.encrypt_bytes(msg)
+
 		if binary:
 			self.sendbuffer.append(msg+self.nl)
 		else:
@@ -239,3 +274,4 @@ class Client:
 	
 	def isMod(self):
 		return self.isAdmin() or ('mod' in self.accesslevels) # maybe cache these
+

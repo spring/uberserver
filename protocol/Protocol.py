@@ -4,13 +4,28 @@
 import inspect, time, re
 import base64
 import json
-try: from hashlib import md5
-except: md5 = __import__('md5').new
+
+from Crypto.Hash import MD5
+from Crypto.Hash import SHA256
 
 import traceback, sys, os
 import socket
 from Channel import Channel
 from Battle import Battle
+
+import CryptoHandler
+
+
+
+LEGACY_HASH_FUNC = CryptoHandler.MD5LEG_HASH_FUNC
+SECURE_HASH_FUNC = CryptoHandler.SHA256_HASH_FUNC
+
+ENCODE_FUNC = base64.b64encode
+DECODE_FUNC = base64.b64decode
+
+AUTH_COMMANDS = ["LOGIN", "REGISTER"]
+
+
 
 # see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
 # max. 8 ranks are possible (rank 0 isn't listed)
@@ -98,8 +113,13 @@ restricted = {
 	'MYSTATUS',
 	'PORTTEST',
 	'RENAMEACCOUNT',
-	'SETBATTLE'
+	'SETBATTLE',
+
+	'GETPUBLICKEY',
+	'SETSHAREDKEY',
+	'GETSIGNEDMSG',
 	],
+
 'mod':[
 	'BAN',
 	'BANIP',
@@ -178,6 +198,13 @@ class Protocol:
 		self.agreementplain = root.agreementplain
 		self.stats = {}
 
+		## generates new keys if directory is empty, otherwise imports
+		self.rsa_cipher_obj = CryptoHandler.rsa_cipher("server-rsa-keys/")
+		## no-op if keys are already present, otherwise just speeds up
+		## server restarts (clients should NEVER cache the public key!)
+		self.rsa_cipher_obj.export_keys("server-rsa-keys/")
+
+
 	def _new(self, client):
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0'))
 		if self._root.redirect:
@@ -222,43 +249,92 @@ class Protocol:
 				self._root.console_write('Handler %s:%s <%s> Error writing to db in _remove: %s '%(client.handler.num, client.session_id, client.username, e.message))
 		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
 
+
+	def get_function_args(self, client, function):
+		function_info = inspect.getargspec(function)
+		total_args = len(function_info[0]) - 2
+
+		# if there are no arguments, just call the function
+		# with client as its only arg: *([client]) = client
+		if (total_args <= 0):
+			return True, []
+
+		# check for optional arguments
+		optional_args = 0
+		if function_info[3]:
+			optional_args = len(function_info[3])
+
+		# check if we've got enough words for filling the required args
+		required_args = total_args - optional_args
+
+		if (numspaces < required_args):
+			self.out_SERVERMSG(client, '%s failed. Incorrect arguments.' % command)
+			return False, []
+		if (required_args == 0 and numspaces == 0):
+			return True, []
+
+		# bunch the last words together if there are too many of them
+		if (numspaces > (total_args - 1)):
+			arguments = args.split(' ',total_args - 1)
+		else:
+			arguments = args.split(' ')
+
+		return True, arguments
+
+
 	def _handle(self, client, msg):
+		if (client.get_session_key() != ""):
+			## handle an encrypted client command, using the AES session key
+			## previously exchanged between client and server by SETSHAREDKEY
+			## (this includes LOGIN and REGISTER, key can be set before login)
+			##
+			## this assumes (!) a client message to be of the form
+			##   ENCODE(ENCRYPT_AES("CMD ARG1 ARG2 ...", AES_KEY))
+			## where "ENCODE" is the standard base64 encoding scheme
+			##
+			## if this is not the case (e.g. if a command was sent unencrypted
+			## by client after session-key exchange) the decryption will yield
+			## garbage and command will be rejected (or maybe crash the server)
+			msg = (client.get_aes_cipher_obj()).decrypt_bytes(msg)
+
 		try:
 			msg = msg.decode('utf-8')
-			# TODO: SPADS bug is fixed, remove self.binary / uncomment in half a year or so (abma, 2014.11.04)
+
+			## TODO: SPADS bug is fixed, remove self.binary / uncomment in half a year or so (abma, 2014.11.04)
 			self.binary = False
 		except:
-			#err = ":".join("{:02x}".format(ord(c)) for c in msg)
-			#self.out_SERVERMSG(client, "Invalid utf-8 received, skipped message %s" %(err), True)
+			## err = ":".join("{:02x}".format(ord(c)) for c in msg)
+			## self.out_SERVERMSG(client, "Invalid utf-8 received, skipped message %s" %(err), True)
+
 			self.binary = True
-			#return
+			## return False
+
 			
-		if msg.startswith('#'):
-			test = msg.split(' ')[0][1:]
-			if test.isdigit():
-				msg_id = '#%s '%test
-				msg = ' '.join(msg.split(' ')[1:])
-			else:
-				msg_id = ''
-		else:
-			msg_id = ''
 		# client.Send() prepends client.msg_id if the current thread
 		# is the same thread as the client's handler.
 		# this works because handling is done in order for each ClientHandler thread
 		# so we can be sure client.Send() was performed in the client's own handling code.
-
-		client.msg_id = msg_id
+		msg = client.set_msg_id(msg)
 		numspaces = msg.count(' ')
-		if numspaces:
-			command,args = msg.split(' ',1)
+
+		if (numspaces > 0):
+			command, args = msg.split(' ', 1)
 		else:
 			command = msg
+
 		command = command.upper()
 
-		if self.binary and not command in ("SAYPRIVATE"): #HACK for spads
+		## needed for the in_{LOGIN, REGISTER} handlers
+		## so they know to use secure DB authentication
+		client.secure_auth = ((client.get_session_key() != "") and (command in AUTH_COMMANDS))
+
+
+		## HACK for spads (see above)
+		if self.binary and not command in ("SAYPRIVATE"):
 			err = ":".join("{:02x}".format(ord(c)) for c in msg)
 			self.out_SERVERMSG(client, "Invalid utf-8 received, skipped message %s" %(err), True)
-			return
+			return False
+
 
 		access = []
 		for level in client.accesslevels:
@@ -278,43 +354,26 @@ class Protocol:
 			return False
 
 		# update statistics
-		if not command in self.stats: self.stats[command] = 0
+		if (not (command in self.stats)):
+			self.stats[command] = 0
 		self.stats[command] += 1
-		function_info = inspect.getargspec(function)
-		total_args = len(function_info[0])-2
 
-		# if there are no arguments, just call the function
-		if not total_args:
-			function(client)
-			return True
 
-		# check for optional arguments
-		optional_args = 0
-		if function_info[3]:
-			optional_args = len(function_info[3])
+		ret_status, fun_args = self.get_function_args(client, function)
 
-		# check if we've got enough words for filling the required args
-		required_args = total_args - optional_args
-		if numspaces < required_args:
-			self.out_SERVERMSG(client, '%s failed. Incorrect arguments.'%(command))
-			return False
-		if required_args == 0 and numspaces == 0:
-			function(client)
-			return True
+		if (ret_status):
+			## if fun_args is empty, this reduces to function(client)
+			function(*([client] + fun_args))
 
-		# bunch the last words together if there are too many of them
-		if numspaces > total_args-1:
-			arguments = args.split(' ',total_args-1)
-		else:
-			arguments = args.split(' ')
-		function(*([client]+arguments))
-		# TODO: check the exception line... if it's "function(*([client]+arguments))"
+
+		# TODO: check the exception line... if it's "function(*([client] + fun_args))"
 		# then it was incorrect arguments. if not, log the error, as it was a code problem
 		#try:
-		#	function(*([client]+arguments))
+		#	function(*([client] + fun_args))
 		#except TypeError:
 		#	self.out_SERVERMSG(client, '%s failed. Incorrect arguments.'%command.partition('in_')[2])
 		return True
+
 
 	def _bin2dec(self, s):
 		return int(s, 2)
@@ -483,17 +542,31 @@ class Protocol:
 		if len(missing_flags) > 0:
 			self._root.console_write('Handler %s:%s <%s> client "%s" missing compat flags:%s'%(client.handler.num, client.session_id, client.username, client.lobby_id, missing_flags))
 
-	def _validPasswordSyntax(self, password):
-		'checks if a password is correctly encoded base64(md5())'
+
+
+	def _validOldPasswordSyntax(self, password):
+		'checks if an old-style password is correctly encoded'
 		if not password:
 			return False, 'Empty passwords are not allowed.'
 		try:
-			md5str = base64.b64decode(password)
+			md5str = DECODE_FUNC(password)
 		except Exception, e:
-			return False, "Invalid base64 encoding"
-		if len(md5str) != 16:
-			return False, "Invalid md5 sum"
+			return False, "Invalid base64-encoding"
+
+		if (len(md5str) != 16):
+			return False, "Invalid md5-checksum"
+
+		## assume (!) this is a correct checksum
 		return True, ""
+
+	## since new-style passwords are generously salted, we
+	## require only a few characters and do not check their
+	## entropy (strength)
+	def _validNewPasswordSyntax(self, password):
+		if (len(password >= CryptoHandler.MIN_PASSWORD_LEN)):
+			return True, ""
+		return False, ("Password too short: %d or more characters required." % CryptoHandler.MIN_PASSWORD_LEN)
+
 
 	def _validUsernameSyntax(self, username):
 		'checks if usernames syntax is correct / doesn''t contain invalid chars'
@@ -514,6 +587,8 @@ class Protocol:
 		if len(channel) > 20:
 			return False, 'Channelname is too long, max is 20 chars.'
 		return True, ""
+
+
 
 	def _parseTags(self, tagstring):
 		'parses tags to a dict, for example user=bla\tcolor=123'
@@ -657,6 +732,8 @@ class Protocol:
 		self.userdb.unignore_user(client.db_id, unignoreClient.db_id)
 		client.ignored.pop(unignoreClient.db_id)
 
+
+
 	# Begin incoming protocol section #
 	#
 	# any function definition beginning with in_ and ending with capital letters
@@ -705,52 +782,78 @@ class Protocol:
 		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		sock.sendto('Port testing...', (host, port))
 
+
+
+	def in_HASH(self, client):
+		'''
+		After this command has been used, the password argument to LOGIN and REGISTER will be
+		automatically MD5-hashed and base64-encoded before its validity is checked. NOTE: THIS
+		COMMAND IS IRRELEVANT FOR CLIENTS USING ENCRYPTION AND SHOULD BE AVOIDED AT ALL COSTS!
+		'''
+		client.hashpw = not client.hashpw
+
+		if (client.hashpw):
+			self.out_SERVERMSG(client, 'Your password will be hashed for you when you login. NOTE THAT THIS IS INSECURE!')
+		else:
+			self.out_SERVERMSG(client, 'Auto-Password hashing disabled.')
+
+
 	def in_REGISTER(self, client, username, password):
 		'''
 		Register a new user in the account database.
 
 		@required.str username: Username to register
-		@required.str password: Password to use, usually encoded md5+base64
+		@required.str password: Password to use (base64-encoded)
 		'''
 		good, reason = self._validUsernameSyntax(username)
-		if not good:
+
+		if (not good):
 			client.Send("REGISTRATIONDENIED %s" % (reason))
 			return
 
-		if client.hashpw:
-			m = md5(password)
-			password = base64.b64encode(m.digest())
+		if (client.secure_auth):
+			good, reason = self._validNewPasswordSyntax(password)
 
-		good, reason = self._validPasswordSyntax(password)
-		if not good:
-			client.Send("REGISTRATIONDENIED %s" % (reason))
-			return
+			if (not good):
+				client.Send("REGISTRATIONDENIED %s" % (reason))
+				return
 
-		good, reason = self.userdb.register_user(username, password, client.ip_address, client.country_code)
-		if good:
-			self._root.console_write('Handler %s:%s Successfully registered user <%s>.'%(client.handler.num, client.session_id, username))
-			client.Send('REGISTRATIONACCEPTED')
-			self.clientFromUsername(username, True).access = 'agreement'
+			good, reason = secure_register_user(self, username, password, client.ip_address, client.country_code)
 		else:
-			self._root.console_write('Handler %s:%s Registration failed for user <%s>.'%(client.handler.num, client.session_id, username))
+			if (client.hashpw):
+				## in this case REGISTER password was sent in plaintext
+				## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+				## !!!! DO NOT EVER USE THIS: GAPING SECURITY HOLE !!!!
+				## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+				passhash = LEGACY_HASH_FUNC(password)
+				password = ENCODE_FUNC(passhash.digest())
+
+			good, reason = self._validOldPasswordSyntax(password)
+
+			if (not good):
+				client.Send("REGISTRATIONDENIED %s" % (reason))
+				return
+
+			good, reason = self.userdb.register_user(username, password, client.ip_address, client.country_code)
+
+		if good:
+			self._root.console_write('Handler %s:%s Successfully registered user <%s>.' % (client.handler.num, client.session_id, username))
+
+			client.Send('REGISTRATIONACCEPTED')
+
+			newClient = self.clientFromUsername(username, True)
+			newClient.access = 'agreement'
+		else:
+			self._root.console_write('Handler %s:%s Registration failed for user <%s>.' % (client.handler.num, client.session_id, username))
 			client.Send('REGISTRATIONDENIED %s'%reason)
 
-	def in_HASH(self, client):
-		'''
-		After this command has been used, the password argument to LOGIN will be automatically hashed with md5+base64.
-		'''
-		client.hashpw = not client.hashpw
-		if client.hashpw:
-			self.out_SERVERMSG(client, 'Your password will be hashed for you when you login.')
-		else:
-			self.out_SERVERMSG(client, 'Auto-Password hashing disabled.')
 
 	def in_LOGIN(self, client, username, password='', cpu='0', local_ip='', sentence_args=''):
 		'''
 		Attempt to login the active client.
 
 		@required.str username: Username
-		@required.str password: Password, usually encoded md5+base64
+		@required.str password: Password (base64-encoded)
 		@optional.int cpu: CPU speed
 		@optional.ip local_ip: LAN IP address, sent to clients when they have the same WAN IP as host
 		@optional.sentence.str lobby_id: Lobby name and version
@@ -765,8 +868,8 @@ class Protocol:
 		et: When client joins a channel, sends NOCHANNELTOPIC if the channel has no topic.
 		eb: Enables receiving extended battle commands, like BATTLEOPENEDEX
 		'''
-
-		if username in self._root.usernames: # FIXME: is checked first because of a springie bug
+		# FIXME: is checked first because of a springie bug
+		if username in self._root.usernames:
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
 
@@ -780,7 +883,10 @@ class Protocol:
 
 		try: int32(cpu)
 		except: cpu = '0'
+
 		user_id = 0
+		## represents <client> after logging in
+		user = None
 
 		if not validateIP(local_ip): local_ip = client.ip_address
 		if '\t' in sentence_args:
@@ -811,40 +917,73 @@ class Protocol:
 		else:
 			lobby_id = sentence_args
 
-		if not password:
+
+		if (not password):
 			self.out_DENIED(client, username, "Empty password")
 			return
 
-		if client.hashpw:
-			origpassword = password # store for later use when ghosting
-			m = md5(password)
-			password = base64.b64encode(m.digest())
-
-		ok, reason = self._validPasswordSyntax(password)
-		if not ok:
-			self.out_DENIED(client, username, reason)
-			return
-
 		try:
-			good, reason = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
+			if (client.secure_auth):
+				good, reason = self._validNewPasswordSyntax(password)
+
+				if (client.has_insecure_password()):
+					## first login, ignore (becomes false if password
+					## authenticates against the DB, so not critical)
+					pass
+
+				if (not good):
+					self.out_DENIED(client, username, reason)
+					return
+
+				good, user = self.userdb.secure_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
+			else:
+				if (not client.has_insecure_password()):
+					## client has a new-style password, but decided to
+					## use insecure login (which will not authenticate
+					## anymore anyway) --> deny
+					self.out_DENIED(client, username, "Can not use non-secure LOGIN with new-style password.")
+					return
+
+				if (client.hashpw):
+					## in this case LOGIN password was sent in plaintext
+					## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+					## !!! DO NOT EVER USE THIS: GAPING SECURITY HOLE !!
+					## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+					passhash = LEGACY_HASH_FUNC(password)
+					password = ENCODE_FUNC(passhash.digest())
+
+				good, reason = self._validOldPasswordSyntax(password)
+
+				if (not good):
+					self.out_DENIED(client, username, reason)
+					return
+
+				good, user = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 		except Exception, e:
-			self._root.console_write('Handler %s:%s <%s> Error reading from db in in_LOGIN: %s '%(client.handler.num, client.session_id, client.username, e.message))
+			self._root.console_write('Handler %s:%s <%s> Error reading from DB in in_LOGIN: %s ' % (client.handler.num, client.session_id, client.username, e.message))
 			good = False
 			reason = "db error"
-		if not good:
+
+		if (not good):
 			self.out_DENIED(client, username, reason)
 			return
-		username = reason.username
+
+		assert(user != None)
+
+		## update local client fields from DB User values
 		client.logged_in = True
-		client.access = reason.access
+		client.access = user.access
 		self._calc_access(client)
-		client.username = reason.username
-		client.password = reason.password
-		client.lobby_id = reason.lobby_id
-		client.bot = reason.bot
-		client.register_date = reason.register_date
-		client.last_login = reason.last_login
+		client.set_user_pwrd_salt(user.username, (user.password, user.randsalt))
+		client.lobby_id = user.lobby_id
+		client.bot = user.bot
+		client.register_date = user.register_date
+		client.last_login = user.last_login
 		client.cpu = cpu
+
+		## if not a secure authentication, the client should
+		## still only be using an old-style unsalted password
+		assert((not client.secure_auth) or (not client.has_insecure_password()))
 
 		client.local_ip = None
 		if local_ip.startswith('127.') or not validateIP(local_ip):
@@ -852,17 +991,17 @@ class Protocol:
 		else:
 			client.local_ip = local_ip
 
-		client.ingame_time = reason.ingame_time
+		client.ingame_time = user.ingame_time
 
-		if reason.id == None:
+		if user.id == None:
 			client.db_id = client.session_id
 		else:
-			client.db_id = reason.id
+			client.db_id = user.id
 		if client.ip_address in self._root.trusted_proxies:
 			client.setFlagByIP(local_ip, False)
 
 		if client.access == 'agreement':
-			self._root.console_write('Handler %s:%s Sent user <%s> the terms of service on session.'%(client.handler.num, client.session_id, username))
+			self._root.console_write('Handler %s:%s Sent user <%s> the terms of service on session.' % (client.handler.num, client.session_id, user.username))
 			if client.compat['p']:
 				agreement = self.agreementplain
 			else:
@@ -873,30 +1012,32 @@ class Protocol:
 			return
 
 		# needs to be checked directly before it is added, to make it somelike atomic as we have no locking over threads
-		if username in self._root.usernames:
+		if user.username in self._root.usernames:
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
 
-		self._root.console_write('Handler %s:%s Successfully logged in user <%s> %s.'%(client.handler.num, client.session_id, username, client.access))
+		self._root.console_write('Handler %s:%s Successfully logged in user <%s> %s.' % (client.handler.num, client.session_id, user.username, client.access))
 		self._root.db_ids[client.db_id] = client
-		self._root.usernames[username] = client
+		self._root.usernames[user.username] = client
 		client.status = self._calc_status(client, 0)
 
 		ignoreList = self.userdb.get_ignored_user_ids(client.db_id)
 		client.ignored = {ignoredUserId:True for ignoredUserId in ignoreList}
 
-		client.Send('ACCEPTED %s'%username)
+		client.Send('ACCEPTED %s' % user.username)
 
 		self._sendMotd(client)
 		self._checkCompat(client)
 		self.broadcast_AddUser(client)
 
 		usernames = dict(self._root.usernames) # cache them here in case anyone joins/leaves or hosts/closes a battle
-		for user in usernames:
-			addclient = usernames[user]
+
+		for username in usernames:
+			addclient = usernames[username]
 			client.AddUser(addclient)
 
 		battles = dict(self._root.battles)
+
 		for battle in battles:
 			battle = battles[battle]
 			ubattle = battle.copy()
@@ -907,12 +1048,18 @@ class Protocol:
 					client.SendBattle(battle, 'JOINEDBATTLE %s %s' % (battle.id, user))
 
 		self.broadcast_SendUser(client, 'CLIENTSTATUS %s %s'%(username, client.status))
-		for user in usernames:
-			if user == username: continue # potential problem spot, might need to check to make sure username is still in user db
-			client.SendUser(user, 'CLIENTSTATUS %s %s'%(user, usernames[user].status))
+
+		for username in usernames:
+			# potential problem spot, might need to check to make sure username is still in user db
+			if username == user.username:
+				continue
+
+			client.SendUser(username, 'CLIENTSTATUS %s %s' % (username, usernames[username].status))
 
 		client.Send('LOGININFOEND')
 		self._informErrors(client)
+
+
 
 	def in_CONFIRMAGREEMENT(self, client):
 		'Confirm the terms of service as shown with the AGREEMENT commands. Users must accept the terms of service to use their account.'
@@ -2451,6 +2598,7 @@ class Protocol:
 		else:
 			self.out_SERVERMSG(client, 'Failed to rename to <%s>: %s' % (newname, reason))
 
+
 	def in_CHANGEPASSWORD(self, client, oldpassword, newpassword):
 		'''
 		Change the password of current user.
@@ -2458,18 +2606,55 @@ class Protocol:
 		@required.str oldpassword: The previous password.
 		@required.str newpassword: The new password.
 		'''
-		good, reason = self._validPasswordSyntax(newpassword)
-		if not good:
-			self.out_SERVERMSG(client, '%s' % (reason))
+		if (oldpassword == newpassword):
 			return
-		user = self.clientFromUsername(client.username, True)
-		if user:
-			if user.password == oldpassword:
-				user.password = newpassword
+
+		if (client.get_session_key() != ""):
+			## secure command (meaning we want our password salted, etc.)
+			##
+			## disallow changing to new-style password if command is not
+			## encrypted for obvious reasons (would be sent in plaintext)
+			good, reason = self._validNewPasswordSyntax(newpassword)
+
+			if (not good):
+				self.out_SERVERMSG(client, '%s' % reason)
+				return
+
+			user = self.clientFromUsername(client.username, True)
+
+			if (user == None):
+				return
+
+			## check if the supplied old password is authentic
+			if (not self.userdb.test_user_pwrd(user, oldpassword)):
+				self.out_SERVERMSG(client, 'Incorrect old password.')
+				return
+
+			## change in-memory, then commit to DB
+			user.set_pwrd_salt(self.userdb.gen_user_pwrd_hash_and_salt(newpassword))
+
+			self.userdb.save_user(user)
+			self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
+		else:
+			good, reason = self._validOldPasswordSyntax(newpassword)
+
+			if (not good):
+				self.out_SERVERMSG(client, '%s' % (reason))
+				return
+
+			user = self.clientFromUsername(client.username, True)
+
+			if (user == None):
+				return
+
+			if (user.password == oldpassword):
+				user.set_pwrd_salt((newpassword, ""))
+
 				self.userdb.save_user(user)
 				self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
 			else:
 				self.out_SERVERMSG(client, 'Incorrect old password.')
+
 
 	def in_FORGEREVERSEMSG(self, client, user, msg):
 		'''
@@ -2516,6 +2701,7 @@ class Protocol:
 			self.userdb.save_user(user)
 			self.out_SERVERMSG(client, 'Botmode for <%s> successfully changed to %s' % (username, bot))
 
+
 	def in_CHANGEACCOUNTPASS(self, client, username, newpass):
 		'''
 		Set the password for target user.
@@ -2524,19 +2710,42 @@ class Protocol:
 		@required.str username: The target user.
 		@required.str password: The new password.
 		'''
-		user = self.clientFromUsername(username, True)
-		if user:
-			if user.access in ('mod', 'admin') and not client.access == 'admin':
-				self.out_SERVERMSG(client, 'You have insufficient access to change moderator passwords.')
-			else:
-				res, reason = self._validPasswordSyntax(newpass)
-				if not res:
-					self.out_SERVERMSG(client, "invalid password specified: %s" %(reason))
-					return
-				self._root.console_write('Handler %s: <%s> changed password of <%s>.' % (client.handler.num, client.username, username))
-				user.password = newpass
-				self.userdb.save_user(user)
+		targetUser = self.clientFromUsername(username, True)
+
+		if (not targetUser):
+			return
+
+		if targetUser.access in ('mod', 'admin') and not client.access == 'admin':
+			self.out_SERVERMSG(client, 'You have insufficient access to change moderator passwords.')
+			return
+
+		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		## THIS IS NOT AN ACTION ADMINS SHOULD BE ABLE TO TAKE
+		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		if (False and (not targetUser.has_insecure_password())):
+			res, reason = self._validNewPasswordSyntax(newpass)
+
+			if (good and self.userdb.test_user_pwrd(targetUser, newpass)):
+				targetUser.set_pwrd_salt(self.userdb.gen_user_pwrd_hash_and_salt(newpass))
+
+				self.userdb.save_user(targetUser)
 				self.out_SERVERMSG(client, 'Password for <%s> successfully changed to %s' % (username, newpass))
+				return
+
+
+		res, reason = self._validOldPasswordSyntax(newpass)
+
+		if (not res):
+			self.out_SERVERMSG(client, "invalid password specified: %s" %(reason))
+			return
+
+		targetUser.set_pwrd_salt((newpass, ""))
+
+		self._root.console_write('Handler %s: <%s> changed password of <%s>.' % (client.handler.num, client.username, username))
+		self.userdb.save_user(targetUser)
+		self.out_SERVERMSG(client, 'Password for <%s> successfully changed to %s' % (username, newpass))
+
+
 
 	def in_BROADCAST(self, client, msg):
 		'''
@@ -2587,28 +2796,49 @@ class Protocol:
 			self.out_SERVERMSG(kickeduser, 'You\'ve been kicked from server by <%s>%s' % (client.username, reason))
 			kickeduser.Remove('was kicked from server by <%s>: %s' % (client.username, reason))
 
+
 	def in_TESTLOGIN(self, client, username, password):
 		'''
-		Test logging in as target user.
+		Test logging in as target user. [mod]
 
 		@required.str username: The target user.
 		@required.str password: The password to try.
 		'''
 		good, reason = self._validUsernameSyntax(username)
-		if not good:
+
+		if (not good):
 			client.Send('TESTLOGINDENY %s' %(reason))
 			return
 
-		good, reason = self._validPasswordSyntax(password)
-		if not good:
-			client.Send('TESTLOGINDENY %s' %(reason))
-			return
+		targetUser = self.clientFromUsername(username, True)
 
-		user = self.clientFromUsername(username, True)
-		if user and user.password == password:
-			client.Send('TESTLOGINACCEPT %s %s' % (user.username, user.db_id))
-		else:
+		if (not targetUser):
 			client.Send('TESTLOGINDENY')
+			return
+
+		## test for new-style (salted) password acceptance first
+		##
+		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		## NOTE THAT THIS WHOLE COMMAND IS A GIANT SECURITY HOLE
+		## PASSWORDS SHOULD NOT BE SHARED BY USER TO ANYONE EVER
+		## (INCLUDING ADMINISTRATORS)
+		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		if (False and (not targetUser.has_insecure_password())):
+			good, reason = self._validNewPasswordSyntax(password)
+
+			if (good and self.userdb.test_user_pwrd(targetUser, password)):
+				client.Send('TESTLOGINACCEPT %s %s' % (targetUser.username, user.db_id))
+				return
+
+		good, reason = self._validOldPasswordSyntax(password)
+
+		if (not good):
+			client.Send('TESTLOGINDENY %s' %(reason))
+			return
+
+		if (targetUser.password == password):
+			client.Send('TESTLOGINACCEPT %s %s' % (targetUser.username, user.db_id))
+
 
 	def in_EXIT(self, client, reason=('Exiting')):
 		'''
@@ -2702,7 +2932,7 @@ class Protocol:
 		user.access = access
 		if username in self._root.usernames:
 			self._calc_access_status(user)
-			self._root.broadcast('CLIENTSTATUS %s %s'%(username, user.status))
+			self._root.broadcast('CLIENTSTATUS %s %s' % (username, user.status))
 		self.userdb.save_user(user)
 		# remove the new mod/admin from everyones ignore list and notify affected users
 		if access in ('mod', 'admin'):
@@ -2833,6 +3063,94 @@ class Protocol:
 							self.out_FAILED(client, "SETBATTLE", "unknown tag %s=%s" % (key, value), True)
 		except:
 			self.out_FAILED(client, "SETBATTLE", "couldn't handle values", True)
+
+
+
+
+	##
+	## send the server's public RSA key to a client
+	## (which the client should use for SECURELOGIN
+	## and SECUREREGISTER, and for SETSHAREDKEY iff
+	## it wants all further communication encrypted)
+	##
+	def in_GETPUBLICKEY(self, client):
+		## not useful to do this after key-exchange
+		if (client.get_session_key() != ""):
+			return
+
+		rsa_pub_key_obj = self.rsa_cipher_obj.get_pub_key()
+		rsa_pub_key_str = rsa_pub_key_obj.exportKey("PEM")
+
+		## technically the key does not need to be encoded
+		## (PEM is a text-format), but this keeps protocol
+		## consistent
+		client.Send("PUBLICKEY %s" % ENCODE_FUNC(rsa_pub_key_str))
+
+	##
+	## set the AES session key that this client and
+	## server will use to encrypt all further traffic
+	## (if not empty or too short)
+	##
+	## clients must DECODE(DECRYPT_AES(MSG, AES_KEY))
+	## any subsequent server message MSG after this
+	## returns true, where "DECODE" is the standard
+	## base64 decoding scheme
+	##
+	## NOTE: client can still accidentally leak data
+	##
+	## user_data = ENCODE(ENCRYPT_RSA(AES_KEY, RSA_PUB_KEY))
+	##
+	def in_SETSHAREDKEY(self, client, user_data):
+		## take this to mean the client no longer wants encryption
+		if (len(user_data) == 0):
+			client.set_aes_cipher_obj(None)
+			client.Send("SHAREDKEY CLEARED")
+			return
+
+		## too-short keys are not allowed
+		if (len(user_data) < CryptoHandler.MIN_AES_KEY_SIZE):
+			client.Send("SHAREDKEY INVALID")
+			return
+
+		## NOTE:
+		##   the raw client key can be any binary or ASCII string
+		##   however, the server will ALWAYS use a hashed version
+		##   (the output of HASH(DECODE(DECRYPT_RSA(...)))) so as
+		##   to ensure it has the proper length
+		##
+		##   decrypt_bytes automatically base64-decodes its input
+		aes_key_msg = self.rsa_cipher_obj.decrypt_bytes(user_data)
+		aes_key_sig = SECURE_HASH_FUNC(aes_key_msg)
+
+		if (client.get_aes_cipher_obj() == None):
+			client.set_aes_cipher_obj(CryptoHandler.aes_cipher(""))
+
+		(client.get_aes_cipher_obj()).set_key(aes_key_sig.digest())
+
+		## notify the client that key was accepted
+		## this will be the first encrypted message
+		client.Send("SHAREDKEY ACCEPTED")
+
+	##
+	## sign a client text-message using server's private RSA key
+	## the resulting signature is simply a (Python) long integer
+	## (should be used by clients prior to LOGIN, to verify that
+	## their encryption stack works and server is what it claims
+	## to be)
+	##
+	## user_data = "HELLO WORLD"
+	##
+	def in_GETSIGNEDMSG(self, client, user_data):
+		if (len(user_data) == 0):
+			return False
+
+		sgn_msg = self.rsa_cipher_obj.sign_bytes(user_data)
+		sgn_msg = str(sgn_msg)
+
+		client.Send("SIGNEDMSG %s" % sgn_msg)
+
+
+
 
 	# Begin outgoing protocol section #
 	#

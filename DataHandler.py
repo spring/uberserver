@@ -1,9 +1,5 @@
 import thread, time, sys, os, socket
 
-import base64
-try: from hashlib import md5
-except: md5 = __import__('md5').new
-
 import traceback
 from protocol.Channel import Channel
 from protocol.Protocol import Protocol

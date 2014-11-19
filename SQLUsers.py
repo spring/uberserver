@@ -1,5 +1,12 @@
 from datetime import datetime, timedelta
 
+from CryptoHandler import SHA256_HASH_FUNC
+from CryptoHandler import GLOBAL_RAND_POOL
+from CryptoHandler import USR_DB_SALT_SIZE
+
+from BaseClient import BaseClient
+
+
 try:
 	from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean, Text, DateTime
 	from sqlalchemy.orm import mapper, sessionmaker, relation
@@ -11,12 +18,14 @@ except ImportError, e:
 	import sys
 	sys.exit(1)
 
+
 metadata = MetaData()
 ##########################################
 users_table = Table('users', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('username', String(40), unique=True),
-	Column('password', String(64)),
+	Column('password', String(64)), # NOTE: stored in raw binary form, i.e. WITHOUT any encoding
+	Column('randsalt', String(64)), # NOTE: can we just add a column or do we need to rebuild DB?
 	Column('register_date', DateTime),
 	Column('last_login', DateTime),
 	Column('last_ip', String(15)), # would need update for ipv6
@@ -26,10 +35,11 @@ users_table = Table('users', metadata,
 	Column('email', String(254)), # http://www.rfc-editor.org/errata_search.php?rfc=3696&eid=1690
 	Column('bot', Integer),
 	)
-class User(object):
-	def __init__(self, username, password, last_ip, access='agreement'):
-		self.username = username
-		self.password = password
+
+class User(BaseClient):
+	def __init__(self, username, password, randsalt, last_ip, access='agreement'):
+		self.set_user_pwrd_salt(username, (password, randsalt))
+
 		self.last_login = datetime.now()
 		self.register_date = datetime.now()
 		self.last_ip = last_ip
@@ -41,6 +51,9 @@ class User(object):
 
 	def __repr__(self):
 		return "<User('%s', '%s')>" % (self.username, self.password)
+
+
+
 ##########################################
 logins_table = Table('logins', metadata,
 	Column('id', Integer, primary_key=True),
@@ -220,11 +233,12 @@ mapper(BanUser, banuser_table)
 
 #metadata.create_all(engine)
 
-class OfflineClient:
+
+
+class OfflineClient(BaseClient):
 	def __init__(self, sqluser):
+		self.set_user_pwrd_salt(sqluser.username, (sqluser.password, sqluser.randsalt))
 		self.id = sqluser.id
-		self.username = sqluser.username
-		self.password = sqluser.password
 		self.ingame_time = sqluser.ingame_time
 		self.bot = sqluser.bot
 		self.last_login = sqluser.last_login
@@ -232,6 +246,8 @@ class OfflineClient:
 		self.last_id = sqluser.last_id
 		self.access = sqluser.access
 		self.email = sqluser.email
+
+
 
 class UsersHandler:
 	def __init__(self, root, engine):
@@ -252,6 +268,29 @@ class UsersHandler:
 		session.close()
 		if not entry: return None
 		return OfflineClient(entry)
+
+
+	def test_user_pwrd(self, user_inst, user_pwrd, hash_func = SHA256_HASH_FUNC):
+		h = hash_func(user_pwrd + user_inst.randsalt)
+		r = (user_inst.password == h.digest())
+		return r
+
+	def gen_user_pwrd_hash_and_salt(self, user_pass, hash_func = SHA256_HASH_FUNC, rand_pool = GLOBAL_RAND_POOL):
+		def gen_user_salt(rand_pool, num_salt_bytes = USR_DB_SALT_SIZE):
+			return (rand_pool.read(num_salt_bytes))
+
+		def gen_user_hash(user_pwrd, user_salt, hash_func = SHA256_HASH_FUNC):
+			assert(type(user_pwrd) == type(""))
+			assert(type(user_salt) == type(""))
+
+			h = hash_func(user_pwrd + user_salt)
+			h = h.digest()
+			return h
+
+		user_salt = gen_user_salt(rand_pool)
+		user_hash = gen_user_hash(user_pass, user_salt, hash_func)
+		return (user_hash, user_salt)
+
 	
 	def check_ban(self, user, ip, userid, now):
 		session = self.sessionmaker()
@@ -262,51 +301,77 @@ class UsersHandler:
 		if userban: return True, userban
 		if ipban: return True, ipban
 		return False, ""
-		
+
+
 	def login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
-
-		if self._root.censor and not self._root.SayHooks._nasty_word_censor(username):
-			return False, 'Name failed to pass profanity filter.'
-
 		session = self.sessionmaker()
-		good = True
-		dbuser = session.query(User).filter(User.username==username, User.password == password).first() # should only ever be one user with each name so we can just grab the first one :)
-		if not dbuser:
+		# should only ever be one user with each name so we can just grab the first one :)
+		dbuser = session.query(User).filter(User.username==username, User.password == password).first()
+
+		if (not dbuser):
 			session.close()
 			return False, 'Invalid username or password'
 
+		return (self.common_login(dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
+
+	def common_login(self, dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country):
+		if self._root.censor and not self._root.SayHooks._nasty_word_censor(username):
+			return False, 'Name failed to pass profanity filter.'
 
 		now = datetime.now()
 		banned, dbban = self.check_ban(username, ip, dbuser.id, now)
+		good = (not banned)
+
 		if banned:
-			good = False
 			timeleft = int((dbban.end_time - now).total_seconds())
 			reason = 'You are banned: (%s) ' %(dbban.reason)
+
 			if timeleft > 60 * 60 * 24 * 1000:
 				reason += 'forever!'
 			elif timeleft > 60 * 60 * 24:
 				reason += 'days remaining: %s' % (timeleft / (60 * 60 * 24))
 			else:
 				reason += 'hours remaining: %s' % (timeleft / (60 * 60))
+
 		dbuser.logins.append(Login(now, ip, lobby_id, user_id, cpu, local_ip, country))
 		dbuser.last_login = now
 		dbuser.time = now
 		dbuser.last_ip = ip
 		dbuser.last_id = user_id
-		if good:
-			reason = User(dbuser.username, password, ip, now)
-			reason.access = dbuser.access
-			reason.id = dbuser.id
-			reason.ingame_time = dbuser.ingame_time
-			reason.bot = dbuser.bot
-			reason.last_login = dbuser.last_login
-			reason.register_date = dbuser.register_date
-			reason.lobby_id = lobby_id
+
+		if (good):
+			user_copy = User(dbuser.username, password, dbuser.randsalt, ip, now)
+			user_copy.access = dbuser.access
+			user_copy.id = dbuser.id
+			user_copy.ingame_time = dbuser.ingame_time
+			user_copy.bot = dbuser.bot
+			user_copy.last_login = dbuser.last_login
+			user_copy.register_date = dbuser.register_date
+			user_copy.lobby_id = lobby_id
+			reason = user_copy
 
 		session.commit()
 		session.close()
 		return good, reason
-	
+
+	## NOTE:
+	##   should only be called for the SECURELOGIN command!
+	##
+	##   password = DECODE(ENCRYPT_RSA("", RSA_PUB_KEY))
+	def secure_login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
+		session = self.sessionmaker()
+		dbuser = session.query(User).filter(User.username==username).first()
+
+		if (not dbuser):
+			session.close()
+			return False, 'Invalid username'
+		## combine user-supplied password with DB salt
+		if (not self.test_user_pwrd(dbuser, password)):
+			return False, 'Invalid password'
+
+		return (self.common_login(dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
+
+
 	def end_session(self, db_id):
 		session = self.sessionmaker()
 		entry = session.query(User).filter(User.id==db_id).first()
@@ -316,22 +381,63 @@ class UsersHandler:
 		
 		session.close()
 
-	def register_user(self, user, password, ip, country): # need to add better ban checks so it can check if an ip address is banned when registering an account :)
-		if len(user)>20: return False, 'Username too long'
+
+
+	def check_user_name(self, user_name):
+		if len(user_name) > 20: return False, 'Username too long'
 		if self._root.censor:
-			if not self._root.SayHooks._nasty_word_censor(user):
+			if not self._root.SayHooks._nasty_word_censor(user_name):
 				return False, 'Name failed to pass profanity filter.'
+		return True
+
+	# need to add better ban checks so it can check if an ip address is banned when registering an account :)
+	def register_user(self, username, password, ip, country):
+		status, reason = self.check_user_name(username)
+
+		if (not status):
+			return False, reason
+
 		session = self.sessionmaker()
-		results = session.query(User).filter(User.username==user).first()
-		if results:
+		dbuser = session.query(User).filter(User.username==username).first()
+
+		if (dbuser):
 			session.close()
 			return False, 'Username already exists.'
-		entry = User(user, password, ip)
+
+		## note: no salt here
+		entry = User(username, password, "", ip)
 		session.add(entry)
 		session.commit()
 		session.close()
 		return True, 'Account registered successfully.'
-	
+
+	## NOTE:
+	##   should only be called for the SECUREREGISTER command!
+	##
+	##   password = DECODE(ENCRYPT_RSA("", RSA_PUB_KEY))
+	def secure_register_user(self, username, password, ip, country):
+		status, reason = self.check_user_name(username))
+
+		if (not status):
+			return False, reason
+
+		session = self.sessionmaker()
+		dbuser = session.query(User).filter(User.username==user).first()
+
+		if (dbuser):
+			session.close()
+			return False, 'Username already exists.'
+
+		## store the <hash(pwrd + salt), salt> pair in DB
+		hash_salt = self.gen_user_pwrd_hash_and_salt(password)
+
+		entry = User(username, hash_salt[0], hash_salt[1], ip)
+		session.add(entry)
+		session.commit()
+		session.close()
+		return True, 'Account registered successfully.'
+
+
 	def ban_user(self, owner, username, duration, reason):
 		session = self.sessionmaker()
 		entry = session.query(User).filter(User.username==username).first()
@@ -418,13 +524,17 @@ class UsersHandler:
 		session = self.sessionmaker()
 		name = client.username
 		entry = session.query(User).filter(User.username==name).first()
-		if entry:
+
+		if (entry != None):
+			## caller might have changed these!
+			entry.set_pwrd_salt((client.password, client.randsalt))
+
 			entry.ingame_time = client.ingame_time
 			entry.access = client.access
 			entry.bot = client.bot
 			entry.last_id = client.last_id
-			entry.password = client.password
 			entry.email = client.email
+
 		session.commit()
 		session.close()
 	
@@ -488,8 +598,10 @@ class UsersHandler:
 		session.close()
 		return True, 'Success.'
 
+	"""
+	## unused
 	def inject_user(self, user, password, ip, last_login, register_date, uid, ingame, country, bot, access, id):
-		entry = User(user, password, ip)
+		entry = User(user, password, "", ip)
 		entry.last_login = last_login
 		entry.last_id = uid
 		entry.ingame_time = ingame
@@ -498,7 +610,7 @@ class UsersHandler:
 		entry.bot = bot
 		entry.id = id
 		return entry
-	
+
 	def inject_users(self, accounts):
 		session = self.sessionmaker()
 		for user in accounts:
@@ -513,6 +625,7 @@ class UsersHandler:
 				#print("Duplicate Entry: " + user['user'])
 		session.commit()
 		session.close()
+	"""
 
 	def clean_users(self):
 		''' delete old user accounts (very likely unused) '''
