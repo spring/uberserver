@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from CryptoHandler import SHA256_HASH_FUNC
 from CryptoHandler import GLOBAL_RAND_POOL
 from CryptoHandler import USR_DB_SALT_SIZE
+from CryptoHandler import PWRD_HASH_ROUNDS
 
 from BaseClient import BaseClient
 
@@ -271,9 +272,12 @@ class UsersHandler:
 
 
 	def test_user_pwrd(self, user_inst, user_pwrd, hash_func = SHA256_HASH_FUNC):
-		h = hash_func(user_pwrd + user_inst.randsalt)
-		r = (user_inst.password == h.digest())
-		return r
+		user_hash = hash_func(user_pwrd + user_inst.randsalt)
+
+		for i in xrange(PWRD_HASH_ROUNDS):
+			user_hash = hash_func(user_hash.digest())
+
+		return (user_inst.password == user_hash.digest())
 
 	def gen_user_pwrd_hash_and_salt(self, user_pass, hash_func = SHA256_HASH_FUNC, rand_pool = GLOBAL_RAND_POOL):
 		def gen_user_salt(rand_pool, num_salt_bytes = USR_DB_SALT_SIZE):
@@ -283,9 +287,12 @@ class UsersHandler:
 			assert(type(user_pwrd) == type(""))
 			assert(type(user_salt) == type(""))
 
-			h = hash_func(user_pwrd + user_salt)
-			h = h.digest()
-			return h
+			user_hash = hash_func(user_pwrd + user_salt)
+
+			for i in xrange(PWRD_HASH_ROUNDS):
+				user_hash = hash_func(user_hash.digest())
+
+			return (user_hash.digest())
 
 		user_salt = gen_user_salt(rand_pool)
 		user_hash = gen_user_hash(user_pass, user_salt, hash_func)

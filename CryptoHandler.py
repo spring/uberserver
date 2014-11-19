@@ -32,9 +32,10 @@ RSA_KEY_DIR_NAME = "./"
 RSA_PUB_KEY_FILE = "rsa_pub_key.pem"
 RSA_PRI_KEY_FILE = "rsa_pri_key.pem"
 
-USR_DB_SALT_SIZE = 16 ## bytes
-MIN_AES_KEY_SIZE = 16 ## bytes
-MIN_PASSWORD_LEN = 10 ## bytes
+PWRD_HASH_ROUNDS = 128 ## stretching KDF (anti-BFA)
+USR_DB_SALT_SIZE =  16 ## bytes
+MIN_AES_KEY_SIZE =  16 ## bytes
+MIN_PASSWORD_LEN =  10 ## bytes
 
 MD5LEG_HASH_FUNC = MD5.new
 SHA160_HASH_FUNC = SHA.new
