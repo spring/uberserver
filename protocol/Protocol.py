@@ -3097,7 +3097,7 @@ class Protocol:
 	##
 	## user_data = ENCODE(ENCRYPT_RSA(AES_KEY, RSA_PUB_KEY))
 	##
-	def in_SETSHAREDKEY(self, client, user_data):
+	def in_SETSHAREDKEY(self, client, user_data = ""):
 		## take this to mean the client no longer wants encryption
 		if (len(user_data) == 0):
 			client.set_aes_cipher_obj(None)
