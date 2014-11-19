@@ -5,9 +5,6 @@ import inspect, time, re
 import base64
 import json
 
-from Crypto.Hash import MD5
-from Crypto.Hash import SHA256
-
 import traceback, sys, os
 import socket
 from Channel import Channel
