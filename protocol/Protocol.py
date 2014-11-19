@@ -492,18 +492,35 @@ class Protocol:
 		seconds = time.time() - timestamp
 		return self._time_format(seconds)
 
-	def _sendMotd(self, client):
-		'send the message of the day to client'
-		if not self._root.motd: return
-		replace = {"{USERNAME}": str(client.username),
-			"{CLIENTS}": str(len(self._root.clients)),
+	def _get_motd_string(self, client):
+		motd_string = ""
+		replace_vars = {
+			"{USERNAME}": str(client.username),
+			"{CLIENTS}" : str(len(self._root.clients)),
 			"{CHANNELS}": str(len(self._root.channels)),
-			"{BATTLES}": str(len(self._root.battles)),
-			"{UPTIME}": str(self._time_since(self._root.start_time))}
-		for line in list(self._root.motd):
-			for key, value in replace.iteritems():
-				line = line.replace(key, value)
+			"{BATTLES}" : str(len(self._root.battles)),
+			"{UPTIME}"  : str(self._time_since(self._root.start_time))
+		}
+
+		if (self._root.motd):
+			for line in list(self._root.motd):
+				for key, value in replace_vars.iteritems():
+					line = line.replace(key, value)
+
+				motd_string += line
+				motd_string += '\n'
+		else:
+			motd_string += "[MOTD]"
+
+		return motd_string
+
+	def _sendMotd(self, client, motd_string):
+		'send the message of the day to client'
+		motd_lines = motd_string.split('\n')
+
+		for line in motd_lines:
 			client.Send('MOTD %s' % line)
+
 	def _checkCompat(self, client):
 		missing_flags = ""
 		'check the compatibility flags of client and report possible/upcoming problems to it'
@@ -1009,7 +1026,7 @@ class Protocol:
 
 		client.Send('ACCEPTED %s' % user.username)
 
-		self._sendMotd(client)
+		self._sendMotd(client, self._get_motd_string(client))
 		self._checkCompat(client)
 		self.broadcast_AddUser(client)
 
@@ -3120,14 +3137,13 @@ class Protocol:
 	##
 	## user_data = "HELLO WORLD"
 	##
-	def in_GETSIGNEDMSG(self, client, user_data):
+	def in_GETSIGNEDMSG(self, client, user_data = ""):
 		if (len(user_data) == 0):
-			return False
+			sgn_msg = self.rsa_cipher_obj.sign_bytes(self._get_motd_string(client))
+		else:
+			sgn_msg = self.rsa_cipher_obj.sign_bytes(user_data)
 
-		sgn_msg = self.rsa_cipher_obj.sign_bytes(user_data)
-		sgn_msg = str(sgn_msg)
-
-		client.Send("SIGNEDMSG %s" % sgn_msg)
+		client.Send("SIGNEDMSG %s" % str(sgn_msg))
 
 
 
