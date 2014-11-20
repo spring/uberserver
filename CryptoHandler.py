@@ -167,7 +167,7 @@ class rsa_cipher:
 		return (encode_func(enc_bytes[0]))
 
 	def decrypt_bytes(self, enc_bytes, decode_func = base64.b64decode):
-		assert(type(enc_bytes) == type(""))
+		#assert(type(enc_bytes) == type(""))
 		assert(len(enc_bytes) != 0)
 		## assert((self.pri_key.size() + 1) == (len(decode_func(enc_bytes)) * 8))
 

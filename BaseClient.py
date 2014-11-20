@@ -1,19 +1,21 @@
 import CryptoHandler
 
 class BaseClient(object):
+	aes_cipher_obj = None
+
 	def __init__(self, username, password, randsalt):
 		## password = {MD5(pwrd) for old clients, SHA256(pwrd + salt) for new clients}
 		## randsalt = {"" for old clients, random 16-byte binary string for new clients}
 		## (here "old" means user was registered over an unencrypted link, without salt)
 		self.set_user_pwrd_salt(username, (password, randsalt))
 
-		## AES cipher used for encrypted protocol communication
-		## (obviously with a different instance and key for each
-		## connected client)
-		self.aes_cipher_obj = None
 
-	def set_aes_cipher_obj(self, obj): del self.aes_cipher_obj; self.aes_cipher_obj = obj
-	def get_aes_cipher_obj(self): return self.aes_cipher_obj
+	def set_aes_cipher_obj(self, obj):
+		del self.aes_cipher_obj
+		self.aes_cipher_obj = obj
+
+	def get_aes_cipher_obj(self):
+		return self.aes_cipher_obj
 
 	## NOTE:
 	##   only for in-memory clients, not DB User instances

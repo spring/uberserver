@@ -96,7 +96,7 @@ class Client(BaseClient):
 		self._root.console_write('Client connected from %s:%s, session ID %s.' % (self.ip_address, self.port, session_id))
 
 
-	def set_msg_id(msg):
+	def set_msg_id(self, msg):
 		self.msg_id = ""
 
 		if (not msg.startswith('#')):

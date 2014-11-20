@@ -247,7 +247,7 @@ class Protocol:
 		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
 
 
-	def get_function_args(self, client, function):
+	def get_function_args(self, client, function, numspaces, args):
 		function_info = inspect.getargspec(function)
 		total_args = len(function_info[0]) - 2
 
@@ -338,7 +338,7 @@ class Protocol:
 		self.stats[command] += 1
 
 
-		ret_status, fun_args = self.get_function_args(client, function)
+		ret_status, fun_args = self.get_function_args(client, function, numspaces, args)
 
 		if (ret_status):
 			## if fun_args is empty, this reduces to function(client)
@@ -3114,11 +3114,16 @@ class Protocol:
 		##   to ensure it has the proper length
 		##
 		##   decrypt_bytes automatically base64-decodes its input
-		aes_key_msg = self.rsa_cipher_obj.decrypt_bytes(user_data)
-		aes_key_sig = SECURE_HASH_FUNC(aes_key_msg)
+		try:
+			aes_key_msg = self.rsa_cipher_obj.decrypt_bytes(user_data)
+			aes_key_sig = SECURE_HASH_FUNC(aes_key_msg)
 
-		## set (or update) the client's session key
-		client.set_session_key(aes_key_sig.digest())
+			## set (or update) the client's session key
+			client.set_session_key(aes_key_sig.digest())
+		except:
+			client.Send("SHAREDKEY INVALID")
+			self._root.error(traceback.format_exc())
+			return
 
 		## notify the client that key was accepted
 		## this will be the first encrypted message
