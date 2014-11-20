@@ -2,7 +2,6 @@
 # coding=utf-8
 
 import inspect, time, re
-import base64
 import json
 
 import traceback, sys, os
@@ -12,13 +11,11 @@ from Battle import Battle
 
 import CryptoHandler
 
+from CryptoHandler import MD5LEG_HASH_FUNC as LEGACY_HASH_FUNC
+from CryptoHandler import SHA256_HASH_FUNC as SECURE_HASH_FUNC
 
-
-LEGACY_HASH_FUNC = CryptoHandler.MD5LEG_HASH_FUNC
-SECURE_HASH_FUNC = CryptoHandler.SHA256_HASH_FUNC
-
-ENCODE_FUNC = base64.b64encode
-DECODE_FUNC = base64.b64decode
+from base64 import b64encode as ENCODE_FUNC
+from base64 import b64decode as DECODE_FUNC
 
 
 
@@ -197,11 +194,13 @@ class Protocol:
 		self.stats = {}
 
 		## generates new keys if directory is empty, otherwise imports
-		self.rsa_cipher_obj = CryptoHandler.rsa_cipher("server-rsa-keys/")
+		self.rsa_cipher_obj = CryptoHandler.rsa_cipher(root.crypto_key_dir)
 		## no-op if keys are already present, otherwise just speeds up
 		## server restarts (clients should NEVER cache the public key!)
-		self.rsa_cipher_obj.export_keys("server-rsa-keys/")
+		self.rsa_cipher_obj.export_keys(root.crypto_key_dir)
 
+	def force_secure_auth(self): return (self.root.force_secure_auths)
+	def force_secure_comm(self): return (self.root.force_secure_comms)
 
 	def _new(self, client):
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0'))
@@ -807,6 +806,10 @@ class Protocol:
 		@required.str username: Username to register
 		@required.str password: Password to use (base64-encoded)
 		'''
+		if (not client.use_secure_session() and (self.force_secure_auth() or self.force_secure_comm())):
+			client.Send("REGISTRATIONDENIED %s" % ("Unencrypted registrations are not allowed."))
+			return
+
 		good, reason = self._validUsernameSyntax(username)
 
 		if (not good):
@@ -870,6 +873,10 @@ class Protocol:
 		et: When client joins a channel, sends NOCHANNELTOPIC if the channel has no topic.
 		eb: Enables receiving extended battle commands, like BATTLEOPENEDEX
 		'''
+		if (not client.use_secure_session() and (self.force_secure_auth() or self.force_secure_comm())):
+			self.out_DENIED(client, username, "Unencrypted logins are not allowed.")
+			return
+
 		# FIXME: is checked first because of a springie bug
 		if username in self._root.usernames:
 			self.out_DENIED(client, username, 'Already logged in.', False)
@@ -3102,8 +3109,12 @@ class Protocol:
 	def in_SETSHAREDKEY(self, client, user_data = ""):
 		## take "" to mean the client no longer wants encryption
 		## this will be the last encrypted message a client gets
+		## (unless the server enforces secure communications, in
+		## which case sending unencrypted data after key exchange
+		## is pointless because server will always try to decrypt
+		## it and be left with garbage in _handle)
 		if (len(user_data) == 0):
-			if (client.use_secure_session()):
+			if (client.use_secure_session() and (not self.force_secure_comm())):
 				client.Send("SHAREDKEY CLEARED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
 				client.set_aes_cipher_obj(None)
 				client.set_session_key_acknowledged(False)
@@ -3180,6 +3191,7 @@ class Protocol:
 		'''
 		if inc:
 			client.failed_logins = client.failed_logins + 1
+
 		client.Send("DENIED %s" %(reason))
 		self._root.console_write('Handler %s:%s Failed to log in user <%s>: %s.'%(client.handler.num, client.session_id, username, reason))
 
@@ -3225,3 +3237,4 @@ if __name__ == '__main__':
 	f.close()
 
 	print 'Protocol documentation written to docs/protocol.txt'
+

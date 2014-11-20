@@ -30,6 +30,9 @@ class DataHandler:
 		self.server = 'TASServer'
 		self.server_version = 0.36
 		self.sighup = False
+		self.crypto_key_dir = "server-rsa-keys/"
+		self.force_secure_auths = False ## if true, LOGIN and REGISTER must be encrypted
+		self.force_secure_comms = False ## if true, ALL commands must be encrypted
 		
 		self.chanserv = None
 		self.userdb = None
