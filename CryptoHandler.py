@@ -191,7 +191,7 @@ class rsa_cipher:
 
 
 	def sign_bytes_utf8(self, msg_bytes):
-		return (self.sign_bytes(msg_bytes.encode(UNICODE_ENCODING))
+		return (self.sign_bytes(msg_bytes.encode(UNICODE_ENCODING)))
 	def auth_bytes_utf8(self, msg_bytes, sig_bytes):
 		return (self.auth_bytes(msg_bytes.encode(UNICODE_ENCODING), sig_bytes))
 
