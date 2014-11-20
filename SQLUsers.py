@@ -391,7 +391,7 @@ class UsersHandler:
 		if self._root.censor:
 			if not self._root.SayHooks._nasty_word_censor(user_name):
 				return False, 'Name failed to pass profanity filter.'
-		return True
+		return True, ""
 
 	# need to add better ban checks so it can check if an ip address is banned when registering an account :)
 	def register_user(self, username, password, ip, country):
