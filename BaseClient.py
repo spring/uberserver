@@ -1,6 +1,9 @@
 import CryptoHandler
 
 class BaseClient(object):
+	## AES cipher used for encrypted protocol communication
+	## (obviously with a different instance and key for each
+	## connected client)
 	aes_cipher_obj = None
 
 	def __init__(self, username, password, randsalt):

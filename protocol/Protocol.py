@@ -281,6 +281,10 @@ class Protocol:
 
 	def _handle(self, client, msg):
 		try:
+			## message might contain UTF-8 byte sequences, so always
+			## try converting it to a native unicode string (this is
+			## somewhat undesirable because it needs to be undone for
+			## SETSHAREDKEY and GETSIGNEDMSG)
 			msg = msg.decode('utf-8')
 
 			## TODO: SPADS bug is fixed, remove self.binary / uncomment in half a year or so (abma, 2014.11.04)
@@ -3113,10 +3117,8 @@ class Protocol:
 		##   however, the server will ALWAYS use a hashed version
 		##   (the output of HASH(DECODE(DECRYPT_RSA(...)))) so as
 		##   to ensure it has the proper length
-		##
-		##   decrypt_bytes automatically base64-decodes its input
 		try:
-			aes_key_msg = self.rsa_cipher_obj.decrypt_bytes(user_data)
+			aes_key_msg = self.rsa_cipher_obj.decode_decrypt_bytes_utf8(user_data)
 			aes_key_sig = SECURE_HASH_FUNC(aes_key_msg)
 
 			## set (or update) the client's session key
@@ -3141,9 +3143,9 @@ class Protocol:
 	##
 	def in_GETSIGNEDMSG(self, client, user_data = ""):
 		if (len(user_data) == 0):
-			sgn_msg = self.rsa_cipher_obj.sign_bytes(self._get_motd_string(client))
+			sgn_msg = self.rsa_cipher_obj.sign_bytes_utf8(self._get_motd_string(client))
 		else:
-			sgn_msg = self.rsa_cipher_obj.sign_bytes(user_data)
+			sgn_msg = self.rsa_cipher_obj.sign_bytes_utf8(user_data)
 
 		client.Send("SIGNEDMSG %s" % str(sgn_msg))
 

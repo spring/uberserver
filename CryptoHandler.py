@@ -31,6 +31,7 @@ RSA_KEY_FMT_NAME = "PEM"
 RSA_KEY_DIR_NAME = "./"
 RSA_PUB_KEY_FILE = "rsa_pub_key.pem"
 RSA_PRI_KEY_FILE = "rsa_pri_key.pem"
+UNICODE_ENCODING = "utf-8"
 
 PWRD_HASH_ROUNDS = 128 ## stretching KDF (anti-BFA)
 USR_DB_SALT_SIZE =  16 ## bytes
@@ -154,7 +155,15 @@ class rsa_cipher:
 		write_file(key_dir + RSA_PRI_KEY_FILE, "w", self.pri_key.exportKey(RSA_KEY_FMT_NAME))
 
 
-	def encrypt_bytes(self, raw_bytes, encode_func = base64.b64encode):
+	## these make sure that any native unicode inputs are converted
+	## to standard (UTF-8 encoded byte sequences) strings, otherwise
+	## crypto operations might be undefined
+	def encrypt_encode_bytes_utf8(self, raw_bytes, encode_func = base64.b64encode):
+		return (self.encrypt_encode_bytes(raw_bytes.encode(UNICODE_ENCODING), encode_func))
+	def decode_decrypt_bytes_utf8(self, enc_bytes, decode_func = base64.b64decode):
+		return (self.decode_decrypt_bytes(enc_bytes.encode(UNICODE_ENCODING), decode_func))
+
+	def encrypt_encode_bytes(self, raw_bytes, encode_func = base64.b64encode):
 		assert(type(raw_bytes) == type(""))
 		assert(len(raw_bytes) != 0)
 		assert(self.pub_key.size() >= (len(raw_bytes) * 8))
@@ -166,8 +175,8 @@ class rsa_cipher:
 
 		return (encode_func(enc_bytes[0]))
 
-	def decrypt_bytes(self, enc_bytes, decode_func = base64.b64decode):
-		#assert(type(enc_bytes) == type(""))
+	def decode_decrypt_bytes(self, enc_bytes, decode_func = base64.b64decode):
+		assert(type(enc_bytes) == type(""))
 		assert(len(enc_bytes) != 0)
 		## assert((self.pri_key.size() + 1) == (len(decode_func(enc_bytes)) * 8))
 
@@ -180,6 +189,11 @@ class rsa_cipher:
 
 		return dec_bytes
 
+
+	def sign_bytes_utf8(self, msg_bytes):
+		return (self.sign_bytes(msg_bytes.encode(UNICODE_ENCODING))
+	def auth_bytes_utf8(self, msg_bytes, sig_bytes):
+		return (self.auth_bytes(msg_bytes.encode(UNICODE_ENCODING), sig_bytes))
 
 	def sign_bytes(self, msg_bytes):
 		assert(type(msg_bytes) == type(""))
@@ -261,7 +275,12 @@ class aes_cipher:
 		write_file(key_dir + AES_RAW_KEY_FILE, "wb", self.get_key())
 
 
-	def encrypt_bytes(self, raw_bytes, encode_func = base64.b64encode):
+	def encrypt_encode_bytes_utf8(self, raw_bytes, encode_func = base64.b64encode):
+		return (self.encrypt_encode_bytes(raw_bytes.encode(UNICODE_ENCODING), encode_func))
+	def decode_decrypt_bytes_utf8(self, enc_bytes, decode_func = base64.b64decode):
+		return (self.decode_decrypt_bytes(enc_bytes.encode(UNICODE_ENCODING), decode_func))
+
+	def encrypt_encode_bytes(self, raw_bytes, encode_func = base64.b64encode):
 		assert(type(raw_bytes) == type(""))
 		assert(len(raw_bytes) != 0)
 
@@ -273,7 +292,7 @@ class aes_cipher:
 
 		return (encode_func(ini_vector + enc_bytes))
 
-	def decrypt_bytes(self, enc_bytes, decode_func = base64.b64decode):
+	def decode_decrypt_bytes(self, enc_bytes, decode_func = base64.b64decode):
 		assert(type(enc_bytes) == type(""))
 		assert(len(enc_bytes) != 0)
 

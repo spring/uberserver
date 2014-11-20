@@ -210,7 +210,11 @@ class Client(BaseClient):
 				##   client -->   C=ENCODE(ENCRYPT("CMD1 ARG11 ARG12 ...\nCMD2 ARG21 ...\n"))
 				##   server --> DECRYPT(DECODE(C))="CMD1 ARG11 ARG12 ...\nCMD2 ARG21 ...\n"
 				##
-				cmd_data_blob = self.aes_cipher_obj.decrypt_bytes(raw_data_blob)
+				## make sure decryption deals with a standard string
+				## (there should not be any encoding on top of base64
+				## blobs in the first place since the b64 alphabet is
+				## ASCII)
+				cmd_data_blob = self.aes_cipher_obj.decode_decrypt_bytes_utf8(raw_data_blob)
 
 				split_commands = cmd_data_blob.split('\n')
 				strip_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in split_commands]
@@ -238,7 +242,7 @@ class Client(BaseClient):
 			self.FlushBuffer()
 		self.handler.finishRemove(self, reason)
 
-	def Send(self, msg, binary=False):
+	def Send(self, msg, binary = False):
 		# don't append new data to send buffer when client gets removed
 		if not msg or self.removing:
 			return
@@ -248,15 +252,16 @@ class Client(BaseClient):
 
 		if (self.use_secure_session()):
 			## apply server-to-client encryption
-			##
-			## note: this also automatically encodes msg
-			## (s.t. the protocol can remain text-based)
-			msg = self.aes_cipher_obj.encrypt_bytes(msg)
+			msg = self.aes_cipher_obj.encrypt_encode_bytes_utf8(msg)
 
-		if binary:
+			## send the output as-is (base64 is all ASCII)
+			binary = True
+
+		if (binary):
 			self.sendbuffer.append(msg + self.nl)
 		else:
 			self.sendbuffer.append(msg.encode("utf-8") + self.nl)
+
 		self.handler.poller.setoutput(self.conn, True)
 
 	def FlushBuffer(self):
