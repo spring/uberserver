@@ -210,7 +210,7 @@ class Client(BaseClient):
 				##   client -->   C=ENCODE(ENCRYPT("CMD1 ARG11 ARG12 ...\nCMD2 ARG21 ...\n"))
 				##   server --> DECRYPT(DECODE(C))="CMD1 ARG11 ARG12 ...\nCMD2 ARG21 ...\n"
 				##
-				cmd_data_blob = self.aes_cipher_obj.decrypt_bytes(raw_data_blob))
+				cmd_data_blob = self.aes_cipher_obj.decrypt_bytes(raw_data_blob)
 
 				split_commands = cmd_data_blob.split('\n')
 				strip_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in split_commands]

@@ -977,7 +977,7 @@ class Protocol:
 
 		## if not a secure authentication, the client should
 		## still only be using an old-style unsalted password
-		assert(client.use_secure_session() == (not client.has_insecure_password())
+		assert(client.use_secure_session() == (not client.has_insecure_password()))
 
 		client.local_ip = None
 		if local_ip.startswith('127.') or not validateIP(local_ip):

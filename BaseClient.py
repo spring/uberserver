@@ -33,8 +33,8 @@ class BaseClient(object):
 		self.aes_cipher_obj.set_key(key)
 
 
-	def set_user_pwrd_salt(user_name = "", pwrd_hash_salt = ("", "")):
-		assert(type(pwrd_hash_salt) == type(()))
+	def set_user_pwrd_salt(self, user_name = "", user_pass_salt = ("", "")):
+		assert(type(user_pass_salt) == type(()))
 
 		self.username = user_name
 		self.password = user_pass_salt[0]

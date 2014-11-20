@@ -415,7 +415,7 @@ class UsersHandler:
 		return True, 'Account registered successfully.'
 
 	def secure_register_user(self, username, password, ip, country):
-		status, reason = self.check_user_name(username))
+		status, reason = self.check_user_name(username)
 
 		if (not status):
 			return False, reason
