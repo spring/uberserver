@@ -34,6 +34,11 @@ restricted = {
 	'EXIT',
 	'PING',
 	'LISTCOMPFLAGS',
+
+	# encryption
+	'GETPUBLICKEY',
+	'SETSHAREDKEY',
+	'GETSIGNEDMSG',
 	],
 'fresh':['LOGIN','REGISTER'],
 'agreement':['CONFIRMAGREEMENT'],
@@ -110,9 +115,6 @@ restricted = {
 	'RENAMEACCOUNT',
 	'SETBATTLE',
 
-	'GETPUBLICKEY',
-	'SETSHAREDKEY',
-	'GETSIGNEDMSG',
 	],
 
 'mod':[
