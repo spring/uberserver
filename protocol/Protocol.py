@@ -303,6 +303,7 @@ class Protocol:
 		if (numspaces > 0):
 			command, args = msg.split(' ', 1)
 		else:
+			args = None
 			command = msg
 
 		command = command.upper()
