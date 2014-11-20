@@ -3096,7 +3096,10 @@ class Protocol:
 	## returns ACCEPTED, where DECODE is the standard
 	## base64 decoding scheme
 	##
-	## NOTE: client can still accidentally leak data
+	## NOTE:
+	##   client can still accidentally leak data
+	##
+	##   MITM's (!)
 	##
 	## user_data = ENCODE(ENCRYPT_RSA(AES_KEY, RSA_PUB_KEY))
 	##
@@ -3109,7 +3112,7 @@ class Protocol:
 
 		## too-short keys are not allowed
 		if (len(user_data) < CryptoHandler.MIN_AES_KEY_SIZE):
-			client.Send("SHAREDKEY INVALID Shared key to short!")
+			client.Send("SHAREDKEY INVALID (%d bytes missing)" % (CryptoHandler.MIN_AES_KEY_SIZE - len(user_data)))
 			return
 
 		## NOTE:
@@ -3124,10 +3127,10 @@ class Protocol:
 			## set (or update) the client's session key
 			client.set_session_key(aes_key_sig.digest())
 		except ValueError as e:
-			client.Send("SHAREDKEY INVALID: %s" %(e))
+			client.Send("SHAREDKEY INVALID (exception %s)" % (e))
 			return
 		except:
-			client.Send("SHAREDKEY INVALID")
+			client.Send("SHAREDKEY INVALID (stacktrace %s)" % (traceback.format_exc()))
 			self._root.error(traceback.format_exc())
 			return
 
