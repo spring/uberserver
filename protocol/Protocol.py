@@ -3109,7 +3109,7 @@ class Protocol:
 
 		## too-short keys are not allowed
 		if (len(user_data) < CryptoHandler.MIN_AES_KEY_SIZE):
-			client.Send("SHAREDKEY INVALID")
+			client.Send("SHAREDKEY INVALID Shared key to short!")
 			return
 
 		## NOTE:
@@ -3123,6 +3123,9 @@ class Protocol:
 
 			## set (or update) the client's session key
 			client.set_session_key(aes_key_sig.digest())
+		except ValueError as e:
+			client.Send("SHAREDKEY INVALID: %s" %(e))
+			return
 		except:
 			client.Send("SHAREDKEY INVALID")
 			self._root.error(traceback.format_exc())
