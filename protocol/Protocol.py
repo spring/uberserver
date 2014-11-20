@@ -38,6 +38,7 @@ restricted = {
 	# encryption
 	'GETPUBLICKEY',
 	'SETSHAREDKEY',
+	'ACKSHAREDKEY',
 	'GETSIGNEDMSG',
 	],
 'fresh':['LOGIN','REGISTER'],
@@ -3099,15 +3100,16 @@ class Protocol:
 	## NOTE:
 	##   client can still accidentally leak data
 	##
-	##   MITM's (!)
-	##
 	## user_data = ENCODE(ENCRYPT_RSA(AES_KEY, RSA_PUB_KEY))
 	##
 	def in_SETSHAREDKEY(self, client, user_data = ""):
-		## take this to mean the client no longer wants encryption
+		## take "" to mean the client no longer wants encryption
+		## this will be the last encrypted message a client gets
 		if (len(user_data) == 0):
-			client.set_aes_cipher_obj(None)
-			client.Send("SHAREDKEY CLEARED")
+			if (client.use_secure_session()):
+				client.Send("SHAREDKEY CLEARED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
+				client.set_aes_cipher_obj(None)
+				client.set_session_key_acknowledged(False)
 			return
 
 		## too-short keys are not allowed
@@ -3134,9 +3136,22 @@ class Protocol:
 			self._root.error(traceback.format_exc())
 			return
 
-		## notify the client that key was accepted
-		## this will be the first encrypted message
-		client.Send("SHAREDKEY ACCEPTED")
+		## notify the client that key was accepted, this will be
+		## the first encrypted message (client should do NOTHING
+		## before it has received this message and verified that
+		## the key signature matches that of the key sent to the
+		## server, server can NOT communicate further until this
+		## gets acknowledged by ENCODE(ENCRYPT_AES(ACKSHAREDKEY)))
+		client.set_session_key_acknowledged(True)
+		client.Send("SHAREDKEY ACCEPTED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
+		client.set_session_key_acknowledged(False)
+
+	def in_ACKSHAREDKEY(self, client):
+		if (not client.use_secure_session()):
+			return
+
+		## client has acknowledged our SHAREDKEY ACCEPTED response
+		client.set_session_key_acknowledged(True)
 
 	##
 	## sign a client text-message using server's private RSA key

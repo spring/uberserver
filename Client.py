@@ -251,6 +251,10 @@ class Client(BaseClient):
 			msg = self.msg_id + msg
 
 		if (self.use_secure_session()):
+			if (not self.get_session_key_acknowledged()):
+				## TODO: should buffer these until ACK?
+				return
+
 			## apply server-to-client encryption
 			msg = self.aes_cipher_obj.encrypt_encode_bytes_utf8(msg)
 

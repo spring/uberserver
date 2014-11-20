@@ -11,6 +11,7 @@ class BaseClient(object):
 		## randsalt = {"" for old clients, random 16-byte binary string for new clients}
 		## (here "old" means user was registered over an unencrypted link, without salt)
 		self.set_user_pwrd_salt(username, (password, randsalt))
+		self.set_session_key_acknowledged(False)
 
 
 	def set_aes_cipher_obj(self, obj):
@@ -31,11 +32,19 @@ class BaseClient(object):
 		return (len(self.randsalt) == 0)
 
 
+	def set_session_key_acknowledged(self, b): self.session_key_acknowledged = b
+	def get_session_key_acknowledged(self): return self.session_key_acknowledged
+
 	def set_session_key(self, key):
 		if (self.aes_cipher_obj == None):
 			self.set_aes_cipher_obj(CryptoHandler.aes_cipher(""))
 
 		self.aes_cipher_obj.set_key(key)
+
+	def get_session_key(self):
+		if (self.aes_cipher_obj == None):
+			return ""
+		return (self.aes_cipher_obj.get_key())
 
 
 	def set_user_pwrd_salt(self, user_name = "", user_pass_salt = ("", "")):
