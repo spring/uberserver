@@ -6,6 +6,7 @@ python:
    - "3.3"
    - "3.4"
 script:
+   - protocol/Protocol.py
    - ./server.py &
    - sleep 10
    - killall python
