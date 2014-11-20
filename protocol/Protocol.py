@@ -3097,9 +3097,6 @@ class Protocol:
 	## returns ACCEPTED, where DECODE is the standard
 	## base64 decoding scheme
 	##
-	## NOTE:
-	##   client can still accidentally leak data
-	##
 	## user_data = ENCODE(ENCRYPT_RSA(AES_KEY, RSA_PUB_KEY))
 	##
 	def in_SETSHAREDKEY(self, client, user_data = ""):

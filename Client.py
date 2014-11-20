@@ -33,7 +33,8 @@ class Client(BaseClient):
 		self.removing = False
 		self.sendError = False
 		self.msg_id = ''
-		self.sendbuffer = []
+		self.msg_sendbuffer = []
+		self.enc_sendbuffer = []
 		self.sendingmessage = ''
 
 		## note: this NEVER becomes false after LOGIN!
@@ -238,49 +239,64 @@ class Client(BaseClient):
 
 
 	def Remove(self, reason='Quit'):
-		while self.sendbuffer:
+		while self.msg_sendbuffer:
 			self.FlushBuffer()
 		self.handler.finishRemove(self, reason)
 
 	def Send(self, msg, binary = False):
 		# don't append new data to send buffer when client gets removed
-		if not msg or self.removing:
+		if ((not msg) or self.removing):
 			return
 
-		if self.handler.thread == thread.get_ident():
+		if (self.handler.thread == thread.get_ident()):
 			msg = self.msg_id + msg
 
-		if (self.use_secure_session()):
-			if (not self.get_session_key_acknowledged()):
-				## TODO: should buffer these until ACK?
-				return
 
+		if (self.use_secure_session()):
 			## apply server-to-client encryption
 			msg = self.aes_cipher_obj.encrypt_encode_bytes_utf8(msg)
+
+			if (not self.get_session_key_acknowledged()):
+				## buffer encrypted data until we get client ACK
+				## (the most recent message will be at the back)
+				##
+				## note: should not normally contain anything of
+				## value, server has little to send before LOGIN
+				self.enc_sendbuffer.append(msg)
+				return
+			else:
+				## reverse so message order is newest to oldest
+				self.enc_sendbuffer.reverse()
+
+				## pop from back so client receives in the proper
+				## order, with <msg> itself after the queued data
+				while (len(self.enc_sendbuffer) > 0):
+					self.msg_sendbuffer.append(self.enc_sendbuffer.pop() + self.nl)
 
 			## send the output as-is (base64 is all ASCII)
 			binary = True
 
+
 		if (binary):
-			self.sendbuffer.append(msg + self.nl)
+			self.msg_sendbuffer.append(msg + self.nl)
 		else:
-			self.sendbuffer.append(msg.encode("utf-8") + self.nl)
+			self.msg_sendbuffer.append(msg.encode("utf-8") + self.nl)
 
 		self.handler.poller.setoutput(self.conn, True)
 
 	def FlushBuffer(self):
 		# client gets removed, delete buffers
 		if self.removing:
-			self.sendbuffer = []
+			self.msg_sendbuffer = []
 			self.sendingmessage = None
 			return
 		if not self.sendingmessage:
 			message = ''
 			while not message:
-				if not self.sendbuffer: # just in case, since it returns before going to the end...
+				if not self.msg_sendbuffer: # just in case, since it returns before going to the end...
 					self.handler.poller.setoutput(self.conn, False)
 					return
-				message = self.sendbuffer.pop(0)
+				message = self.msg_sendbuffer.pop(0)
 			self.sendingmessage = message
 		senddata = self.sendingmessage# [:64] # smaller chunks interpolate better, maybe base this off of number of clients?
 		try:
@@ -292,10 +308,10 @@ class Client(BaseClient):
 		except socket.error, e:
 			if e == errno.EAGAIN:
 				return
-			self.sendbuffer = []
+			self.msg_sendbuffer = []
 			self.sendingmessage = None
 		
-		self.handler.poller.setoutput(self.conn, bool(self.sendbuffer or self.sendingmessage))
+		self.handler.poller.setoutput(self.conn, bool(self.msg_sendbuffer or self.sendingmessage))
 	
 	# Queuing
 	
