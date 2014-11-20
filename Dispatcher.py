@@ -1,5 +1,6 @@
+
 import Multiplexer, Client
-import socket, thread, traceback
+import socket, traceback
 from protocol import Protocol, Channel
 
 class Dispatcher:
@@ -10,9 +11,6 @@ class Dispatcher:
 		self.socketmap = {}
 		self.workers = []
 		self.protocol = Protocol.Protocol(root)
-		# legacy vars
-		self.thread = thread.get_ident()
-		self.num = 0
 	
 	def pump(self):
 		self.poller.register(self.server)
@@ -24,11 +22,11 @@ class Dispatcher:
 				if s == self.server:
 					try:
 						conn, addr = self.server.accept()
-					except socket.error, e:
+					except socket.error as e:
 						if e[0] == 24: # ulimit maxfiles, need to raise ulimit
 							self._root.console_write('Maximum files reached, refused new connection.')
 						else:
-							raise socket.error, e
+							raise socket.error(e)
 					client = Client.Client(self._root, conn, addr, self._root.session_id)
 					self.addClient(client)
 				else:
@@ -40,7 +38,7 @@ class Dispatcher:
 							else:
 								self._root.console_write('Problem, sockets are not being cleaned up properly.')
 						else:
-							raise socket.error, 'Connection closed.'
+							raise socket.error('Connection closed.')
 					except socket.error:
 						self.removeSocket(s)
 			
