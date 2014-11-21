@@ -16,6 +16,7 @@ except:
 	from urllib.request import urlopen
 
 sys.path.append("protocol")
+sys.path.append(".")
 
 from DataHandler import DataHandler
 from Client import Client
