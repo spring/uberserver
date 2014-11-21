@@ -64,11 +64,13 @@ class Client(BaseClient):
 		self.hostport = None
 		self.udpport = 0
 		self.bot = 0
-		self.floodlimit = {'fresh':{'msglength':1024, 'bytespersecond':1024, 'seconds':2},
-					'user':{'msglength':1024, 'bytespersecond':1024, 'seconds':10},
-					'bot':{'msglength':1024, 'bytespersecond':10000, 'seconds':5},
-					'mod':{'msglength':10000, 'bytespersecond':10000, 'seconds':10},
-					'admin':{'msglength':10000, 'bytespersecond':100000, 'seconds':10},}
+		self.floodlimit = {
+			'fresh':{'msglength':1024*32, 'bytespersecond':1024*32, 'seconds':2},
+			'user':{'msglength':1024*32, 'bytespersecond':1024*32, 'seconds':10},
+			'bot':{'msglength':1024, 'bytespersecond':10000, 'seconds':5},
+			'mod':{'msglength':10000, 'bytespersecond':10000, 'seconds':10},
+			'admin':{'msglength':10000, 'bytespersecond':100000, 'seconds':10},
+		}
 		self.msglengthhistory = {}
 		self.lastsaid = {}
 		self.nl = '\n'

@@ -178,7 +178,7 @@ class LobbyClient:
 		## hence we send ENCODE(ENCRYPT(RAW)) and use HASH(RAW) on our side too
 		aes_key_raw = GLOBAL_RAND_POOL.read(CryptoHandler.MIN_AES_KEY_SIZE * 2)
 		aes_key_sig = SECURE_HASH_FUNC(aes_key_raw)
-		aes_key_str = self.rsa_cipher_obj.encrypt_encode_bytes(aes_key_raw)
+		aes_key_enc = self.rsa_cipher_obj.encrypt_encode_bytes(aes_key_raw)
 
 		if (self.aes_cipher_obj == None):
 			self.aes_cipher_obj = aes_cipher("")
@@ -187,16 +187,16 @@ class LobbyClient:
 		## encrypt response with it (if key is accepted)
 		self.aes_cipher_obj.set_key(aes_key_sig.digest())
 
-		print("[SETSHAREDKEY][time=%d::iter=%d] sha(raw)=%s aes(raw)=%s" % (time.time(), self.iters, self.aes_cipher_obj.get_key(), aes_key_str))
+		print("[SETSHAREDKEY][time=%d::iter=%d] sha(raw)=%s enc(raw)=%s..." % (time.time(), self.iters, self.aes_cipher_obj.get_key(), aes_key_enc[0: 8]))
 
 		## ENCODE(ENCRYPT_RSA(AES_KEY, RSA_PUB_KEY))
-		self.Send("SETSHAREDKEY %s" % aes_key_str)
+		self.Send("SETSHAREDKEY %s" % aes_key_enc)
 		self.sent_shared_key = True
 
 	def out_ACKSHAREDKEY(self):
 		assert(self.received_public_key)
 		assert(self.sent_shared_key)
-		assert(not self.valid_shared_key)
+		assert(self.valid_shared_key)
 		assert(not self.acked_shared_key)
 
 		print("[ACKSHAREDKEY][time=%d::iter=%d]" % (time.time(), self.iters))
@@ -401,7 +401,8 @@ class LobbyClient:
 							try:
 								decoded = DECODE_FUNC(raw_command)
 							except Exception as e:
-								decoded = "Couldn't decode: %s" % (e)
+								decoded = "could not decode \"%s...\" (%s)" % (raw_command[0: 8], e)
+
 							print("[time=%d::iters=%d] can't decrypt '%s' (%s): " % (time.time(), self.iters, raw_command, decoded))
 							continue
 
