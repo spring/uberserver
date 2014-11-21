@@ -9,6 +9,7 @@ import socket
 from Channel import Channel
 from Battle import Battle
 
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
 import CryptoHandler
 
 from CryptoHandler import MD5LEG_HASH_FUNC as LEGACY_HASH_FUNC
