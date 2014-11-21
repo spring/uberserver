@@ -804,7 +804,7 @@ class Protocol:
 		Register a new user in the account database.
 
 		@required.str username: Username to register
-		@required.str password: Password to use (base64-encoded)
+		@required.str password: Password to use (old-style: BASE64(MD5(...)) or plaintext, new-style: plaintext)
 		'''
 		if (not client.use_secure_session() and (self.force_secure_auth() or self.force_secure_comm())):
 			client.Send("REGISTRATIONDENIED %s" % ("Unencrypted registrations are not allowed."))
@@ -821,6 +821,7 @@ class Protocol:
 			return
 
 		if (client.use_secure_session()):
+			## now password is in plaintext (but REGISTER encrypted)
 			good, reason = self._validNewPasswordSyntax(password)
 
 			if (not good):
@@ -862,7 +863,7 @@ class Protocol:
 		Attempt to login the active client.
 
 		@required.str username: Username
-		@required.str password: Password (base64-encoded)
+		@required.str password: Password (old-style: BASE64(MD5(...)) or plaintext, new-style: plaintext)
 		@optional.int cpu: CPU speed
 		@optional.ip local_ip: LAN IP address, sent to clients when they have the same WAN IP as host
 		@optional.sentence.str lobby_id: Lobby name and version
@@ -941,6 +942,7 @@ class Protocol:
 
 		try:
 			if (client.use_secure_session()):
+				## now password is in plaintext (but LOGIN encrypted)
 				good, reason = self._validNewPasswordSyntax(password)
 
 				if (client.has_insecure_password()):
@@ -3219,7 +3221,7 @@ class Protocol:
 
 	def out_FAILED(self, client, cmd, message, log = False):
 		'''
-			send to a client when a command failed
+			send to a client when a command failed (CURRENTLY ONLY SET{BATTLE,SCRIPTTAGS})
 		'''
 		client.Send('FAILED %s %s' %(cmd, message))
 		if log:

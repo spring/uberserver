@@ -160,7 +160,7 @@ class rsa_cipher:
 		return (self.decode_decrypt_bytes(enc_bytes.encode(UNICODE_ENCODING), decode_func))
 
 	def encrypt_encode_bytes(self, raw_bytes, encode_func = base64.b64encode):
-		assert(type(raw_bytes) == type(""))
+		assert(type(raw_bytes) == str)
 		assert(len(raw_bytes) != 0)
 		assert(self.pub_key.size() >= (len(raw_bytes) * 8))
 
@@ -172,7 +172,7 @@ class rsa_cipher:
 		return (encode_func(enc_bytes[0]))
 
 	def decode_decrypt_bytes(self, enc_bytes, decode_func = base64.b64decode):
-		assert(type(enc_bytes) == type(""))
+		assert(type(enc_bytes) == str)
 		assert(len(enc_bytes) != 0)
 		## assert((self.pri_key.size() + 1) == (len(decode_func(enc_bytes)) * 8))
 
@@ -192,7 +192,7 @@ class rsa_cipher:
 		return (self.auth_bytes(msg_bytes.encode(UNICODE_ENCODING), sig_bytes))
 
 	def sign_bytes(self, msg_bytes):
-		assert(type(msg_bytes) == type(""))
+		assert(type(msg_bytes) == str)
 		assert(len(msg_bytes) != 0)
 
 		if (self.msg_sign_scheme != None):
@@ -205,7 +205,7 @@ class rsa_cipher:
 		return ret
 
 	def auth_bytes(self, msg_bytes, sig_bytes):
-		assert(type(msg_bytes) == type(""))
+		assert(type(msg_bytes) == str)
 		assert(len(msg_bytes) != 0)
 
 		if (self.msg_auth_scheme != None):
@@ -222,7 +222,7 @@ class rsa_cipher:
 
 class aes_cipher:
 	def __init__(self, key_dir = AES_KEY_DIR_NAME, padding_length = AES_MSG_PAD_SIZE):
-		assert(type(key_dir) == type(""))
+		assert(type(key_dir) == str)
 		assert((padding_length % 16) == 0)
 
 		self.pad_length = padding_length
@@ -277,7 +277,7 @@ class aes_cipher:
 		return (self.decode_decrypt_bytes(enc_bytes.encode(UNICODE_ENCODING), decode_func))
 
 	def encrypt_encode_bytes(self, raw_bytes, encode_func = base64.b64encode):
-		assert(type(raw_bytes) == type(""))
+		assert(type(raw_bytes) == str)
 		assert(len(raw_bytes) != 0)
 
 		ini_vector = self.random_gen.read(AES.block_size)
@@ -289,7 +289,7 @@ class aes_cipher:
 		return (encode_func(ini_vector + enc_bytes))
 
 	def decode_decrypt_bytes(self, enc_bytes, decode_func = base64.b64decode):
-		assert(type(enc_bytes) == type(""))
+		assert(type(enc_bytes) == str)
 		assert(len(enc_bytes) != 0)
 
 		enc_bytes = decode_func(enc_bytes)

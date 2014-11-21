@@ -284,8 +284,8 @@ class UsersHandler:
 			return (rand_pool.read(num_salt_bytes))
 
 		def gen_user_hash(user_pwrd, user_salt, hash_func = SHA256_HASH_FUNC):
-			assert(type(user_pwrd) == type(""))
-			assert(type(user_salt) == type(""))
+			assert(type(user_pwrd) == str)
+			assert(type(user_salt) == str)
 
 			user_hash = hash_func(user_pwrd + user_salt)
 
