@@ -11,6 +11,7 @@ install:
 script:
    - protocol/Protocol.py
    - ./server.py &
+   - sleep 10 # wait for server to start up
    - ./testclient.py
-   - sleep 5
+   - sleep 10 # give server some time to write log, etc
    - killall python
