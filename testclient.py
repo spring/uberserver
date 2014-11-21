@@ -53,7 +53,7 @@ class LobbyClient:
 		self.requested_authentication = False
 		self.requested_registration = True
 		self.accepted_authentication = False
-		self.accepted_registration = False
+		self.accepted_registration = True
 
 		self.aes_cipher_obj = None
 		self.rsa_cipher_obj = rsa_cipher("")
@@ -70,6 +70,7 @@ class LobbyClient:
 
 	def Send(self, data):
 		assert(type(data) == str)
+		print("[Send][time=%d::iter=%d] data=%s" % (time.time(), self.iters, data))
 
 		if (self.acked_shared_key):
 			assert(self.use_secure_session())
@@ -354,10 +355,11 @@ class LobbyClient:
 				return
 
 			## create an account for us and hop on with it
-			if (self.acked_shared_key and (not self.requested_registration)):
-				self.out_REGISTER()
-			if (self.acked_shared_key and (not self.requested_authentication)):
-				self.out_LOGIN()
+			if (self.acked_shared_key):
+				if (not self.requested_registration):
+					self.out_REGISTER()
+				if (self.accepted_registration and (not self.requested_authentication)):
+					self.out_LOGIN()
 
 			try:
 				sdata += self.socket.recv(4096)
