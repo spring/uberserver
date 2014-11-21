@@ -199,8 +199,8 @@ class Protocol:
 		## server restarts (clients should NEVER cache the public key!)
 		self.rsa_cipher_obj.export_keys(root.crypto_key_dir)
 
-	def force_secure_auth(self): return (self.root.force_secure_auths)
-	def force_secure_comm(self): return (self.root.force_secure_comms)
+	def force_secure_auth(self): return (self._root.force_secure_auths)
+	def force_secure_comm(self): return (self._root.force_secure_comms)
 
 	def _new(self, client):
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0'))
