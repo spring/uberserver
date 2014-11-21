@@ -51,7 +51,7 @@ class LobbyClient:
 		self.iters = 0
 
 		self.username = username
-		self.password = "Keep it secret. Keep it safe."
+		self.password = "KeepItSecret.KeepItSafe."
 
 		self.requested_authentication = False
 		self.requested_registration = True
@@ -403,7 +403,7 @@ class LobbyClient:
 							except Exception as e:
 								decoded = "could not decode \"%s...\" (%s)" % (raw_command[0: 8], e)
 
-							print("[time=%d::iters=%d] can't decrypt '%s' (%s): " % (time.time(), self.iters, raw_command, decoded))
+							print("[time=%d::iters=%d] could not decrypt '%s' (%s): " % (time.time(), self.iters, raw_command, decoded))
 							continue
 
 						dec_commands = dec_command.split(DATA_SEPAR)

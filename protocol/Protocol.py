@@ -566,7 +566,7 @@ class Protocol:
 	## entropy (strength)
 	def _validNewPasswordSyntax(self, password):
 		if (len(password >= CryptoHandler.MIN_PASSWORD_LEN)):
-			return True, ""
+			return (password.count(" ") == 0), ""
 		return False, ("Password too short: %d or more characters required." % CryptoHandler.MIN_PASSWORD_LEN)
 
 
@@ -884,7 +884,7 @@ class Protocol:
 			return
 		if (client.use_secure_session() and (not client.get_session_key_acknowledged())):
 			client.push_session_key_acknowledged()
-			self.out.DENIED(client, username, "Encrypted logins without prior key-acknowledgement are not allowed.")
+			self.out_DENIED(client, username, "Encrypted logins without prior key-acknowledgement are not allowed.")
 			return
 
 		# FIXME: is checked first because of a springie bug
