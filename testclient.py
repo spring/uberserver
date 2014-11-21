@@ -201,8 +201,10 @@ class LobbyClient:
 
 		print("[ACKSHAREDKEY][time=%d::iter=%d]" % (time.time(), self.iters))
 
-		self.Send("ACKSHAREDKEY")
+		## needs to be set before the call, otherwise the message gets
+		## dropped (since ACKSHAREDKEY is not in ALLOWED_OPEN_COMMANDS)
 		self.acked_shared_key = True
+		self.Send("ACKSHAREDKEY")
 
 
 
@@ -398,12 +400,7 @@ class LobbyClient:
 						try:
 							dec_command = self.aes_cipher_obj.decode_decrypt_bytes(raw_command)
 						except:
-							try:
-								decoded = DECODE_FUNC(raw_command)
-							except Exception as e:
-								decoded = "could not decode \"%s...\" (%s)" % (raw_command[0: 8], e)
-
-							print("[time=%d::iters=%d] could not decrypt '%s' (%s): " % (time.time(), self.iters, raw_command, decoded))
+							print("[time=%d::iters=%d] could not decode or decrypt \"%s\": " % (time.time(), self.iters, raw_command))
 							continue
 
 						dec_commands = dec_command.split(DATA_SEPAR)
