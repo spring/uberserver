@@ -115,7 +115,7 @@ class LobbyClient:
 			return True
 
 
-		# bunch the last words together if there are too many of them
+		## bunch the last words together if there are too many of them
 		if (numspaces > total_args - 1):
 			arguments = args.split(' ', total_args - 1)
 		else:
@@ -125,7 +125,7 @@ class LobbyClient:
 			function(*(arguments))
 			return True
 		except Exception, e:
-			print("Error handling : %s %s" % (msg, e))
+			print("Error handling: \"%s\" %s" % (msg, e))
 			return False
 
 
@@ -169,9 +169,10 @@ class LobbyClient:
 		assert(not self.valid_shared_key)
 		assert(not self.acked_shared_key)
 
-		## note: server will use HASH(raw) as key and echo back HASH(HASH(raw))
+		## note: server will use HASH(RAW) as key and echo back HASH(HASH(RAW))
+		## hence we send ENCODE(ENCRYPT(RAW)) and use HASH(RAW) on our side too
 		aes_key_raw = GLOBAL_RAND_POOL.read(CryptoHandler.MIN_AES_KEY_SIZE * 2)
-		aes_key_sha = SECURE_HASH_FUNC(aes_key_raw)
+		aes_key_sig = SECURE_HASH_FUNC(aes_key_raw)
 		aes_key_str = self.rsa_cipher_object.encrypt_encode_bytes(aes_key_raw)
 
 		if (self.aes_cipher_obj == None):
@@ -179,7 +180,7 @@ class LobbyClient:
 
 		## start using the key immediately, server will
 		## encrypt response with it (if key is accepted)
-		self.aes_cipher_obj.set_key(aes_key_sha.digest())
+		self.aes_cipher_obj.set_key(aes_key_sig.digest())
 
 		print("[SETSHAREDKEY][time=%d::iter=%d] sha(raw)=%s aes(raw)=%s" % (time.time(), self.iters, self.aes_cipher_obj.get_key(), aes_key_str))
 
@@ -377,14 +378,23 @@ class LobbyClient:
 					raw_command = raw_command.encode("utf-8")
 
 					if (self.use_secure_session()):
+						## after decryption dec_command might represent a
+						## batch of commands separated by newlines, which
+						## all need to be handled successfully
 						dec_command = self.aes_cipher_obj.decode_decrypt_bytes(raw_command)
-						## dec_commands = dec_command.split(DATA_SEPAR)
-						## dec_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in dec_commands]
+						dec_commands = dec_command.split(DATA_SEPAR)
+						dec_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in dec_commands]
+						num_handled = 0
 
-						## if decryption produced garbage causing handle
-						## to fail, try to interpret the raw bytes (TODO
-						## embedded newlines)
-						self.handle(dec_command) or self.handle(raw_command)
+						for dec_command in dec_commands:
+							num_handled += int(self.handle(dec_command))
+
+						## if decryption produced garbage (e.g. because
+						## raw_command was sent as plaintext: SHAREDKEY
+						## INVALID) and caused handle() to fail, try to
+						## interpret the raw bytes
+						if (num_handled < len(dec_commands)):
+							self.handle(raw_command)
 					else:
 						self.handle(raw_command)
 
