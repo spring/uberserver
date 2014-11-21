@@ -231,10 +231,11 @@ class LobbyClient:
 		can_send_ack_shared_key = False
 
 		if (arg0 == "ACCEPTED"):
-			server_key_digest = DECODE_FUNC(arg1)
-			client_key_digest = SECURE_HASH_FUNC(self.aes_cipher_obj.get_key())
+			server_key_sig = DECODE_FUNC(arg1)
+			client_key_str = SECURE_HASH_FUNC(self.aes_cipher_obj.get_key())
+			client_key_sig = client_key_str.digest()
 
-			print("\tserver_key_digest=%s client_key_digest=%s" % (server_key_digest, client_key_digest))
+			print("\tserver_key_sig=%s client_key_sig=%s" % (server_key_sig, client_key_sig))
 
 			## server considers key valid and has accepted it
 			self.valid_shared_key = True
