@@ -565,9 +565,15 @@ class Protocol:
 	## require only a few characters and do not check their
 	## entropy (strength)
 	def _validNewPasswordSyntax(self, password):
-		if (len(password >= CryptoHandler.MIN_PASSWORD_LEN)):
-			return (password.count(" ") == 0), ""
-		return False, ("Password too short: %d or more characters required." % CryptoHandler.MIN_PASSWORD_LEN)
+		if (password.count(" ") != 0):
+			return False, "Password contains one or more WS characters."
+		if (password.count("\n") != 0):
+			return False, "Password contains one or more LF characters."
+		if (password.count("\r") != 0):
+			return False, "Password contains one or more CR characters."
+		if (len(password < CryptoHandler.MIN_PASSWORD_LEN)):
+			return False, ("Password too short: %d or more characters required." % CryptoHandler.MIN_PASSWORD_LEN)
+		return True, ""
 
 
 	def _validUsernameSyntax(self, username):
