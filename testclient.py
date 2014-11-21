@@ -26,7 +26,9 @@ BACKUP_SERVERS = [
 ]
 
 ## commands that are allowed to be sent unencrypted
-ALLOWED_OPEN_COMMANDS = ["GETPUBLICKEY", "SETSHAREDKEY", "ACKSHAREDKEY", "EXIT"]
+## (after session key is established, any subsequent
+## SETSHAREDKEY commands will be encrypted entirely)
+ALLOWED_OPEN_COMMANDS = ["GETPUBLICKEY", "SETSHAREDKEY", "EXIT"]
 
 class LobbyClient:
 	def __init__(self, server_addr, username):
