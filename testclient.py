@@ -212,9 +212,14 @@ class LobbyClient:
 		assert(not self.valid_shared_key)
 		assert(not self.acked_shared_key)
 
-		rsa_pub_key_obj = self.rsa_cipher_obj.get_pub_key()
 		rsa_pub_key_str = DECODE_FUNC(arg)
-		rsa_pub_key_obj.importKey(rsa_pub_key_str)
+		rsa_pub_key_obj = self.rsa_cipher_obj.import_key(rsa_pub_key_str)
+
+		## note: private key will be useless hereafter, but WDC
+		self.rsa_cipher_obj.set_pub_key(rsa_pub_key_obj)
+		## these should be equal to the server-side schemes
+		self.rsa_cipher_obj.set_pad_scheme(CryptoHandler.RSA_PAD_SCHEME)
+		self.rsa_cipher_obj.set_sgn_scheme(CryptoHandler.RSA_SGN_SCHEME)
 
 		print("[PUBLICKEY][time=%d::iter=%d] %s" % (time.time(), self.iters, rsa_pub_key_str))
 

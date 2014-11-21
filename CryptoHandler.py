@@ -127,6 +127,9 @@ class rsa_cipher:
 		return True
 
 
+	def import_key(self, key_str):
+		return (RSA.importKey(key_str))
+
 	def import_keys(self, key_dir):
 		assert(len(key_dir) == 0 or key_dir[-1] == '/')
 
@@ -134,8 +137,8 @@ class rsa_cipher:
 		pri_key_str = read_file(key_dir + RSA_PRI_KEY_FILE, "r")
 
 		if (len(pub_key_str) != 0 and len(pri_key_str) != 0):
-			self.set_pub_key(RSA.importKey(pub_key_str))
-			self.set_pri_key(RSA.importKey(pri_key_str))
+			self.set_pub_key(self.import_key(pub_key_str))
+			self.set_pri_key(self.import_key(pri_key_str))
 			return True
 
 		return False
