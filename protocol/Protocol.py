@@ -2,7 +2,6 @@
 # coding=utf-8
 
 import inspect, time, re
-import base64
 import json
 
 import traceback, sys, os
@@ -12,13 +11,11 @@ from Battle import Battle
 
 import CryptoHandler
 
+from CryptoHandler import MD5LEG_HASH_FUNC as LEGACY_HASH_FUNC
+from CryptoHandler import SHA256_HASH_FUNC as SECURE_HASH_FUNC
 
-
-LEGACY_HASH_FUNC = CryptoHandler.MD5LEG_HASH_FUNC
-SECURE_HASH_FUNC = CryptoHandler.SHA256_HASH_FUNC
-
-ENCODE_FUNC = base64.b64encode
-DECODE_FUNC = base64.b64decode
+from base64 import b64encode as ENCODE_FUNC
+from base64 import b64decode as DECODE_FUNC
 
 
 
@@ -38,6 +35,7 @@ restricted = {
 	# encryption
 	'GETPUBLICKEY',
 	'SETSHAREDKEY',
+	'ACKSHAREDKEY',
 	'GETSIGNEDMSG',
 	],
 'fresh':['LOGIN','REGISTER'],
@@ -196,11 +194,13 @@ class Protocol:
 		self.stats = {}
 
 		## generates new keys if directory is empty, otherwise imports
-		self.rsa_cipher_obj = CryptoHandler.rsa_cipher("server-rsa-keys/")
+		self.rsa_cipher_obj = CryptoHandler.rsa_cipher(root.crypto_key_dir)
 		## no-op if keys are already present, otherwise just speeds up
 		## server restarts (clients should NEVER cache the public key!)
-		self.rsa_cipher_obj.export_keys("server-rsa-keys/")
+		self.rsa_cipher_obj.export_keys(root.crypto_key_dir)
 
+	def force_secure_auth(self): return (self.root.force_secure_auths)
+	def force_secure_comm(self): return (self.root.force_secure_comms)
 
 	def _new(self, client):
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0'))
@@ -806,6 +806,14 @@ class Protocol:
 		@required.str username: Username to register
 		@required.str password: Password to use (base64-encoded)
 		'''
+		if (not client.use_secure_session() and (self.force_secure_auth() or self.force_secure_comm())):
+			client.Send("REGISTRATIONDENIED %s" % ("Unencrypted registrations are not allowed."))
+			return
+		if (client.use_secure_session() and (not client.get_session_key_acknowledged())):
+			client.push_session_key_acknowledged()
+			client.Send("REGISTRATIONDENIED %s" % ("Encrypted registrations without prior key-acknowledgement are not allowed."))
+			return
+
 		good, reason = self._validUsernameSyntax(username)
 
 		if (not good):
@@ -869,13 +877,21 @@ class Protocol:
 		et: When client joins a channel, sends NOCHANNELTOPIC if the channel has no topic.
 		eb: Enables receiving extended battle commands, like BATTLEOPENEDEX
 		'''
+		if (not client.use_secure_session() and (self.force_secure_auth() or self.force_secure_comm())):
+			self.out_DENIED(client, username, "Unencrypted logins are not allowed.")
+			return
+		if (client.use_secure_session() and (not client.get_session_key_acknowledged())):
+			client.push_session_key_acknowledged()
+			self.out.DENIED(client, username, "Encrypted logins without prior key-acknowledgement are not allowed.")
+			return
+
 		# FIXME: is checked first because of a springie bug
 		if username in self._root.usernames:
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
 
 		if client.failed_logins > 2:
-			self.out_DENIED(client, username, "to many failed logins")
+			self.out_DENIED(client, username, "Too many failed logins.")
 			return
 		ok, reason = self._validUsernameSyntax(username)
 		if not ok:
@@ -920,7 +936,7 @@ class Protocol:
 
 
 		if (not password):
-			self.out_DENIED(client, username, "Empty password")
+			self.out_DENIED(client, username, "Empty password.")
 			return
 
 		try:
@@ -3096,20 +3112,25 @@ class Protocol:
 	## returns ACCEPTED, where DECODE is the standard
 	## base64 decoding scheme
 	##
-	## NOTE: client can still accidentally leak data
-	##
 	## user_data = ENCODE(ENCRYPT_RSA(AES_KEY, RSA_PUB_KEY))
 	##
 	def in_SETSHAREDKEY(self, client, user_data = ""):
-		## take this to mean the client no longer wants encryption
+		## take "" to mean the client no longer wants encryption
+		## this will be the last encrypted message a client gets
+		## (unless the server enforces secure communications, in
+		## which case sending unencrypted data after key exchange
+		## is pointless because server will always try to decrypt
+		## it and be left with garbage in _handle)
 		if (len(user_data) == 0):
-			client.set_aes_cipher_obj(None)
-			client.Send("SHAREDKEY CLEARED")
+			if (client.use_secure_session() and (not self.force_secure_comm())):
+				client.Send("SHAREDKEY CLEARED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
+				client.set_aes_cipher_obj(None)
+				client.set_session_key_acknowledged(False)
 			return
 
 		## too-short keys are not allowed
 		if (len(user_data) < CryptoHandler.MIN_AES_KEY_SIZE):
-			client.Send("SHAREDKEY INVALID Shared key to short!")
+			client.Send("SHAREDKEY INVALID (%d bytes missing)" % (CryptoHandler.MIN_AES_KEY_SIZE - len(user_data)))
 			return
 
 		## NOTE:
@@ -3124,16 +3145,28 @@ class Protocol:
 			## set (or update) the client's session key
 			client.set_session_key(aes_key_sig.digest())
 		except ValueError as e:
-			client.Send("SHAREDKEY INVALID: %s" %(e))
+			client.Send("SHAREDKEY INVALID (exception %s)" % (e))
 			return
 		except:
-			client.Send("SHAREDKEY INVALID")
+			client.Send("SHAREDKEY INVALID (stacktrace %s)" % (traceback.format_exc()))
 			self._root.error(traceback.format_exc())
 			return
 
-		## notify the client that key was accepted
-		## this will be the first encrypted message
-		client.Send("SHAREDKEY ACCEPTED")
+		## notify the client that key was accepted, this will be
+		## the first encrypted message (client should do NOTHING
+		## before it has received this message and verified that
+		## the key signature matches that of the key sent to the
+		## server, server can NOT communicate further until this
+		## gets acknowledged by ENCODE(ENCRYPT_AES(ACKSHAREDKEY)))
+		client.push_session_key_acknowledged()
+		client.Send("SHAREDKEY ACCEPTED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
+
+	def in_ACKSHAREDKEY(self, client):
+		if (not client.use_secure_session()):
+			return
+
+		## client has acknowledged our SHAREDKEY ACCEPTED response
+		client.set_session_key_acknowledged(True)
 
 	##
 	## sign a client text-message using server's private RSA key
@@ -3165,6 +3198,7 @@ class Protocol:
 		'''
 		if inc:
 			client.failed_logins = client.failed_logins + 1
+
 		client.Send("DENIED %s" %(reason))
 		self._root.console_write('Handler %s:%s Failed to log in user <%s>: %s.'%(client.handler.num, client.session_id, username, reason))
 
@@ -3210,3 +3244,4 @@ if __name__ == '__main__':
 	f.close()
 
 	print 'Protocol documentation written to docs/protocol.txt'
+
