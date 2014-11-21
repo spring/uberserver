@@ -217,6 +217,9 @@ class LobbyClient:
 
 		## note: private key will be useless hereafter, but WDC
 		self.rsa_cipher_obj.set_pub_key(rsa_pub_key_obj)
+		## can not do this explicitly (scheme.new() will fail)
+		## self.rsa_cipher_obj.set_pri_key(None)
+
 		## these should be equal to the server-side schemes
 		self.rsa_cipher_obj.set_pad_scheme(CryptoHandler.RSA_PAD_SCHEME)
 		self.rsa_cipher_obj.set_sgn_scheme(CryptoHandler.RSA_SGN_SCHEME)
