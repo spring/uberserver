@@ -835,7 +835,7 @@ class Protocol:
 				client.Send("REGISTRATIONDENIED %s" % (reason))
 				return
 
-			good, reason = secure_register_user(self, username, password, client.ip_address, client.country_code)
+			good, reason = self.userdb.secure_register_user(username, password, client.ip_address, client.country_code)
 		else:
 			if (client.hashpw):
 				## in this case REGISTER password was sent in plaintext

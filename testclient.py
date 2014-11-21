@@ -53,13 +53,15 @@ class LobbyClient:
 		self.username = username
 		self.password = "KeepItSecret.KeepItSafe."
 
+		self.aes_cipher_obj = None
+		self.rsa_cipher_obj = rsa_cipher("")
+
+		self.server_info = ("", "", "", "")
+
 		self.requested_authentication = False
 		self.requested_registration = True
 		self.accepted_authentication = False
 		self.accepted_registration = True
-
-		self.aes_cipher_obj = None
-		self.rsa_cipher_obj = rsa_cipher("")
 
 		self.want_secure_session = True
 		self.requested_public_key = False
@@ -145,13 +147,12 @@ class LobbyClient:
 
 		self.requested_authentication = True
 
-	def out_REGISTER(self, protocolVersion, springVersion, udpPort, serverMode):
+	def out_REGISTER(self):
 		print("[REGISTER][time=%d::iter=%d]" % (time.time(), self.iters))
 
 		if (self.use_secure_session()):
-			self.send("REGISTER %s %s" % (self.username, self.password))
+			self.Send("REGISTER %s %s" % (self.username, self.password))
 		else:
-			## print("%s %s %s %s" % (protocolVersion, springVersion, udpPort, serverMode))
 			self.Send("REGISTER %s %s" % (self.username, ENCODE_FUNC(MD5LEG_HASH_FUNC(self.username).digest())))
 
 		self.requested_registration = True
@@ -276,6 +277,7 @@ class LobbyClient:
 
 	def in_TASSERVER(self, protocolVersion, springVersion, udpPort, serverMode):
 		print("[TASSERVER][time=%d::iter=%d] proto=%s spring=%s udp=%s mode=%s" % (time.time(), self.iters, protocolVersion, springVersion, udpPort, serverMode))
+		self.server_info = (protocolVersion, springVersion, udpPort, serverMode)
 
 	def in_SERVERMSG(self, msg):
 		print("[SERVERMSG][time=%d::iter=%d] %s" % (time.time(), self.iters, msg))
