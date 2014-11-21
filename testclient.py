@@ -15,7 +15,6 @@ from base64 import b64encode as ENCODE_FUNC
 from base64 import b64decode as DECODE_FUNC
 
 NUM_THREADS = 1
-
 DATA_SEPAR = "\n"
 
 HOST_SERVER = ("localhost", 8200)
@@ -25,6 +24,9 @@ BACKUP_SERVERS = [
 	("lobby1.springlobby.info", 8200),
 	("lobby2.springlobby.info", 8200),
 ]
+
+## commands that are allowed to be sent unencrypted
+ALLOWED_OPEN_COMMANDS = ["GETPUBLICKEY", "SETSHAREDKEY", "ACKSHAREDKEY", "EXIT"]
 
 class LobbyClient:
 	def __init__(self, server_addr, username):
@@ -75,8 +77,11 @@ class LobbyClient:
 
 			self.socket.send(data + DATA_SEPAR)
 		else:
-			## TODO: only allow GETPUBLICKEY / SETSHAREDKEY / ACKSHAREDKEY
-			self.socket.send(data.encode("utf-8") + DATA_SEPAR)
+			sentence = data.split()
+			command = sentence[0]
+
+			if (command in ALLOWED_OPEN_COMMANDS):
+				self.socket.send(data.encode("utf-8") + DATA_SEPAR)
 
 
 	def handle(self, msg):
