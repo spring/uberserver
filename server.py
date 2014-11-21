@@ -1,8 +1,21 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-import thread, traceback, signal, socket, sys
-from urllib2 import urlopen
+try:
+	import thread
+except:
+	# thread was renamed to _thread in python 3
+	import _thread
+
+import traceback, signal, socket, sys
+
+try:
+	from urllib2 import urlopen
+except:
+	# The urllib2 module has been split across several modules in Python 3.0
+	from urllib.request import urlopen
+
+sys.path.append("protocol")
 
 from DataHandler import DataHandler
 from Client import Client
@@ -15,6 +28,7 @@ import ChanServ
 # uncomment for debugging deadlocks, creates a stacktrace at the given interval to stdout
 #import stacktracer
 #stacktracer.trace_start("trace.html",interval=5,auto=True) # Set auto flag to always update file!
+
 
 _root = DataHandler()
 _root.parseArgv(sys.argv)
@@ -47,7 +61,10 @@ server.listen(backlog)
 
 try:
 	natserver = NATServer(natport)
-	thread.start_new_thread(natserver.start,())
+	try:
+		thread.start_new_thread(natserver.start,())
+	except NameError:
+		_thread.start_new_thread(natserver.start,())
 	natserver.bind(_root)
 except socket.error:
 	print('Error: Could not start NAT server - hole punching will be unavailable.')

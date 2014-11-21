@@ -7,11 +7,9 @@ Pure Python reader for GeoIP Country Edition databases.
 __author__ = 'David Wilson <dw@botanicus.net>'
 
 
+import io
 import os
 import struct
-
-from cStringIO import StringIO
-
 
 #
 # Constants.
@@ -89,7 +87,7 @@ def addr_to_num(ip):
         w, x, y, z = map(int, ip.split('.'))
         if w>255 or x>255 or y>255 or z>255:
             raise ValueError()
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         raise ValueError('%r is not an IPv4 address.' % (ip,))
 
     return (w << 24) | (x << 16) | (y << 8) | z
@@ -131,7 +129,7 @@ class ReadBuffer(object):
     buffer = None
 
     def __init__(self, source, size, seek_offset=None, seek_whence=os.SEEK_SET):
-        fp = StringIO(source)
+        fp = io.StringIO(source)
         if seek_offset is not None:
             fp.seek(seek_offset, seek_whence)
         self.buffer = fp.read(size)
@@ -234,7 +232,7 @@ class Database(object):
         self.db_type = GEOIP_COUNTRY_EDITION
         self.record_length = STANDARD_RECORD_LENGTH
 
-        fp = StringIO(self.cache)
+        fp = io.StringIO(self.cache)
         fp.seek(-3, os.SEEK_END)
 
         for i in range(STRUCTURE_INFO_MAX_SIZE):
@@ -280,7 +278,7 @@ class Database(object):
         @returns    English text string, or None if database is ancient.
         '''
 
-        fp = StringIO(self.cache)
+        fp = io.StringIO(self.cache)
         fp.seek(-3, os.SEEK_END)
 
         hasStructureInfo = False
@@ -326,7 +324,7 @@ class Database(object):
         return x
 
     def _seek_record(self, ipnum):
-        fp = StringIO(self.cache)
+        fp = io.StringIO(self.cache)
         offset = 0
 
         for depth in range(31, -1, -1):
@@ -432,7 +430,7 @@ if __name__ == '__main__':
     db = Database(dbfile)
     t2 = time.time()
 
-    print db.info()
+    print(db.info())
 
     t3 = time.time()
 
@@ -448,12 +446,13 @@ if __name__ == '__main__':
 
     for test in tests:
         addr_info = db.lookup(test)
-        print addr_info
+        print(addr_info)
         if isinstance(addr_info, BigAddressInfo):
-            print "   ", dict((key, getattr(addr_info, key)) for key in dir(addr_info) if not key.startswith('_'))
+            print("   ", dict((key, getattr(addr_info, key)) for key in dir(addr_info) if not key.startswith('_')))
 
     t4 = time.time()
 
-    print "Open: %dms" % ((t2-t1) * 1000,)
-    print "Info: %dms" % ((t3-t2) * 1000,)
-    print "Lookup: %dms" % ((t4-t3) * 1000,)
+    print("Open: %dms" % ((t2-t1) * 1000,))
+    print("Info: %dms" % ((t3-t2) * 1000,))
+    print("Lookup: %dms" % ((t4-t3) * 1000,))
+

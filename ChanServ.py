@@ -29,7 +29,7 @@ class ChanServ:
 	def HandleMessage(self, chan, user, msg):
 		if len(msg) <= 0:
 			return
- 		if msg[0] != "!":
+		if msg[0] != "!":
 			return
 		msg = msg.lstrip('!')
 		args = None

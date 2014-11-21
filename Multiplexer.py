@@ -55,7 +55,7 @@ class EpollMultiplexer:
 		results = []
 		try:
 			results = self.poller.poll(10)
-		except IOError, e:
+		except IOError as e:
 			if e[0] == 4:
 				# interrupted system call - this happens when any signal is triggered
 				pass
