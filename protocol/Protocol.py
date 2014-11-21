@@ -901,8 +901,10 @@ class Protocol:
 		if client.failed_logins > 2:
 			self.out_DENIED(client, username, "Too many failed logins.")
 			return
-		ok, reason = self._validUsernameSyntax(username)
-		if not ok:
+
+		good, reason = self._validUsernameSyntax(username)
+
+		if (not good):
 			self.out_DENIED(client, username, reason)
 			return
 
@@ -911,7 +913,8 @@ class Protocol:
 
 		user_id = 0
 		## represents <client> after logging in
-		user = None
+		user_or_error = None
+
 
 		if not validateIP(local_ip): local_ip = client.ip_address
 		if '\t' in sentence_args:
@@ -961,7 +964,7 @@ class Protocol:
 					self.out_DENIED(client, username, reason)
 					return
 
-				good, user = self.userdb.secure_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
+				good, user_or_error = self.userdb.secure_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 			else:
 				if (not client.has_insecure_password()):
 					## client has a new-style password, but decided to
@@ -984,27 +987,32 @@ class Protocol:
 					self.out_DENIED(client, username, reason)
 					return
 
-				good, user = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
+				good, user_or_error = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 		except Exception, e:
 			self._root.console_write('Handler %s:%s <%s> Error reading from DB in in_LOGIN: %s ' % (client.handler.num, client.session_id, client.username, e.message))
+			## in this case DB return values are undefined
 			good = False
-			reason = "db error"
+			reason = "DB error"
 
 		if (not good):
+			if (type(user_or_error) == str):
+				reason = user_or_error
+
 			self.out_DENIED(client, username, reason)
 			return
 
-		assert(user != None)
+		assert(user_or_error != None)
+		assert(type(user_or_error) != str)
 
 		## update local client fields from DB User values
 		client.logged_in = True
-		client.access = user.access
+		client.access = user_or_error.access
 		self._calc_access(client)
-		client.set_user_pwrd_salt(user.username, (user.password, user.randsalt))
-		client.lobby_id = user.lobby_id
-		client.bot = user.bot
-		client.register_date = user.register_date
-		client.last_login = user.last_login
+		client.set_user_pwrd_salt(user_or_error.username, (user_or_error.password, user_or_error.randsalt))
+		client.lobby_id = user_or_error.lobby_id
+		client.bot = user_or_error.bot
+		client.register_date = user_or_error.register_date
+		client.last_login = user_or_error.last_login
 		client.cpu = cpu
 
 		## if not a secure authentication, the client should
@@ -1017,17 +1025,17 @@ class Protocol:
 		else:
 			client.local_ip = local_ip
 
-		client.ingame_time = user.ingame_time
+		client.ingame_time = user_or_error.ingame_time
 
-		if user.id == None:
+		if user_or_error.id == None:
 			client.db_id = client.session_id
 		else:
-			client.db_id = user.id
+			client.db_id = user_or_error.id
 		if client.ip_address in self._root.trusted_proxies:
 			client.setFlagByIP(local_ip, False)
 
 		if client.access == 'agreement':
-			self._root.console_write('Handler %s:%s Sent user <%s> the terms of service on session.' % (client.handler.num, client.session_id, user.username))
+			self._root.console_write('Handler %s:%s Sent user <%s> the terms of service on session.' % (client.handler.num, client.session_id, user_or_error.username))
 			if client.compat['p']:
 				agreement = self.agreementplain
 			else:
@@ -1038,19 +1046,19 @@ class Protocol:
 			return
 
 		# needs to be checked directly before it is added, to make it somelike atomic as we have no locking over threads
-		if user.username in self._root.usernames:
+		if user_or_error.username in self._root.usernames:
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
 
-		self._root.console_write('Handler %s:%s Successfully logged in user <%s> %s.' % (client.handler.num, client.session_id, user.username, client.access))
+		self._root.console_write('Handler %s:%s Successfully logged in user <%s> %s.' % (client.handler.num, client.session_id, user_or_error.username, client.access))
 		self._root.db_ids[client.db_id] = client
-		self._root.usernames[user.username] = client
+		self._root.usernames[user_or_error.username] = client
 		client.status = self._calc_status(client, 0)
 
 		ignoreList = self.userdb.get_ignored_user_ids(client.db_id)
 		client.ignored = {ignoredUserId:True for ignoredUserId in ignoreList}
 
-		client.Send('ACCEPTED %s' % user.username)
+		client.Send('ACCEPTED %s' % user_or_error.username)
 
 		self._sendMotd(client, self._get_motd_string(client))
 		self._checkCompat(client)
@@ -1069,15 +1077,15 @@ class Protocol:
 			ubattle = battle.copy()
 			client.AddBattle(battle)
 			client.SendBattle(battle, 'UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % ubattle)
-			for user in battle.users:
-				if not user == battle.host:
-					client.SendBattle(battle, 'JOINEDBATTLE %s %s' % (battle.id, user))
+			for battle_user in battle.users:
+				if not battle_user == battle.host:
+					client.SendBattle(battle, 'JOINEDBATTLE %s %s' % (battle.id, battle_user))
 
-		self.broadcast_SendUser(client, 'CLIENTSTATUS %s %s'%(username, client.status))
+		self.broadcast_SendUser(client, 'CLIENTSTATUS %s %s' % (username, client.status))
 
 		for username in usernames:
 			# potential problem spot, might need to check to make sure username is still in user db
-			if username == user.username:
+			if username == user_or_error.username:
 				continue
 
 			client.SendUser(username, 'CLIENTSTATUS %s %s' % (username, usernames[username].status))
