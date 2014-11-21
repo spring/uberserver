@@ -4,6 +4,7 @@
 import socket, inspect
 import time
 import threading
+import traceback
 
 from CryptoHandler import aes_cipher
 from CryptoHandler import rsa_cipher
@@ -38,6 +39,7 @@ class LobbyClient:
 			self.socket = socket.create_connection(server_addr, 5)
 		except socket.error as msg:
 			print(msg)
+			print(traceback.format_exc())
 
 		self.lastping = time.time()
 		self.pingsamples = 0
@@ -127,6 +129,7 @@ class LobbyClient:
 			return True
 		except Exception, e:
 			print("Error handling: \"%s\" %s" % (msg, e))
+			print(traceback.format_exc())
 			return False
 
 
@@ -174,7 +177,7 @@ class LobbyClient:
 		## hence we send ENCODE(ENCRYPT(RAW)) and use HASH(RAW) on our side too
 		aes_key_raw = GLOBAL_RAND_POOL.read(CryptoHandler.MIN_AES_KEY_SIZE * 2)
 		aes_key_sig = SECURE_HASH_FUNC(aes_key_raw)
-		aes_key_str = self.rsa_cipher_object.encrypt_encode_bytes(aes_key_raw)
+		aes_key_str = self.rsa_cipher_obj.encrypt_encode_bytes(aes_key_raw)
 
 		if (self.aes_cipher_obj == None):
 			self.aes_cipher_obj = aes_cipher("")
@@ -209,7 +212,7 @@ class LobbyClient:
 		assert(not self.valid_shared_key)
 		assert(not self.acked_shared_key)
 
-		rsa_pub_key_obj = self.rsa_cipher_object.get_pub_key()
+		rsa_pub_key_obj = self.rsa_cipher_obj.get_pub_key()
 		rsa_pub_key_str = DECODE_FUNC(arg)
 		rsa_pub_key_obj.importKey(rsa_pub_key_str)
 
@@ -414,7 +417,7 @@ class LobbyClient:
 def runclient(i):
 	print("Running client %d" % (i))
 	user_name = "ubertest" + str(i)
-	client = LobbyClient(MAIN_SERVER, user_name)
+	client = LobbyClient(HOST_SERVER, user_name)
 	client.run()
 	print("finished: " + user_name)
 
