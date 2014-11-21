@@ -809,6 +809,10 @@ class Protocol:
 		if (not client.use_secure_session() and (self.force_secure_auth() or self.force_secure_comm())):
 			client.Send("REGISTRATIONDENIED %s" % ("Unencrypted registrations are not allowed."))
 			return
+		if (client.use_secure_session() and (not client.get_session_key_acknowledged())):
+			client.push_session_key_acknowledged()
+			client.Send("REGISTRATIONDENIED %s" % ("Encrypted registrations without prior key-acknowledgement are not allowed."))
+			return
 
 		good, reason = self._validUsernameSyntax(username)
 
@@ -876,6 +880,10 @@ class Protocol:
 		if (not client.use_secure_session() and (self.force_secure_auth() or self.force_secure_comm())):
 			self.out_DENIED(client, username, "Unencrypted logins are not allowed.")
 			return
+		if (client.use_secure_session() and (not client.get_session_key_acknowledged())):
+			client.push_session_key_acknowledged()
+			self.out.DENIED(client, username, "Encrypted logins without prior key-acknowledgement are not allowed.")
+			return
 
 		# FIXME: is checked first because of a springie bug
 		if username in self._root.usernames:
@@ -883,7 +891,7 @@ class Protocol:
 			return
 
 		if client.failed_logins > 2:
-			self.out_DENIED(client, username, "to many failed logins")
+			self.out_DENIED(client, username, "Too many failed logins.")
 			return
 		ok, reason = self._validUsernameSyntax(username)
 		if not ok:
@@ -928,7 +936,7 @@ class Protocol:
 
 
 		if (not password):
-			self.out_DENIED(client, username, "Empty password")
+			self.out_DENIED(client, username, "Empty password.")
 			return
 
 		try:
@@ -3150,9 +3158,8 @@ class Protocol:
 		## the key signature matches that of the key sent to the
 		## server, server can NOT communicate further until this
 		## gets acknowledged by ENCODE(ENCRYPT_AES(ACKSHAREDKEY)))
-		client.set_session_key_acknowledged(True)
+		client.push_session_key_acknowledged()
 		client.Send("SHAREDKEY ACCEPTED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
-		client.set_session_key_acknowledged(False)
 
 	def in_ACKSHAREDKEY(self, client):
 		if (not client.use_secure_session()):
