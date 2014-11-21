@@ -6,12 +6,12 @@ import time
 import threading
 import traceback
 
+import CryptoHandler
 from CryptoHandler import aes_cipher
 from CryptoHandler import rsa_cipher
 from CryptoHandler import MD5LEG_HASH_FUNC as LEGACY_HASH_FUNC
 from CryptoHandler import SHA256_HASH_FUNC as SECURE_HASH_FUNC
 from CryptoHandler import GLOBAL_RAND_POOL
-import CryptoHandler
 
 from base64 import b64encode as ENCODE_FUNC
 from base64 import b64decode as DECODE_FUNC
@@ -398,8 +398,9 @@ class LobbyClient:
 						try:
 							dec_command = self.aes_cipher_obj.decode_decrypt_bytes(raw_command)
 						except:
-							print("Can't decrypt %s: " % (raw_command))
-							return
+							print("[time=%d::iters=%] can't decrypt %s (%s): " % (time.time(), self.iters, raw_command, DECODE_FUNC(raw_command)))
+							continue
+
 						dec_commands = dec_command.split(DATA_SEPAR)
 						dec_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in dec_commands]
 						num_handled = 0
