@@ -155,6 +155,7 @@ mapper(FriendRequest, friendRequests_table)
 mapper(User, users_table, properties={
 	'logins':relation(Login, backref='user', cascade="all, delete, delete-orphan"),
 	'renames':relation(Rename, backref='user', cascade="all, delete, delete-orphan"),
+	## FIXME: all of these generate "Could not determine join condition between parent/child tables on relation User.XXXX"
 	'ignores':relation(Ignore, cascade="all, delete, delete-orphan", foreign_keys=[Ignore.user_id]),
 	'friends1':relation(Friend, cascade="all, delete, delete-orphan", foreign_keys=[Friend.first_user_id]),
 	'friends2':relation(Friend, cascade="all, delete, delete-orphan", foreign_keys=[Friend.second_user_id]),
@@ -353,7 +354,7 @@ class UsersHandler:
 	def login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		session = self.sessionmaker()
 		# should only ever be one user with each name so we can just grab the first one :)
-		dbuser = session.query(User).filter(User.username==username, User.password == password).first()
+		dbuser = session.query(User).filter(User.username == username, User.password == password).first()
 
 		if (not dbuser):
 			session.close()
@@ -363,7 +364,7 @@ class UsersHandler:
 
 	def secure_login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		session = self.sessionmaker()
-		dbuser = session.query(User).filter(User.username==username).first()
+		dbuser = session.query(User).filter(User.username == username).first()
 
 		if (not dbuser):
 			session.close()
@@ -401,7 +402,7 @@ class UsersHandler:
 			return False, reason
 
 		session = self.sessionmaker()
-		dbuser = session.query(User).filter(User.username==username).first()
+		dbuser = session.query(User).filter(User.username == username).first()
 
 		if (dbuser):
 			session.close()
@@ -421,7 +422,7 @@ class UsersHandler:
 			return False, reason
 
 		session = self.sessionmaker()
-		dbuser = session.query(User).filter(User.username==user).first()
+		dbuser = session.query(User).filter(User.username == username).first()
 
 		if (dbuser):
 			session.close()
