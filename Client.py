@@ -271,6 +271,7 @@ class Client(BaseClient):
 				self.HandleProtocolCommand(command)
 
 	def HandleProtocolCommand(self, cmd):
+		## probably caused by trailing newline ("abc\n".split("\n") == ["abc", ""])
 		if (len(cmd) <= 1):
 			return
 

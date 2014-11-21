@@ -88,8 +88,9 @@ class LobbyClient:
 
 
 	def handle(self, msg):
+		## probably caused by trailing newline ("abc\n".split("\n") == ["abc", ""])
 		if (len(msg) <= 1):
-			return False
+			return True
 
 		numspaces = msg.count(' ')
 
