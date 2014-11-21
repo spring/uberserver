@@ -571,7 +571,7 @@ class Protocol:
 			return False, "Password contains one or more LF characters."
 		if (password.count("\r") != 0):
 			return False, "Password contains one or more CR characters."
-		if (len(password < CryptoHandler.MIN_PASSWORD_LEN)):
+		if (len(password) < CryptoHandler.MIN_PASSWORD_LEN):
 			return False, ("Password too short: %d or more characters required." % CryptoHandler.MIN_PASSWORD_LEN)
 		return True, ""
 
