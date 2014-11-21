@@ -273,13 +273,16 @@ class UsersHandler:
 
 
 	def test_user_pwrd(self, user_inst, user_pwrd, hash_func = SHA256_HASH_FUNC):
-		user_hash = hash_func(user_pwrd + user_inst.randsalt)
+		user_hash = hash_func(user_pwrd.encode("utf-8") + user_inst.randsalt)
 
 		for i in xrange(PWRD_HASH_ROUNDS):
 			user_hash = hash_func(user_hash.digest())
 
 		return (user_inst.password == user_hash.digest())
 
+	## server converts all incoming decrypted messages (including those
+	## containing password strings) to unicode --> hash-functions do not
+	## like this, so we need to encode them again
 	def gen_user_pwrd_hash_and_salt(self, user_pass, hash_func = SHA256_HASH_FUNC, rand_pool = GLOBAL_RAND_POOL):
 		def gen_user_salt(rand_pool, num_salt_bytes = USR_DB_SALT_SIZE):
 			return (rand_pool.read(num_salt_bytes))
@@ -296,7 +299,7 @@ class UsersHandler:
 			return (user_hash.digest())
 
 		user_salt = gen_user_salt(rand_pool)
-		user_hash = gen_user_hash(user_pass, user_salt, hash_func)
+		user_hash = gen_user_hash(user_pass.encode("utf-8"), user_salt, hash_func)
 		return (user_hash, user_salt)
 
 	
