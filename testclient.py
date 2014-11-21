@@ -398,7 +398,11 @@ class LobbyClient:
 						try:
 							dec_command = self.aes_cipher_obj.decode_decrypt_bytes(raw_command)
 						except:
-							print("[time=%d::iters=%] can't decrypt %s (%s): " % (time.time(), self.iters, raw_command, DECODE_FUNC(raw_command)))
+							try:
+								decoded = DECODE_FUNC(raw_command)
+							except Exception as e:
+								decoded = "Couldn't decode: %s" % (e)
+							print("[time=%d::iters=%d] can't decrypt '%s' (%s): " % (time.time(), self.iters, raw_command, decoded))
 							continue
 
 						dec_commands = dec_command.split(DATA_SEPAR)
