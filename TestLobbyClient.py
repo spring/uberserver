@@ -65,7 +65,7 @@ class LobbyClient:
 		self.accepted_registration = False
 		self.accepted_authentication = False
 
-		self.want_secure_session = False
+		self.want_secure_session = True
 		self.requested_public_key = False
 		self.received_public_key = False
 		self.sent_shared_key = False
