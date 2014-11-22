@@ -58,7 +58,7 @@ class LobbyClient:
 		self.password = "KeepItSecret.KeepItSafe."
 
 		self.aes_cipher_obj = None
-		self.rsa_cipher_obj = rsa_cipher("")
+		self.rsa_cipher_obj = rsa_cipher(None)
 
 		self.server_info = ("", "", "", "")
 

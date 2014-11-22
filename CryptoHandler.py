@@ -96,8 +96,6 @@ class rsa_cipher:
 	def __init__(self, key_dir = RSA_KEY_DIR_NAME):
 		self.set_rnd_gen(Random.new())
 		self.set_instance_keys(key_dir)
-		self.set_pad_scheme(RSA_PAD_SCHEME)
-		self.set_sgn_scheme(RSA_SGN_SCHEME)
 
 	def set_rnd_gen(self, rnd_gen): self.rnd_gen = rnd_gen
 	def set_pub_key(self, pub_key): self.pub_key = pub_key
@@ -129,8 +127,18 @@ class rsa_cipher:
 			self.msg_auth_scheme = scheme.new(self.pub_key)
 
 	def set_instance_keys(self, key_dir):
+		if (key_dir == None):
+			self.set_pub_key(None)
+			self.set_pri_key(None)
+			self.set_pad_scheme(None)
+			self.set_sgn_scheme(None)
+			return
+
 		if (not self.import_keys(key_dir)):
 			self.generate_keys()
+
+		self.set_pad_scheme(RSA_PAD_SCHEME)
+		self.set_sgn_scheme(RSA_SGN_SCHEME)
 
 		assert(self.sanity_test_keys())
 
