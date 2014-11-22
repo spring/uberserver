@@ -553,9 +553,12 @@ class Protocol:
 		if not password:
 			return False, 'Empty passwords are not allowed.'
 
+		assert(type(password) == unicode)
+
+		password = password.encode("utf-8")
 		md5str = SAFE_DECODE_FUNC(password)
 
-		if (md5str == password):
+		if (password == md5str):
 			return False, "Invalid base64-encoding"
 
 		if (len(md5str) != 16):
@@ -975,7 +978,7 @@ class Protocol:
 			else:
 				if (not client.has_insecure_password()):
 					## client has a new-style password in DB, but decided to
-					## use an insecure login (which cam not be authenticated
+					## use an insecure login (which can not be authenticated
 					## anymore anyway) --> deny
 					self.out_DENIED(client, username, "Can not use non-secure LOGIN with new-style password.")
 					return
