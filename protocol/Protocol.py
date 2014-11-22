@@ -845,8 +845,8 @@ class Protocol:
 		if (not client.use_secure_session() and (self.force_secure_auth() or self.force_secure_comm())):
 			client.Send("REGISTRATIONDENIED %s" % ("Unencrypted registrations are not allowed."))
 			return
-		if (client.use_secure_session() and (not client.get_session_key_acknowledged())):
-			client.push_session_key_acknowledged()
+		if (client.use_secure_session() and (not client.get_session_key_received_ack())):
+			client.set_session_key_simulated_ack(True)
 			client.Send("REGISTRATIONDENIED %s" % ("Encrypted registrations without prior key-acknowledgement are not allowed."))
 			return
 
@@ -907,8 +907,8 @@ class Protocol:
 		if (not client.use_secure_session() and (self.force_secure_auth() or self.force_secure_comm())):
 			self.out_DENIED(client, username, "Unencrypted logins are not allowed.")
 			return
-		if (client.use_secure_session() and (not client.get_session_key_acknowledged())):
-			client.push_session_key_acknowledged()
+		if (client.use_secure_session() and (not client.get_session_key_received_ack())):
+			client.set_session_key_simulated_ack(True)
 			self.out_DENIED(client, username, "Encrypted logins without prior key-acknowledgement are not allowed.")
 			return
 
@@ -3144,8 +3144,9 @@ class Protocol:
 		if (len(user_data) == 0):
 			if (client.use_secure_session() and (not self.force_secure_comm())):
 				client.Send("SHAREDKEY DISABLED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
+
 				client.set_aes_cipher_obj(None)
-				client.set_session_key_acknowledged(False)
+				client.set_session_key_received_ack(False)
 			return
 
 		## too-short keys are not allowed, can be sent either
@@ -3166,6 +3167,8 @@ class Protocol:
 
 			## set (or update) the client's session key
 			client.set_session_key(aes_key_sig.digest())
+			client.set_session_key_identifier_byte(client.get_session_key_identifier_byte() + 1)
+			client.set_session_key_simulated_ack(True)
 		except ValueError as e:
 			client.Send("SHAREDKEY REJECTED (exception %s)" % (e))
 			return
@@ -3177,7 +3180,7 @@ class Protocol:
 		## server, server can NOT communicate further until this
 		## gets acknowledged by ENCODE(ENCRYPT_AES(ACKSHAREDKEY))
 		## and will always wait for confirmation to use this key)
-		client.push_session_key_acknowledged()
+		##
 		client.Send("SHAREDKEY ACCEPTED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
 
 	def in_ACKSHAREDKEY(self, client):
@@ -3185,7 +3188,7 @@ class Protocol:
 			return
 
 		## client has acknowledged our SHAREDKEY ACCEPTED response
-		client.set_session_key_acknowledged(True)
+		client.set_session_key_received_ack(True)
 
 	##
 	## sign a client text-message using server's private RSA key

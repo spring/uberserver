@@ -7,9 +7,10 @@ from CryptoHandler import safe_base64_decode as SAFE_DECODE_FUNC
 from CryptoHandler import DATA_MARKER_BYTE
 from CryptoHandler import DATA_PARTIT_BYTE
 from CryptoHandler import UNICODE_ENCODING
+from CryptoHandler import NUM_SESSION_KEYS
 
 class Client(BaseClient):
-	'this object represents one connected client'
+	'this object represents one server-side connected client'
 
 	def __init__(self, root, connection, address, session_id):
 		'initial setup for the connected client'
@@ -103,8 +104,10 @@ class Client(BaseClient):
 		self._root.console_write('Client connected from %s:%s, session ID %s.' % (self.ip_address, self.port, session_id))
 
 		self.set_aes_cipher_obj(None)
-		self.set_session_key_acknowledged(False)
-		self.set_num_pushed_session_key_acks(0)
+		self.set_session_key_identifier_byte(0)
+		self.set_session_key_received_ack(False)
+		self.set_session_key_simulated_ack(False)
+
 
 
 	## AES cipher used for encrypted protocol communication
@@ -121,13 +124,14 @@ class Client(BaseClient):
 		return (self.aes_cipher_obj != None)
 
 
-	def set_num_pushed_session_key_acks(self, n): self.num_pushed_session_key_acks = n
-	def get_num_pushed_session_key_acks(self): return self.num_pushed_session_key_acks
-	def push_session_key_acknowledged(self): self.set_num_pushed_session_key_acks(self.num_pushed_session_key_acks + 1)
-	def pop_session_key_acknowledged(self): self.set_num_pushed_session_key_acks(max(self.num_pushed_session_key_acks - 1, 0))
+	def set_session_key_identifier_byte(self, n): self.session_key_identifier_byte = (n % NUM_SESSION_KEYS)
+	def get_session_key_identifier_byte(self): return self.session_key_identifier_byte
 
-	def set_session_key_acknowledged(self, b): self.session_key_acknowledged = b
-	def get_session_key_acknowledged(self): return self.session_key_acknowledged
+	def set_session_key_simulated_ack(self, b): self.session_key_simulated_ack = b
+	def get_session_key_simulated_ack(self): return self.session_key_simulated_ack
+
+	def set_session_key_received_ack(self, b): self.session_key_received_ack = b
+	def get_session_key_received_ack(self): return self.session_key_received_ack
 
 	def set_session_key(self, key):
 		if (self.get_aes_cipher_obj() == None):
@@ -139,6 +143,7 @@ class Client(BaseClient):
 		if (self.aes_cipher_obj == None):
 			return ""
 		return (self.aes_cipher_obj.get_key())
+
 
 
 	def set_msg_id(self, msg):
@@ -169,6 +174,9 @@ class Client(BaseClient):
 			self._protocol = protocol
 
 
+	##
+	## handle data from client
+	##
 	def Handle(self, data):
 		if (self.access in self.floodlimit):
 			msg_limits = self.floodlimit[self.access]
@@ -233,7 +241,9 @@ class Client(BaseClient):
 		commands_buffer = []
 
 		for raw_data_blob in raw_data_blobs:
-			if (self.use_secure_session() and (raw_data_blob[0] == DATA_MARKER_BYTE)):
+			is_encrypted_blob = (raw_data_blob[0] == DATA_MARKER_BYTE)
+
+			if (self.use_secure_session() and is_encrypted_blob):
 				## handle an encrypted client command, using the AES session key
 				## previously exchanged between client and server by SETSHAREDKEY
 				## (this includes LOGIN and REGISTER, key can be set before login)
@@ -289,8 +299,11 @@ class Client(BaseClient):
 			self.FlushBuffer()
 		self.handler.finishRemove(self, reason)
 
+	##
+	## send data to client
+	##
 	def Send(self, msg, binary = False):
-		## don't append new data to send buffer when client gets removed
+		## don't append new data to buffer when client gets removed
 		if ((not msg) or self.removing):
 			return
 
@@ -300,13 +313,17 @@ class Client(BaseClient):
 
 		if (self.use_secure_session()):
 			## apply server-to-client encryption
+			##
 			## add marker byte so client does not have to guess
 			## if data is of the form ENCODE(ENCRYPTED(...)) or
-			## in plaintext
+			## in plaintext, as well as the current session key
+			## identifier byte
+			##
+			hdr = DATA_MARKER_BYTE + chr(self.get_session_key_identifier_byte())
 			msg = self.aes_cipher_obj.encrypt_encode_bytes_utf8(msg)
-			msg = DATA_MARKER_BYTE + msg
+			msg = hdr + msg
 
-			if ((not self.get_session_key_acknowledged()) and (self.get_num_pushed_session_key_acks() == 0)):
+			if ((not self.get_session_key_received_ack()) and (not self.get_session_key_simulated_ack())):
 				## buffer encrypted data until we get client ACK
 				## (the most recent message will be at the back)
 				##
@@ -333,7 +350,7 @@ class Client(BaseClient):
 			self.msg_sendbuffer.append(msg.encode(UNICODE_ENCODING) + DATA_PARTIT_BYTE)
 
 		self.handler.poller.setoutput(self.conn, True)
-		self.pop_session_key_acknowledged()
+		self.set_session_key_simulated_ack(False)
 
 
 	def FlushBuffer(self):

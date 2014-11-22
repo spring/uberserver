@@ -42,12 +42,19 @@ PWRD_HASH_ROUNDS = 1024 ## stretching KDF (anti-BFA)
 USR_DB_SALT_SIZE =   16 ## bytes
 MIN_AES_KEY_SIZE =   16 ## bytes
 MIN_PASSWORD_LEN =   10 ## bytes
+NUM_SESSION_KEYS =  256 ## see the asserts below
 
 MD5LEG_HASH_FUNC = MD5.new
 SHA160_HASH_FUNC = SHA.new
 SHA256_HASH_FUNC = SHA256.new
 
 GLOBAL_RAND_POOL = Random.new()
+
+## proper key negotiation requires at least two
+## keys; session key identifiers are transmitted
+## as bytes
+assert(NUM_SESSION_KEYS >= (1 << 1))
+assert(NUM_SESSION_KEYS <= (1 << 8))
 
 
 
@@ -292,7 +299,7 @@ class aes_cipher:
 		assert(key_dir[-1] == '/')
 
 		if (not os.path.isdir(key_dir)):
-			os.mkdir(key_dir)
+			os.mkdir(key_dir, 0700)
 
 		write_file(key_dir + AES_RAW_KEY_FILE, "wb", self.get_key())
 

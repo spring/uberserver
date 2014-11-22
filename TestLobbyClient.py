@@ -17,6 +17,7 @@ from CryptoHandler import safe_base64_decode as SAFE_DECODE_FUNC
 from CryptoHandler import DATA_MARKER_BYTE
 from CryptoHandler import DATA_PARTIT_BYTE
 from CryptoHandler import UNICODE_ENCODING
+from CryptoHandler import NUM_SESSION_KEYS
 
 from base64 import b64encode as ENCODE_FUNC
 from base64 import b64decode as DECODE_FUNC
@@ -41,12 +42,14 @@ class LobbyClient:
 		self.socket = None
 
 		try:
+			## non-blocking so we do not have to wait on server
 			self.socket = socket.create_connection(server_addr, 5)
+			self.socket.setblocking(0)
 		except socket.error as msg:
 			print(msg)
 			print(traceback.format_exc())
 
-		self.lastping = time.time()
+		self.lastping = 0.0
 		self.pingsamples = 0
 		self.maxping = 0
 		self.minping = 100
@@ -59,6 +62,10 @@ class LobbyClient:
 
 		self.aes_cipher_obj = None
 		self.rsa_cipher_obj = rsa_cipher(None)
+
+		## ring-buffer of exchanged keys
+		self.session_keys = [""] * NUM_SESSION_KEYS
+		self.session_key_id = 0
 
 		self.server_info = ("", "", "", "")
 
@@ -101,28 +108,36 @@ class LobbyClient:
 			if ((not self.want_secure_session) or (command in ALLOWED_OPEN_COMMANDS)):
 				self.socket.send(data + DATA_PARTIT_BYTE)
 			else:
-				print("\tcan not send command \"%s\" unencrypted!" % command)
+				print("\tcan not send command \"%s\" unencrypted, wait for SHAREDKEY!" % command)
 
-	def Recv(self, socket_data):
+	def Recv(self, cur_socket_data):
 		try:
-			socket_data += self.socket.recv(4096)
-		except socket.timeout:
-			return socket_data
+			nxt_socket_data = self.socket.recv(4096)
+			cur_socket_data += nxt_socket_data
 
+			if (len(nxt_socket_data) == 0):
+				return cur_socket_data
+		except:
+			return cur_socket_data
 
-		if (socket_data.count(DATA_PARTIT_BYTE) == 0):
-			return socket_data
+		if (cur_socket_data.count(DATA_PARTIT_BYTE) == 0):
+			return cur_socket_data
 
-		split_data = socket_data.split(DATA_PARTIT_BYTE)
+		split_data = cur_socket_data.split(DATA_PARTIT_BYTE)
 		data_blobs = split_data[: len(split_data) - 1  ]
 		final_blob = split_data[  len(split_data) - 1: ][0]
 
 		for raw_data_blob in data_blobs:
-			if (self.use_secure_session() and (raw_data_blob[0] == DATA_MARKER_BYTE)):
+			is_encrypted_blob = (raw_data_blob[0] == DATA_MARKER_BYTE)
+
+			if (self.use_secure_session() and is_encrypted_blob):
+				self.session_key_id = ord(raw_data_blob[1])
+				self.aes_cipher_obj.set_key(self.session_keys[self.session_key_id])
+
 				## after decryption dec_command might represent a batch of
 				## commands separated by newlines, all of which need to be
 				## handled successfully
-				enc_command = raw_data_blob[1: ]
+				enc_command = raw_data_blob[2: ]
 				dec_command = self.aes_cipher_obj.decode_decrypt_bytes_utf8(enc_command, SAFE_DECODE_FUNC)
 				dec_commands = dec_command.split(DATA_PARTIT_BYTE)
 				dec_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in dec_commands]
@@ -179,7 +194,6 @@ class LobbyClient:
 			return False
 
 
-
 	def out_LOGIN(self):
 		print("[LOGIN][time=%d::iter=%d]" % (time.time(), self.iters))
 
@@ -199,6 +213,12 @@ class LobbyClient:
 			self.Send("REGISTER %s %s" % (self.username, ENCODE_FUNC(LEGACY_HASH_FUNC(self.username).digest())))
 
 		self.requested_registration = True
+
+
+	def out_PING(self):
+		print("[PING][time=%d::iters=%d]" % (time.time(), self.iters))
+
+		self.Send("PING")
 
 
 	def out_GETPUBLICKEY(self):
@@ -226,17 +246,23 @@ class LobbyClient:
 
 		if (self.aes_cipher_obj == None):
 			self.aes_cipher_obj = aes_cipher("")
+			self.aes_cipher_obj.set_key("")
 
-		## start using the key immediately, server will
+		## make a copy of the previous key (if any) since
+		## we might need it to decrypt SHAREDKEY REJECTED
+		## (if already in a secure session)
+		self.session_keys[(self.session_key_id + 0) % NUM_SESSION_KEYS] = self.aes_cipher_obj.get_key()
+		self.session_keys[(self.session_key_id + 1) % NUM_SESSION_KEYS] = aes_key_sig.digest()
+
+		## wrap around when we reach the largest allowed id
+		## only two elements (id % N) and ((id + 1) % N) are
+		## technically ever needed, N > 2 is redundant
+		self.session_key_id += 1
+		self.session_key_id %= NUM_SESSION_KEYS
+
+		## start using new key immediately, server will
 		## encrypt response with it (if key is accepted)
-		## NOTE:
-		##   this complicates key re-negotiation a bit, we need to
-		##   keep old key around and attempt decryption of server's
-		##   SHAREDKEY with that
-		##   decryption otherwise produces garbage (e.g. using new
-		##   local key before ACKSHAREDKEY to decrypt the SHAREDKEY
-		##   response)
-		self.aes_cipher_obj.set_key(aes_key_sig.digest())
+		self.aes_cipher_obj.set_key(self.session_keys[self.session_key_id])
 
 		print("[SETSHAREDKEY][time=%d::iter=%d] sha(raw)=%s enc(raw)=%s..." % (time.time(), self.iters, aes_key_sig.digest(), aes_key_enc[0: 8]))
 
@@ -315,7 +341,7 @@ class LobbyClient:
 			self.valid_shared_key = False
 			self.acked_shared_key = False
 
-			## try again with a new key
+			## try again with a new session key
 			self.out_SETSHAREDKEY()
 		else:
 			## let server know it can begin sending secure data
@@ -365,11 +391,8 @@ class LobbyClient:
 		print(msg)
 	def in_CLIENTSTATUS(self, msg):
 		pass
-		#print(msg)
 	def in_LOGININFOEND(self):
-		# do stuff
-		#self.Send("PING")
-		#self.Send("JOIN bla")
+		## do stuff here (e.g. "JOIN channel")
 		pass
 	def in_BATTLECLOSED(self, msg):
 		print(msg)
@@ -379,22 +402,24 @@ class LobbyClient:
 		print(msg)
 
 	def in_PONG(self):
-		if self.count > 1000:
-			print("max %0.3f min %0.3f average %0.3f" %(self.maxping, self.minping, (self.average / self.pingsamples)))
+		if (False and self.count > 1000):
+			print("max %0.3f min %0.3f average %0.3f" % (self.maxping, self.minping, (self.average / self.pingsamples)))
 			self.Send("EXIT")
 			return
-		if self.lastping:
+
+		if (self.lastping != 0.0):
 			diff = time.time() - self.lastping
-			if diff>self.maxping:
-				self.maxping = diff
-			if diff<self.minping:
-				self.minping = diff
+
+			self.minping = min(diff, self.minping)
+			self.maxping = max(diff, self.maxping)
+
 			self.average = self.average + diff
-			self.pingsamples = self.pingsamples +1
+			self.pingsamples = self.pingsamples + 1
 			print("%0.3f" %(diff))
+
 		self.lastping = time.time()
-		self.Send("PING")
 		self.count = self.count + 1
+		self.out_PING()
 
 	def in_JOIN(self, msg):
 		print(msg)
@@ -406,7 +431,7 @@ class LobbyClient:
 		print(msg)
 
 
-	def run(self):
+	def Run(self):
 		if not self.socket:
 			return
 
@@ -430,6 +455,15 @@ class LobbyClient:
 				if (self.accepted_registration and (not self.requested_authentication)):
 					self.out_LOGIN()
 
+			## periodically re-negotiate the session key (every
+			## 500*0.05=25.0s; models an ultra-paranoid client)
+			if (self.want_secure_session and self.use_secure_session()):
+				if ((self.iters % 500) == 0):
+					self.sent_shared_key = False
+					self.valid_shared_key = False
+					self.acked_shared_key = False
+					self.out_SETSHAREDKEY()
+
 			socket_data = self.Recv(socket_data)
 			threading._sleep(0.05)
 
@@ -443,7 +477,7 @@ def runclient(i):
 	print("Running client %d" % (i))
 	user_name = "ubertest" + str(i)
 	client = LobbyClient(HOST_SERVER, user_name)
-	client.run()
+	client.Run()
 	print("finished: " + user_name)
 
 threads = []
