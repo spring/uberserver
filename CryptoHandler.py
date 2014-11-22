@@ -193,7 +193,7 @@ class rsa_cipher:
 		else:
 			enc_bytes = self.pub_key.encrypt(raw_bytes, "")
 
-		return (encode_func(enc_bytes[0]))
+		return (encode_func(enc_bytes))
 
 	def decode_decrypt_bytes(self, enc_bytes, decode_func = base64.b64decode):
 		assert(type(enc_bytes) == str)
