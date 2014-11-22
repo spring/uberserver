@@ -191,7 +191,8 @@ class rsa_cipher:
 		if (self.enc_pad_scheme != None):
 			enc_bytes = self.enc_pad_scheme.encrypt(raw_bytes)
 		else:
-			enc_bytes = self.pub_key.encrypt(raw_bytes, "")
+			## NOTE: RSAobj.encrypt() returns a tuple (!)
+			enc_bytes = self.pub_key.encrypt(raw_bytes, "")[0]
 
 		return (encode_func(enc_bytes))
 
