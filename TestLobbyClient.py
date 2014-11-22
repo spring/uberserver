@@ -97,8 +97,9 @@ class LobbyClient:
 			## add marker byte so server does not have to guess
 			## if data is of the form ENCODE(ENCRYPTED(...)) or
 			## in plaintext
+			head = DATA_MARKER_BYTE + chr(self.session_key_id)
 			data = self.aes_cipher_obj.encrypt_encode_bytes(data)
-			data = DATA_MARKER_BYTE + data + DATA_PARTIT_BYTE
+			data = head + data + DATA_PARTIT_BYTE
 
 			self.socket.send(data)
 		else:

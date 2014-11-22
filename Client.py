@@ -244,6 +244,12 @@ class Client(BaseClient):
 			is_encrypted_blob = (raw_data_blob[0] == DATA_MARKER_BYTE)
 
 			if (self.use_secure_session() and is_encrypted_blob):
+				client_session_key_id = ord(raw_data_blob[1])
+
+				## client should NEVER use a different key than server!
+				if (client_session_key_id != self.get_session_key_identifier_byte()):
+					continue
+
 				## handle an encrypted client command, using the AES session key
 				## previously exchanged between client and server by SETSHAREDKEY
 				## (this includes LOGIN and REGISTER, key can be set before login)
@@ -269,7 +275,7 @@ class Client(BaseClient):
 				## (there should not be any encoding on top of base64
 				## blobs in the first place since the b64 alphabet is
 				## ASCII)
-				enc_data_blob = raw_data_blob[1: ]
+				enc_data_blob = raw_data_blob[2: ]
 				dec_data_blob = self.aes_cipher_obj.decode_decrypt_bytes_utf8(enc_data_blob, SAFE_DECODE_FUNC)
 
 				split_commands = dec_data_blob.split(DATA_PARTIT_BYTE)
