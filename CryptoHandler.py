@@ -20,6 +20,9 @@ try:
 except ImportError:
 	RSA_SGN_SCHEME = None
 
+## needed because RSAobj::operator== fails on None
+RSA_NULL_KEY_OBJ = RSA._RSAobj(None, None)
+
 
 
 AES_KEY_BIT_SIZE = 32 * 8
@@ -96,6 +99,8 @@ class rsa_cipher:
 	def __init__(self, key_dir = RSA_KEY_DIR_NAME):
 		self.set_rnd_gen(Random.new())
 		self.set_instance_keys(key_dir)
+		self.set_pad_scheme(RSA_PAD_SCHEME)
+		self.set_sgn_scheme(RSA_SGN_SCHEME)
 
 	def set_rnd_gen(self, rnd_gen): self.rnd_gen = rnd_gen
 	def set_pub_key(self, pub_key): self.pub_key = pub_key
@@ -128,17 +133,12 @@ class rsa_cipher:
 
 	def set_instance_keys(self, key_dir):
 		if (key_dir == None):
-			self.set_pub_key(None)
-			self.set_pri_key(None)
-			self.set_pad_scheme(None)
-			self.set_sgn_scheme(None)
+			self.set_pub_key(RSA_NULL_KEY_OBJ)
+			self.set_pri_key(RSA_NULL_KEY_OBJ)
 			return
 
 		if (not self.import_keys(key_dir)):
 			self.generate_keys()
-
-		self.set_pad_scheme(RSA_PAD_SCHEME)
-		self.set_sgn_scheme(RSA_SGN_SCHEME)
 
 		assert(self.sanity_test_keys())
 
