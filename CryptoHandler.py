@@ -170,8 +170,7 @@ class rsa_cipher:
 		assert(key_dir[-1] == '/')
 
 		if (not os.path.isdir(key_dir)):
-			os.mkdir(key_dir)
-			os.chmod(key_dir, 0700)
+			os.mkdir(key_dir, 0700)
 
 		write_file(key_dir + RSA_PUB_KEY_FILE, "w", self.pub_key.exportKey(RSA_KEY_FMT_NAME))
 		write_file(key_dir + RSA_PRI_KEY_FILE, "w", self.pri_key.exportKey(RSA_KEY_FMT_NAME))
