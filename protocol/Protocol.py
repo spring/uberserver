@@ -3143,7 +3143,7 @@ class Protocol:
 		## it and be left with garbage in _handle)
 		if (len(user_data) == 0):
 			if (client.use_secure_session() and (not self.force_secure_comm())):
-				client.Send("SHAREDKEY CLEARED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
+				client.Send("SHAREDKEY DISABLED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
 				client.set_aes_cipher_obj(None)
 				client.set_session_key_acknowledged(False)
 			return
@@ -3152,7 +3152,7 @@ class Protocol:
 		## as plaintext (if no key was established yet) or as
 		## encrypted data
 		if (len(user_data) < CryptoHandler.MIN_AES_KEY_SIZE):
-			client.Send("SHAREDKEY INVALID (%d bytes missing)" % (CryptoHandler.MIN_AES_KEY_SIZE - len(user_data)))
+			client.Send("SHAREDKEY REJECTED (%d bytes missing)" % (CryptoHandler.MIN_AES_KEY_SIZE - len(user_data)))
 			return
 
 		## NOTE:
@@ -3167,7 +3167,7 @@ class Protocol:
 			## set (or update) the client's session key
 			client.set_session_key(aes_key_sig.digest())
 		except ValueError as e:
-			client.Send("SHAREDKEY INVALID (exception %s)" % (e))
+			client.Send("SHAREDKEY REJECTED (exception %s)" % (e))
 			return
 
 		## notify the client that key was accepted, this will be
