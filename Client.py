@@ -4,6 +4,7 @@ from collections import defaultdict
 from BaseClient import BaseClient
 from CryptoHandler import aes_cipher
 from CryptoHandler import safe_base64_decode as SAFE_DECODE_FUNC
+from CryptoHandler import UNICODE_ENCODING
 
 class Client(BaseClient):
 	'this object represents one connected client'
@@ -323,7 +324,7 @@ class Client(BaseClient):
 		if (binary):
 			self.msg_sendbuffer.append(msg + self.nl)
 		else:
-			self.msg_sendbuffer.append(msg.encode("utf-8") + self.nl)
+			self.msg_sendbuffer.append(msg.encode(UNICODE_ENCODING) + self.nl)
 
 		self.handler.poller.setoutput(self.conn, True)
 		self.pop_session_key_acknowledged()

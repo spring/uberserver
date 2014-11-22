@@ -10,12 +10,14 @@ from Channel import Channel
 from Battle import Battle
 
 sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
+
 import CryptoHandler
 
 from CryptoHandler import MD5LEG_HASH_FUNC as LEGACY_HASH_FUNC
 from CryptoHandler import SHA256_HASH_FUNC as SECURE_HASH_FUNC
 
 from CryptoHandler import safe_base64_decode as SAFE_DECODE_FUNC
+from CryptoHandler import UNICODE_ENCODING
 
 from base64 import b64encode as ENCODE_FUNC
 from base64 import b64decode as DECODE_FUNC
@@ -275,7 +277,7 @@ class Protocol:
 
 		# bunch the last words together if there are too many of them
 		if (numspaces > (total_args - 1)):
-			arguments = args.split(' ',total_args - 1)
+			arguments = args.split(' ', total_args - 1)
 		else:
 			arguments = args.split(' ')
 
@@ -288,13 +290,13 @@ class Protocol:
 			## try converting it to a native unicode string (this is
 			## somewhat undesirable because it needs to be undone for
 			## SETSHAREDKEY and GETSIGNEDMSG)
-			msg = msg.decode('utf-8')
+			msg = msg.decode(UNICODE_ENCODING)
 
 			## TODO: SPADS bug is fixed, remove self.binary / uncomment in half a year or so (abma, 2014.11.04)
 			self.binary = False
 		except:
 			## err = ":".join("{:02x}".format(ord(c)) for c in msg)
-			## self.out_SERVERMSG(client, "Invalid utf-8 received, skipped message %s" %(err), True)
+			## self.out_SERVERMSG(client, "Invalid unicode-encoding received (should be %s), skipped message %s" % (UNICODE_ENCODING, err), True)
 
 			self.binary = True
 			## return False
@@ -319,7 +321,7 @@ class Protocol:
 		## HACK for spads (see above)
 		if self.binary and not command in ("SAYPRIVATE"):
 			err = ":".join("{:02x}".format(ord(c)) for c in msg)
-			self.out_SERVERMSG(client, "Invalid utf-8 received, skipped message %s" %(err), True)
+			self.out_SERVERMSG(client, "Invalid unicode-encoding received (should be %s), skipped message %s" % (UNICODE_ENCODING, err), True)
 			return False
 
 
@@ -548,14 +550,14 @@ class Protocol:
 
 
 
-	def _validInsecurePasswordSyntax(self, password):
+	def _validLegacyPasswordSyntax(self, password):
 		'checks if an old-style password is correctly encoded'
 		if not password:
 			return False, 'Empty passwords are not allowed.'
 
 		assert(type(password) == unicode)
 
-		password = password.encode("utf-8")
+		password = password.encode(UNICODE_ENCODING)
 		md5str = SAFE_DECODE_FUNC(password)
 
 		if (password == md5str):
@@ -580,6 +582,25 @@ class Protocol:
 		if (len(password) < CryptoHandler.MIN_PASSWORD_LEN):
 			return False, ("Password too short: %d or more characters required." % CryptoHandler.MIN_PASSWORD_LEN)
 		return True, ""
+
+
+	def _validPasswordSyntax(self, client, password):
+		if (not password):
+			return False, "Empty password."
+
+		if (client.use_secure_session()):
+			return (self._validSecurePasswordSyntax(password))
+		else:
+			if (client.hashpw):
+				## in this case LOGIN password was sent in plaintext
+				## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+				## !!! DO NOT EVER USE THIS: GAPING SECURITY HOLE !!
+				## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+				passhash = LEGACY_HASH_FUNC(password.encode(UNICODE_ENCODING))
+				password = ENCODE_FUNC(passhash.digest())
+
+			return (self._validLegacyPasswordSyntax(password))
+
 
 
 	def _validUsernameSyntax(self, username):
@@ -829,39 +850,27 @@ class Protocol:
 			client.Send("REGISTRATIONDENIED %s" % ("Encrypted registrations without prior key-acknowledgement are not allowed."))
 			return
 
+
 		good, reason = self._validUsernameSyntax(username)
 
 		if (not good):
 			client.Send("REGISTRATIONDENIED %s" % (reason))
 			return
 
+		## test if password is well-formed
+		good, reason = self._validPasswordSyntax(client, password)
+
+		if (not good):
+			client.Send("REGISTRATIONDENIED %s" % (reason))
+			return
+
+
 		if (client.use_secure_session()):
-			## now password is in plaintext (but REGISTER encrypted)
-			good, reason = self._validSecurePasswordSyntax(password)
-
-			if (not good):
-				client.Send("REGISTRATIONDENIED %s" % (reason))
-				return
-
 			good, reason = self.userdb.secure_register_user(username, password, client.ip_address, client.country_code)
 		else:
-			if (client.hashpw):
-				## in this case REGISTER password was sent in plaintext
-				## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-				## !!!! DO NOT EVER USE THIS: GAPING SECURITY HOLE !!!!
-				## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-				passhash = LEGACY_HASH_FUNC(password.encode("utf-8"))
-				password = ENCODE_FUNC(passhash.digest())
+			good, reason = self.userdb.legacy_register_user(username, password, client.ip_address, client.country_code)
 
-			good, reason = self._validInsecurePasswordSyntax(password)
-
-			if (not good):
-				client.Send("REGISTRATIONDENIED %s" % (reason))
-				return
-
-			good, reason = self.userdb.register_user(username, password, client.ip_address, client.country_code)
-
-		if good:
+		if (good):
 			self._root.console_write('Handler %s:%s Successfully registered user <%s>.' % (client.handler.num, client.session_id, username))
 
 			client.Send('REGISTRATIONACCEPTED')
@@ -926,7 +935,9 @@ class Protocol:
 		user_or_error = None
 
 
-		if not validateIP(local_ip): local_ip = client.ip_address
+		if not validateIP(local_ip):
+			local_ip = client.ip_address
+
 		if '\t' in sentence_args:
 			lobby_id, user_id = sentence_args.split('\t',1)
 			if '\t' in user_id:
@@ -956,23 +967,19 @@ class Protocol:
 			lobby_id = sentence_args
 
 
-		if (not password):
-			self.out_DENIED(client, username, "Empty password.")
+		## test if password is well-formed
+		good, reason = self._validPasswordSyntax(client, password)
+
+		if (not good):
+			self.out_DENIED(client, username, reason)
 			return
 
 		try:
 			if (client.use_secure_session()):
-				## now password is in plaintext (but LOGIN encrypted)
-				good, reason = self._validSecurePasswordSyntax(password)
-
 				if (client.has_insecure_password()):
 					## first login, ignore (becomes false if password
 					## authenticates against the DB, so not critical)
 					pass
-
-				if (not good):
-					self.out_DENIED(client, username, reason)
-					return
 
 				good, user_or_error = self.userdb.secure_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 			else:
@@ -983,21 +990,7 @@ class Protocol:
 					self.out_DENIED(client, username, "Can not use non-secure LOGIN with new-style password.")
 					return
 
-				if (client.hashpw):
-					## in this case LOGIN password was sent in plaintext
-					## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-					## !!! DO NOT EVER USE THIS: GAPING SECURITY HOLE !!
-					## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-					passhash = LEGACY_HASH_FUNC(password.encode("utf-8"))
-					password = ENCODE_FUNC(passhash.digest())
-
-				good, reason = self._validInsecurePasswordSyntax(password)
-
-				if (not good):
-					self.out_DENIED(client, username, reason)
-					return
-
-				good, user_or_error = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
+				good, user_or_error = self.userdb.legacy_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 		except Exception, e:
 			self._root.console_write('Handler %s:%s <%s> Error reading from DB in in_LOGIN: %s ' % (client.handler.num, client.session_id, client.username, e.message))
 			## in this case DB return values are undefined
@@ -1528,9 +1521,9 @@ class Protocol:
 			else:
 				topictime = int(topic['time'])*1000
 			try:
-				top = topic['text'].decode("utf-8")
+				top = topic['text'].decode(UNICODE_ENCODING)
 			except:
-				top = "Invalid utf-8 encoding"
+				top = "Invalid unicode-encoding (should be %s)" % UNICODE_ENCODING
 				self._root.console_write("%s for channel topic: %s" %(top, chan))
 			client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topictime, top))
 		elif client.compat['et']: # supports sendEmptyTopic
@@ -2186,9 +2179,9 @@ class Protocol:
 			topic = channel.topic
 			if topic:
 				try:
-					top = topic['text'].decode("utf-8")
+					top = topic['text'].decode(UNICODE_ENCODING)
 				except:
-					top = "Invalid utf-8"
+					top = "Invalid unicode-encoding (should be %s)" % UNICODE_ENCODING
 			client.Send('CHANNEL %s %d %s'% (channel.name, len(channel.users), top))
 		client.Send('ENDOFCHANNELS')
 
@@ -2680,7 +2673,7 @@ class Protocol:
 			self.userdb.save_user(user)
 			self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
 		else:
-			good, reason = self._validInsecurePasswordSyntax(new_password)
+			good, reason = self._validLegacyPasswordSyntax(new_password)
 
 			if (not good):
 				self.out_SERVERMSG(client, '%s' % (reason))
@@ -2691,7 +2684,7 @@ class Protocol:
 			if (user == None):
 				return
 
-			if (not self.userdb.test_user_pwrd(user, cur_password)):
+			if (not self.userdb.legacy_test_user_pwrd(user, cur_password)):
 				user.set_pwrd_salt((new_password, ""))
 
 				self.userdb.save_user(user)
@@ -2777,7 +2770,7 @@ class Protocol:
 				return
 
 
-		res, reason = self._validInsecurePasswordSyntax(newpass)
+		res, reason = self._validLegacyPasswordSyntax(newpass)
 
 		if (not res):
 			self.out_SERVERMSG(client, "invalid password specified: %s" %(reason))
@@ -2874,13 +2867,13 @@ class Protocol:
 				client.Send('TESTLOGINACCEPT %s %s' % (targetUser.username, user.db_id))
 				return
 
-		good, reason = self._validInsecurePasswordSyntax(password)
+		good, reason = self._validLegacyPasswordSyntax(password)
 
 		if (not good):
 			client.Send('TESTLOGINDENY %s' %(reason))
 			return
 
-		if (self.userdb.test_user_pwrd(targetUser, password)):
+		if (self.userdb.legacy_test_user_pwrd(targetUser, password)):
 			client.Send('TESTLOGINACCEPT %s %s' % (targetUser.username, user.db_id))
 
 
@@ -3175,10 +3168,6 @@ class Protocol:
 			client.set_session_key(aes_key_sig.digest())
 		except ValueError as e:
 			client.Send("SHAREDKEY INVALID (exception %s)" % (e))
-			return
-		except:
-			client.Send("SHAREDKEY INVALID (stacktrace %s)" % (traceback.format_exc()))
-			self._root.error(traceback.format_exc())
 			return
 
 		## notify the client that key was accepted, this will be

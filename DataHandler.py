@@ -4,6 +4,7 @@ import traceback
 from protocol.Channel import Channel
 from protocol.Protocol import Protocol
 from SQLUsers import UsersHandler, ChannelsHandler
+from CryptoHandler import UNICODE_ENCODING
 import ip2country
 import datetime
 
@@ -335,7 +336,7 @@ class DataHandler:
 	def console_print_step(self):
 		try:
 			while self.console_buffer:
-				line = self.console_buffer.pop(0).encode("utf-8")
+				line = self.console_buffer.pop(0).encode(UNICODE_ENCODING)
 				print line
 				if self.log:
 					self.logfile.write(line+'\n')

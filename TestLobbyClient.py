@@ -14,6 +14,7 @@ from CryptoHandler import SHA256_HASH_FUNC as SECURE_HASH_FUNC
 from CryptoHandler import GLOBAL_RAND_POOL
 
 from CryptoHandler import safe_base64_decode as SAFE_DECODE_FUNC
+from CryptoHandler import UNICODE_ENCODING
 
 from base64 import b64encode as ENCODE_FUNC
 from base64 import b64decode as DECODE_FUNC
@@ -83,7 +84,7 @@ class LobbyClient:
 			assert(self.use_secure_session())
 
 			data = self.aes_cipher_obj.encrypt_encode_bytes(data)
-			data = data.encode("utf-8") ## unneeded
+			data = data.encode(UNICODE_ENCODING) ## unneeded
 
 			self.socket.send(data + DATA_SEPAR)
 		else:
@@ -91,7 +92,7 @@ class LobbyClient:
 			command = sentence[0]
 
 			if ((not self.want_secure_session) or (command in ALLOWED_OPEN_COMMANDS)):
-				self.socket.send(data.encode("utf-8") + DATA_SEPAR)
+				self.socket.send(data.encode(UNICODE_ENCODING) + DATA_SEPAR)
 
 
 	def handle(self, msg):
@@ -400,7 +401,6 @@ class LobbyClient:
 				for data in datas:
 					## strips leading spaces and trailing carriage return
 					raw_command = (data.rstrip('\r')).lstrip(' ')
-					raw_command = raw_command.encode("utf-8")
 
 					if (self.use_secure_session()):
 						## after decryption dec_command might represent a batch of
