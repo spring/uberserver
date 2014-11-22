@@ -31,6 +31,8 @@ RSA_KEY_FMT_NAME = "PEM"
 RSA_KEY_DIR_NAME = "./"
 RSA_PUB_KEY_FILE = "rsa_pub_key.pem"
 RSA_PRI_KEY_FILE = "rsa_pri_key.pem"
+DATA_MARKER_BYTE = "\x01"
+DATA_PARTIT_BYTE = "\n"
 UNICODE_ENCODING = "utf-8"
 
 PWRD_HASH_ROUNDS = 1024 ## stretching KDF (anti-BFA)

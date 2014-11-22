@@ -4,6 +4,8 @@ from collections import defaultdict
 from BaseClient import BaseClient
 from CryptoHandler import aes_cipher
 from CryptoHandler import safe_base64_decode as SAFE_DECODE_FUNC
+from CryptoHandler import DATA_MARKER_BYTE
+from CryptoHandler import DATA_PARTIT_BYTE
 from CryptoHandler import UNICODE_ENCODING
 
 class Client(BaseClient):
@@ -75,7 +77,6 @@ class Client(BaseClient):
 		}
 		self.msglengthhistory = {}
 		self.lastsaid = {}
-		self.nl = '\n'
 		self.current_channel = ''
 		
 		self.tokenized = False
@@ -232,7 +233,7 @@ class Client(BaseClient):
 		commands_buffer = []
 
 		for raw_data_blob in raw_data_blobs:
-			if (self.use_secure_session()):
+			if (self.use_secure_session() and (raw_data_blob[0] == DATA_MARKER_BYTE)):
 				## handle an encrypted client command, using the AES session key
 				## previously exchanged between client and server by SETSHAREDKEY
 				## (this includes LOGIN and REGISTER, key can be set before login)
@@ -258,9 +259,10 @@ class Client(BaseClient):
 				## (there should not be any encoding on top of base64
 				## blobs in the first place since the b64 alphabet is
 				## ASCII)
-				cmd_data_blob = self.aes_cipher_obj.decode_decrypt_bytes_utf8(raw_data_blob, SAFE_DECODE_FUNC)
+				enc_data_blob = raw_data_blob[1: ]
+				dec_data_blob = self.aes_cipher_obj.decode_decrypt_bytes_utf8(enc_data_blob, SAFE_DECODE_FUNC)
 
-				split_commands = cmd_data_blob.split('\n')
+				split_commands = dec_data_blob.split(DATA_PARTIT_BYTE)
 				strip_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in split_commands]
 			else:
 				## strips leading spaces and trailing carriage returns
@@ -298,7 +300,11 @@ class Client(BaseClient):
 
 		if (self.use_secure_session()):
 			## apply server-to-client encryption
+			## add marker byte so client does not have to guess
+			## if data is of the form ENCODE(ENCRYPTED(...)) or
+			## in plaintext
 			msg = self.aes_cipher_obj.encrypt_encode_bytes_utf8(msg)
+			msg = DATA_MARKER_BYTE + msg
 
 			if ((not self.get_session_key_acknowledged()) and (self.get_num_pushed_session_key_acks() == 0)):
 				## buffer encrypted data until we get client ACK
@@ -315,16 +321,16 @@ class Client(BaseClient):
 				## pop from back so client receives in the proper
 				## order, with <msg> itself after the queued data
 				while (len(self.enc_sendbuffer) > 0):
-					self.msg_sendbuffer.append(self.enc_sendbuffer.pop() + self.nl)
+					self.msg_sendbuffer.append(self.enc_sendbuffer.pop() + DATA_PARTIT_BYTE)
 
 			## send the output as-is (base64 is all ASCII)
 			binary = True
 
 
 		if (binary):
-			self.msg_sendbuffer.append(msg + self.nl)
+			self.msg_sendbuffer.append(msg + DATA_PARTIT_BYTE)
 		else:
-			self.msg_sendbuffer.append(msg.encode(UNICODE_ENCODING) + self.nl)
+			self.msg_sendbuffer.append(msg.encode(UNICODE_ENCODING) + DATA_PARTIT_BYTE)
 
 		self.handler.poller.setoutput(self.conn, True)
 		self.pop_session_key_acknowledged()

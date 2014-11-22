@@ -14,13 +14,14 @@ from CryptoHandler import SHA256_HASH_FUNC as SECURE_HASH_FUNC
 from CryptoHandler import GLOBAL_RAND_POOL
 
 from CryptoHandler import safe_base64_decode as SAFE_DECODE_FUNC
+from CryptoHandler import DATA_MARKER_BYTE
+from CryptoHandler import DATA_PARTIT_BYTE
 from CryptoHandler import UNICODE_ENCODING
 
 from base64 import b64encode as ENCODE_FUNC
 from base64 import b64decode as DECODE_FUNC
 
 NUM_THREADS = 1
-DATA_SEPAR = "\n"
 
 HOST_SERVER = ("localhost", 8200)
 MAIN_SERVER = ("lobby.springrts.com", 8200)
@@ -76,26 +77,65 @@ class LobbyClient:
 	def use_secure_session(self):
 		return (self.aes_cipher_obj != None)
 
+
 	def Send(self, data):
+		## test-client never tries to send unicode strings, so
+		## we do not need to add encode(UNICODE_ENCODING) calls
 		assert(type(data) == str)
 		print("[Send][time=%d::iter=%d] data=%s" % (time.time(), self.iters, data))
 
 		if (self.acked_shared_key):
 			assert(self.use_secure_session())
 
+			## add marker byte so server does not have to guess
+			## if data is of the form ENCODE(ENCRYPTED(...)) or
+			## in plaintext
 			data = self.aes_cipher_obj.encrypt_encode_bytes(data)
-			data = data.encode(UNICODE_ENCODING) ## unneeded
+			data = DATA_MARKER_BYTE + data + DATA_PARTIT_BYTE
 
-			self.socket.send(data + DATA_SEPAR)
+			self.socket.send(data)
 		else:
 			sentence = data.split()
 			command = sentence[0]
 
 			if ((not self.want_secure_session) or (command in ALLOWED_OPEN_COMMANDS)):
-				self.socket.send(data.encode(UNICODE_ENCODING) + DATA_SEPAR)
+				self.socket.send(data + DATA_PARTIT_BYTE)
+			else:
+				print("\tcan not send command \"%s\" unencrypted!" % command)
+
+	def Recv(self, socket_data):
+		try:
+			socket_data += self.socket.recv(4096)
+		except socket.timeout:
+			return socket_data
 
 
-	def handle(self, msg):
+		if (socket_data.count(DATA_PARTIT_BYTE) == 0):
+			return socket_data
+
+		split_data = socket_data.split(DATA_PARTIT_BYTE)
+		data_blobs = split_data[: len(split_data) - 1  ]
+		final_blob = split_data[  len(split_data) - 1: ][0]
+
+		for raw_data_blob in data_blobs:
+			if (self.use_secure_session() and (raw_data_blob[0] == DATA_MARKER_BYTE)):
+				## after decryption dec_command might represent a batch of
+				## commands separated by newlines, all of which need to be
+				## handled successfully
+				enc_command = raw_data_blob[1: ]
+				dec_command = self.aes_cipher_obj.decode_decrypt_bytes_utf8(enc_command, SAFE_DECODE_FUNC)
+				dec_commands = dec_command.split(DATA_PARTIT_BYTE)
+				dec_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in dec_commands]
+
+				for dec_command in dec_commands:
+					self.Handle(dec_command)
+			else:
+				## strips leading spaces and trailing carriage return
+				self.Handle((raw_data_blob.rstrip('\r')).lstrip(' '))
+
+		return final_blob
+
+	def Handle(self, msg):
 		## probably caused by trailing newline ("abc\n".split("\n") == ["abc", ""])
 		if (len(msg) <= 1):
 			return True
@@ -190,9 +230,12 @@ class LobbyClient:
 		## start using the key immediately, server will
 		## encrypt response with it (if key is accepted)
 		## NOTE:
-		##   this complicates key re-negotiation a bit
-		##   we need to keep old key around and attempt
-		##   decryption of server's SHAREDKEY with that
+		##   this complicates key re-negotiation a bit, we need to
+		##   keep old key around and attempt decryption of server's
+		##   SHAREDKEY with that
+		##   decryption otherwise produces garbage (e.g. using new
+		##   local key before ACKSHAREDKEY to decrypt the SHAREDKEY
+		##   response)
 		self.aes_cipher_obj.set_key(aes_key_sig.digest())
 
 		print("[SETSHAREDKEY][time=%d::iter=%d] sha(raw)=%s enc(raw)=%s..." % (time.time(), self.iters, aes_key_sig.digest(), aes_key_enc[0: 8]))
@@ -368,7 +411,7 @@ class LobbyClient:
 		if not self.socket:
 			return
 
-		sdata = ""
+		socket_data = ""
 
 		## initialize key-exchange sequence (ends with ACKSHAREDKEY)
 		if (self.want_secure_session):
@@ -388,43 +431,7 @@ class LobbyClient:
 				if (self.accepted_registration and (not self.requested_authentication)):
 					self.out_LOGIN()
 
-			try:
-				sdata += self.socket.recv(4096)
-
-				if (sdata.count(DATA_SEPAR) == 0):
-					continue
-
-				data = sdata.split(DATA_SEPAR)
-				datas = data[: len(data) - 1  ]
-				sdata = data[  len(data) - 1: ][0]
-
-				for data in datas:
-					## strips leading spaces and trailing carriage return
-					raw_command = (data.rstrip('\r')).lstrip(' ')
-
-					if (self.use_secure_session()):
-						## after decryption dec_command might represent a batch of
-						## commands separated by newlines, all of which need to be
-						## handled successfully
-						dec_command = self.aes_cipher_obj.decode_decrypt_bytes_utf8(raw_command, SAFE_DECODE_FUNC)
-						dec_commands = dec_command.split(DATA_SEPAR)
-						dec_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in dec_commands]
-						num_handled = 0
-
-						for dec_command in dec_commands:
-							num_handled += int(self.handle(dec_command))
-
-						## decryption produced garbage due to key (re-)negotiation
-						## (e.g. using new local key before ACKSHAREDKEY to decrypt
-						## server SHAREDKEY responses)
-						if (num_handled < len(dec_commands)):
-							self.handle(raw_command)
-					else:
-						self.handle(raw_command)
-
-			except socket.timeout:
-				pass
-
+			socket_data = self.Recv(socket_data)
 			threading._sleep(0.05)
 
 	def in_CHANNELTOPIC(self, msg):
