@@ -46,6 +46,17 @@ GLOBAL_RAND_POOL = Random.new()
 
 
 
+def safe_base64_decode(s):
+	try:
+		r = base64.b64decode(s)
+	except:
+		## if <s> is not a base64-encoded string, then
+		## it probably contains plaintext (UTF-8) data
+		r = s
+
+	return r
+
+
 def pad_str(msg, bs):
 	num = bs - (len(msg) % bs)
 	ext = num * chr(num)

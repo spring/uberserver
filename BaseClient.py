@@ -9,12 +9,12 @@ class BaseClient(object):
 		return (len(self.randsalt) == 0)
 
 
-	def set_user_pwrd_salt(self, user_name = "", user_pass_salt = ("", "")):
-		assert(type(user_pass_salt) == type(()))
+	def set_user_pwrd_salt(self, user_name = "", pwrd_hash_salt = ("", "")):
+		assert(type(pwrd_hash_salt) == type(()))
 
 		self.username = user_name
-		self.password = user_pass_salt[0]
-		self.randsalt = user_pass_salt[1]
+		self.password = pwrd_hash_salt[0]
+		self.randsalt = pwrd_hash_salt[1]
 
 	def set_pwrd_salt(self, pwrd_hash_salt):
 		assert(type(pwrd_hash_salt) == type(()))

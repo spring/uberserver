@@ -12,6 +12,6 @@ script:
    - protocol/Protocol.py
    - ./server.py &
    - sleep 30 # wait for server to start up
-   - ./testclient.py
+   - ./TestLobbyClient.py
    - sleep 10 # give server some time to write log, etc
    - killall python

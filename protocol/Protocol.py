@@ -15,6 +15,8 @@ import CryptoHandler
 from CryptoHandler import MD5LEG_HASH_FUNC as LEGACY_HASH_FUNC
 from CryptoHandler import SHA256_HASH_FUNC as SECURE_HASH_FUNC
 
+from CryptoHandler import safe_base64_decode as SAFE_DECODE_FUNC
+
 from base64 import b64encode as ENCODE_FUNC
 from base64 import b64decode as DECODE_FUNC
 
@@ -546,13 +548,14 @@ class Protocol:
 
 
 
-	def _validOldPasswordSyntax(self, password):
+	def _validInsecurePasswordSyntax(self, password):
 		'checks if an old-style password is correctly encoded'
 		if not password:
 			return False, 'Empty passwords are not allowed.'
-		try:
-			md5str = DECODE_FUNC(password)
-		except Exception, e:
+
+		md5str = SAFE_DECODE_FUNC(password)
+
+		if (md5str == password):
 			return False, "Invalid base64-encoding"
 
 		if (len(md5str) != 16):
@@ -564,7 +567,7 @@ class Protocol:
 	## since new-style passwords are generously salted, we
 	## require only a few characters and do not check their
 	## entropy (strength)
-	def _validNewPasswordSyntax(self, password):
+	def _validSecurePasswordSyntax(self, password):
 		if (password.count(" ") != 0):
 			return False, "Password contains one or more WS characters."
 		if (password.count("\n") != 0):
@@ -813,6 +816,8 @@ class Protocol:
 		@required.str username: Username to register
 		@required.str password: Password to use (old-style: BASE64(MD5(...)) or plaintext, new-style: plaintext)
 		'''
+		assert(type(password) == unicode)
+
 		if (not client.use_secure_session() and (self.force_secure_auth() or self.force_secure_comm())):
 			client.Send("REGISTRATIONDENIED %s" % ("Unencrypted registrations are not allowed."))
 			return
@@ -829,7 +834,7 @@ class Protocol:
 
 		if (client.use_secure_session()):
 			## now password is in plaintext (but REGISTER encrypted)
-			good, reason = self._validNewPasswordSyntax(password)
+			good, reason = self._validSecurePasswordSyntax(password)
 
 			if (not good):
 				client.Send("REGISTRATIONDENIED %s" % (reason))
@@ -842,10 +847,10 @@ class Protocol:
 				## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 				## !!!! DO NOT EVER USE THIS: GAPING SECURITY HOLE !!!!
 				## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-				passhash = LEGACY_HASH_FUNC(password)
+				passhash = LEGACY_HASH_FUNC(password.encode("utf-8"))
 				password = ENCODE_FUNC(passhash.digest())
 
-			good, reason = self._validOldPasswordSyntax(password)
+			good, reason = self._validInsecurePasswordSyntax(password)
 
 			if (not good):
 				client.Send("REGISTRATIONDENIED %s" % (reason))
@@ -862,7 +867,7 @@ class Protocol:
 			newClient.access = 'agreement'
 		else:
 			self._root.console_write('Handler %s:%s Registration failed for user <%s>.' % (client.handler.num, client.session_id, username))
-			client.Send('REGISTRATIONDENIED %s'%reason)
+			client.Send('REGISTRATIONDENIED %s' % reason)
 
 
 	def in_LOGIN(self, client, username, password='', cpu='0', local_ip='', sentence_args=''):
@@ -885,6 +890,8 @@ class Protocol:
 		et: When client joins a channel, sends NOCHANNELTOPIC if the channel has no topic.
 		eb: Enables receiving extended battle commands, like BATTLEOPENEDEX
 		'''
+		assert(type(password) == unicode)
+
 		if (not client.use_secure_session() and (self.force_secure_auth() or self.force_secure_comm())):
 			self.out_DENIED(client, username, "Unencrypted logins are not allowed.")
 			return
@@ -953,7 +960,7 @@ class Protocol:
 		try:
 			if (client.use_secure_session()):
 				## now password is in plaintext (but LOGIN encrypted)
-				good, reason = self._validNewPasswordSyntax(password)
+				good, reason = self._validSecurePasswordSyntax(password)
 
 				if (client.has_insecure_password()):
 					## first login, ignore (becomes false if password
@@ -967,8 +974,8 @@ class Protocol:
 				good, user_or_error = self.userdb.secure_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 			else:
 				if (not client.has_insecure_password()):
-					## client has a new-style password, but decided to
-					## use insecure login (which will not authenticate
+					## client has a new-style password in DB, but decided to
+					## use an insecure login (which cam not be authenticated
 					## anymore anyway) --> deny
 					self.out_DENIED(client, username, "Can not use non-secure LOGIN with new-style password.")
 					return
@@ -978,10 +985,10 @@ class Protocol:
 					## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 					## !!! DO NOT EVER USE THIS: GAPING SECURITY HOLE !!
 					## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-					passhash = LEGACY_HASH_FUNC(password)
+					passhash = LEGACY_HASH_FUNC(password.encode("utf-8"))
 					password = ENCODE_FUNC(passhash.digest())
 
-				good, reason = self._validOldPasswordSyntax(password)
+				good, reason = self._validInsecurePasswordSyntax(password)
 
 				if (not good):
 					self.out_DENIED(client, username, reason)
@@ -2633,14 +2640,14 @@ class Protocol:
 			self.out_SERVERMSG(client, 'Failed to rename to <%s>: %s' % (newname, reason))
 
 
-	def in_CHANGEPASSWORD(self, client, oldpassword, newpassword):
+	def in_CHANGEPASSWORD(self, client, cur_password, new_password):
 		'''
 		Change the password of current user.
 
-		@required.str oldpassword: The previous password.
-		@required.str newpassword: The new password.
+		@required.str cur_password: client's current password.
+		@required.str new_password: client's desired password.
 		'''
-		if (oldpassword == newpassword):
+		if (cur_password == new_password):
 			return
 
 		if (client.use_secure_session()):
@@ -2648,7 +2655,7 @@ class Protocol:
 			##
 			## disallow changing to new-style password if command is not
 			## encrypted for obvious reasons (would be sent in plaintext)
-			good, reason = self._validNewPasswordSyntax(newpassword)
+			good, reason = self._validSecurePasswordSyntax(new_password)
 
 			if (not good):
 				self.out_SERVERMSG(client, '%s' % reason)
@@ -2660,17 +2667,17 @@ class Protocol:
 				return
 
 			## check if the supplied old password is authentic
-			if (not self.userdb.test_user_pwrd(user, oldpassword)):
+			if (not self.userdb.secure_test_user_pwrd(user, cur_password)):
 				self.out_SERVERMSG(client, 'Incorrect old password.')
 				return
 
 			## change in-memory, then commit to DB
-			user.set_pwrd_salt(self.userdb.gen_user_pwrd_hash_and_salt(newpassword))
+			user.set_pwrd_salt(self.userdb.gen_user_pwrd_hash_and_salt(new_password))
 
 			self.userdb.save_user(user)
 			self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
 		else:
-			good, reason = self._validOldPasswordSyntax(newpassword)
+			good, reason = self._validInsecurePasswordSyntax(new_password)
 
 			if (not good):
 				self.out_SERVERMSG(client, '%s' % (reason))
@@ -2681,8 +2688,8 @@ class Protocol:
 			if (user == None):
 				return
 
-			if (user.password == oldpassword):
-				user.set_pwrd_salt((newpassword, ""))
+			if (not self.userdb.test_user_pwrd(user, cur_password)):
+				user.set_pwrd_salt((new_password, ""))
 
 				self.userdb.save_user(user)
 				self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
@@ -2757,9 +2764,9 @@ class Protocol:
 		## THIS IS NOT AN ACTION ADMINS SHOULD BE ABLE TO TAKE
 		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		if (False and (not targetUser.has_insecure_password())):
-			res, reason = self._validNewPasswordSyntax(newpass)
+			good, reason = self._validSecurePasswordSyntax(newpass)
 
-			if (good and self.userdb.test_user_pwrd(targetUser, newpass)):
+			if (good and self.userdb.secure_test_user_pwrd(targetUser, newpass)):
 				targetUser.set_pwrd_salt(self.userdb.gen_user_pwrd_hash_and_salt(newpass))
 
 				self.userdb.save_user(targetUser)
@@ -2767,7 +2774,7 @@ class Protocol:
 				return
 
 
-		res, reason = self._validOldPasswordSyntax(newpass)
+		res, reason = self._validInsecurePasswordSyntax(newpass)
 
 		if (not res):
 			self.out_SERVERMSG(client, "invalid password specified: %s" %(reason))
@@ -2858,19 +2865,19 @@ class Protocol:
 		## (INCLUDING ADMINISTRATORS)
 		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		if (False and (not targetUser.has_insecure_password())):
-			good, reason = self._validNewPasswordSyntax(password)
+			good, reason = self._validSecurePasswordSyntax(password)
 
-			if (good and self.userdb.test_user_pwrd(targetUser, password)):
+			if (good and self.userdb.secure_test_user_pwrd(targetUser, password)):
 				client.Send('TESTLOGINACCEPT %s %s' % (targetUser.username, user.db_id))
 				return
 
-		good, reason = self._validOldPasswordSyntax(password)
+		good, reason = self._validInsecurePasswordSyntax(password)
 
 		if (not good):
 			client.Send('TESTLOGINDENY %s' %(reason))
 			return
 
-		if (targetUser.password == password):
+		if (self.userdb.test_user_pwrd(targetUser, password)):
 			client.Send('TESTLOGINACCEPT %s %s' % (targetUser.username, user.db_id))
 
 
@@ -3145,7 +3152,9 @@ class Protocol:
 				client.set_session_key_acknowledged(False)
 			return
 
-		## too-short keys are not allowed
+		## too-short keys are not allowed, can be sent either
+		## as plaintext (if no key was established yet) or as
+		## encrypted data
 		if (len(user_data) < CryptoHandler.MIN_AES_KEY_SIZE):
 			client.Send("SHAREDKEY INVALID (%d bytes missing)" % (CryptoHandler.MIN_AES_KEY_SIZE - len(user_data)))
 			return
@@ -3156,7 +3165,7 @@ class Protocol:
 		##   (the output of HASH(DECODE(DECRYPT_RSA(...)))) so as
 		##   to ensure it has the proper length
 		try:
-			aes_key_msg = self.rsa_cipher_obj.decode_decrypt_bytes_utf8(user_data)
+			aes_key_msg = self.rsa_cipher_obj.decode_decrypt_bytes_utf8(user_data, SAFE_DECODE_FUNC)
 			aes_key_sig = SECURE_HASH_FUNC(aes_key_msg)
 
 			## set (or update) the client's session key
@@ -3174,7 +3183,8 @@ class Protocol:
 		## before it has received this message and verified that
 		## the key signature matches that of the key sent to the
 		## server, server can NOT communicate further until this
-		## gets acknowledged by ENCODE(ENCRYPT_AES(ACKSHAREDKEY)))
+		## gets acknowledged by ENCODE(ENCRYPT_AES(ACKSHAREDKEY))
+		## and will always wait for confirmation to use this key)
 		client.push_session_key_acknowledged()
 		client.Send("SHAREDKEY ACCEPTED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
 

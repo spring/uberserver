@@ -13,6 +13,8 @@ from CryptoHandler import MD5LEG_HASH_FUNC as LEGACY_HASH_FUNC
 from CryptoHandler import SHA256_HASH_FUNC as SECURE_HASH_FUNC
 from CryptoHandler import GLOBAL_RAND_POOL
 
+from CryptoHandler import safe_base64_decode as SAFE_DECODE_FUNC
+
 from base64 import b64encode as ENCODE_FUNC
 from base64 import b64decode as DECODE_FUNC
 
@@ -58,12 +60,12 @@ class LobbyClient:
 
 		self.server_info = ("", "", "", "")
 
+		self.requested_registration = False
 		self.requested_authentication = False
-		self.requested_registration = True
+		self.accepted_registration = False
 		self.accepted_authentication = False
-		self.accepted_registration = True
 
-		self.want_secure_session = True
+		self.want_secure_session = False
 		self.requested_public_key = False
 		self.received_public_key = False
 		self.sent_shared_key = False
@@ -88,7 +90,7 @@ class LobbyClient:
 			sentence = data.split()
 			command = sentence[0]
 
-			if (command in ALLOWED_OPEN_COMMANDS):
+			if ((not self.want_secure_session) or (command in ALLOWED_OPEN_COMMANDS)):
 				self.socket.send(data.encode("utf-8") + DATA_SEPAR)
 
 
@@ -114,12 +116,12 @@ class LobbyClient:
 
 		if (function_info[3]):
 			optional_args = len(function_info[3])
+
 		required_args = total_args - optional_args
 
 		if (required_args == 0 and numspaces == 0):
 			function()
 			return True
-
 
 		## bunch the last words together if there are too many of them
 		if (numspaces > total_args - 1):
@@ -143,7 +145,7 @@ class LobbyClient:
 		if (self.use_secure_session()):
 			self.Send("LOGIN %s %s" % (self.username, self.password))
 		else:
-			self.Send("LOGIN %s %s" % (self.username, ENCODE_FUNC(MD5LEG_HASH_FUNC(self.username).digest())))
+			self.Send("LOGIN %s %s" % (self.username, ENCODE_FUNC(LEGACY_HASH_FUNC(self.username).digest())))
 
 		self.requested_authentication = True
 
@@ -153,7 +155,7 @@ class LobbyClient:
 		if (self.use_secure_session()):
 			self.Send("REGISTER %s %s" % (self.username, self.password))
 		else:
-			self.Send("REGISTER %s %s" % (self.username, ENCODE_FUNC(MD5LEG_HASH_FUNC(self.username).digest())))
+			self.Send("REGISTER %s %s" % (self.username, ENCODE_FUNC(LEGACY_HASH_FUNC(self.username).digest())))
 
 		self.requested_registration = True
 
@@ -186,9 +188,13 @@ class LobbyClient:
 
 		## start using the key immediately, server will
 		## encrypt response with it (if key is accepted)
+		## NOTE:
+		##   this complicates key re-negotiation a bit
+		##   we need to keep old key around and attempt
+		##   decryption of server's SHAREDKEY with that
 		self.aes_cipher_obj.set_key(aes_key_sig.digest())
 
-		print("[SETSHAREDKEY][time=%d::iter=%d] sha(raw)=%s enc(raw)=%s..." % (time.time(), self.iters, self.aes_cipher_obj.get_key(), aes_key_enc[0: 8]))
+		print("[SETSHAREDKEY][time=%d::iter=%d] sha(raw)=%s enc(raw)=%s..." % (time.time(), self.iters, aes_key_sig.digest(), aes_key_enc[0: 8]))
 
 		## ENCODE(ENCRYPT_RSA(AES_KEY, RSA_PUB_KEY))
 		self.Send("SETSHAREDKEY %s" % aes_key_enc)
@@ -283,11 +289,12 @@ class LobbyClient:
 		print("[SERVERMSG][time=%d::iter=%d] %s" % (time.time(), self.iters, msg))
 
 	def in_REGISTRATIONDENIED(self, msg):
-		pass ## self.out_LOGIN()
+		print("[REGISTRATIONDENIED][time=%d::iter=%d] %s" % (time.time(), self.iters, msg))
 
 	def in_AGREEMENT(self, msg):
 		pass
 	def in_AGREEMENTEND(self):
+		print("[AGREEMENDEND][time=%d::iter=%d]" % (time.time(), self.iters))
 		self.Send("CONFIRMAGREEMENT")
 
 
@@ -299,7 +306,7 @@ class LobbyClient:
 
 	def in_ACCEPTED(self, msg):
 		print("[LOGINACCEPTED][time=%d::iter=%d]" % (time.time(), self.iters))
-
+		## if we get here, everything checks out
 		self.accepted_authentication = True
 
 
@@ -362,8 +369,8 @@ class LobbyClient:
 
 		sdata = ""
 
+		## initialize key-exchange sequence (ends with ACKSHAREDKEY)
 		if (self.want_secure_session):
-			## initialize key-exchange sequence
 			self.out_GETPUBLICKEY()
 
 		while (True):
@@ -374,7 +381,7 @@ class LobbyClient:
 				return
 
 			## create an account for us and hop on with it
-			if (self.acked_shared_key):
+			if (self.acked_shared_key or (not self.want_secure_session)):
 				if (not self.requested_registration):
 					self.out_REGISTER()
 				if (self.accepted_registration and (not self.requested_authentication)):
@@ -396,15 +403,10 @@ class LobbyClient:
 					raw_command = raw_command.encode("utf-8")
 
 					if (self.use_secure_session()):
-						## after decryption dec_command might represent a
-						## batch of commands separated by newlines, which
-						## all need to be handled successfully
-						try:
-							dec_command = self.aes_cipher_obj.decode_decrypt_bytes(raw_command)
-						except:
-							print("[time=%d::iters=%d] could not decode or decrypt \"%s\": " % (time.time(), self.iters, raw_command))
-							continue
-
+						## after decryption dec_command might represent a batch of
+						## commands separated by newlines, all of which need to be
+						## handled successfully
+						dec_command = self.aes_cipher_obj.decode_decrypt_bytes_utf8(raw_command, SAFE_DECODE_FUNC)
 						dec_commands = dec_command.split(DATA_SEPAR)
 						dec_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in dec_commands]
 						num_handled = 0
@@ -412,10 +414,9 @@ class LobbyClient:
 						for dec_command in dec_commands:
 							num_handled += int(self.handle(dec_command))
 
-						## if decryption produced garbage (e.g. because
-						## raw_command was sent as plaintext: SHAREDKEY
-						## INVALID) and caused handle() to fail, try to
-						## interpret the raw bytes
+						## decryption produced garbage due to key (re-)negotiation
+						## (e.g. using new local key before ACKSHAREDKEY to decrypt
+						## server SHAREDKEY responses)
 						if (num_handled < len(dec_commands)):
 							self.handle(raw_command)
 					else:

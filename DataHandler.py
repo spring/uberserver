@@ -201,6 +201,7 @@ class DataHandler:
 			def _fk_pragma_on_connect(dbapi_con, con_record):
 				dbapi_con.execute('PRAGMA journal_mode = MEMORY')
 				dbapi_con.execute('PRAGMA synchronous = OFF')
+			## FIXME: "ImportError: cannot import name event"
 			from sqlalchemy import event
 			event.listen(self.engine, 'connect', _fk_pragma_on_connect)
 		else:

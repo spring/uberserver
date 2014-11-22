@@ -3,6 +3,7 @@ from collections import defaultdict
 
 from BaseClient import BaseClient
 from CryptoHandler import aes_cipher
+from CryptoHandler import safe_base64_decode as SAFE_DECODE_FUNC
 
 class Client(BaseClient):
 	'this object represents one connected client'
@@ -239,7 +240,7 @@ class Client(BaseClient):
 				##   ENCODE(ENCRYPT_AES("CMD ARG1 ARG2 ...", AES_KEY))
 				## where ENCODE is the standard base64 encoding scheme
 				##
-				## if this is not the case (e.g. if a command was sent unencrypted
+				## if this is not the case (e.g. if a command was sent UNENCRYPTED
 				## by client after session-key exchange) the decryption will yield
 				## garbage and command will be rejected (or maybe crash the server)
 				##
@@ -256,7 +257,7 @@ class Client(BaseClient):
 				## (there should not be any encoding on top of base64
 				## blobs in the first place since the b64 alphabet is
 				## ASCII)
-				cmd_data_blob = self.aes_cipher_obj.decode_decrypt_bytes_utf8(raw_data_blob)
+				cmd_data_blob = self.aes_cipher_obj.decode_decrypt_bytes_utf8(raw_data_blob, SAFE_DECODE_FUNC)
 
 				split_commands = cmd_data_blob.split('\n')
 				strip_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in split_commands]
@@ -286,7 +287,7 @@ class Client(BaseClient):
 		self.handler.finishRemove(self, reason)
 
 	def Send(self, msg, binary = False):
-		# don't append new data to send buffer when client gets removed
+		## don't append new data to send buffer when client gets removed
 		if ((not msg) or self.removing):
 			return
 

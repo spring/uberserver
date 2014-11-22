@@ -1,5 +1,8 @@
 from datetime import datetime, timedelta
 
+from base64 import b64encode as ENCODE_FUNC
+from base64 import b64decode as DECODE_FUNC
+
 from CryptoHandler import SHA256_HASH_FUNC
 from CryptoHandler import GLOBAL_RAND_POOL
 from CryptoHandler import USR_DB_SALT_SIZE
@@ -24,9 +27,9 @@ metadata = MetaData()
 ##########################################
 users_table = Table('users', metadata,
 	Column('id', Integer, primary_key=True),
-	Column('username', String(40), unique=True),
-	Column('password', String(64)), # NOTE: stored in raw binary form, i.e. WITHOUT any encoding
-	Column('randsalt', String(64)), # NOTE: can we just add a column or do we need to rebuild DB?
+	Column('username', String(40), unique=True), # unicode
+	Column('password', String(64)), # unicode(BASE64(ASCII)) (unicode is added by DB on write)
+	Column('randsalt', String(64)), # unicode(BASE64(ASCII)) (unicode is added by DB on write)
 	Column('register_date', DateTime),
 	Column('last_login', DateTime),
 	Column('last_ip', String(15)), # would need update for ipv6
@@ -272,17 +275,24 @@ class UsersHandler:
 		return OfflineClient(entry)
 
 
-	def test_user_pwrd(self, user_inst, user_pwrd, hash_func = SHA256_HASH_FUNC):
-		user_hash = hash_func(user_pwrd.encode("utf-8") + user_inst.randsalt)
+	def test_user_pwrd(self, user_inst, user_pwrd):
+		return (user_inst.password == user_pwrd)
+
+	## test LOGIN input <user_pwrd> against DB instance <user_inst>
+	def secure_test_user_pwrd(self, user_inst, user_pwrd, hash_func = SHA256_HASH_FUNC):
+		user_pwrd = user_pwrd.encode("utf-8")
+		user_salt = user_inst.randsalt.encode("utf-8")
+		user_hash = hash_func(user_pwrd + DECODE_FUNC(user_salt))
 
 		for i in xrange(PWRD_HASH_ROUNDS):
 			user_hash = hash_func(user_hash.digest())
 
-		return (user_inst.password == user_hash.digest())
+		return (user_inst.password.encode("utf-8") == ENCODE_FUNC(user_hash.digest()))
 
 	## server converts all incoming decrypted messages (including those
 	## containing password strings) to unicode --> hash-functions do not
 	## like this, so we need to encode them again
+	## (values retrieved from DB will also be in unicode)
 	def gen_user_pwrd_hash_and_salt(self, user_pass, hash_func = SHA256_HASH_FUNC, rand_pool = GLOBAL_RAND_POOL):
 		def gen_user_salt(rand_pool, num_salt_bytes = USR_DB_SALT_SIZE):
 			return (rand_pool.read(num_salt_bytes))
@@ -298,23 +308,28 @@ class UsersHandler:
 
 			return (user_hash.digest())
 
+		user_pass = user_pass.encode("utf-8")
 		user_salt = gen_user_salt(rand_pool)
-		user_hash = gen_user_hash(user_pass.encode("utf-8"), user_salt, hash_func)
+		user_hash = gen_user_hash(user_pass, user_salt, hash_func)
 		return (user_hash, user_salt)
 
 	
 	def check_ban(self, user, ip, userid, now):
 		session = self.sessionmaker()
-		userban = session.query(BanUser).filter(BanUser.user_id==userid, now <= BanUser.end_time).first()
-		if not userban:
-			ipban = session.query(BanIP).filter(BanIP.ip==ip, now <= BanIP.end_time).first()
+
+		## FIXME: "Error reading from DB in in_LOGIN: <lambda>() takes exactly 2 arguments (3 given)"?
+		userban = session.query(BanUser).filter(BanUser.user_id == userid, now <= BanUser.end_time).first()
+		if (not userban):
+			ipban = session.query(BanIP).filter(BanIP.ip == ip, now <= BanIP.end_time).first()
+
 		session.close()
+
 		if userban: return True, userban
 		if ipban: return True, ipban
 		return False, ""
 
 
-	def common_login(self, dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country):
+	def login_common(self, dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		if self._root.censor and not self._root.SayHooks._nasty_word_censor(username):
 			return False, 'Name failed to pass profanity filter.'
 
@@ -340,6 +355,7 @@ class UsersHandler:
 		dbuser.last_id = user_id
 
 		if (good):
+			## copy unicode(BASE64(...)) values out of DB, leave them as-is
 			user_copy = User(dbuser.username, password, dbuser.randsalt, ip, now)
 			user_copy.access = dbuser.access
 			user_copy.id = dbuser.id
@@ -352,20 +368,30 @@ class UsersHandler:
 
 		session.commit()
 		session.close()
+
 		return good, reason
 
 	def login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
+		assert(type(username) == unicode)
+		assert(type(password) == unicode)
+
 		session = self.sessionmaker()
-		# should only ever be one user with each name so we can just grab the first one :)
-		dbuser = session.query(User).filter(User.username == username, User.password == password).first()
+		## should only ever be one user with each name so we can just grab the first one :)
+		## password here is unicode(BASE64(MD5(...))), matches the register_user DB encoding
+		dbuser = session.query(User).filter(User.username == username).first()
 
 		if (not dbuser):
 			session.close()
 			return False, 'Invalid username or password'
+		if (not self.test_user_pwrd(dbuser, password)):
+			return False, 'Invalid password'
 
-		return (self.common_login(dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
+		return (self.login_common(dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
 
 	def secure_login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
+		assert(type(username) == unicode)
+		assert(type(password) == unicode)
+
 		session = self.sessionmaker()
 		dbuser = session.query(User).filter(User.username == username).first()
 
@@ -373,10 +399,10 @@ class UsersHandler:
 			session.close()
 			return False, 'Invalid username'
 		## combine user-supplied password with DB salt
-		if (not self.test_user_pwrd(dbuser, password)):
+		if (not self.secure_test_user_pwrd(dbuser, password)):
 			return False, 'Invalid password'
 
-		return (self.common_login(dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
+		return (self.login_common(dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
 
 
 	def end_session(self, db_id):
@@ -399,6 +425,9 @@ class UsersHandler:
 
 	# need to add better ban checks so it can check if an ip address is banned when registering an account :)
 	def register_user(self, username, password, ip, country):
+		assert(type(username) == unicode)
+		assert(type(password) == unicode)
+
 		status, reason = self.check_user_name(username)
 
 		if (not status):
@@ -411,14 +440,18 @@ class UsersHandler:
 			session.close()
 			return False, 'Username already exists.'
 
-		## note: no salt here
+		## note: password here is BASE64(MD5(...)) and already in unicode
 		entry = User(username, password, "", ip)
+
 		session.add(entry)
 		session.commit()
 		session.close()
 		return True, 'Account registered successfully.'
 
 	def secure_register_user(self, username, password, ip, country):
+		assert(type(username) == unicode)
+		assert(type(password) == unicode)
+
 		status, reason = self.check_user_name(username)
 
 		if (not status):
@@ -431,10 +464,14 @@ class UsersHandler:
 			session.close()
 			return False, 'Username already exists.'
 
-		## store the <hash(pwrd + salt), salt> pair in DB
 		hash_salt = self.gen_user_pwrd_hash_and_salt(password)
 
-		entry = User(username, hash_salt[0], hash_salt[1], ip)
+		assert(type(hash_salt[0]) == str)
+		assert(type(hash_salt[1]) == str)
+
+		## store the <hash(pwrd + salt), salt> pair in DB (will be converted to unicode)
+		entry = User(username, ENCODE_FUNC(hash_salt[0]), ENCODE_FUNC(hash_salt[1]), ip)
+
 		session.add(entry)
 		session.commit()
 		session.close()
