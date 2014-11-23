@@ -320,6 +320,7 @@ class UsersHandler:
 
 		## FIXME: "Error reading from DB in in_LOGIN: <lambda>() takes exactly 2 arguments (3 given)"?
 		userban = session.query(BanUser).filter(BanUser.user_id == userid, now <= BanUser.end_time).first()
+
 		if (not userban):
 			ipban = session.query(BanIP).filter(BanIP.ip == ip, now <= BanIP.end_time).first()
 
@@ -330,7 +331,7 @@ class UsersHandler:
 		return False, ""
 
 
-	def login_common(self, dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country):
+	def common_login_user(self, dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		if self._root.censor and not self._root.SayHooks._nasty_word_censor(username):
 			return False, 'Name failed to pass profanity filter.'
 
@@ -357,7 +358,7 @@ class UsersHandler:
 
 		if (good):
 			## copy unicode(BASE64(...)) values out of DB, leave them as-is
-			user_copy = User(dbuser.username, password, dbuser.randsalt, ip, now)
+			user_copy = User(dbuser.username, dbuser.password, dbuser.randsalt, ip, now)
 			user_copy.access = dbuser.access
 			user_copy.id = dbuser.id
 			user_copy.ingame_time = dbuser.ingame_time
@@ -387,7 +388,7 @@ class UsersHandler:
 		if (not self.legacy_test_user_pwrd(dbuser, password)):
 			return False, 'Invalid password'
 
-		return (self.login_common(dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
+		return (self.common_login_user(dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
 
 	def secure_login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		assert(type(username) == unicode)
@@ -403,7 +404,7 @@ class UsersHandler:
 		if (not self.secure_test_user_pwrd(dbuser, password)):
 			return False, 'Invalid password'
 
-		return (self.login_common(dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
+		return (self.common_login_user(dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
 
 
 	def end_session(self, db_id):
@@ -424,8 +425,8 @@ class UsersHandler:
 				return False, 'Name failed to pass profanity filter.'
 		return True, ""
 
-	# need to add better ban checks so it can check if an ip address is banned when registering an account :)
-	def legacy_register_user(self, username, password, ip, country):
+
+	def common_register_user(self, session, username, password):
 		assert(type(username) == unicode)
 		assert(type(password) == unicode)
 
@@ -434,12 +435,20 @@ class UsersHandler:
 		if (not status):
 			return False, reason
 
-		session = self.sessionmaker()
 		dbuser = session.query(User).filter(User.username == username).first()
 
 		if (dbuser):
-			session.close()
 			return False, 'Username already exists.'
+
+		return True, ""
+
+	# TODO: improve, e.g. also check if ip address is banned when registering account
+	def legacy_register_user(self, username, password, ip, country):
+		session = self.sessionmaker()
+		status, reason = self.common_register_user(session, username, password)
+
+		if (not status):
+			return False, reason
 
 		## note: password here is BASE64(MD5(...)) and already in unicode
 		entry = User(username, password, "", ip)
@@ -450,20 +459,11 @@ class UsersHandler:
 		return True, 'Account registered successfully.'
 
 	def secure_register_user(self, username, password, ip, country):
-		assert(type(username) == unicode)
-		assert(type(password) == unicode)
-
-		status, reason = self.check_user_name(username)
+		session = self.sessionmaker()
+		status, reason = self.common_register_user(session, username, password)
 
 		if (not status):
 			return False, reason
-
-		session = self.sessionmaker()
-		dbuser = session.query(User).filter(User.username == username).first()
-
-		if (dbuser):
-			session.close()
-			return False, 'Username already exists.'
 
 		hash_salt = self.gen_user_pwrd_hash_and_salt(password)
 
