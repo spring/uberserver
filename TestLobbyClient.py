@@ -360,9 +360,9 @@ class LobbyClient:
 
 	def in_REGISTRATIONDENIED(self, msg):
 		print("[REGISTRATIONDENIED][time=%d::iter=%d] %s" % (time.time(), self.iters, msg))
-		## user account maybe already exists, try to login
+		## user account maybe already exists, try to login (done in Run)
 		self.accepted_registration = True
-		self.out_LOGIN()
+		self.requested_authentication = False
 
 	def in_AGREEMENT(self, msg):
 		pass
@@ -375,7 +375,6 @@ class LobbyClient:
 		print("[REGISTRATIONACCEPTED][time=%d::iter=%d]" % (time.time(), self.iters))
 
 		self.accepted_registration = True
-		self.out_LOGIN()
 
 	def in_ACCEPTED(self, msg):
 		print("[LOGINACCEPTED][time=%d::iter=%d]" % (time.time(), self.iters))
@@ -452,7 +451,7 @@ class LobbyClient:
 				self.socket.close()
 				return
 
-			## create an account for us and hop on with it
+			## create an account for us securely and hop on with it
 			if (self.acked_shared_key or (not self.want_secure_session)):
 				if (not self.requested_registration):
 					self.out_REGISTER()
