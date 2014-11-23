@@ -201,7 +201,7 @@ class LobbyClient:
 		if (self.use_secure_session()):
 			self.Send("LOGIN %s %s" % (self.username, self.password))
 		else:
-			self.Send("LOGIN %s %s" % (self.username, ENCODE_FUNC(LEGACY_HASH_FUNC(self.username).digest())))
+			self.Send("LOGIN %s %s" % (self.username, ENCODE_FUNC(LEGACY_HASH_FUNC(self.password).digest())))
 
 		self.requested_authentication = True
 
@@ -211,7 +211,7 @@ class LobbyClient:
 		if (self.use_secure_session()):
 			self.Send("REGISTER %s %s" % (self.username, self.password))
 		else:
-			self.Send("REGISTER %s %s" % (self.username, ENCODE_FUNC(LEGACY_HASH_FUNC(self.username).digest())))
+			self.Send("REGISTER %s %s" % (self.username, ENCODE_FUNC(LEGACY_HASH_FUNC(self.password).digest())))
 
 		self.requested_registration = True
 
