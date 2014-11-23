@@ -382,6 +382,10 @@ class LobbyClient:
 		self.accepted_authentication = True
 
 
+	def in_DENIED(self, msg):
+		print("[DENIED][time=%d::iter=%d] %s" % (time.time(), self.iters, msg))
+
+
 	def in_MOTD(self, msg):
 		pass
 	def in_ADDUSER(self, msg):
@@ -397,6 +401,9 @@ class LobbyClient:
 	def in_LOGININFOEND(self):
 		## do stuff here (e.g. "JOIN channel")
 		pass
+
+	def in_CHANNELTOPIC(self, msg):
+		print(msg)
 	def in_BATTLECLOSED(self, msg):
 		print(msg)
 	def in_REMOVEUSER(self, msg):
@@ -470,10 +477,6 @@ class LobbyClient:
 			socket_data = self.Recv(socket_data)
 			threading._sleep(0.05)
 
-	def in_CHANNELTOPIC(self, msg):
-		print(msg)
-	def in_DENIED(self, msg):
-		print(msg)
 
 
 def runclient(i):
