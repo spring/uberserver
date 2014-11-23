@@ -486,11 +486,13 @@ def runclient(i):
 
 threads = []
 
-for x in xrange(NUM_THREADS):
-	clientthread = threading.Thread(target = runclient, args = (x, ))
-	clientthread.start()
-	threads.append(clientthread)
-
-for t in threads:
-	t.join()
+if NUM_THREADS == 1:
+	runclient(1)
+else:
+	for x in xrange(NUM_THREADS):
+		clientthread = threading.Thread(target = runclient, args = (x, ))
+		clientthread.start()
+		threads.append(clientthread)
+	for t in threads:
+		t.join()
 
