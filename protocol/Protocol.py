@@ -3142,11 +3142,16 @@ class Protocol:
 		## is pointless because server will always try to decrypt
 		## it and be left with garbage in _handle)
 		if (len(user_data) == 0):
-			if (client.use_secure_session() and (not self.force_secure_comm())):
-				client.Send("SHAREDKEY DISABLED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
+			if (not client.use_secure_session()):
+				return
+			if (self.force_secure_comm()):
+				client.Send("SHAREDKEY ENFORCED")
+				return
 
-				client.set_aes_cipher_obj(None)
-				client.set_session_key_received_ack(False)
+			client.Send("SHAREDKEY DISABLED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
+
+			client.set_aes_cipher_obj(None)
+			client.set_session_key_received_ack(False)
 			return
 
 		## too-short keys are not allowed, can be sent either

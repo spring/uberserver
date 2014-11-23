@@ -310,7 +310,7 @@ class LobbyClient:
 		self.out_SETSHAREDKEY()
 
 	## "SHAREDKEY %s %s" % ("STATUS", "DATA")
-	def in_SHAREDKEY(self, arg0, arg1):
+	def in_SHAREDKEY(self, arg0, arg1 = ""):
 		assert(self.use_secure_session())
 		assert(self.received_public_key)
 		assert(self.sent_shared_key)
@@ -334,7 +334,7 @@ class LobbyClient:
 			## now check for data manipulation or corruption
 			can_send_ack_shared_key = (server_key_sig == client_key_sig)
 		else:
-			## rejected as invalid or cleared
+			## REJECTED, ENFORCED, or DISABLED
 			pass
 
 		if (not can_send_ack_shared_key):
@@ -360,7 +360,7 @@ class LobbyClient:
 
 	def in_REGISTRATIONDENIED(self, msg):
 		print("[REGISTRATIONDENIED][time=%d::iter=%d] %s" % (time.time(), self.iters, msg))
-		# user account maybe already exists, try to login
+		## user account maybe already exists, try to login
 		self.accepted_registration = True
 		self.out_LOGIN()
 
