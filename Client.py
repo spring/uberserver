@@ -216,7 +216,7 @@ class Client(BaseClient):
 		if (self.data.count('\n') == 0):
 			return
 
-		self.HandleProtocolCommands(self.data.split('\n'), msg_limits)
+		self.HandleProtocolCommands(self.data.split(DATA_PARTIT_BYTE), msg_limits)
 
 
 	def HandleProtocolCommands(self, split_data, msg_limits):

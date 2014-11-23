@@ -3144,7 +3144,8 @@ class Protocol:
 		if (len(user_data) == 0):
 			if (not client.use_secure_session()):
 				return
-			if (self.force_secure_comm()):
+			## no longer allow clients to disable encryption
+			if (True or self.force_secure_comm()):
 				client.Send("SHAREDKEY ENFORCED")
 				return
 
