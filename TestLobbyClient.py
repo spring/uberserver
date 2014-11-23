@@ -360,6 +360,9 @@ class LobbyClient:
 
 	def in_REGISTRATIONDENIED(self, msg):
 		print("[REGISTRATIONDENIED][time=%d::iter=%d] %s" % (time.time(), self.iters, msg))
+		# user account maybe already exists, try to login
+		self.accepted_registration = True
+		self.out_LOGIN()
 
 	def in_AGREEMENT(self, msg):
 		pass
