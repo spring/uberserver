@@ -204,8 +204,8 @@ class Protocol:
 		## server restarts (clients should NEVER cache the public key!)
 		self.rsa_cipher_obj.export_keys(root.crypto_key_dir)
 
-	def force_secure_auth(self): return (self._root.force_secure_auths)
-	def force_secure_comm(self): return (self._root.force_secure_comms)
+	def force_secure_auths(self): return (self._root.force_secure_client_auths)
+	def force_secure_comms(self): return (self._root.force_secure_client_comms)
 
 	def _new(self, client):
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0'))
@@ -842,7 +842,7 @@ class Protocol:
 		'''
 		assert(type(password) == unicode)
 
-		if (not client.use_secure_session() and (self.force_secure_auth() or self.force_secure_comm())):
+		if (not client.use_secure_session() and (self.force_secure_auths() or self.force_secure_comms())):
 			client.Send("REGISTRATIONDENIED %s" % ("Unencrypted registrations are not allowed."))
 			return
 		if (client.use_secure_session() and (not client.get_session_key_received_ack())):
@@ -904,7 +904,7 @@ class Protocol:
 		'''
 		assert(type(password) == unicode)
 
-		if (not client.use_secure_session() and (self.force_secure_auth() or self.force_secure_comm())):
+		if (not client.use_secure_session() and (self.force_secure_auths() or self.force_secure_comms())):
 			self.out_DENIED(client, username, "Unencrypted logins are not allowed.")
 			return
 		if (client.use_secure_session() and (not client.get_session_key_received_ack())):
@@ -3135,31 +3135,24 @@ class Protocol:
 	## user_data = ENCODE(ENCRYPT_RSA(AES_KEY, RSA_PUB_KEY))
 	##
 	def in_SETSHAREDKEY(self, client, user_data = ""):
-		## take "" to mean the client no longer wants encryption
-		## this will be the last encrypted message a client gets
-		## (unless the server enforces secure communications, in
-		## which case sending unencrypted data after key exchange
-		## is pointless because server will always try to decrypt
-		## it and be left with garbage in _handle)
 		if (len(user_data) == 0):
 			if (not client.use_secure_session()):
 				return
-			## no longer allow clients to disable encryption
-			if (True or self.force_secure_comm()):
-				client.Send("SHAREDKEY ENFORCED")
+			## no longer allow clients to disable secure sessions
+			if (True or self.force_secure_comms()):
+				client.Send("SHAREDKEY ENFORCED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
 				return
 
+			## take "" to mean the client no longer wants encryption
+			## this will be the last encrypted message a client gets
+			## (unless the server enforces secure communications, in
+			## which case sending unencrypted data after key exchange
+			## is pointless because server will always try to decrypt
+			## it and be left with garbage in _handle)
 			client.Send("SHAREDKEY DISABLED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
 
 			client.set_aes_cipher_obj(None)
 			client.set_session_key_received_ack(False)
-			return
-
-		## too-short keys are not allowed, can be sent either
-		## as plaintext (if no key was established yet) or as
-		## encrypted data
-		if (len(user_data) < CryptoHandler.MIN_AES_KEY_SIZE):
-			client.Send("SHAREDKEY REJECTED (%d bytes missing)" % (CryptoHandler.MIN_AES_KEY_SIZE - len(user_data)))
 			return
 
 		## NOTE:
@@ -3171,12 +3164,24 @@ class Protocol:
 			aes_key_msg = self.rsa_cipher_obj.decode_decrypt_bytes_utf8(user_data, SAFE_DECODE_FUNC)
 			aes_key_sig = SECURE_HASH_FUNC(aes_key_msg)
 
+			## too-short keys are not allowed, can be sent either
+			## as plaintext (if no key was established yet) or as
+			## encrypted data
+			if (len(aes_key_msg) < CryptoHandler.MIN_AES_KEY_SIZE):
+				key_sig = ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest())
+				min_len = CryptoHandler.MIN_AES_KEY_SIZE
+
+				client.Send("SHAREDKEY REJECTED %s %d" % (key_sig, min_len))
+				return
+
 			## set (or update) the client's session key
+			## (ACCEPTED is the only reply to carry the
+			## new key's digest, others contain the old)
 			client.set_session_key(aes_key_sig.digest())
 			client.set_session_key_identifier_byte(client.get_session_key_identifier_byte() + 1)
 			client.set_session_key_simulated_ack(True)
-		except ValueError as e:
-			client.Send("SHAREDKEY REJECTED (exception %s)" % (e))
+		except ValueError as val_err:
+			client.Send("SHAREDKEY REJECTED %s %s" % (ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()), val_err))
 			return
 
 		## notify the client that key was accepted, this will be

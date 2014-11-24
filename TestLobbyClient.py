@@ -287,13 +287,13 @@ class LobbyClient:
 
 
 	## "PUBLICKEY %s" % (ENCODE("PEM(PUB_KEY)"))
-	def in_PUBLICKEY(self, arg):
+	def in_PUBLICKEY(self, enc_pem_pub_key):
 		assert(not self.received_public_key)
 		assert(not self.sent_shared_key)
 		assert(not self.valid_shared_key)
 		assert(not self.acked_shared_key)
 
-		rsa_pub_key_str = DECODE_FUNC(arg)
+		rsa_pub_key_str = DECODE_FUNC(enc_pem_pub_key)
 		rsa_pub_key_obj = self.rsa_cipher_obj.import_key(rsa_pub_key_str)
 
 		## note: private key will be useless hereafter, but WDC
@@ -309,33 +309,33 @@ class LobbyClient:
 		self.received_public_key = True
 		self.out_SETSHAREDKEY()
 
-	## "SHAREDKEY %s %s" % ("STATUS", "DATA")
-	def in_SHAREDKEY(self, arg0, arg1 = ""):
+	## "SHAREDKEY %s %s %s" % (KEYSTATUS={"ACCEPTED", "REJECTED", "ENFORCED", "DISABLED"}, "KEYDIGEST" [, "EXTRADATA"])
+	def in_SHAREDKEY(self, key_status, key_digest, extra_data = ""):
 		assert(self.use_secure_session())
 		assert(self.received_public_key)
 		assert(self.sent_shared_key)
 		assert(not self.valid_shared_key)
 		assert(not self.acked_shared_key)
 
-		print("[SHAREDKEY][time=%d::iter=%d] %s %s" % (time.time(), self.iters, arg0, arg1))
+		print("[SHAREDKEY][time=%d::iter=%d] %s %s" % (time.time(), self.iters, key_status, key_digest))
 
 		can_send_ack_shared_key = False
 
-		if (arg0 == "ACCEPTED"):
-			server_key_sig = DECODE_FUNC(arg1)
+		if (key_status == "ACCEPTED"):
+			server_key_sig = DECODE_FUNC(key_digest)
 			client_key_sha = SECURE_HASH_FUNC(self.aes_cipher_obj.get_key())
 			client_key_sig = client_key_sha.digest()
 
 			print("\tserver_key_sig=%s client_key_sig=%s" % (server_key_sig, client_key_sig))
 
 			## server considers key valid and has accepted it
+			## now check for data manipulation or corruption
+			## before sending our final acknowledgement
 			self.valid_shared_key = True
 
-			## now check for data manipulation or corruption
 			can_send_ack_shared_key = (server_key_sig == client_key_sig)
-		else:
-			## REJECTED, ENFORCED, or DISABLED
-			pass
+		elif (key_status == "DISABLED"):
+			return
 
 		if (not can_send_ack_shared_key):
 			self.sent_session_key = False
