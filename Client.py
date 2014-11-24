@@ -79,8 +79,6 @@ class Client(BaseClient):
 		self.lastsaid = {}
 		self.current_channel = ''
 		
-		self.tokenized = False
-		self.hashpw = False
 		self.debug = False
 		self.data = ''
 
@@ -102,17 +100,15 @@ class Client(BaseClient):
 		
 		self._root.console_write('Client connected from %s:%s, session ID %s.' % (self.ip_address, self.port, session_id))
 
-		## start with the NULL-key
+		## AES cipher used for encrypted protocol communication
+		## with this client; starts with a NULL session-key and
+		## becomes active when client sends SETSHAREDKEY
 		self.set_aes_cipher_obj(aes_cipher(""))
 		self.set_session_key("")
 
 		self.set_session_key_received_ack(False)
 
 
-
-	## AES cipher used for encrypted protocol communication
-	## (obviously with a different instance and key for each
-	## connected client)
 	def set_aes_cipher_obj(self, obj): self.aes_cipher_obj = obj
 	def get_aes_cipher_obj(self): return self.aes_cipher_obj
 
@@ -189,7 +185,7 @@ class Client(BaseClient):
 		if total > (bytespersecond * seconds):
 			if not self.access in ('admin', 'mod'):
 				if (self.bot != 1):
-					# FIXME: no flood limit for these atm, need to rewrite flood limit to server-side shaping/bandwith limiting
+					# FIXME: no flood limit for these atm, need to do server-side shaping/bandwith limiting
 					self.Send('SERVERMSG No flooding (over %s per second for %s seconds)' % (bytespersecond, seconds))
 					self.Remove('Kicked for flooding (%s)' % (self.access))
 					return
@@ -240,7 +236,7 @@ class Client(BaseClient):
 				##
 				## if this is not the case (e.g. if a command was sent UNENCRYPTED
 				## by client after session-key exchange) the decryption will yield
-				## garbage and command will be rejected (or maybe crash the server)
+				## garbage and command will be rejected
 				##
 				## NOTE:
 				##   blocks of encrypted data are always base64-encoded and will be
@@ -302,8 +298,7 @@ class Client(BaseClient):
 			##
 			## add marker byte so client does not have to guess
 			## if data is of the form ENCODE(ENCRYPTED(...)) or
-			## in plaintext, as well as the current session key
-			## identifier byte
+			## in plaintext
 			##
 			hdr = DATA_MARKER_BYTE
 			pay = self.aes_cipher_obj.encrypt_encode_bytes_utf8(msg + DATA_PARTIT_BYTE)

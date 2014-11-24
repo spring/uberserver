@@ -72,7 +72,7 @@ class LobbyClient:
 		self.rsa_cipher_obj = rsa_cipher(None)
 
 		## start with a NULL session-key
-		self.aes_cipher_obj.set_key("")
+		self.set_session_key("")
 
 		## ring-buffer of exchanged session keys
 		self.session_keys = [""] * NUM_SESSION_KEYS

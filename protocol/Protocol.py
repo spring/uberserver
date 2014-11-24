@@ -552,21 +552,20 @@ class Protocol:
 
 	def _validLegacyPasswordSyntax(self, password):
 		'checks if an old-style password is correctly encoded'
-		if not password:
+		if (not password):
 			return False, 'Empty passwords are not allowed.'
 
 		assert(type(password) == unicode)
 
-		password = password.encode(UNICODE_ENCODING)
-		md5str = SAFE_DECODE_FUNC(password)
+		pwrd_hash_enc = password.encode(UNICODE_ENCODING)
+		pwrd_hash_raw = SAFE_DECODE_FUNC(pwrd_hash_enc)
 
-		if (password == md5str):
-			return False, "Invalid base64-encoding"
+		if (pwrd_hash_enc == pwrd_hash_raw):
+			return False, "Invalid base64-encoding."
+		if (len(pwrd_hash_raw) != len(LEGACY_HASH_FUNC("").digest())):
+			return False, "Invalid MD5-checksum."
 
-		if (len(md5str) != 16):
-			return False, "Invalid md5-checksum"
-
-		## assume (!) this is a correct checksum
+		## assume (!) this is a valid legacy-hash checksum
 		return True, ""
 
 	## since new-style passwords are generously salted, we
@@ -591,14 +590,6 @@ class Protocol:
 		if (client.use_secure_session()):
 			return (self._validSecurePasswordSyntax(password))
 		else:
-			if (client.hashpw):
-				## in this case LOGIN password was sent in plaintext
-				## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-				## !!! DO NOT EVER USE THIS: GAPING SECURITY HOLE !!
-				## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-				passhash = LEGACY_HASH_FUNC(password.encode(UNICODE_ENCODING))
-				password = ENCODE_FUNC(passhash.digest())
-
 			return (self._validLegacyPasswordSyntax(password))
 
 
@@ -820,17 +811,7 @@ class Protocol:
 
 
 	def in_HASH(self, client):
-		'''
-		After this command has been used, the password argument to LOGIN and REGISTER will be
-		automatically MD5-hashed and base64-encoded before its validity is checked. NOTE: THIS
-		COMMAND IS IRRELEVANT FOR CLIENTS USING ENCRYPTION AND SHOULD BE AVOIDED AT ALL COSTS!
-		'''
-		client.hashpw = not client.hashpw
-
-		if (client.hashpw):
-			self.out_SERVERMSG(client, 'Your password will be hashed for you when you login. NOTE THAT THIS IS INSECURE!')
-		else:
-			self.out_SERVERMSG(client, 'Auto-Password hashing disabled.')
+		self.out_SERVERMSG(client, 'The HASH command is no longer supported.')
 
 
 	def in_REGISTER(self, client, username, password):
