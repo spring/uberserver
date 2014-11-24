@@ -569,8 +569,8 @@ class LobbyClient:
 		while (self.iters < num_iters):
 			self.Update()
 
+		## say goodbye and close our socket
 		self.out_EXIT()
-		return True
 
 
 def RunClients(num_clients, num_updates):
