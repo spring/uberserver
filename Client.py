@@ -7,7 +7,6 @@ from CryptoHandler import safe_base64_decode as SAFE_DECODE_FUNC
 from CryptoHandler import DATA_MARKER_BYTE
 from CryptoHandler import DATA_PARTIT_BYTE
 from CryptoHandler import UNICODE_ENCODING
-from CryptoHandler import NUM_SESSION_KEYS
 
 class Client(BaseClient):
 	'this object represents one server-side connected client'
@@ -103,10 +102,11 @@ class Client(BaseClient):
 		
 		self._root.console_write('Client connected from %s:%s, session ID %s.' % (self.ip_address, self.port, session_id))
 
-		self.set_aes_cipher_obj(None)
-		self.set_session_key_identifier_byte(0)
+		## start with the NULL-key
+		self.set_aes_cipher_obj(aes_cipher(""))
+		self.set_session_key("")
+
 		self.set_session_key_received_ack(False)
-		self.set_session_key_simulated_ack(False)
 
 
 
@@ -116,34 +116,18 @@ class Client(BaseClient):
 	def set_aes_cipher_obj(self, obj): self.aes_cipher_obj = obj
 	def get_aes_cipher_obj(self): return self.aes_cipher_obj
 
+	def set_session_key_received_ack(self, b): self.session_key_received_ack = b
+	def get_session_key_received_ack(self): return self.session_key_received_ack
+
+	def set_session_key(self, key): self.aes_cipher_obj.set_key(key)
+	def get_session_key(self): return (self.aes_cipher_obj.get_key())
+
 	## NOTE:
 	##   only for in-memory clients, not DB User instances
 	##   when true, aes_cipher_obj always contains a valid
 	##   key
 	def use_secure_session(self):
-		return (self.aes_cipher_obj != None)
-
-
-	def set_session_key_identifier_byte(self, n): self.session_key_identifier_byte = (n % NUM_SESSION_KEYS)
-	def get_session_key_identifier_byte(self): return self.session_key_identifier_byte
-
-	def set_session_key_simulated_ack(self, b): self.session_key_simulated_ack = b
-	def get_session_key_simulated_ack(self): return self.session_key_simulated_ack
-
-	def set_session_key_received_ack(self, b): self.session_key_received_ack = b
-	def get_session_key_received_ack(self): return self.session_key_received_ack
-
-	def set_session_key(self, key):
-		if (self.get_aes_cipher_obj() == None):
-			self.set_aes_cipher_obj(aes_cipher(""))
-
-		self.aes_cipher_obj.set_key(key)
-
-	def get_session_key(self):
-		if (self.aes_cipher_obj == None):
-			return ""
-		return (self.aes_cipher_obj.get_key())
-
+		return (len(self.get_session_key()) != 0)
 
 
 	def set_msg_id(self, msg):
@@ -243,12 +227,8 @@ class Client(BaseClient):
 		for raw_data_blob in raw_data_blobs:
 			is_encrypted_blob = (raw_data_blob[0] == DATA_MARKER_BYTE)
 
-			if (self.use_secure_session() and is_encrypted_blob):
-				client_session_key_id = ord(raw_data_blob[1])
-
-				## client should NEVER use a different key than server!
-				if (client_session_key_id != self.get_session_key_identifier_byte()):
-					continue
+			if (is_encrypted_blob):
+				assert(self.use_secure_session())
 
 				## handle an encrypted client command, using the AES session key
 				## previously exchanged between client and server by SETSHAREDKEY
@@ -275,7 +255,7 @@ class Client(BaseClient):
 				## (there should not be any encoding on top of base64
 				## blobs in the first place since the b64 alphabet is
 				## ASCII)
-				enc_data_blob = raw_data_blob[2: ]
+				enc_data_blob = raw_data_blob[1: ]
 				dec_data_blob = self.aes_cipher_obj.decode_decrypt_bytes_utf8(enc_data_blob, SAFE_DECODE_FUNC)
 
 				split_commands = dec_data_blob.split(DATA_PARTIT_BYTE)
@@ -325,11 +305,11 @@ class Client(BaseClient):
 			## in plaintext, as well as the current session key
 			## identifier byte
 			##
-			hdr = DATA_MARKER_BYTE + chr(self.get_session_key_identifier_byte())
-			msg = self.aes_cipher_obj.encrypt_encode_bytes_utf8(msg)
-			msg = hdr + msg
+			hdr = DATA_MARKER_BYTE
+			pay = self.aes_cipher_obj.encrypt_encode_bytes_utf8(msg + DATA_PARTIT_BYTE)
+			msg = hdr + pay
 
-			if ((not self.get_session_key_received_ack()) and (not self.get_session_key_simulated_ack())):
+			if (not self.get_session_key_received_ack()):
 				## buffer encrypted data until we get client ACK
 				## (the most recent message will be at the back)
 				##
@@ -344,11 +324,10 @@ class Client(BaseClient):
 				## pop from back so client receives in the proper
 				## order, with <msg> itself after the queued data
 				while (len(self.enc_sendbuffer) > 0):
-					self.msg_sendbuffer.append(self.enc_sendbuffer.pop() + DATA_PARTIT_BYTE)
+					self.msg_sendbuffer.append(self.enc_sendbuffer.pop())
 
 			## send the output as-is (base64 is all ASCII)
 			binary = True
-
 
 		if (binary):
 			self.msg_sendbuffer.append(msg + DATA_PARTIT_BYTE)
@@ -356,7 +335,6 @@ class Client(BaseClient):
 			self.msg_sendbuffer.append(msg.encode(UNICODE_ENCODING) + DATA_PARTIT_BYTE)
 
 		self.handler.poller.setoutput(self.conn, True)
-		self.set_session_key_simulated_ack(False)
 
 
 	def FlushBuffer(self):

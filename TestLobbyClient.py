@@ -22,7 +22,10 @@ from CryptoHandler import NUM_SESSION_KEYS
 from base64 import b64encode as ENCODE_FUNC
 from base64 import b64decode as DECODE_FUNC
 
-NUM_THREADS = 1
+NUM_CLIENTS = 1
+NUM_UPDATES = 10000
+USE_THREADS = False
+CLIENT_NAME = "ubertest%02d"
 
 HOST_SERVER = ("localhost", 8200)
 MAIN_SERVER = ("lobby.springrts.com", 8200)
@@ -38,107 +41,169 @@ BACKUP_SERVERS = [
 ALLOWED_OPEN_COMMANDS = ["GETPUBLICKEY", "SETSHAREDKEY", "EXIT"]
 
 class LobbyClient:
-	def __init__(self, server_addr, username):
-		self.socket = None
+	def __init__(self, server_addr, username, password = "KeepItSecret.KeepItSafe."):
+		self.host_socket = None
+		self.socket_data = ""
+
+		self.username = username
+		self.password = password
 
 		try:
 			## non-blocking so we do not have to wait on server
-			self.socket = socket.create_connection(server_addr, 5)
-			self.socket.setblocking(0)
+			self.host_socket = socket.create_connection(server_addr, 5)
+			self.host_socket.setblocking(0)
 		except socket.error as msg:
 			print(msg)
 			print(traceback.format_exc())
+			assert(False)
 
+		self.Init()
+
+
+	def Init(self):
 		self.lastping = 0.0
 		self.pingsamples = 0
 		self.maxping = 0
 		self.minping = 100
 		self.average = 0
-		self.count = 0
 		self.iters = 0
 
-		self.username = username
-		self.password = "KeepItSecret.KeepItSafe."
-
-		self.aes_cipher_obj = None
+		self.aes_cipher_obj = aes_cipher("")
 		self.rsa_cipher_obj = rsa_cipher(None)
 
-		## ring-buffer of exchanged keys
+		## start with a NULL session-key
+		self.aes_cipher_obj.set_key("")
+
+		## ring-buffer of exchanged session keys
 		self.session_keys = [""] * NUM_SESSION_KEYS
 		self.session_key_id = 0
 
+		self.data_send_queue = []
+
 		self.server_info = ("", "", "", "")
 
-		self.requested_registration = False
-		self.requested_authentication = False
-		self.accepted_registration = False
-		self.accepted_authentication = False
+		self.requested_registration   = False ## set on out_REGISTER
+		self.requested_authentication = False ## set on out_LOGIN
+		self.accepted_registration    = False ## set on in_REGISTRATIONACCEPTED
+		self.rejected_registration    = False ## set on in_REGISTRATIONDENIED
+		self.accepted_authentication  = False ## set on in_ACCEPTED
 
 		self.want_secure_session = True
-		self.requested_public_key = False
 		self.received_public_key = False
-		self.sent_shared_key = False
-		self.valid_shared_key = False
-		self.acked_shared_key = False
+
+		self.sent_unacked_shared_key = False
+		self.server_valid_shared_key = False
+		self.client_acked_shared_key = False
+
+		## initialize key-exchange sequence (ends with ACKSHAREDKEY)
+		## needed even if (for some reason) we do not want a secure
+		## session to discover the server force_secure_{auths,comms}
+		## settings
+		self.out_GETPUBLICKEY()
+
+
+	def set_session_key(self, key): self.aes_cipher_obj.set_key(key)
+	def get_session_key(self): return (self.aes_cipher_obj.get_key())
 
 	def use_secure_session(self):
-		return (self.aes_cipher_obj != None)
+		return (len(self.get_session_key()) != 0)
 
 
-	def Send(self, data):
+	def Send(self, data, flush = True):
 		## test-client never tries to send unicode strings, so
 		## we do not need to add encode(UNICODE_ENCODING) calls
 		assert(type(data) == str)
-		print("[Send][time=%d::iter=%d] data=%s" % (time.time(), self.iters, data))
+		print("[Send][time=%d::iter=%d] data=\"%s\" sec_sess=%d key_acked=%d flush=%d" % (time.time(), self.iters, data, self.use_secure_session(), self.client_acked_shared_key, flush))
 
-		if (self.acked_shared_key):
+		"""
+		if (not flush):
+			self.data_send_queue.append((self.get_session_key(), self.client_acked_shared_key, self.want_secure_session, data))
+			return
+
+		self.data_send_queue.reverse()
+
+		while (len(self.data_send_queue) > 0):
+			(key, ack, sec, msg) = data_send_queue.pop()
+
+			if (len(key) != 0):
+				self.aes_cipher_obj.set_key(key)
+
+				hdr = DATA_MARKER_BYTE
+				pay = self.aes_cipher_obj.encrypt_encode_bytes(msg + DATA_PARTIT_BYTE)
+				msg = hdr + pay
+
+				if (ack):
+					self.host_socket.send(msg + DATA_PARTIT_BYTE)
+					self.host_socket.send(data + DATA_PARTIT_BYTE)
+				else:
+					print("\tblocked sending \"%s\": session-key unacknowledged!" % command)
+			else:
+				cmd = data.split()
+				cmd = sentence[0]
+
+				if ((not sec) or (cmd in ALLOWED_OPEN_COMMANDS)):
+					self.host_socket.send(msg + DATA_PARTIT_BYTE)
+		"""
+
+		if (self.client_acked_shared_key):
 			assert(self.use_secure_session())
 
 			## add marker byte so server does not have to guess
 			## if data is of the form ENCODE(ENCRYPTED(...)) or
 			## in plaintext
-			head = DATA_MARKER_BYTE + chr(self.session_key_id)
-			data = self.aes_cipher_obj.encrypt_encode_bytes(data)
-			data = head + data + DATA_PARTIT_BYTE
+			##
+			## TODO:
+			##   queue up and concatenate a small random number
+			##   of commands before encrypting them, but always
+			##   force a flush when command is SETSHAREDKEY (or
+			##   if a command needs immediate attention)
+			hdr = DATA_MARKER_BYTE
+			pay = self.aes_cipher_obj.encrypt_encode_bytes(data + DATA_PARTIT_BYTE)
+			msg = hdr + pay
 
-			self.socket.send(data)
+			self.host_socket.send(msg + DATA_PARTIT_BYTE)
 		else:
-			sentence = data.split()
-			command = sentence[0]
+			cmd = data.split()
+			cmd = cmd[0]
 
-			if ((not self.want_secure_session) or (command in ALLOWED_OPEN_COMMANDS)):
-				self.socket.send(data + DATA_PARTIT_BYTE)
+			if ((not self.want_secure_session) or (cmd in ALLOWED_OPEN_COMMANDS)):
+				self.host_socket.send(data + DATA_PARTIT_BYTE)
 			else:
-				print("\tcan not send command \"%s\" unencrypted, wait for SHAREDKEY!" % command)
+				print("\tblocked sending \"%s\": session-key unacknowledged!" % cmd)
 
-	def Recv(self, cur_socket_data):
+	def Recv(self):
+		num_received_bytes = len(self.socket_data)
+
 		try:
-			nxt_socket_data = self.socket.recv(4096)
-			cur_socket_data += nxt_socket_data
-
-			if (len(nxt_socket_data) == 0):
-				return cur_socket_data
+			self.socket_data += self.host_socket.recv(4096)
 		except:
-			return cur_socket_data
+			return
 
-		if (cur_socket_data.count(DATA_PARTIT_BYTE) == 0):
-			return cur_socket_data
+		if (len(self.socket_data) == num_received_bytes):
+			return
+		if (self.socket_data.count(DATA_PARTIT_BYTE) == 0):
+			return
 
-		split_data = cur_socket_data.split(DATA_PARTIT_BYTE)
+		split_data = self.socket_data.split(DATA_PARTIT_BYTE)
 		data_blobs = split_data[: len(split_data) - 1  ]
 		final_blob = split_data[  len(split_data) - 1: ][0]
 
 		for raw_data_blob in data_blobs:
 			is_encrypted_blob = (raw_data_blob[0] == DATA_MARKER_BYTE)
+			first_session_key = ((not self.use_secure_session()) and is_encrypted_blob)
 
-			if (self.use_secure_session() and is_encrypted_blob):
-				self.session_key_id = ord(raw_data_blob[1])
+			## special case (first encrypted SHAREDKEY ACCEPTED
+			## server message after establishing secure session)
+			if (first_session_key):
 				self.aes_cipher_obj.set_key(self.session_keys[self.session_key_id])
+
+			if (is_encrypted_blob):
+				assert(self.use_secure_session())
 
 				## after decryption dec_command might represent a batch of
 				## commands separated by newlines, all of which need to be
 				## handled successfully
-				enc_command = raw_data_blob[2: ]
+				enc_command = raw_data_blob[1: ]
 				dec_command = self.aes_cipher_obj.decode_decrypt_bytes_utf8(enc_command, SAFE_DECODE_FUNC)
 				dec_commands = dec_command.split(DATA_PARTIT_BYTE)
 				dec_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in dec_commands]
@@ -149,7 +214,7 @@ class LobbyClient:
 				## strips leading spaces and trailing carriage return
 				self.Handle((raw_data_blob.rstrip('\r')).lstrip(' '))
 
-		return final_blob
+		self.socket_data = final_blob
 
 	def Handle(self, msg):
 		## probably caused by trailing newline ("abc\n".split("\n") == ["abc", ""])
@@ -196,7 +261,7 @@ class LobbyClient:
 
 
 	def out_LOGIN(self):
-		print("[LOGIN][time=%d::iter=%d]" % (time.time(), self.iters))
+		print("[LOGIN][time=%d::iter=%d] sec_sess=%d" % (time.time(), self.iters, self.use_secure_session()))
 
 		if (self.use_secure_session()):
 			self.Send("LOGIN %s %s" % (self.username, self.password))
@@ -206,7 +271,7 @@ class LobbyClient:
 		self.requested_authentication = True
 
 	def out_REGISTER(self):
-		print("[REGISTER][time=%d::iter=%d]" % (time.time(), self.iters))
+		print("[REGISTER][time=%d::iter=%d] sec_sess=%d" % (time.time(), self.iters, self.use_secure_session()))
 
 		if (self.use_secure_session()):
 			self.Send("REGISTER %s %s" % (self.username, self.password))
@@ -215,29 +280,35 @@ class LobbyClient:
 
 		self.requested_registration = True
 
+	def out_CONFIRMAGREEMENT(self):
+		print("[CONFIRMAGREEMENT][time=%d::iter=%d] sec_sess=%d" % (time.time(), self.iters, self.use_secure_session()))
+		self.Send("CONFIRMAGREEMENT")
+
 
 	def out_PING(self):
 		print("[PING][time=%d::iters=%d]" % (time.time(), self.iters))
 
 		self.Send("PING")
 
+	def out_EXIT(self):
+		self.host_socket.close()
+
 
 	def out_GETPUBLICKEY(self):
 		assert(not self.received_public_key)
-		assert(not self.sent_shared_key)
-		assert(not self.valid_shared_key)
-		assert(not self.acked_shared_key)
+		assert(not self.sent_unacked_shared_key)
+		assert(not self.server_valid_shared_key)
+		assert(not self.client_acked_shared_key)
 
 		print("[GETPUBLICKEY][time=%d::iter=%d]" % (time.time(), self.iters))
 
 		self.Send("GETPUBLICKEY")
-		self.requested_public_key = True
 
 	def out_SETSHAREDKEY(self):
 		assert(self.received_public_key)
-		assert(not self.sent_shared_key)
-		assert(not self.valid_shared_key)
-		assert(not self.acked_shared_key)
+		assert(not self.sent_unacked_shared_key)
+		assert(not self.server_valid_shared_key)
+		assert(not self.client_acked_shared_key)
 
 		## note: server will use HASH(RAW) as key and echo back HASH(HASH(RAW))
 		## hence we send ENCODE(ENCRYPT(RAW)) and use HASH(RAW) on our side too
@@ -245,58 +316,59 @@ class LobbyClient:
 		aes_key_sig = SECURE_HASH_FUNC(aes_key_raw)
 		aes_key_enc = self.rsa_cipher_obj.encrypt_encode_bytes(aes_key_raw)
 
-		if (self.aes_cipher_obj == None):
-			self.aes_cipher_obj = aes_cipher("")
-			self.aes_cipher_obj.set_key("")
-
 		## make a copy of the previous key (if any) since
-		## we might need it to decrypt SHAREDKEY REJECTED
-		## (if already in a secure session)
+		## we still need it to decrypt SHAREDKEY response
+		## etc
 		self.session_keys[(self.session_key_id + 0) % NUM_SESSION_KEYS] = self.aes_cipher_obj.get_key()
 		self.session_keys[(self.session_key_id + 1) % NUM_SESSION_KEYS] = aes_key_sig.digest()
 
 		## wrap around when we reach the largest allowed id
-		## only two elements (id % N) and ((id + 1) % N) are
-		## technically ever needed, N > 2 is redundant
 		self.session_key_id += 1
 		self.session_key_id %= NUM_SESSION_KEYS
 
-		## start using new key immediately, server will
-		## encrypt response with it (if key is accepted)
-		self.aes_cipher_obj.set_key(self.session_keys[self.session_key_id])
-
-		print("[SETSHAREDKEY][time=%d::iter=%d] sha(raw)=%s enc(raw)=%s..." % (time.time(), self.iters, aes_key_sig.digest(), aes_key_enc[0: 8]))
+		print("[SETSHAREDKEY][time=%d::iter=%d] sha(raw)=%s enc(raw)=%s..." % (time.time(), self.iters, aes_key_sig.digest(), ENCODE_FUNC(aes_key_enc[0: 8])))
 
 		## ENCODE(ENCRYPT_RSA(AES_KEY, RSA_PUB_KEY))
 		self.Send("SETSHAREDKEY %s" % aes_key_enc)
-		self.sent_shared_key = True
+		self.sent_unacked_shared_key = True
 
 	def out_ACKSHAREDKEY(self):
 		assert(self.received_public_key)
-		assert(self.sent_shared_key)
-		assert(self.valid_shared_key)
-		assert(not self.acked_shared_key)
+		assert(self.sent_unacked_shared_key)
+		assert(self.server_valid_shared_key)
+		assert(not self.client_acked_shared_key)
 
 		print("[ACKSHAREDKEY][time=%d::iter=%d]" % (time.time(), self.iters))
 
-		## needs to be set before the call, otherwise the message gets
+		## start using a new key after verification; server will have
+		## already switched to it so our ACKSHAREDKEY can be decrypted
+		##
+		## NOTE:
+		##   during the SETSHAREDKEY --> SHAREDKEY interval a client
+		##   should NOT send any messages since it does not yet know
+		##   whether the server has properly received the session key
+		##   THIS INCLUDES *NEW* SETSHAREDKEY COMMANDS!
+		self.aes_cipher_obj.set_key(self.session_keys[self.session_key_id])
+
+		## needs to be set before the Send, otherwise the message gets
 		## dropped (since ACKSHAREDKEY is not in ALLOWED_OPEN_COMMANDS)
-		self.acked_shared_key = True
+		self.client_acked_shared_key = True
+
 		self.Send("ACKSHAREDKEY")
 
 
 
-	## "PUBLICKEY %s" % (ENCODE("PEM(PUB_KEY)"))
-	def in_PUBLICKEY(self, enc_pem_pub_key):
+	## "PUBLICKEY %s" % (ENCODE("PEM(PUB_KEY)", force_sec_auths, force_sec_comms))
+	def in_PUBLICKEY(self, enc_pem_pub_key, force_sec_auths, force_sec_comms):
 		assert(not self.received_public_key)
-		assert(not self.sent_shared_key)
-		assert(not self.valid_shared_key)
-		assert(not self.acked_shared_key)
+		assert(not self.sent_unacked_shared_key)
+		assert(not self.server_valid_shared_key)
+		assert(not self.client_acked_shared_key)
 
 		rsa_pub_key_str = DECODE_FUNC(enc_pem_pub_key)
 		rsa_pub_key_obj = self.rsa_cipher_obj.import_key(rsa_pub_key_str)
 
-		## note: private key will be useless hereafter, but WDC
+		## note: private key is never used, but it can not be None
 		self.rsa_cipher_obj.set_pub_key(rsa_pub_key_obj)
 		self.rsa_cipher_obj.set_pri_key(CryptoHandler.RSA_NULL_KEY_OBJ)
 
@@ -306,41 +378,52 @@ class LobbyClient:
 
 		print("[PUBLICKEY][time=%d::iter=%d] %s" % (time.time(), self.iters, rsa_pub_key_str))
 
+		## client should never want to connect insecurely,
+		## but in case it does the server's say is *FINAL*
+		if (not self.want_secure_session):
+			try:
+				self.want_secure_session = (int(force_sec_auths) != 0) or (int(force_sec_comms) != 0)
+			except:
+				pass
+
 		self.received_public_key = True
+
+		if (not self.want_secure_session):
+			return
+
 		self.out_SETSHAREDKEY()
 
 	## "SHAREDKEY %s %s %s" % (KEYSTATUS={"ACCEPTED", "REJECTED", "ENFORCED", "DISABLED"}, "KEYDIGEST" [, "EXTRADATA"])
 	def in_SHAREDKEY(self, key_status, key_digest, extra_data = ""):
-		assert(self.use_secure_session())
 		assert(self.received_public_key)
-		assert(self.sent_shared_key)
-		assert(not self.valid_shared_key)
-		assert(not self.acked_shared_key)
+		assert(self.sent_unacked_shared_key)
+		assert(not self.server_valid_shared_key)
+		assert(not self.client_acked_shared_key)
 
-		print("[SHAREDKEY][time=%d::iter=%d] %s %s" % (time.time(), self.iters, key_status, key_digest))
+		print("[SHAREDKEY][time=%d::iter=%d] %s %s %s" % (time.time(), self.iters, key_status, key_digest, extra_data))
 
 		can_send_ack_shared_key = False
 
 		if (key_status == "ACCEPTED"):
 			server_key_sig = DECODE_FUNC(key_digest)
-			client_key_sha = SECURE_HASH_FUNC(self.aes_cipher_obj.get_key())
+			client_key_sha = SECURE_HASH_FUNC(self.session_keys[self.session_key_id])
 			client_key_sig = client_key_sha.digest()
 
-			print("\tserver_key_sig=%s client_key_sig=%s" % (server_key_sig, client_key_sig))
+			print("\tserver_key_sig=%s\n\tclient_key_sig=%s" % (ENCODE_FUNC(server_key_sig), ENCODE_FUNC(client_key_sig)))
 
 			## server considers key valid and has accepted it
 			## now check for data manipulation or corruption
-			## before sending our final acknowledgement
-			self.valid_shared_key = True
+			## before sending back our final acknowledgement
+			self.server_valid_shared_key = True
 
 			can_send_ack_shared_key = (server_key_sig == client_key_sig)
 		elif (key_status == "DISABLED"):
 			return
 
 		if (not can_send_ack_shared_key):
-			self.sent_session_key = False
-			self.valid_shared_key = False
-			self.acked_shared_key = False
+			self.sent_unacked_shared_key = False
+			self.server_valid_shared_key = False
+			self.client_acked_shared_key = False
 
 			## try again with a new session key
 			self.out_SETSHAREDKEY()
@@ -358,32 +441,46 @@ class LobbyClient:
 	def in_SERVERMSG(self, msg):
 		print("[SERVERMSG][time=%d::iter=%d] %s" % (time.time(), self.iters, msg))
 
-	def in_REGISTRATIONDENIED(self, msg):
-		print("[REGISTRATIONDENIED][time=%d::iter=%d] %s" % (time.time(), self.iters, msg))
-		## user account maybe already exists, try to login (done in Run)
-		self.accepted_registration = True
-		self.requested_authentication = False
 
 	def in_AGREEMENT(self, msg):
 		pass
+
 	def in_AGREEMENTEND(self):
 		print("[AGREEMENDEND][time=%d::iter=%d]" % (time.time(), self.iters))
-		self.Send("CONFIRMAGREEMENT")
+		assert(self.accepted_registration)
+		assert(not self.accepted_authentication)
+
+		self.out_CONFIRMAGREEMENT()
+		self.out_LOGIN()
 
 
 	def in_REGISTRATIONACCEPTED(self):
 		print("[REGISTRATIONACCEPTED][time=%d::iter=%d]" % (time.time(), self.iters))
 
+		## account did not exist and was created
 		self.accepted_registration = True
+
+		## trigger in_AGREEMENT{END}, second LOGIN there will trigger ACCEPTED
+		self.out_LOGIN()
+
+	def in_REGISTRATIONDENIED(self, msg):
+		print("[REGISTRATIONDENIED][time=%d::iter=%d] %s" % (time.time(), self.iters, msg))
+
+		self.rejected_registration = True
+
 
 	def in_ACCEPTED(self, msg):
 		print("[LOGINACCEPTED][time=%d::iter=%d]" % (time.time(), self.iters))
+
 		## if we get here, everything checks out
 		self.accepted_authentication = True
 
-
 	def in_DENIED(self, msg):
 		print("[DENIED][time=%d::iter=%d] %s" % (time.time(), self.iters, msg))
+
+		## login denied, try to register first
+		## nothing we can do if that also fails
+		self.out_REGISTER()
 
 
 	def in_MOTD(self, msg):
@@ -412,24 +509,18 @@ class LobbyClient:
 		print(msg)
 
 	def in_PONG(self):
-		if (False and self.count > 1000):
-			print("max %0.3f min %0.3f average %0.3f" % (self.maxping, self.minping, (self.average / self.pingsamples)))
-			self.Send("EXIT")
-			return
+		diff = time.time() - self.lastping
+
+		self.minping = min(diff, self.minping)
+		self.maxping = max(diff, self.maxping)
+
+		self.average = self.average + diff
+		self.pingsamples = self.pingsamples + 1
 
 		if (self.lastping != 0.0):
-			diff = time.time() - self.lastping
-
-			self.minping = min(diff, self.minping)
-			self.maxping = max(diff, self.maxping)
-
-			self.average = self.average + diff
-			self.pingsamples = self.pingsamples + 1
-			print("%0.3f" %(diff))
+			print("[PONG] max=%0.3f min=%0.3f avg=%0.3f" % (self.maxping, self.minping, (self.average / self.pingsamples)))
 
 		self.lastping = time.time()
-		self.count = self.count + 1
-		self.out_PING()
 
 	def in_JOIN(self, msg):
 		print(msg)
@@ -441,60 +532,83 @@ class LobbyClient:
 		print(msg)
 
 
-	def Run(self):
-		if not self.socket:
-			return
+	def Update(self):
+		assert(self.host_socket != None)
 
-		socket_data = ""
+		self.iters += 1
 
-		## initialize key-exchange sequence (ends with ACKSHAREDKEY)
-		if (self.want_secure_session):
-			self.out_GETPUBLICKEY()
+		## securely connect to server with existing or new account
+		##   c:LOGIN -> {s:LOGACCEPT,s:LOGDENIED}
+		##     if s:LOGACCEPT -> done
+		##     if s:LOGDENIED -> c:REGISTER
+		##     c:REGISTER -> {s:REGACCEPT,s:REGDENIED}
+		##       if s:REGACCEPT -> c:LOGIN -> s:AGREEMENT -> (c:CONFAGREE, c:LOGIN) -> s:LOGACCEPT
+		##       if s:REGDENIED -> exit
+		if (self.client_acked_shared_key or (not self.want_secure_session)):
+			if (not self.requested_authentication):
+				self.out_LOGIN()
 
-		while (True):
-			self.iters += 1
+		## periodically re-negotiate the session key (every
+		## 500*0.05=25.0s; models an ultra-paranoid client)
+		if (self.client_acked_shared_key and self.want_secure_session and self.use_secure_session()):
+			if ((self.iters % 500) == 0):
+				self.sent_unacked_shared_key = False
+				self.server_valid_shared_key = False
+				self.client_acked_shared_key = False
+				self.out_SETSHAREDKEY()
 
-			if (False and self.iters > 5):
-				self.socket.close()
-				return
+		if ((self.iters % 300) == 0):
+			self.out_PING()
 
-			## create an account for us securely and hop on with it
-			if (self.acked_shared_key or (not self.want_secure_session)):
-				if (not self.requested_registration):
-					self.out_REGISTER()
-				if (self.accepted_registration and (not self.requested_authentication)):
-					self.out_LOGIN()
+		threading._sleep(0.05)
 
-			## periodically re-negotiate the session key (every
-			## 500*0.05=25.0s; models an ultra-paranoid client)
-			if (self.want_secure_session and self.use_secure_session()):
-				if ((self.iters % 500) == 0):
-					self.sent_shared_key = False
-					self.valid_shared_key = False
-					self.acked_shared_key = False
-					self.out_SETSHAREDKEY()
+		## eat through received data
+		self.Recv()
 
-			socket_data = self.Recv(socket_data)
-			threading._sleep(0.05)
+	def Run(self, num_iters):
+		while (self.iters < num_iters):
+			self.Update()
+
+		self.out_EXIT()
+		return True
 
 
+def RunClients(num_clients, num_updates):
+	clients = [None] * num_clients
 
-def runclient(i):
-	print("Running client %d" % (i))
-	user_name = "ubertest" + str(i)
-	client = LobbyClient(HOST_SERVER, user_name)
-	client.Run()
-	print("finished: " + user_name)
+	for i in xrange(num_clients):
+		clients[i] = LobbyClient(HOST_SERVER, (CLIENT_NAME % i))
 
-threads = []
+	for j in xrange(num_updates):
+		for i in xrange(num_clients):
+			clients[i].Update()
 
-if NUM_THREADS == 1:
-	runclient(1)
-else:
-	for x in xrange(NUM_THREADS):
-		clientthread = threading.Thread(target = runclient, args = (x, ))
-		clientthread.start()
-		threads.append(clientthread)
+	for i in xrange(num_clients):
+		clients[i].out_EXIT()
+
+
+def RunClientThread(i, k):
+	client = LobbyClient(HOST_SERVER, (CLIENT_NAME % i))
+
+	print("[RunClientThread] running client %s" % client.username)
+	client.Run(k)
+	print("[RunClientThread] client %s finished" % client.username)
+
+def RunClientThreads(num_clients, num_updates):
+	threads = [None] * num_clients
+
+	for i in xrange(num_clients):
+		threads[i] = threading.Thread(target = RunClientThread, args = (i, num_updates, ))
+		threads[i].start()
 	for t in threads:
 		t.join()
+
+
+def main():
+	if (not USE_THREADS):
+		RunClients(NUM_CLIENTS, NUM_UPDATES)
+	else:
+		RunClientThreads(NUM_CLIENTS, NUM_UPDATES)
+
+main()
 

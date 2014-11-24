@@ -37,7 +37,7 @@ restricted = {
 	'PING',
 	'LISTCOMPFLAGS',
 
-	# encryption
+	## encryption
 	'GETPUBLICKEY',
 	'SETSHAREDKEY',
 	'ACKSHAREDKEY',
@@ -846,7 +846,6 @@ class Protocol:
 			client.Send("REGISTRATIONDENIED %s" % ("Unencrypted registrations are not allowed."))
 			return
 		if (client.use_secure_session() and (not client.get_session_key_received_ack())):
-			client.set_session_key_simulated_ack(True)
 			client.Send("REGISTRATIONDENIED %s" % ("Encrypted registrations without prior key-acknowledgement are not allowed."))
 			return
 
@@ -908,16 +907,15 @@ class Protocol:
 			self.out_DENIED(client, username, "Unencrypted logins are not allowed.")
 			return
 		if (client.use_secure_session() and (not client.get_session_key_received_ack())):
-			client.set_session_key_simulated_ack(True)
 			self.out_DENIED(client, username, "Encrypted logins without prior key-acknowledgement are not allowed.")
 			return
 
 		# FIXME: is checked first because of a springie bug
-		if username in self._root.usernames:
+		if (username in self._root.usernames):
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
 
-		if client.failed_logins > 2:
+		if (client.failed_logins > 2):
 			self.out_DENIED(client, username, "Too many failed logins.")
 			return
 
@@ -1037,7 +1035,7 @@ class Protocol:
 		if client.ip_address in self._root.trusted_proxies:
 			client.setFlagByIP(local_ip, False)
 
-		if client.access == 'agreement':
+		if (client.access == 'agreement'):
 			self._root.console_write('Handler %s:%s Sent user <%s> the terms of service on session.' % (client.handler.num, client.session_id, user_or_error.username))
 			if client.compat['p']:
 				agreement = self.agreementplain
@@ -1053,7 +1051,7 @@ class Protocol:
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
 
-		self._root.console_write('Handler %s:%s Successfully logged in user <%s> %s.' % (client.handler.num, client.session_id, user_or_error.username, client.access))
+		self._root.console_write('Handler %s:%s Successfully logged in user <%s> (access=%s).' % (client.handler.num, client.session_id, user_or_error.username, client.access))
 		self._root.db_ids[client.db_id] = client
 		self._root.usernames[user_or_error.username] = client
 		client.status = self._calc_status(client, 0)
@@ -3102,8 +3100,6 @@ class Protocol:
 			self.out_FAILED(client, "SETBATTLE", "couldn't handle values", True)
 
 
-
-
 	##
 	## send the server's public RSA key to a client (which
 	## the client should use for SETSHAREDKEY iff it wants
@@ -3120,7 +3116,7 @@ class Protocol:
 		## technically the key does not need to be encoded
 		## (PEM is a text-format), but this keeps protocol
 		## consistent
-		client.Send("PUBLICKEY %s" % ENCODE_FUNC(rsa_pub_key_str))
+		client.Send("PUBLICKEY %s %d %d" % (ENCODE_FUNC(rsa_pub_key_str), self.force_secure_auths(), self.force_secure_comms()))
 
 	##
 	## set the AES session key that *this* client and
@@ -3135,12 +3131,17 @@ class Protocol:
 	## user_data = ENCODE(ENCRYPT_RSA(AES_KEY, RSA_PUB_KEY))
 	##
 	def in_SETSHAREDKEY(self, client, user_data = ""):
+		old_key_str = client.get_session_key()
+		old_key_sig = SECURE_HASH_FUNC(old_key_str).digest()
+		new_key_str = ""
+		new_key_sig = ""
+
 		if (len(user_data) == 0):
 			if (not client.use_secure_session()):
 				return
 			## no longer allow clients to disable secure sessions
 			if (True or self.force_secure_comms()):
-				client.Send("SHAREDKEY ENFORCED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
+				client.Send("SHAREDKEY ENFORCED %s" % ENCODE_FUNC(old_key_sig))
 				return
 
 			## take "" to mean the client no longer wants encryption
@@ -3149,9 +3150,9 @@ class Protocol:
 			## which case sending unencrypted data after key exchange
 			## is pointless because server will always try to decrypt
 			## it and be left with garbage in _handle)
-			client.Send("SHAREDKEY DISABLED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
+			client.Send("SHAREDKEY DISABLED %s" % ENCODE_FUNC(old_key_sig))
 
-			client.set_aes_cipher_obj(None)
+			client.get_aes_cipher_obj().set_key("")
 			client.set_session_key_received_ack(False)
 			return
 
@@ -3161,28 +3162,27 @@ class Protocol:
 		##   (the output of HASH(DECODE(DECRYPT_RSA(...)))) so as
 		##   to ensure it has the proper length
 		try:
-			aes_key_msg = self.rsa_cipher_obj.decode_decrypt_bytes_utf8(user_data, SAFE_DECODE_FUNC)
-			aes_key_sig = SECURE_HASH_FUNC(aes_key_msg)
+			new_key_msg = self.rsa_cipher_obj.decode_decrypt_bytes_utf8(user_data, SAFE_DECODE_FUNC)
+			new_key_str = SECURE_HASH_FUNC(new_key_msg).digest()
+			new_key_sig = SECURE_HASH_FUNC(new_key_str).digest()
 
 			## too-short keys are not allowed, can be sent either
 			## as plaintext (if no key was established yet) or as
 			## encrypted data
-			if (len(aes_key_msg) < CryptoHandler.MIN_AES_KEY_SIZE):
-				key_sig = ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest())
-				min_len = CryptoHandler.MIN_AES_KEY_SIZE
-
-				client.Send("SHAREDKEY REJECTED %s %d" % (key_sig, min_len))
+			if (len(new_key_msg) < CryptoHandler.MIN_AES_KEY_SIZE):
+				client.Send("SHAREDKEY REJECTED %s %d" % (ENCODE_FUNC(new_key_sig), CryptoHandler.MIN_AES_KEY_SIZE))
 				return
 
-			## set (or update) the client's session key
-			## (ACCEPTED is the only reply to carry the
-			## new key's digest, others contain the old)
-			client.set_session_key(aes_key_sig.digest())
-			client.set_session_key_identifier_byte(client.get_session_key_identifier_byte() + 1)
-			client.set_session_key_simulated_ack(True)
 		except ValueError as val_err:
-			client.Send("SHAREDKEY REJECTED %s %s" % (ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()), val_err))
+			client.Send("SHAREDKEY REJECTED %s %s" % (ENCODE_FUNC(new_key_sig), val_err))
 			return
+
+		## if this is the first established secure session, must
+		## prepare the key a-priori since ACCEPTED should not be
+		## sent openly (it includes the new key digest)
+		if (not client.use_secure_session()):
+			client.set_session_key(new_key_str)
+			client.set_session_key_received_ack(True)
 
 		## notify the client that key was accepted, this will be
 		## the first encrypted message (client should do NOTHING
@@ -3192,7 +3192,19 @@ class Protocol:
 		## gets acknowledged by ENCODE(ENCRYPT_AES(ACKSHAREDKEY))
 		## and will always wait for confirmation to use this key)
 		##
-		client.Send("SHAREDKEY ACCEPTED %s" % ENCODE_FUNC(SECURE_HASH_FUNC(client.get_session_key()).digest()))
+		assert(client.use_secure_session())
+		assert(client.get_session_key_received_ack())
+
+		client.Send("SHAREDKEY ACCEPTED %s" % ENCODE_FUNC(new_key_sig))
+
+		## set (or update) the client's session key a-posteriori
+		## block outgoing messages encrypted with this *new* key
+		## until ACKSHAREDKEY comes in
+		## note: if a client sends *another* SETSHAREDKEY before
+		## ACKSHAREDKEY (never a good idea) any buffered outgoing
+		## messages will literally become undecipherable
+		client.set_session_key(new_key_str)
+		client.set_session_key_received_ack(False)
 
 	def in_ACKSHAREDKEY(self, client):
 		if (not client.use_secure_session()):
