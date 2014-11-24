@@ -3152,7 +3152,7 @@ class Protocol:
 			## it and be left with garbage in _handle)
 			client.Send("SHAREDKEY DISABLED %s" % ENCODE_FUNC(old_key_sig))
 
-			client.get_aes_cipher_obj().set_key("")
+			client.set_session_key("")
 			client.set_session_key_received_ack(False)
 			return
 
