@@ -3102,7 +3102,7 @@ class Protocol:
 	## their encryption stack works and server is what it claims
 	## to be)
 	##
-	## enc_msg = "HELLO WORLD"
+	## enc_msg = ENCODE(MSG)
 	##
 	def in_GETSIGNEDMSG(self, client, enc_msg = ""):
 		if (len(enc_msg) == 0):
