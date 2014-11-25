@@ -415,10 +415,13 @@ class LobbyClient:
 		self.out_GETSIGNEDMSG()
 		self.out_SETSHAREDKEY()
 
+	##
+	## "SIGNEDMSG %s" % (ENCODE("123456L"=SIGN(HASH(MSG))))
+	##
 	def in_SIGNEDMSG(self, msg_sig):
 		print("[SIGNEDMSG][time=%d::iter=%d] msg_sig=%s" % (time.time(), self.iters, msg_sig))
 		assert(self.received_public_key)
-		assert(self.rsa_cipher_obj.auth_bytes_utf8(MAGIC_WORDS, DECODE_FUNC(msg_sig)))
+		assert(self.rsa_cipher_obj.auth_bytes(MAGIC_WORDS, DECODE_FUNC(msg_sig)))
 
 	##
 	## "SHAREDKEY %s %s %s" % (KEYSTATUS={"ACCEPTED", "REJECTED", "ENFORCED", "DISABLED"}, "KEYDIGEST" [, "EXTRADATA"])

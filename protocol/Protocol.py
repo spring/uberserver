@@ -3108,7 +3108,8 @@ class Protocol:
 		if (len(enc_msg_str) == 0):
 			sgn_msg_str = self.rsa_cipher_obj.sign_bytes_utf8(self._get_motd_string(client))
 		else:
-			sgn_msg_str = self.rsa_cipher_obj.sign_bytes_utf8(SAFE_DECODE_FUNC(enc_msg_str))
+			enc_msg_str = SAFE_DECODE_FUNC(enc_msg_str.encode(UNICODE_ENCODING))
+			sgn_msg_str = self.rsa_cipher_obj.sign_bytes(enc_msg_str)
 
 		client.Send("SIGNEDMSG %s" % ENCODE_FUNC(sgn_msg_str))
 

@@ -222,12 +222,14 @@ class rsa_cipher:
 		assert(type(msg_bytes) == str)
 		assert(len(msg_bytes) != 0)
 
+		msg_bytes = SHA256_HASH_FUNC(msg_bytes)
+
 		if (self.msg_sign_scheme != None):
-			## scheme.sign() expects a Crypto.Hash.SHA object
-			ret = self.msg_sign_scheme.sign(SHA160_HASH_FUNC(msg_bytes))
+			## scheme.sign() expects an object from Crypto.Hash
+			ret = self.msg_sign_scheme.sign(msg_bytes)
 		else:
 			## RSAobj.sign() returns a tuple
-			ret = str(self.pri_key.sign(msg_bytes, "")[0])
+			ret = str(self.pri_key.sign(msg_bytes.digest(), "")[0])
 
 		assert(type(ret) == str)
 		return ret
@@ -237,12 +239,14 @@ class rsa_cipher:
 		assert(type(sig_bytes) == str)
 		assert(len(msg_bytes) != 0)
 
+		msg_bytes = SHA256_HASH_FUNC(msg_bytes)
+
 		if (self.msg_auth_scheme != None):
-			## scheme.verify() expects a Crypto.Hash.SHA object
-			ret = self.msg_auth_scheme.verify(SHA160_HASH_FUNC(msg_bytes), sig_bytes)
+			## scheme.verify() expects an object from Crypto.Hash
+			ret = self.msg_auth_scheme.verify(msg_bytes, sig_bytes)
 		else:
 			## RSAobj.verify() expects a tuple
-			ret = (self.pub_key.verify(msg_bytes, (long(sig_bytes), 0L)))
+			ret = (self.pub_key.verify(msg_bytes.digest(), (long(sig_bytes), 0L)))
 
 		assert(type(ret) == type(True))
 		return ret
