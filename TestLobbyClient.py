@@ -27,6 +27,7 @@ NUM_UPDATES = 10000
 USE_THREADS = False
 CLIENT_NAME = "ubertest%02d"
 CLIENT_PWRD = "KeepItSecretKeepItSafe%02d"
+MAGIC_WORDS = "SqueamishOssifrage"
 
 HOST_SERVER = ("localhost", 8200)
 MAIN_SERVER = ("lobby.springrts.com", 8200)
@@ -39,7 +40,7 @@ BACKUP_SERVERS = [
 ## commands that are allowed to be sent unencrypted
 ## (after session key is established, any subsequent
 ## SETSHAREDKEY commands will be encrypted entirely)
-ALLOWED_OPEN_COMMANDS = ["GETPUBLICKEY", "SETSHAREDKEY", "EXIT"]
+ALLOWED_OPEN_COMMANDS = ["GETPUBLICKEY", "GETSIGNEDMSG", "SETSHAREDKEY", "EXIT"]
 
 class LobbyClient:
 	def __init__(self, server_addr, username, password):
@@ -303,6 +304,16 @@ class LobbyClient:
 
 		self.Send("GETPUBLICKEY")
 
+	def out_GETSIGNEDMSG(self):
+		assert(self.received_public_key)
+		assert(not self.sent_unacked_shared_key)
+		assert(not self.server_valid_shared_key)
+		assert(not self.client_acked_shared_key)
+
+		print("[GETSIGNEDMSG][time=%d::iter=%d]" % (time.time(), self.iters))
+
+		self.Send("GETSIGNEDMSG %s" % ENCODE_FUNC(MAGIC_WORDS))
+
 	def out_SETSHAREDKEY(self):
 		assert(self.received_public_key)
 		assert(not self.sent_unacked_shared_key)
@@ -364,7 +375,9 @@ class LobbyClient:
 
 
 
+	##
 	## "PUBLICKEY %s" % (ENCODE("PEM(PUB_KEY)", force_sec_auths, force_sec_comms))
+	##
 	def in_PUBLICKEY(self, enc_pem_pub_key, force_sec_auths, force_sec_comms):
 		assert(not self.received_public_key)
 		assert(not self.sent_unacked_shared_key)
@@ -382,7 +395,7 @@ class LobbyClient:
 		self.rsa_cipher_obj.set_pad_scheme(CryptoHandler.RSA_PAD_SCHEME)
 		self.rsa_cipher_obj.set_sgn_scheme(CryptoHandler.RSA_SGN_SCHEME)
 
-		print("[PUBLICKEY][time=%d::iter=%d] %s" % (time.time(), self.iters, rsa_pub_key_str))
+		print("[PUBLICKEY][time=%d::iter=%d] pub_key=%s" % (time.time(), self.iters, rsa_pub_key_str))
 
 		## client should never want to connect insecurely,
 		## but in case it does the server's say is *FINAL*
@@ -397,9 +410,17 @@ class LobbyClient:
 		if (not self.want_secure_session):
 			return
 
+		self.out_GETSIGNEDMSG()
 		self.out_SETSHAREDKEY()
 
+	def in_SIGNEDMSG(self, msg_sig):
+		print("[SIGNEDMSG][time=%d::iter=%d] msg_sig=%s" % (time.time(), self.iters, msg_sig))
+		assert(self.received_public_key)
+		assert(self.rsa_cipher_obj.auth_bytes_utf8(MAGIC_WORDS, msg_sig))
+
+	##
 	## "SHAREDKEY %s %s %s" % (KEYSTATUS={"ACCEPTED", "REJECTED", "ENFORCED", "DISABLED"}, "KEYDIGEST" [, "EXTRADATA"])
+	##
 	def in_SHAREDKEY(self, key_status, key_digest, extra_data = ""):
 		assert(self.received_public_key)
 		assert(self.sent_unacked_shared_key)

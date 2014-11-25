@@ -39,9 +39,9 @@ restricted = {
 
 	## encryption
 	'GETPUBLICKEY',
+	'GETSIGNEDMSG',
 	'SETSHAREDKEY',
 	'ACKSHAREDKEY',
-	'GETSIGNEDMSG',
 	],
 'fresh':['LOGIN','REGISTER'],
 'agreement':['CONFIRMAGREEMENT'],
@@ -3096,6 +3096,23 @@ class Protocol:
 		client.Send("PUBLICKEY %s %d %d" % (ENCODE_FUNC(rsa_pub_key_str), self.force_secure_auths(), self.force_secure_comms()))
 
 	##
+	## sign a client text-message using server's private RSA key
+	## the resulting signature is simply a (Python) long integer
+	## (should be used by clients prior to LOGIN, to verify that
+	## their encryption stack works and server is what it claims
+	## to be)
+	##
+	## enc_msg = "HELLO WORLD"
+	##
+	def in_GETSIGNEDMSG(self, client, enc_msg = ""):
+		if (len(enc_msg) == 0):
+			sgn_msg = self.rsa_cipher_obj.sign_bytes_utf8(self._get_motd_string(client))
+		else:
+			sgn_msg = self.rsa_cipher_obj.sign_bytes_utf8(SAFE_DECODE_FUNC(enc_msg))
+
+		client.Send("SIGNEDMSG %s" % str(sgn_msg))
+
+	##
 	## set the AES session key that *this* client and
 	## server will use to encrypt all further traffic
 	## (if not empty or too short)
@@ -3105,15 +3122,15 @@ class Protocol:
 	## returns ACCEPTED, where DECODE is the standard
 	## base64 decoding scheme
 	##
-	## user_data = ENCODE(ENCRYPT_RSA(AES_KEY, RSA_PUB_KEY))
+	## enc_key_msg = ENCODE(ENCRYPT_RSA(AES_KEY, RSA_PUB_KEY))
 	##
-	def in_SETSHAREDKEY(self, client, user_data = ""):
+	def in_SETSHAREDKEY(self, client, enc_key_msg = ""):
 		old_key_str = client.get_session_key()
 		old_key_sig = SECURE_HASH_FUNC(old_key_str).digest()
 		new_key_str = ""
 		new_key_sig = ""
 
-		if (len(user_data) == 0):
+		if (len(enc_key_msg) == 0):
 			if (not client.use_secure_session()):
 				return
 			## no longer allow clients to disable secure sessions
@@ -3139,7 +3156,7 @@ class Protocol:
 		##   (the output of HASH(DECODE(DECRYPT_RSA(...)))) so as
 		##   to ensure it has the proper length
 		try:
-			new_key_msg = self.rsa_cipher_obj.decode_decrypt_bytes_utf8(user_data, SAFE_DECODE_FUNC)
+			new_key_msg = self.rsa_cipher_obj.decode_decrypt_bytes_utf8(enc_key_msg, SAFE_DECODE_FUNC)
 			new_key_str = SECURE_HASH_FUNC(new_key_msg).digest()
 			new_key_sig = SECURE_HASH_FUNC(new_key_str).digest()
 
@@ -3190,23 +3207,6 @@ class Protocol:
 
 		## client has acknowledged our SHAREDKEY ACCEPTED response
 		client.set_session_key_received_ack(True)
-
-	##
-	## sign a client text-message using server's private RSA key
-	## the resulting signature is simply a (Python) long integer
-	## (should be used by clients prior to LOGIN, to verify that
-	## their encryption stack works and server is what it claims
-	## to be)
-	##
-	## user_data = "HELLO WORLD"
-	##
-	def in_GETSIGNEDMSG(self, client, user_data = ""):
-		if (len(user_data) == 0):
-			sgn_msg = self.rsa_cipher_obj.sign_bytes_utf8(self._get_motd_string(client))
-		else:
-			sgn_msg = self.rsa_cipher_obj.sign_bytes_utf8(user_data)
-
-		client.Send("SIGNEDMSG %s" % str(sgn_msg))
 
 
 

@@ -223,23 +223,26 @@ class rsa_cipher:
 		assert(len(msg_bytes) != 0)
 
 		if (self.msg_sign_scheme != None):
-			## sign() expects a Crypto.Hash.SHA object
+			## scheme.sign() expects a Crypto.Hash.SHA object
 			ret = self.msg_sign_scheme.sign(SHA160_HASH_FUNC(msg_bytes))
 		else:
-			ret = (self.pri_key.sign(msg_bytes, "")[0])
+			## RSAobj.sign() returns a tuple
+			ret = str(self.pri_key.sign(msg_bytes, "")[0])
 
-		assert(type(ret) == type(0L))
+		assert(type(ret) == str)
 		return ret
 
 	def auth_bytes(self, msg_bytes, sig_bytes):
 		assert(type(msg_bytes) == str)
+		assert(type(sig_bytes) == str)
 		assert(len(msg_bytes) != 0)
 
 		if (self.msg_auth_scheme != None):
+			## scheme.verify() expects a Crypto.Hash.SHA object
 			ret = self.msg_auth_scheme.verify(SHA160_HASH_FUNC(msg_bytes), sig_bytes)
 		else:
-			## verify() expects a tuple
-			ret = (self.pub_key.verify(msg_bytes, (sig_bytes, 0L)))
+			## RSAobj.verify() expects a tuple
+			ret = (self.pub_key.verify(msg_bytes, (long(sig_bytes), 0L)))
 
 		assert(type(ret) == type(True))
 		return ret
