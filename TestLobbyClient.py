@@ -65,11 +65,11 @@ class LobbyClient:
 				threading._sleep(0.5)
 
 	def Init(self):
-		self.lastping = 0.0
-		self.pingsamples = 0
-		self.maxping = 0
-		self.minping = 100
-		self.average = 0
+		self.prv_ping_time = time.time()
+		self.num_ping_msgs =     0
+		self.max_ping_time =   0.0
+		self.min_ping_time = 100.0
+		self.sum_ping_time =   0.0
 		self.iters = 0
 
 		self.aes_cipher_obj = aes_cipher("")
@@ -142,7 +142,7 @@ class LobbyClient:
 					self.host_socket.send(msg + DATA_PARTIT_BYTE)
 					self.host_socket.send(data + DATA_PARTIT_BYTE)
 				else:
-					print("\tblocked sending \"%s\": session-key unacknowledged!" % command)
+					print("\tblocked sending \"%s\": session-key %d unacknowledged!" % (data, self.session_key_id))
 			else:
 				cmd = data.split()
 				cmd = sentence[0]
@@ -175,7 +175,7 @@ class LobbyClient:
 			if ((not self.want_secure_session) or (cmd in ALLOWED_OPEN_COMMANDS)):
 				self.host_socket.send(data + DATA_PARTIT_BYTE)
 			else:
-				print("\tblocked sending \"%s\": session-key unacknowledged!" % cmd)
+				print("\tblocked sending \"%s\": session-key %d unacknowledged!" % (cmd, self.session_key_id))
 
 	def Recv(self):
 		num_received_bytes = len(self.socket_data)
@@ -554,18 +554,17 @@ class LobbyClient:
 		print(msg)
 
 	def in_PONG(self):
-		diff = time.time() - self.lastping
+		diff = time.time() - self.prv_ping_time
 
-		self.minping = min(diff, self.minping)
-		self.maxping = max(diff, self.maxping)
+		self.min_ping_time = min(diff, self.min_ping_time)
+		self.max_ping_time = max(diff, self.max_ping_time)
+		self.sum_ping_time += diff
+		self.num_ping_msgs += 1
 
-		self.average = self.average + diff
-		self.pingsamples = self.pingsamples + 1
+		if (self.prv_ping_time != 0.0):
+			print("[PONG] max=%0.3fs min=%0.3fs avg=%0.3fs" % (self.max_ping_time, self.min_ping_time, (self.sum_ping_time / self.num_ping_msgs)))
 
-		if (self.lastping != 0.0):
-			print("[PONG] max=%0.3f min=%0.3f avg=%0.3f" % (self.maxping, self.minping, (self.average / self.pingsamples)))
-
-		self.lastping = time.time()
+		self.prv_ping_time = time.time()
 
 	def in_JOIN(self, msg):
 		print(msg)
