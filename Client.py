@@ -216,10 +216,9 @@ class Client(BaseClient):
 		commands_buffer = []
 
 		for raw_data_blob in raw_data_blobs:
-			is_encrypted_blob = (raw_data_blob[0] == DATA_MARKER_BYTE)
-
-			if (is_encrypted_blob):
-				assert(self.use_secure_session())
+			if (self.use_secure_session()):
+				if (raw_data_blob[0] != DATA_MARKER_BYTE):
+					continue
 
 				## handle an encrypted client command, using the AES session key
 				## previously exchanged between client and server by SETSHAREDKEY
@@ -252,6 +251,9 @@ class Client(BaseClient):
 				split_commands = dec_data_blob.split(DATA_PARTIT_BYTE)
 				strip_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in split_commands]
 			else:
+				if (raw_data_blob[0] == DATA_MARKER_BYTE):
+					continue
+
 				## strips leading spaces and trailing carriage returns
 				strip_commands = [(raw_data_blob.rstrip('\r')).lstrip(' ')]
 

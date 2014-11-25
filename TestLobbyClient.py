@@ -192,10 +192,9 @@ class LobbyClient:
 		final_blob = split_data[  len(split_data) - 1: ][0]
 
 		for raw_data_blob in data_blobs:
-			is_encrypted_blob = (raw_data_blob[0] == DATA_MARKER_BYTE)
-
-			if (is_encrypted_blob):
-				assert(self.use_secure_session())
+			if (self.use_secure_session()):
+				if (raw_data_blob[0] != DATA_MARKER_BYTE):
+					continue
 
 				## after decryption dec_command might represent a batch of
 				## commands separated by newlines, all of which need to be
@@ -208,6 +207,9 @@ class LobbyClient:
 				for dec_command in dec_commands:
 					self.Handle(dec_command)
 			else:
+				if (raw_data_blob[0] == DATA_MARKER_BYTE):
+					continue
+
 				## strips leading spaces and trailing carriage return
 				self.Handle((raw_data_blob.rstrip('\r')).lstrip(' '))
 
