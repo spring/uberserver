@@ -327,8 +327,15 @@ class LobbyClient:
 
 		print("[SETSHAREDKEY][time=%d::iter=%d] sha(raw)=%s enc(raw)=%s..." % (time.time(), self.iters, aes_key_sig.digest(), ENCODE_FUNC(aes_key_enc[0: 8])))
 
+		## when re-negotiating a key during an established session,
+		## reset_session_state() makes this false but we need it to
+		## be true temporarily to get the message out
+		self.client_acked_shared_key = self.use_secure_session()
+
 		## ENCODE(ENCRYPT_RSA(AES_KEY, RSA_PUB_KEY))
 		self.Send("SETSHAREDKEY %s" % aes_key_enc)
+
+		self.client_acked_shared_key = False
 		self.sent_unacked_shared_key = True
 
 	def out_ACKSHAREDKEY(self):
