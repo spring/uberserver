@@ -26,6 +26,7 @@ NUM_CLIENTS = 1
 NUM_UPDATES = 10000
 USE_THREADS = False
 CLIENT_NAME = "ubertest%02d"
+CLIENT_PWRD = "KeepItSecretKeepItSafe%02d"
 
 HOST_SERVER = ("localhost", 8200)
 MAIN_SERVER = ("lobby.springrts.com", 8200)
@@ -41,7 +42,7 @@ BACKUP_SERVERS = [
 ALLOWED_OPEN_COMMANDS = ["GETPUBLICKEY", "SETSHAREDKEY", "EXIT"]
 
 class LobbyClient:
-	def __init__(self, server_addr, username, password = "KeepItSecret.KeepItSafe."):
+	def __init__(self, server_addr, username, password):
 		self.host_socket = None
 		self.socket_data = ""
 
@@ -126,7 +127,7 @@ class LobbyClient:
 			(key, ack, sec, msg) = data_send_queue.pop()
 
 			if (len(key) != 0):
-				self.aes_cipher_obj.set_key(key)
+				self.set_session_key(key)
 
 				hdr = DATA_MARKER_BYTE
 				pay = self.aes_cipher_obj.encrypt_encode_bytes(msg + DATA_PARTIT_BYTE)
@@ -190,12 +191,6 @@ class LobbyClient:
 
 		for raw_data_blob in data_blobs:
 			is_encrypted_blob = (raw_data_blob[0] == DATA_MARKER_BYTE)
-			first_session_key = ((not self.use_secure_session()) and is_encrypted_blob)
-
-			## special case (first encrypted SHAREDKEY ACCEPTED
-			## server message after establishing secure session)
-			if (first_session_key):
-				self.aes_cipher_obj.set_key(self.session_keys[self.session_key_id])
 
 			if (is_encrypted_blob):
 				assert(self.use_secure_session())
@@ -264,7 +259,7 @@ class LobbyClient:
 		print("[LOGIN][time=%d::iter=%d] sec_sess=%d" % (time.time(), self.iters, self.use_secure_session()))
 
 		if (self.use_secure_session()):
-			self.Send("LOGIN %s %s" % (self.username, self.password))
+			self.Send("LOGIN %s %s" % (self.username, ENCODE_FUNC(self.password)))
 		else:
 			self.Send("LOGIN %s %s" % (self.username, ENCODE_FUNC(LEGACY_HASH_FUNC(self.password).digest())))
 
@@ -274,7 +269,7 @@ class LobbyClient:
 		print("[REGISTER][time=%d::iter=%d] sec_sess=%d" % (time.time(), self.iters, self.use_secure_session()))
 
 		if (self.use_secure_session()):
-			self.Send("REGISTER %s %s" % (self.username, self.password))
+			self.Send("REGISTER %s %s" % (self.username, ENCODE_FUNC(self.password)))
 		else:
 			self.Send("REGISTER %s %s" % (self.username, ENCODE_FUNC(LEGACY_HASH_FUNC(self.password).digest())))
 
@@ -348,7 +343,7 @@ class LobbyClient:
 		##   should NOT send any messages since it does not yet know
 		##   whether the server has properly received the session key
 		##   THIS INCLUDES *NEW* SETSHAREDKEY COMMANDS!
-		self.aes_cipher_obj.set_key(self.session_keys[self.session_key_id])
+		self.set_session_key(self.session_keys[self.session_key_id])
 
 		## needs to be set before the Send, otherwise the message gets
 		## dropped (since ACKSHAREDKEY is not in ALLOWED_OPEN_COMMANDS)
@@ -404,7 +399,15 @@ class LobbyClient:
 
 		can_send_ack_shared_key = False
 
-		if (key_status == "ACCEPTED"):
+		if (key_status == "INITSESS"):
+			## special case during first session-key exchange
+			assert(not self.use_secure_session())
+			assert(len(self.session_keys[self.session_key_id]) != 0)
+
+			self.set_session_key(self.session_keys[self.session_key_id])
+			return
+
+		elif (key_status == "ACCEPTED"):
 			server_key_sig = DECODE_FUNC(key_digest)
 			client_key_sha = SECURE_HASH_FUNC(self.session_keys[self.session_key_id])
 			client_key_sig = client_key_sha.digest()
@@ -418,6 +421,8 @@ class LobbyClient:
 
 			can_send_ack_shared_key = (server_key_sig == client_key_sig)
 		elif (key_status == "DISABLED"):
+			## never sent, no longer supported
+			assert(False)
 			return
 
 		if (not can_send_ack_shared_key):
@@ -577,7 +582,7 @@ def RunClients(num_clients, num_updates):
 	clients = [None] * num_clients
 
 	for i in xrange(num_clients):
-		clients[i] = LobbyClient(HOST_SERVER, (CLIENT_NAME % i))
+		clients[i] = LobbyClient(HOST_SERVER, (CLIENT_NAME % i), (CLIENT_PWRD % i))
 
 	for j in xrange(num_updates):
 		for i in xrange(num_clients):
@@ -588,7 +593,7 @@ def RunClients(num_clients, num_updates):
 
 
 def RunClientThread(i, k):
-	client = LobbyClient(HOST_SERVER, (CLIENT_NAME % i))
+	client = LobbyClient(HOST_SERVER, (CLIENT_NAME % i), (CLIENT_PWRD % i))
 
 	print("[RunClientThread] running client %s" % client.username)
 	client.Run(k)

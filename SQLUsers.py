@@ -281,7 +281,7 @@ class UsersHandler:
 
 	## test LOGIN input <user_pwrd> against DB instance <user_inst>
 	def secure_test_user_pwrd(self, user_inst, user_pwrd, hash_func = SHA256_HASH_FUNC):
-		user_pwrd = user_pwrd.encode(UNICODE_ENCODING)
+		user_pwrd = DECODE_FUNC(user_pwrd.encode(UNICODE_ENCODING))
 		user_salt = user_inst.randsalt.encode(UNICODE_ENCODING)
 		user_hash = hash_func(user_pwrd + DECODE_FUNC(user_salt))
 
@@ -309,7 +309,7 @@ class UsersHandler:
 
 			return (user_hash.digest())
 
-		user_pass = user_pass.encode(UNICODE_ENCODING)
+		user_pass = DECODE_FUNC(user_pass.encode(UNICODE_ENCODING))
 		user_salt = gen_user_salt(rand_pool)
 		user_hash = gen_user_hash(user_pass, user_salt, hash_func)
 		return (user_hash, user_salt)

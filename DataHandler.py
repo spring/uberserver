@@ -19,7 +19,7 @@ class DataHandler:
 		self.dispatcher = None
 		self.console_buffer = []
 		self.port = 8200
-		self.natport = self.port+1
+		self.natport = self.port + 1
 		self.latestspringversion = '*'
 		self.log = False
 		self.logfile = None

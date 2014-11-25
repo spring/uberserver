@@ -555,6 +555,8 @@ class Protocol:
 		if (not password):
 			return False, 'Empty passwords are not allowed.'
 
+		## must be checked here too (not just in _validPasswordSyntax)
+		## because both CHANGEACCOUNTPASS and TESTLOGIN might call us
 		assert(type(password) == unicode)
 
 		pwrd_hash_enc = password.encode(UNICODE_ENCODING)
@@ -572,18 +574,31 @@ class Protocol:
 	## require only a few characters and do not check their
 	## entropy (strength)
 	def _validSecurePasswordSyntax(self, password):
-		if (password.count(" ") != 0):
+		assert(type(password) == unicode)
+
+		## strip off the base64-encoding and check for illegal chars
+		enc_password = password.encode(UNICODE_ENCODING)
+		dec_password = SAFE_DECODE_FUNC(enc_password)
+
+		if (dec_password == enc_password):
+			return False, "Invalid base64-encoding."
+		if (dec_password.count(" ") != 0):
 			return False, "Password contains one or more WS characters."
-		if (password.count("\n") != 0):
+		if (dec_password.count("\t") != 0):
+			return False, "Password contains one or more WS characters."
+		if (dec_password.count("\n") != 0):
 			return False, "Password contains one or more LF characters."
-		if (password.count("\r") != 0):
+		if (dec_password.count("\r") != 0):
 			return False, "Password contains one or more CR characters."
-		if (len(password) < CryptoHandler.MIN_PASSWORD_LEN):
+		if (len(dec_password) < CryptoHandler.MIN_PASSWORD_LEN):
 			return False, ("Password too short: %d or more characters required." % CryptoHandler.MIN_PASSWORD_LEN)
+
 		return True, ""
 
 
 	def _validPasswordSyntax(self, client, password):
+		assert(type(password) == unicode)
+
 		if (not password):
 			return False, "Empty password."
 
@@ -2625,17 +2640,17 @@ class Protocol:
 		if (cur_password == new_password):
 			return
 
+		good, reason = self._validPasswordSyntax(new_password)
+
+		if (not good):
+			self.out_SERVERMSG(client, '%s' % reason)
+			return
+
 		if (client.use_secure_session()):
 			## secure command (meaning we want our password salted, etc.)
 			##
 			## disallow changing to new-style password if command is not
 			## encrypted for obvious reasons (would be sent in plaintext)
-			good, reason = self._validSecurePasswordSyntax(new_password)
-
-			if (not good):
-				self.out_SERVERMSG(client, '%s' % reason)
-				return
-
 			user = self.clientFromUsername(client.username, True)
 
 			if (user == None):
@@ -2652,12 +2667,6 @@ class Protocol:
 			self.userdb.save_user(user)
 			self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
 		else:
-			good, reason = self._validLegacyPasswordSyntax(new_password)
-
-			if (not good):
-				self.out_SERVERMSG(client, '%s' % (reason))
-				return
-
 			user = self.clientFromUsername(client.username, True)
 
 			if (user == None):
@@ -2730,24 +2739,16 @@ class Protocol:
 
 		if (not targetUser):
 			return
+		## if this user has created a secure account, disallow
+		## anyone but himself to change his password (there are
+		## better methods for account recovery)
+		if (not targetUser.has_insecure_password()):
+			self.out_SERVERMSG(client, "Password for user %s can not be changed." % username)
+			return
 
 		if targetUser.access in ('mod', 'admin') and not client.access == 'admin':
 			self.out_SERVERMSG(client, 'You have insufficient access to change moderator passwords.')
 			return
-
-		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		## THIS IS NOT AN ACTION ADMINS SHOULD BE ABLE TO TAKE
-		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		if (False and (not targetUser.has_insecure_password())):
-			good, reason = self._validSecurePasswordSyntax(newpass)
-
-			if (good and self.userdb.secure_test_user_pwrd(targetUser, newpass)):
-				targetUser.set_pwrd_salt(self.userdb.gen_user_pwrd_hash_and_salt(newpass))
-
-				self.userdb.save_user(targetUser)
-				self.out_SERVERMSG(client, 'Password for <%s> successfully changed to %s' % (username, newpass))
-				return
-
 
 		res, reason = self._validLegacyPasswordSyntax(newpass)
 
@@ -2755,6 +2756,9 @@ class Protocol:
 			self.out_SERVERMSG(client, "invalid password specified: %s" %(reason))
 			return
 
+		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+		## THIS IS NOT AN ACTION ADMINS SHOULD BE ABLE TO TAKE
+		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		targetUser.set_pwrd_salt((newpass, ""))
 
 		self._root.console_write('Handler %s: <%s> changed password of <%s>.' % (client.handler.num, client.username, username))
@@ -2831,20 +2835,12 @@ class Protocol:
 		if (not targetUser):
 			client.Send('TESTLOGINDENY')
 			return
-
-		## test for new-style (salted) password acceptance first
-		##
-		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		## NOTE THAT THIS WHOLE COMMAND IS A GIANT SECURITY HOLE
-		## PASSWORDS SHOULD NOT BE SHARED BY USER TO ANYONE EVER
-		## (INCLUDING ADMINISTRATORS)
-		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		if (False and (not targetUser.has_insecure_password())):
-			good, reason = self._validSecurePasswordSyntax(password)
-
-			if (good and self.userdb.secure_test_user_pwrd(targetUser, password)):
-				client.Send('TESTLOGINACCEPT %s %s' % (targetUser.username, user.db_id))
-				return
+		## if this user has created a secure account, disallow
+		## anyone but himself to login with it (password should
+		## NEVER be shared by user to anyone, including admins)
+		if (not targetUser.has_insecure_password()):
+			client.Send('TESTLOGINDENY')
+			return
 
 		good, reason = self._validLegacyPasswordSyntax(password)
 
@@ -3162,6 +3158,7 @@ class Protocol:
 		## prepare the key a-priori since ACCEPTED should not be
 		## sent openly (it includes the new key digest)
 		if (not client.use_secure_session()):
+			client.Send("SHAREDKEY INITSESS %s" % ENCODE_FUNC(old_key_sig))
 			client.set_session_key(new_key_str)
 			client.set_session_key_received_ack(True)
 
