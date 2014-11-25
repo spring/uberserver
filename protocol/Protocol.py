@@ -3110,7 +3110,7 @@ class Protocol:
 		else:
 			sgn_msg = self.rsa_cipher_obj.sign_bytes_utf8(SAFE_DECODE_FUNC(enc_msg))
 
-		client.Send("SIGNEDMSG %s" % str(sgn_msg))
+		client.Send("SIGNEDMSG %s" % ENCODE_FUNC(sgn_msg))
 
 	##
 	## set the AES session key that *this* client and
