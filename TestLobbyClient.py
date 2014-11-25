@@ -92,9 +92,7 @@ class LobbyClient:
 		self.want_secure_session = True
 		self.received_public_key = False
 
-		self.sent_unacked_shared_key = False
-		self.server_valid_shared_key = False
-		self.client_acked_shared_key = False
+		self.reset_session_state()
 
 		## initialize key-exchange sequence (ends with ACKSHAREDKEY)
 		## needed even if (for some reason) we do not want a secure
@@ -106,8 +104,12 @@ class LobbyClient:
 	def set_session_key(self, key): self.aes_cipher_obj.set_key(key)
 	def get_session_key(self): return (self.aes_cipher_obj.get_key())
 
-	def use_secure_session(self):
-		return (len(self.get_session_key()) != 0)
+	def use_secure_session(self): return (len(self.get_session_key()) != 0)
+
+	def reset_session_state(self):
+		self.sent_unacked_shared_key = False
+		self.server_valid_shared_key = False
+		self.client_acked_shared_key = False
 
 
 	def Send(self, data, flush = True):
@@ -421,7 +423,10 @@ class LobbyClient:
 
 			can_send_ack_shared_key = (server_key_sig == client_key_sig)
 		elif (key_status == "DISABLED"):
-			## never sent, no longer supported
+			self.reset_session_state()
+			self.set_session_key("")
+
+			## never sent, no longer supported by server
 			assert(False)
 			return
 
@@ -557,9 +562,7 @@ class LobbyClient:
 		## 500*0.05=25.0s; models an ultra-paranoid client)
 		if (self.client_acked_shared_key and self.want_secure_session and self.use_secure_session()):
 			if ((self.iters % 500) == 0):
-				self.sent_unacked_shared_key = False
-				self.server_valid_shared_key = False
-				self.client_acked_shared_key = False
+				self.reset_session_state()
 				self.out_SETSHAREDKEY()
 
 		if ((self.iters % 300) == 0):

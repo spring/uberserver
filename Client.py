@@ -118,12 +118,7 @@ class Client(BaseClient):
 	def set_session_key(self, key): self.aes_cipher_obj.set_key(key)
 	def get_session_key(self): return (self.aes_cipher_obj.get_key())
 
-	## NOTE:
-	##   only for in-memory clients, not DB User instances
-	##   when true, aes_cipher_obj always contains a valid
-	##   key
-	def use_secure_session(self):
-		return (len(self.get_session_key()) != 0)
+	def use_secure_session(self): return (len(self.get_session_key()) != 0)
 
 
 	def set_msg_id(self, msg):
