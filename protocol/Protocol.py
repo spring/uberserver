@@ -3104,13 +3104,13 @@ class Protocol:
 	##
 	## enc_msg = ENCODE(MSG)
 	##
-	def in_GETSIGNEDMSG(self, client, enc_msg = ""):
-		if (len(enc_msg) == 0):
-			sgn_msg = self.rsa_cipher_obj.sign_bytes_utf8(self._get_motd_string(client))
+	def in_GETSIGNEDMSG(self, client, enc_msg_str = ""):
+		if (len(enc_msg_str) == 0):
+			sgn_msg_str = self.rsa_cipher_obj.sign_bytes_utf8(self._get_motd_string(client))
 		else:
-			sgn_msg = self.rsa_cipher_obj.sign_bytes_utf8(SAFE_DECODE_FUNC(enc_msg))
+			sgn_msg_str = self.rsa_cipher_obj.sign_bytes_utf8(SAFE_DECODE_FUNC(enc_msg_str))
 
-		client.Send("SIGNEDMSG %s" % ENCODE_FUNC(str(sgn_msg)))
+		client.Send("SIGNEDMSG %s" % ENCODE_FUNC(sgn_msg))
 
 	##
 	## set the AES session key that *this* client and
