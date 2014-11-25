@@ -50,17 +50,19 @@ class LobbyClient:
 		self.username = username
 		self.password = password
 
-		try:
-			## non-blocking so we do not have to wait on server
-			self.host_socket = socket.create_connection(server_addr, 5)
-			self.host_socket.setblocking(0)
-		except socket.error as msg:
-			print(msg)
-			print(traceback.format_exc())
-			assert(False)
-
+		self.OpenSocket(server_addr)
 		self.Init()
 
+	def OpenSocket(self, server_addr):
+		while (self.host_socket == None):
+			try:
+				## non-blocking so we do not have to wait on server
+				self.host_socket = socket.create_connection(server_addr, 5)
+				self.host_socket.setblocking(0)
+			except socket.error as msg:
+				print("[OpenSocket] %s" % msg)
+				## print(traceback.format_exc())
+				threading._sleep(0.5)
 
 	def Init(self):
 		self.lastping = 0.0
