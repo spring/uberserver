@@ -16,7 +16,7 @@ import CryptoHandler
 from CryptoHandler import MD5LEG_HASH_FUNC as LEGACY_HASH_FUNC
 from CryptoHandler import SHA256_HASH_FUNC as SECURE_HASH_FUNC
 
-from CryptoHandler import safe_base64_decode as SAFE_DECODE_FUNC
+from CryptoHandler import safe_decode as SAFE_DECODE_FUNC
 from CryptoHandler import UNICODE_ENCODING
 
 from base64 import b64encode as ENCODE_FUNC
@@ -319,7 +319,7 @@ class Protocol:
 
 
 		## HACK for spads (see above)
-		if self.binary and not command in ("SAYPRIVATE"):
+		if (self.binary and not command in ("SAYPRIVATE")):
 			err = ":".join("{:02x}".format(ord(c)) for c in msg)
 			self.out_SERVERMSG(client, "Invalid unicode-encoding received (should be %s), skipped message %s" % (UNICODE_ENCODING, err), True)
 			return False

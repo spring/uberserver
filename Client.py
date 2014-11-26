@@ -3,7 +3,7 @@ from collections import defaultdict
 
 from BaseClient import BaseClient
 from CryptoHandler import aes_cipher
-from CryptoHandler import safe_base64_decode as SAFE_DECODE_FUNC
+from CryptoHandler import safe_decode as SAFE_DECODE_FUNC
 from CryptoHandler import DATA_MARKER_BYTE
 from CryptoHandler import DATA_PARTIT_BYTE
 from CryptoHandler import UNICODE_ENCODING
@@ -241,10 +241,6 @@ class Client(BaseClient):
 				##   client -->   C=ENCODE(ENCRYPT("CMD1 ARG11 ARG12 ...\nCMD2 ARG21 ...\n"))
 				##   server --> DECRYPT(DECODE(C))="CMD1 ARG11 ARG12 ...\nCMD2 ARG21 ...\n"
 				##
-				## make sure decryption deals with a standard string
-				## (there should not be any encoding on top of base64
-				## blobs in the first place since the b64 alphabet is
-				## ASCII)
 				enc_data_blob = raw_data_blob[1: ]
 				dec_data_blob = self.aes_cipher_obj.decode_decrypt_bytes_utf8(enc_data_blob, SAFE_DECODE_FUNC)
 
@@ -281,51 +277,59 @@ class Client(BaseClient):
 	##
 	## send data to client
 	##
-	def Send(self, msg, binary = False):
+	def Send(self, data, binary = False, batch = True):
 		## don't append new data to buffer when client gets removed
-		if ((not msg) or self.removing):
+		if ((not data) or self.removing):
 			return
 
 		if (self.handler.thread == thread.get_ident()):
-			msg = self.msg_id + msg
+			data = self.msg_id + data
 
+		if ((not binary) or (type(data) == unicode)):
+			data = data.encode(UNICODE_ENCODING)
+
+		assert(type(data) == str)
+
+		def compose_blob(txt):
+			hdr = DATA_MARKER_BYTE
+			pay = self.aes_cipher_obj.encrypt_encode_bytes(txt)
+			msg = hdr + pay + DATA_PARTIT_BYTE
+			return msg
+
+		buf = ""
 
 		if (self.use_secure_session()):
-			## apply server-to-client encryption
+			## buffer encrypted data until we get client ACK
+			## (the most recent message will be at the back)
 			##
-			## add marker byte so client does not have to guess
-			## if data is of the form ENCODE(ENCRYPTED(...)) or
-			## in plaintext
-			##
-			hdr = DATA_MARKER_BYTE
-			pay = self.aes_cipher_obj.encrypt_encode_bytes_utf8(msg + DATA_PARTIT_BYTE)
-			msg = hdr + pay
+			## note: should not normally contain anything of
+			## value, server has little to send before LOGIN
+			self.enc_sendbuffer.append(data)
 
-			if (not self.get_session_key_received_ack()):
-				## buffer encrypted data until we get client ACK
-				## (the most recent message will be at the back)
-				##
-				## note: should not normally contain anything of
-				## value, server has little to send before LOGIN
-				self.enc_sendbuffer.append(msg)
-				return
-			else:
-				## reverse so message order is newest to oldest
+			if (self.get_session_key_received_ack()):
 				self.enc_sendbuffer.reverse()
 
-				## pop from back so client receives in the proper
-				## order, with <msg> itself after the queued data
-				while (len(self.enc_sendbuffer) > 0):
-					self.msg_sendbuffer.append(self.enc_sendbuffer.pop())
+				## encrypt everything in the queue
+				## message order in reversed queue is newest to
+				## oldest, but we pop() from the back so client
+				## receives in proper order
+				if (batch):
+					while (len(self.enc_sendbuffer) > 0):
+						buf += (self.enc_sendbuffer.pop() + DATA_PARTIT_BYTE)
 
-			## send the output as-is (base64 is all ASCII)
-			binary = True
+					## batch-encrypt into one blob (more efficient)
+					buf = compose_blob(buf)
+				else:
+					while (len(self.enc_sendbuffer) > 0):
+						buf += compose_blob(self.enc_sendbuffer.pop() + DATA_PARTIT_BYTE)
 
-		if (binary):
-			self.msg_sendbuffer.append(msg + DATA_PARTIT_BYTE)
 		else:
-			self.msg_sendbuffer.append(msg.encode(UNICODE_ENCODING) + DATA_PARTIT_BYTE)
+			buf = data + DATA_PARTIT_BYTE
 
+		if (len(buf) == 0):
+			return
+
+		self.msg_sendbuffer.append(buf)
 		self.handler.poller.setoutput(self.conn, True)
 
 

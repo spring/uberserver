@@ -52,7 +52,7 @@ GLOBAL_RAND_POOL = Random.new()
 
 
 
-def safe_base64_decode(s):
+def safe_decode(s):
 	try:
 		r = base64.b64decode(s)
 	except:
