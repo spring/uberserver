@@ -774,6 +774,26 @@ class Protocol:
 		client.ignored.pop(unignoreClient.db_id)
 
 
+	def can_client_authenticate(self, client, username, in_login):
+		if (not client.use_secure_session() and (self.force_secure_auths() or self.force_secure_comms())):
+			if (in_login):
+				self.out_DENIED(client, username, "Unencrypted logins are not allowed.")
+			else:
+				client.Send("REGISTRATIONDENIED %s" % ("Unencrypted registrations are not allowed."))
+
+			return False
+
+		if (client.use_secure_session() and (not client.get_session_key_received_ack())):
+			if (in_login):
+				self.out_DENIED(client, username, "Encrypted logins without prior key-acknowledgement are not allowed.")
+			else:
+				client.Send("REGISTRATIONDENIED %s" % ("Encrypted registrations without prior key-acknowledgement are not allowed."))
+
+			return False
+
+		return True
+
+
 
 	# Begin incoming protocol section #
 	#
@@ -834,17 +854,12 @@ class Protocol:
 		Register a new user in the account database.
 
 		@required.str username: Username to register
-		@required.str password: Password to use (old-style: BASE64(MD5(...)) or plaintext, new-style: plaintext)
+		@required.str password: Password to use (old-style: BASE64(MD5(PWRD)), new-style: BASE64(PWRD))
 		'''
 		assert(type(password) == unicode)
 
-		if (not client.use_secure_session() and (self.force_secure_auths() or self.force_secure_comms())):
-			client.Send("REGISTRATIONDENIED %s" % ("Unencrypted registrations are not allowed."))
+		if (not self.can_client_authenticate(client, username, False)):
 			return
-		if (client.use_secure_session() and (not client.get_session_key_received_ack())):
-			client.Send("REGISTRATIONDENIED %s" % ("Encrypted registrations without prior key-acknowledgement are not allowed."))
-			return
-
 
 		good, reason = self._validUsernameSyntax(username)
 
@@ -882,7 +897,7 @@ class Protocol:
 		Attempt to login the active client.
 
 		@required.str username: Username
-		@required.str password: Password (old-style: BASE64(MD5(...)) or plaintext, new-style: plaintext)
+		@required.str password: Password (old-style: BASE64(MD5(PWRD)), new-style: BASE64(PWRD))
 		@optional.int cpu: CPU speed
 		@optional.ip local_ip: LAN IP address, sent to clients when they have the same WAN IP as host
 		@optional.sentence.str lobby_id: Lobby name and version
@@ -899,11 +914,7 @@ class Protocol:
 		'''
 		assert(type(password) == unicode)
 
-		if (not client.use_secure_session() and (self.force_secure_auths() or self.force_secure_comms())):
-			self.out_DENIED(client, username, "Unencrypted logins are not allowed.")
-			return
-		if (client.use_secure_session() and (not client.get_session_key_received_ack())):
-			self.out_DENIED(client, username, "Encrypted logins without prior key-acknowledgement are not allowed.")
+		if (not self.can_client_authenticate(client, username, True)):
 			return
 
 		# FIXME: is checked first because of a springie bug
@@ -3088,7 +3099,7 @@ class Protocol:
 			return
 
 		rsa_pub_key_obj = self.rsa_cipher_obj.get_pub_key()
-		rsa_pub_key_str = rsa_pub_key_obj.exportKey("PEM")
+		rsa_pub_key_str = rsa_pub_key_obj.exportKey(CryptoHandler.RSA_KEY_FMT_NAME)
 
 		## technically the key does not need to be encoded
 		## (PEM is a text-format), but this keeps protocol
@@ -3106,10 +3117,11 @@ class Protocol:
 	##
 	def in_GETSIGNEDMSG(self, client, enc_msg_str = ""):
 		if (len(enc_msg_str) == 0):
-			sgn_msg_str = self.rsa_cipher_obj.sign_bytes_utf8(self._get_motd_string(client))
+			enc_msg_str = self._get_motd_string(client)
+			sgn_msg_str = self.rsa_cipher_obj.sign_bytes(enc_msg_str.encode(UNICODE_ENCODING))
 		else:
-			enc_msg_str = SAFE_DECODE_FUNC(enc_msg_str.encode(UNICODE_ENCODING))
-			sgn_msg_str = self.rsa_cipher_obj.sign_bytes(enc_msg_str)
+			enc_msg_str = enc_msg_str.encode(UNICODE_ENCODING)
+			sgn_msg_str = self.rsa_cipher_obj.sign_bytes(SAFE_DECODE_FUNC(enc_msg_str))
 
 		client.Send("SIGNEDMSG %s" % ENCODE_FUNC(sgn_msg_str))
 
