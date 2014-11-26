@@ -307,24 +307,49 @@ class LobbyClient:
 		assert(not self.server_valid_shared_key)
 		assert(not self.client_acked_shared_key)
 
-		## note: server will use HASH(RAW) as key and echo back HASH(HASH(RAW))
-		## hence we send ENCODE(ENCRYPT(RAW)) and use HASH(RAW) on our side too
-		aes_key_raw = GLOBAL_RAND_POOL.read(CryptoHandler.MIN_AES_KEY_SIZE * 2)
-		aes_key_sig = SECURE_HASH_FUNC(aes_key_raw)
-		aes_key_enc = self.rsa_cipher_obj.encrypt_encode_bytes(aes_key_raw)
+		for i in xrange(10):
+			## note: server will use HASH(RAW) as key and echo back HASH(HASH(RAW))
+			## hence we send ENCODE(ENCRYPT(RAW)) and use HASH(RAW) on our side too
+			aes_key_raw = GLOBAL_RAND_POOL.read(CryptoHandler.MIN_AES_KEY_SIZE * 2)
+			aes_key_sig = SECURE_HASH_FUNC(aes_key_raw)
+			aes_key_enc = self.rsa_cipher_obj.encrypt_encode_bytes(aes_key_raw)
 
-		## make a copy of the previous key (if any) since
-		## we still need it to decrypt SHAREDKEY response
-		## etc
-		self.session_keys[(self.session_key_id + 0) % NUM_SESSION_KEYS] = self.aes_cipher_obj.get_key()
-		self.session_keys[(self.session_key_id + 1) % NUM_SESSION_KEYS] = aes_key_sig.digest()
-		self.session_keys[(self.session_key_id + 2) % NUM_SESSION_KEYS] = aes_key_sig.digest()
-		self.session_keys[(self.session_key_id + 3) % NUM_SESSION_KEYS] = aes_key_sig.digest()
+			assert(len(aes_key_raw) == CryptoHandler.MIN_AES_KEY_SIZE * 2)
 
-		## see the FIXME in IN_SHAREDKEY
-		assert(NUM_SESSION_KEYS >= 4)
-		assert(self.session_keys[(self.session_key_id + 1) % NUM_SESSION_KEYS] == self.session_keys[(self.session_key_id + 2) % NUM_SESSION_KEYS])
-		assert(self.session_keys[(self.session_key_id + 2) % NUM_SESSION_KEYS] == self.session_keys[(self.session_key_id + 3) % NUM_SESSION_KEYS])
+			## make a copy of the previous key (if any) since
+			## we still need it to decrypt SHAREDKEY response
+			## etc
+			self.session_keys[(self.session_key_id + 0) % NUM_SESSION_KEYS] = self.aes_cipher_obj.get_key()
+			self.session_keys[(self.session_key_id + 1) % NUM_SESSION_KEYS] = aes_key_sig.digest()
+
+			## sanity-check that D(E(K)) == K
+			tmp_aes_key_raw = self.rsa_cipher_obj.decode_decrypt_bytes(aes_key_enc, SAFE_DECODE_FUNC)
+			tmp_aes_key_sig = SECURE_HASH_FUNC(tmp_aes_key_raw)
+
+			if (tmp_aes_key_raw == aes_key_raw):
+				assert(tmp_aes_key_sig.digest() == self.session_keys[(self.session_key_id + 1) % NUM_SESSION_KEYS])
+				break
+			else:
+				## FIXME:
+				##   this somehow can happen for certain (very rare) inputs
+				##   input bytes seem to shift by 1 and last one disappears
+				##   (deterministically reproducable bug in libcrypto)
+				##
+				##     raw_key = ([0]=000, [1]=224, [2]=180, [3]=119, [4]=227, [5]=033, ...)
+				##     tmp_key = ([0]=224, [1]=180, [2]=119, [3]=227, [4]=033, [5]=194, ...)
+				##
+				##   if this was triggered during an actual key re-negotiation
+				##   (much more unlikely) the client's only option would be to
+				##   disconnect and initialize a new session
+				##
+				## CryptoHandler.write_file("server-rsa-keys/raw_session_key.dat", "wb", aes_key_raw)
+				##
+				## rsa = CryptoHandler.rsa_cipher("server-rsa-keys/")
+				## key = CryptoHandler.read_file("server-rsa-keys/raw_session_key.dat", "rb")
+				##
+				## assert(key == rsa.decode_decrypt_bytes(rsa.encrypt_encode_bytes(key)))
+				continue
+
 
 		## wrap around when we reach the largest allowed id
 		self.session_key_id += 1
@@ -382,7 +407,7 @@ class LobbyClient:
 		rsa_pub_key_obj = self.rsa_cipher_obj.import_key(rsa_pub_key_str)
 		rsa_pri_key_obj = CryptoHandler.RSA_NULL_KEY_OBJ
 		## this enables key decryption (to emulate server) for local testing
-		## rsa_pri_key_obj = self.rsa_cipher_obj.import_key(CryptoHandler.read_file("server-rsa-keys/rsa_pri_key.pem", "r"))
+		rsa_pri_key_obj = self.rsa_cipher_obj.import_key(CryptoHandler.read_file("server-rsa-keys/rsa_pri_key.pem", "r"))
 
 		## note: private key is never used, but it can not be None
 		self.rsa_cipher_obj.set_pub_key(rsa_pub_key_obj)
@@ -453,39 +478,6 @@ class LobbyClient:
 
 			can_send_ack_shared_key = (server_key_sig == client_key_sig)
 
-			if (not can_send_ack_shared_key):
-				## FIXME: sometimes false over local loopback (problem is in TestClient or libcrypto)
-				##
-				## example 1
-				##   [Client::Send] data= "SETSHAREDKEY ckkOW4lXNaHbpifxCiDEQCFYiXBQiSh47Pll7ggaMlwHUMkb0f1PdfHcxImwr2tdvFl2o+AYQKt1Uzh97v8vLGVNILIiRZYgsfvZ5uPftyCUuJFsdiZvS4xfy/Jv1sIKzjGsY+fgeTCH+siddWOth6QNNodsR14nZBxrWsyrQShg5w1nKxx64+tpbaYugrq4pgszuapxpv/jw7b2i/y6r+qmTBr44LDOnHRdiKKpzCz8oqWwfk3rVJN8GW/Nqoc8ra93ixsMnjRbLe8xR6Q+ertmLRwkF79WlEJXf3xOsuCx9ZajXNhdNfVVWbLM1PS2krZRB1coV5vcz/47g01bxJHCRdUYN2uYqY5KmyOP5baFGePpU5ydatPPzqUCEqjqdhRZo2hsdj/lcjsbXSXGR7aZRCgB8Zm3xbJbBeInzr0R/gmOOE9aGDGyvmyCjWOERO0ab0/1fU9ksd3TBi4XtI5f9wbBVylLmBv5gr5iyhpjYu023lZ3x4xAxLEXtG163onEBa2IMYedxO7D+XbEoBnb6Q9HuhmrJ3p8pH57TUd39XRFGHXErpJ436ZywsUKaJpu2nTDLwV4FHJpLQPTKtvN5M8u2v1cpvDJmtNsifLBJTMdlOoGQCSl/Pd2Uz1QTewn4GvpoVRQwRv5bMIscFw1tVLA9J5+WTk9NYQ9kn2sWM7QPy5jYY9TjIlvdVBKgC6X3KwxgP89tWS/9Zqx35KUgdJREOQoez4OYjN4Fqi82xHRj0vy9bdbMmDLVfqZsc/nmIdXQlbkasr3U/pvPf9tcqM2ww55HtBf/3SkfSZsnGrTvUyBXJkTxDFcMJy45Js3Qa50oU8EylpUYnN8UBF/G00wUI/X0crhJXfR3J+I6aTKnIp1pJNVHjCvEkgFQsa0gSPzzG6wrVqYo/EZCVPHhWUiAvMQnT0/RjGuRepx7uPTRvMiP7wbl0eZeJFPiTSilP1hTvFqlxx5pImsj64cFU2UHkjE3zwiAdE6oSBQ8f82v9o3kodPtHBNF25XletAQAymPu9kBG8aIv/fZPj+VOHUo6ocR3SamPmZbTEsuMKe2bFyxBVPhv0PlivghUPNZdxk0D96iqUSKvmFMyk3Qr8LBD5TCKtj16NwvQtXiueI1nqCmEiJVx9NNy56FXBWW+OIzMU0pL7PUOQqvNqCN6G0uV4JVZIDzAWdQofBsts5iX4tsQn01Fb5yDgL9GjTkCZ8ID74b292+kyYdYqe+mKOqkZX3HMR3gWSAk3wCYCLEdJyPfQ5y8ofjogNMSEHPd0weCc0x1YhFiOtot3FrZdNWWu72GU0Bwa3XrlGeMxZJWyF8heMZPylb8WrqOZJsrD2bWA70dGPfQNv7w==" sec_sess=1 key_acked=1 queue=[] batch=1
-				##   [Server::Recv] data=['SETSHAREDKEY ckkOW4lXNaHbpifxCiDEQCFYiXBQiSh47Pll7ggaMlwHUMkb0f1PdfHcxImwr2tdvFl2o+AYQKt1Uzh97v8vLGVNILIiRZYgsfvZ5uPftyCUuJFsdiZvS4xfy/Jv1sIKzjGsY+fgeTCH+siddWOth6QNNodsR14nZBxrWsyrQShg5w1nKxx64+tpbaYugrq4pgszuapxpv/jw7b2i/y6r+qmTBr44LDOnHRdiKKpzCz8oqWwfk3rVJN8GW/Nqoc8ra93ixsMnjRbLe8xR6Q+ertmLRwkF79WlEJXf3xOsuCx9ZajXNhdNfVVWbLM1PS2krZRB1coV5vcz/47g01bxJHCRdUYN2uYqY5KmyOP5baFGePpU5ydatPPzqUCEqjqdhRZo2hsdj/lcjsbXSXGR7aZRCgB8Zm3xbJbBeInzr0R/gmOOE9aGDGyvmyCjWOERO0ab0/1fU9ksd3TBi4XtI5f9wbBVylLmBv5gr5iyhpjYu023lZ3x4xAxLEXtG163onEBa2IMYedxO7D+XbEoBnb6Q9HuhmrJ3p8pH57TUd39XRFGHXErpJ436ZywsUKaJpu2nTDLwV4FHJpLQPTKtvN5M8u2v1cpvDJmtNsifLBJTMdlOoGQCSl/Pd2Uz1QTewn4GvpoVRQwRv5bMIscFw1tVLA9J5+WTk9NYQ9kn2sWM7QPy5jYY9TjIlvdVBKgC6X3KwxgP89tWS/9Zqx35KUgdJREOQoez4OYjN4Fqi82xHRj0vy9bdbMmDLVfqZsc/nmIdXQlbkasr3U/pvPf9tcqM2ww55HtBf/3SkfSZsnGrTvUyBXJkTxDFcMJy45Js3Qa50oU8EylpUYnN8UBF/G00wUI/X0crhJXfR3J+I6aTKnIp1pJNVHjCvEkgFQsa0gSPzzG6wrVqYo/EZCVPHhWUiAvMQnT0/RjGuRepx7uPTRvMiP7wbl0eZeJFPiTSilP1hTvFqlxx5pImsj64cFU2UHkjE3zwiAdE6oSBQ8f82v9o3kodPtHBNF25XletAQAymPu9kBG8aIv/fZPj+VOHUo6ocR3SamPmZbTEsuMKe2bFyxBVPhv0PlivghUPNZdxk0D96iqUSKvmFMyk3Qr8LBD5TCKtj16NwvQtXiueI1nqCmEiJVx9NNy56FXBWW+OIzMU0pL7PUOQqvNqCN6G0uV4JVZIDzAWdQofBsts5iX4tsQn01Fb5yDgL9GjTkCZ8ID74b292+kyYdYqe+mKOqkZX3HMR3gWSAk3wCYCLEdJyPfQ5y8ofjogNMSEHPd0weCc0x1YhFiOtot3FrZdNWWu72GU0Bwa3XrlGeMxZJWyF8heMZPylb8WrqOZJsrD2bWA70dGPfQNv7w==', '']
-				##
-				##   [Client::SHAREDKEY] ACCEPTED xLTrx0glUaLNqv5+zSLNyR+fR3wgkPnYE0+72pidP9g= 
-				##     server_key_sig=xLTrx0glUaLNqv5+zSLNyR+fR3wgkPnYE0+72pidP9g=
-				##     client_key_sig=lAtAe1r2ljoVpMQcrZs6Oge18tu3ktNM7wN3WXpDonI=
-				##
-				## example 2
-				##   [Client::Send] data= "SETSHAREDKEY twtNLS7Cfb2MCvwSHnKiOqr0sWWEMiSfe5A5B3qTnT+XcBT0FBfity2FXcOcYd9UsUwkXNefIBnw35s8GoagNZt73fFawHmZQxY7JgAHoUonYYQvp22yKbw8srM1vjgBfeWx7wfHVy0LXXxQvLeIskaM7T8AsMPNBWxszg0bdpA9rF7+rh/Fc6Uc76ZtvB+dqDYR5afvMbCvE/LPP/LlhfCq2XwWRD6bs9AlnnMxskleOF1FvJT7gAVdaRBV4x8SyGoGvwgkpdOrsN2cCX1qWgMWqh3xVBZZk5IFPURRjy1pL5fXUWz7CKkUh0X2g4poY6+bWEItZwxqUEs0t03vqZWBkk8yvjDeYD/FYD+GqFTp9pgkNmjQ+fDhTTK/yvypI9HQWpUP2caEZjAYyazkq6TpBpiZbNzjdrEhrjMKN9FoONs6g9/mzS8ujuHc2OBpxP3Jb4ZUnAtycH0zUUqozKAm0af4RLWPE0rq6GghF7jXrVfK+d0RKzgkagVIrqtW05oNog0SYnCdY9u0+XDdHXz6wGZAylUJIC6KxQQFqcrjYEFUD38EC1DMoUDiHqmodQ0PJjCCgMKAqgeiGlxz9fXr4H2CeUeLjrZqHZ8fia5ht0g003Rkxf/bBJitleMLwxT6QoauptTCkYsNBdp4JSSCLetwZDXJ82WwLoSEMXtimfscvFhKg8B+fFgAmzPV2sgE8yfwgwdq2xOkN/NpTINEimVB+m3nX2O2bJh6UTdsiW5Rn6cxykgROWWTyvvy0ovr2l5J5IzPs2msACMLoh2aErYyyrTMw8xK1YEGWAA5Rqsq2NMNYgliLBV+UDifh7sAFO8kXwQGDCV6dhTanJ2KjfLwGd2EOEFDwsegHpC41Vw+4I4diipRBGGZIClopUn0woZ0DExvT3CgfBXgUzQVAeKF31lm0bQKMitErN6QMbUewwKUAysSRW0wWmYA8xu/KH4rJhC0dYgZw6LdIv4aY+W7b04dCddWiin7YLSQSfU5hvTGGiI+h4RSYQSBSc9YT8a95LVJoPcCX4Bu4z/UUGtXvaxCQ6JP8YoQP70OoUaGDz+XcNYP6jWrJV7XwUMJBh6xs6aSOSwMbwXIUQSmYvu5dLWu8kxcXr5HpkuazEzq5d/RyekjXKhyyKKWIWEdA+CgtxHRq5Nrccs9Pa2Vp84SwTp0xr2AOpSuidrSfCsU8vP/s39qGgQtSIN+5QHNhpSkMgsLgS1f2CAUhOmoUv66kODwHRbfGL/CL2ttCEYDDQiuzZH+/jXulFK6lHylZa7ZxprF62MA6eHBt6hMY1iyetd2aN7qC0ku6uvzm70+VhmiPRf3tfEOdJwODqZvUcczkFXxrqyEXNHcGQ=="
-				##   [Server::Recv] data=['SETSHAREDKEY twtNLS7Cfb2MCvwSHnKiOqr0sWWEMiSfe5A5B3qTnT+XcBT0FBfity2FXcOcYd9UsUwkXNefIBnw35s8GoagNZt73fFawHmZQxY7JgAHoUonYYQvp22yKbw8srM1vjgBfeWx7wfHVy0LXXxQvLeIskaM7T8AsMPNBWxszg0bdpA9rF7+rh/Fc6Uc76ZtvB+dqDYR5afvMbCvE/LPP/LlhfCq2XwWRD6bs9AlnnMxskleOF1FvJT7gAVdaRBV4x8SyGoGvwgkpdOrsN2cCX1qWgMWqh3xVBZZk5IFPURRjy1pL5fXUWz7CKkUh0X2g4poY6+bWEItZwxqUEs0t03vqZWBkk8yvjDeYD/FYD+GqFTp9pgkNmjQ+fDhTTK/yvypI9HQWpUP2caEZjAYyazkq6TpBpiZbNzjdrEhrjMKN9FoONs6g9/mzS8ujuHc2OBpxP3Jb4ZUnAtycH0zUUqozKAm0af4RLWPE0rq6GghF7jXrVfK+d0RKzgkagVIrqtW05oNog0SYnCdY9u0+XDdHXz6wGZAylUJIC6KxQQFqcrjYEFUD38EC1DMoUDiHqmodQ0PJjCCgMKAqgeiGlxz9fXr4H2CeUeLjrZqHZ8fia5ht0g003Rkxf/bBJitleMLwxT6QoauptTCkYsNBdp4JSSCLetwZDXJ82WwLoSEMXtimfscvFhKg8B+fFgAmzPV2sgE8yfwgwdq2xOkN/NpTINEimVB+m3nX2O2bJh6UTdsiW5Rn6cxykgROWWTyvvy0ovr2l5J5IzPs2msACMLoh2aErYyyrTMw8xK1YEGWAA5Rqsq2NMNYgliLBV+UDifh7sAFO8kXwQGDCV6dhTanJ2KjfLwGd2EOEFDwsegHpC41Vw+4I4diipRBGGZIClopUn0woZ0DExvT3CgfBXgUzQVAeKF31lm0bQKMitErN6QMbUewwKUAysSRW0wWmYA8xu/KH4rJhC0dYgZw6LdIv4aY+W7b04dCddWiin7YLSQSfU5hvTGGiI+h4RSYQSBSc9YT8a95LVJoPcCX4Bu4z/UUGtXvaxCQ6JP8YoQP70OoUaGDz+XcNYP6jWrJV7XwUMJBh6xs6aSOSwMbwXIUQSmYvu5dLWu8kxcXr5HpkuazEzq5d/RyekjXKhyyKKWIWEdA+CgtxHRq5Nrccs9Pa2Vp84SwTp0xr2AOpSuidrSfCsU8vP/s39qGgQtSIN+5QHNhpSkMgsLgS1f2CAUhOmoUv66kODwHRbfGL/CL2ttCEYDDQiuzZH+/jXulFK6lHylZa7ZxprF62MA6eHBt6hMY1iyetd2aN7qC0ku6uvzm70+VhmiPRf3tfEOdJwODqZvUcczkFXxrqyEXNHcGQ==', '']
-				##
-				##   [Client::SHAREDKEY] ACCEPTED 0zvbSvzyeSGj1ImRmIv4f7WscvyUFXqbfjRtShLSAYE=
-				##     server_key_sig=0zvbSvzyeSGj1ImRmIv4f7WscvyUFXqbfjRtShLSAYE=
-				##     client_key_sig=yTOCZh+P5tg4utKeKmy/UTax8rjBUBjJB4Z5lEV7iJM=
-				##
-				## aes_key_enc = "ckkOW4lXNaHbpifxCiDEQCFYiXBQiSh47Pll7ggaMlwHUMkb0f1PdfHcxImwr2tdvFl2o+AYQKt1Uzh97v8vLGVNILIiRZYgsfvZ5uPftyCUuJFsdiZvS4xfy/Jv1sIKzjGsY+fgeTCH+siddWOth6QNNodsR14nZBxrWsyrQShg5w1nKxx64+tpbaYugrq4pgszuapxpv/jw7b2i/y6r+qmTBr44LDOnHRdiKKpzCz8oqWwfk3rVJN8GW/Nqoc8ra93ixsMnjRbLe8xR6Q+ertmLRwkF79WlEJXf3xOsuCx9ZajXNhdNfVVWbLM1PS2krZRB1coV5vcz/47g01bxJHCRdUYN2uYqY5KmyOP5baFGePpU5ydatPPzqUCEqjqdhRZo2hsdj/lcjsbXSXGR7aZRCgB8Zm3xbJbBeInzr0R/gmOOE9aGDGyvmyCjWOERO0ab0/1fU9ksd3TBi4XtI5f9wbBVylLmBv5gr5iyhpjYu023lZ3x4xAxLEXtG163onEBa2IMYedxO7D+XbEoBnb6Q9HuhmrJ3p8pH57TUd39XRFGHXErpJ436ZywsUKaJpu2nTDLwV4FHJpLQPTKtvN5M8u2v1cpvDJmtNsifLBJTMdlOoGQCSl/Pd2Uz1QTewn4GvpoVRQwRv5bMIscFw1tVLA9J5+WTk9NYQ9kn2sWM7QPy5jYY9TjIlvdVBKgC6X3KwxgP89tWS/9Zqx35KUgdJREOQoez4OYjN4Fqi82xHRj0vy9bdbMmDLVfqZsc/nmIdXQlbkasr3U/pvPf9tcqM2ww55HtBf/3SkfSZsnGrTvUyBXJkTxDFcMJy45Js3Qa50oU8EylpUYnN8UBF/G00wUI/X0crhJXfR3J+I6aTKnIp1pJNVHjCvEkgFQsa0gSPzzG6wrVqYo/EZCVPHhWUiAvMQnT0/RjGuRepx7uPTRvMiP7wbl0eZeJFPiTSilP1hTvFqlxx5pImsj64cFU2UHkjE3zwiAdE6oSBQ8f82v9o3kodPtHBNF25XletAQAymPu9kBG8aIv/fZPj+VOHUo6ocR3SamPmZbTEsuMKe2bFyxBVPhv0PlivghUPNZdxk0D96iqUSKvmFMyk3Qr8LBD5TCKtj16NwvQtXiueI1nqCmEiJVx9NNy56FXBWW+OIzMU0pL7PUOQqvNqCN6G0uV4JVZIDzAWdQofBsts5iX4tsQn01Fb5yDgL9GjTkCZ8ID74b292+kyYdYqe+mKOqkZX3HMR3gWSAk3wCYCLEdJyPfQ5y8ofjogNMSEHPd0weCc0x1YhFiOtot3FrZdNWWu72GU0Bwa3XrlGeMxZJWyF8heMZPylb8WrqOZJsrD2bWA70dGPfQNv7w=="
-				## aes_key_raw = self.rsa_cipher_obj.decode_decrypt_bytes_utf8(aes_key_enc, SAFE_DECODE_FUNC)
-				## aes_key_raw = SECURE_HASH_FUNC(aes_key_raw)
-				## aes_key_raw = aes_key_raw.digest()
-				## aes_key_sig = SECURE_HASH_FUNC(aes_key_raw)
-				## aes_key_sig = ENCODE_FUNC(aes_key_sig.digest())
-				##
-				## ex1: "xLTrx0glUaLNqv5+zSLNyR+fR3wgkPnYE0+72pidP9g="
-				## ex2: "0zvbSvzyeSGj1ImRmIv4f7WscvyUFXqbfjRtShLSAYE="
-				##
-				## print("\n\n\n\taes_key_sig=%s\n\n\n" % aes_key_sig)
-				assert(False)
-				return
-
 		elif (key_status == "DISABLED"):
 			self.reset_session_state()
 			self.set_session_key("")
@@ -495,6 +487,8 @@ class LobbyClient:
 			return
 
 		if (not can_send_ack_shared_key):
+			assert(key_status != "ACCEPTED")
+
 			self.sent_unacked_shared_key = False
 			self.server_valid_shared_key = False
 			self.client_acked_shared_key = False

@@ -45,7 +45,6 @@ MIN_PASSWORD_LEN =   12 ## bytes
 NUM_SESSION_KEYS =    8 ## should be at least 2
 
 MD5LEG_HASH_FUNC = MD5.new
-SHA160_HASH_FUNC = SHA.new
 SHA256_HASH_FUNC = SHA256.new
 
 GLOBAL_RAND_POOL = Random.new()
