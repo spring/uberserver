@@ -775,7 +775,7 @@ class Protocol:
 
 
 	def can_client_authenticate(self, client, username, in_login):
-		if (not client.use_secure_session() and (self.force_secure_auths() or self.force_secure_comms())):
+		if ((not client.use_secure_session()) and (self.force_secure_auths() or self.force_secure_comms())):
 			if (in_login):
 				self.out_DENIED(client, username, "Unencrypted logins are not allowed.")
 			else:
