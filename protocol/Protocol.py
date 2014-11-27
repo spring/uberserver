@@ -251,7 +251,7 @@ class Protocol:
 		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
 
 
-	def get_function_args(self, client, function, numspaces, args):
+	def get_function_args(self, client, command, function, numspaces, args):
 		function_info = inspect.getargspec(function)
 		total_args = len(function_info[0]) - 2
 
@@ -347,7 +347,7 @@ class Protocol:
 		self.stats[command] += 1
 
 
-		ret_status, fun_args = self.get_function_args(client, function, numspaces, args)
+		ret_status, fun_args = self.get_function_args(client, command, function, numspaces, args)
 
 		if (ret_status):
 			## if fun_args is empty, this reduces to function(client)
