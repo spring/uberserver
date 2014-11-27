@@ -339,11 +339,7 @@ class Protocol:
 			return False
 
 		funcname = 'in_%s' % command
-		if funcname in self.dir:
-			function = getattr(self, funcname)
-		else:
-			self.out_SERVERMSG(client, '%s failed. Command does not exist.'%(command), True)
-			return False
+		function = getattr(self, funcname)
 
 		# update statistics
 		if (not (command in self.stats)):
