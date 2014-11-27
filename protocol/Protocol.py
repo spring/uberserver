@@ -3239,6 +3239,13 @@ class Protocol:
 			self._root.console_write('Handler %s <%s>: %s %s' % (client.handler.num, client.username, cmd, message))
 
 
+def check_protocol_commands():
+	for command in restricted_list:
+		if 'in_' + command not in dir(Protocol):
+			return False
+	return True
+assert(check_protocol_commands())
+
 def make_docs():
 	response = []
 	cmdlist = dir(Protocol)
