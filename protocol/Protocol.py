@@ -147,7 +147,6 @@ restricted = {
 	'SETLATESTSPRINGVERSION',
 	#########
 	# users
-	'FORGEREVERSEMSG',
 	'GETLASTLOGINTIME',
 	'GETACCOUNTACCESS',
 	'FORCEJOIN',
@@ -2690,28 +2689,6 @@ class Protocol:
 				self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
 			else:
 				self.out_SERVERMSG(client, 'Incorrect old password.')
-
-
-	def in_FORGEREVERSEMSG(self, client, user, msg):
-		'''
-		deprecated, TODO: will be removed on 7.12.2014:
-			https://github.com/ZeroK-RTS/Zero-K-Infrastructure/issues/19
-		'''
-		if client.compat['cl']:
-			self.out_SERVERMSG(client, 'Forging messages is deprecated and will be removed on 7.12.2014.')
-			return
-
-		if not (msg and msg.split(' ')[0] in ("LEAVEBATTLE", "JOINBATTLE")):
-			self.out_SERVERMSG(client, "Invalid call to FORGEREVERSEMSG, this command is deprecated and will be removed on 7.12.2014, don't use it: %s" %(msg), True)
-			return
-
-		if not client.username == "Nightwatch":
-			self.out_SERVERMSG(client, "Forging messages is deprecated, only exception for Nightwatch exists and will be removed on 7.12.2014", True)
-			return
-
-		if user in self._root.usernames:
-			self._root.console_write('FORGEREVERSEMSG %s %s %s' %(client.username, user, msg))
-			self._handle(self._root.usernames[user], msg)
 
 	def in_GETLOBBYVERSION(self, client, username):
 		'''
