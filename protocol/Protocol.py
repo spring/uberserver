@@ -338,8 +338,7 @@ class Protocol:
 				self.out_SERVERMSG(client, '%s failed. Insufficient rights.' % command, True)
 			return False
 
-		funcname = 'in_%s' % command
-		function = getattr(self, funcname)
+		function = getattr(self, 'in_' + command)
 
 		# update statistics
 		if (not (command in self.stats)):
