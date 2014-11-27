@@ -188,6 +188,7 @@ class rsa_cipher:
 		assert(type(raw_bytes) == str)
 		assert(len(raw_bytes) != 0)
 		assert(self.pub_key.size() >= (len(raw_bytes) * 8))
+		assert(ord(raw_bytes[0]) != 0)
 
 		if (self.enc_pad_scheme != None):
 			enc_bytes = self.enc_pad_scheme.encrypt(raw_bytes)

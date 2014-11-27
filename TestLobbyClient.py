@@ -307,49 +307,28 @@ class LobbyClient:
 		assert(not self.server_valid_shared_key)
 		assert(not self.client_acked_shared_key)
 
-		for i in xrange(10):
-			## note: server will use HASH(RAW) as key and echo back HASH(HASH(RAW))
-			## hence we send ENCODE(ENCRYPT(RAW)) and use HASH(RAW) on our side too
-			aes_key_raw = GLOBAL_RAND_POOL.read(CryptoHandler.MIN_AES_KEY_SIZE * 2)
-			aes_key_sig = SECURE_HASH_FUNC(aes_key_raw)
-			aes_key_enc = self.rsa_cipher_obj.encrypt_encode_bytes(aes_key_raw)
+		def generate_session_key(num_bytes = CryptoHandler.MIN_AES_KEY_SIZE * 2):
+			## encrypt converts its argument to a long, so the
+			## MSB should *always* be non-zero or D(E(K)) != K
+			key_head = "\x00"
+			key_tail = GLOBAL_RAND_POOL.read(num_bytes - 1)
 
-			assert(len(aes_key_raw) == CryptoHandler.MIN_AES_KEY_SIZE * 2)
+			while (ord(key_head) == 0):
+				key_head = GLOBAL_RAND_POOL.read(1)
 
-			## make a copy of the previous key (if any) since
-			## we still need it to decrypt SHAREDKEY response
-			## etc
-			self.session_keys[(self.session_key_id + 0) % NUM_SESSION_KEYS] = self.aes_cipher_obj.get_key()
-			self.session_keys[(self.session_key_id + 1) % NUM_SESSION_KEYS] = aes_key_sig.digest()
+			return (key_head + key_tail)
 
-			## sanity-check that D(E(K)) == K
-			tmp_aes_key_raw = self.rsa_cipher_obj.decode_decrypt_bytes(aes_key_enc, SAFE_DECODE_FUNC)
-			tmp_aes_key_sig = SECURE_HASH_FUNC(tmp_aes_key_raw)
+		## note: server will use HASH(RAW) as key and echo back HASH(HASH(RAW))
+		## hence we send ENCODE(ENCRYPT(RAW)) and use HASH(RAW) on our side too
+		aes_key_raw = generate_session_key()
+		aes_key_sig = SECURE_HASH_FUNC(aes_key_raw)
+		aes_key_enc = self.rsa_cipher_obj.encrypt_encode_bytes(aes_key_raw)
 
-			if (tmp_aes_key_raw == aes_key_raw):
-				assert(tmp_aes_key_sig.digest() == self.session_keys[(self.session_key_id + 1) % NUM_SESSION_KEYS])
-				break
-			else:
-				## FIXME:
-				##   this somehow can happen for certain (very rare) inputs
-				##   input bytes seem to shift by 1 and last one disappears
-				##   (deterministically reproducable bug in libcrypto)
-				##
-				##     raw_key = ([0]=000, [1]=224, [2]=180, [3]=119, [4]=227, [5]=033, ...)
-				##     tmp_key = ([0]=224, [1]=180, [2]=119, [3]=227, [4]=033, [5]=194, ...)
-				##
-				##   if this was triggered during an actual key re-negotiation
-				##   (much more unlikely) the client's only option would be to
-				##   disconnect and initialize a new session
-				##
-				## CryptoHandler.write_file("server-rsa-keys/raw_session_key.dat", "wb", aes_key_raw)
-				##
-				## rsa = CryptoHandler.rsa_cipher("server-rsa-keys/")
-				## key = CryptoHandler.read_file("server-rsa-keys/raw_session_key.dat", "rb")
-				##
-				## assert(key == rsa.decode_decrypt_bytes(rsa.encrypt_encode_bytes(key)))
-				continue
-
+		## make a copy of the previous key (if any) since
+		## we still need it to decrypt SHAREDKEY response
+		## etc
+		self.session_keys[(self.session_key_id + 0) % NUM_SESSION_KEYS] = self.aes_cipher_obj.get_key()
+		self.session_keys[(self.session_key_id + 1) % NUM_SESSION_KEYS] = aes_key_sig.digest()
 
 		## wrap around when we reach the largest allowed id
 		self.session_key_id += 1
@@ -407,7 +386,7 @@ class LobbyClient:
 		rsa_pub_key_obj = self.rsa_cipher_obj.import_key(rsa_pub_key_str)
 		rsa_pri_key_obj = CryptoHandler.RSA_NULL_KEY_OBJ
 		## this enables key decryption (to emulate server) for local testing
-		rsa_pri_key_obj = self.rsa_cipher_obj.import_key(CryptoHandler.read_file("server-rsa-keys/rsa_pri_key.pem", "r"))
+		## rsa_pri_key_obj = self.rsa_cipher_obj.import_key(CryptoHandler.read_file("server-rsa-keys/rsa_pri_key.pem", "r"))
 
 		## note: private key is never used, but it can not be None
 		self.rsa_cipher_obj.set_pub_key(rsa_pub_key_obj)
@@ -487,6 +466,9 @@ class LobbyClient:
 			return
 
 		if (not can_send_ack_shared_key):
+			## if this was triggered during an actual key RE-negotiation
+			## (much more unlikely) the client's only option would be to
+			## disconnect and initialize a new session
 			assert(key_status != "ACCEPTED")
 
 			self.sent_unacked_shared_key = False
