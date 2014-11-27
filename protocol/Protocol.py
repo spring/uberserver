@@ -324,9 +324,6 @@ class Protocol:
 			return False
 
 
-		if not command in restricted_list:
-			self.out_SERVERMSG(client, '%s failed. Command does not exist.'%command, True)
-			return False
 
 		allowed = False
 		for level in client.accesslevels:
@@ -335,7 +332,10 @@ class Protocol:
 				break
 
 		if not allowed:
-			self.out_SERVERMSG(client, '%s failed. Insufficient rights.' % command, True)
+			if not command in restricted_list:
+				self.out_SERVERMSG(client, '%s failed. Command does not exist.' % command, True)
+			else:
+				self.out_SERVERMSG(client, '%s failed. Insufficient rights.' % command, True)
 			return False
 
 		funcname = 'in_%s' % command
