@@ -62,6 +62,27 @@ def safe_decode(s):
 	return r
 
 
+def int32_to_str(n):
+	assert(n >= (0      ))
+	assert(n <  (1 << 32))
+
+	s = ""
+	s += "%c" % ((n >>  0) & 0xff)
+	s += "%c" % ((n >>  8) & 0xff)
+	s += "%c" % ((n >> 16) & 0xff)
+	s += "%c" % ((n >> 24) & 0xff)
+
+	return s
+
+def str_to_int32(s):
+	n = 0
+	n += (ord(s[0]) <<  0)
+	n += (ord(s[1]) <<  8)
+	n += (ord(s[2]) << 16)
+	n += (ord(s[3]) << 24)
+	return n
+
+
 def pad_str(msg, bs):
 	num = bs - (len(msg) % bs)
 	ext = num * chr(num)

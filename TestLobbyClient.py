@@ -14,6 +14,9 @@ from CryptoHandler import SHA256_HASH_FUNC as SECURE_HASH_FUNC
 from CryptoHandler import GLOBAL_RAND_POOL
 
 from CryptoHandler import safe_decode as SAFE_DECODE_FUNC
+from CryptoHandler import int32_to_str
+from CryptoHandler import str_to_int32
+
 from CryptoHandler import DATA_MARKER_BYTE
 from CryptoHandler import DATA_PARTIT_BYTE
 from CryptoHandler import UNICODE_ENCODING
@@ -82,6 +85,10 @@ class LobbyClient:
 		self.session_keys = [""] * NUM_SESSION_KEYS
 		self.session_key_id = 0
 
+		## time-stamps for encrypted data
+		self.incoming_msg_ctr = 0
+		self.outgoing_msg_ctr = 1
+
 		self.data_send_queue = []
 
 		self.server_info = ("", "", "", "")
@@ -126,10 +133,13 @@ class LobbyClient:
 			cmd = cmd[0]
 			return (self.want_secure_session and (not cmd in ALLOWED_OPEN_COMMANDS))
 
-		def compose_blob(txt):
+		def compose_encrypted_blob(txt):
+			ctr = self.outgoing_msg_ctr
 			hdr = DATA_MARKER_BYTE
-			pay = self.aes_cipher_obj.encrypt_encode_bytes(txt)
+			pay = self.aes_cipher_obj.encrypt_encode_bytes(int32_to_str(ctr) + txt)
 			msg = hdr + pay + DATA_PARTIT_BYTE
+
+			self.outgoing_msg_ctr += 1
 			return msg
 
 		buf = ""
@@ -149,10 +159,10 @@ class LobbyClient:
 						buf += (self.data_send_queue.pop() + DATA_PARTIT_BYTE)
 
 					## batch-encrypt into one blob (more efficient)
-					buf = compose_blob(buf)
+					buf = compose_encrypted_blob(buf)
 				else:
 					while (len(self.data_send_queue) > 0):
-						buf += compose_blob(self.data_send_queue.pop() + DATA_PARTIT_BYTE)
+						buf += compose_encrypted_blob(self.data_send_queue.pop() + DATA_PARTIT_BYTE)
 
 		else:
 			buf = data + DATA_PARTIT_BYTE
@@ -179,6 +189,15 @@ class LobbyClient:
 		data_blobs = split_data[: len(split_data) - 1  ]
 		final_blob = split_data[  len(split_data) - 1: ][0]
 
+		def check_message_timestamp(msg):
+			ctr = str_to_int32(msg)
+
+			if (ctr <= self.incoming_msg_ctr):
+				return False
+
+			self.incoming_msg_ctr = ctr
+			return True
+
 		for raw_data_blob in data_blobs:
 			if (self.use_secure_session()):
 				if (raw_data_blob[0] != DATA_MARKER_BYTE):
@@ -187,13 +206,18 @@ class LobbyClient:
 				## after decryption dec_command might represent a batch of
 				## commands separated by newlines, all of which need to be
 				## handled successfully
-				enc_command = raw_data_blob[1: ]
-				dec_command = self.aes_cipher_obj.decode_decrypt_bytes_utf8(enc_command, SAFE_DECODE_FUNC)
-				dec_commands = dec_command.split(DATA_PARTIT_BYTE)
-				dec_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in dec_commands]
+				enc_data_blob = raw_data_blob[1: ]
+				dec_data_blob = self.aes_cipher_obj.decode_decrypt_bytes_utf8(enc_data_blob, SAFE_DECODE_FUNC)
 
-				for dec_command in dec_commands:
-					self.Handle(dec_command)
+				## ignore any replayed messages
+				if (not check_message_timestamp(dec_data_blob[0: 4])):
+					continue
+
+				split_commands = dec_data_blob[4: ].split(DATA_PARTIT_BYTE)
+				strip_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in split_commands]
+
+				for command in strip_commands:
+					self.Handle(command)
 			else:
 				if (raw_data_blob[0] == DATA_MARKER_BYTE):
 					continue

@@ -2,8 +2,12 @@ import socket, time, sys, thread, ip2country, errno
 from collections import defaultdict
 
 from BaseClient import BaseClient
+
 from CryptoHandler import aes_cipher
 from CryptoHandler import safe_decode as SAFE_DECODE_FUNC
+from CryptoHandler import int32_to_str
+from CryptoHandler import str_to_int32
+
 from CryptoHandler import DATA_MARKER_BYTE
 from CryptoHandler import DATA_PARTIT_BYTE
 from CryptoHandler import UNICODE_ENCODING
@@ -41,6 +45,10 @@ class Client(BaseClient):
 		self.msg_sendbuffer = []
 		self.enc_sendbuffer = []
 		self.sendingmessage = ''
+
+		## time-stamps for encrypted data
+		self.incoming_msg_ctr = 0
+		self.outgoing_msg_ctr = 1
 
 		## note: this NEVER becomes false after LOGIN!
 		self.logged_in = False
@@ -213,6 +221,15 @@ class Client(BaseClient):
 
 		assert(type(self.data) == str)
 
+		def check_message_timestamp(msg):
+			ctr = str_to_int32(msg)
+
+			if (ctr <= self.incoming_msg_ctr):
+				return False
+
+			self.incoming_msg_ctr = ctr
+			return True
+
 		commands_buffer = []
 
 		for raw_data_blob in raw_data_blobs:
@@ -244,7 +261,11 @@ class Client(BaseClient):
 				enc_data_blob = raw_data_blob[1: ]
 				dec_data_blob = self.aes_cipher_obj.decode_decrypt_bytes_utf8(enc_data_blob, SAFE_DECODE_FUNC)
 
-				split_commands = dec_data_blob.split(DATA_PARTIT_BYTE)
+				## ignore any replayed messages
+				if (not check_message_timestamp(dec_data_blob[0: 4])):
+					continue
+
+				split_commands = dec_data_blob[4: ].split(DATA_PARTIT_BYTE)
 				strip_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in split_commands]
 			else:
 				if (raw_data_blob[0] == DATA_MARKER_BYTE):
@@ -290,10 +311,13 @@ class Client(BaseClient):
 
 		assert(type(data) == str)
 
-		def compose_blob(txt):
+		def compose_encrypted_blob(txt):
+			ctr = self.outgoing_msg_ctr
 			hdr = DATA_MARKER_BYTE
-			pay = self.aes_cipher_obj.encrypt_encode_bytes(txt)
+			pay = self.aes_cipher_obj.encrypt_encode_bytes(int32_to_str(ctr) + txt)
 			msg = hdr + pay + DATA_PARTIT_BYTE
+
+			self.outgoing_msg_ctr += 1
 			return msg
 
 		buf = ""
@@ -318,10 +342,10 @@ class Client(BaseClient):
 						buf += (self.enc_sendbuffer.pop() + DATA_PARTIT_BYTE)
 
 					## batch-encrypt into one blob (more efficient)
-					buf = compose_blob(buf)
+					buf = compose_encrypted_blob(buf)
 				else:
 					while (len(self.enc_sendbuffer) > 0):
-						buf += compose_blob(self.enc_sendbuffer.pop() + DATA_PARTIT_BYTE)
+						buf += compose_encrypted_blob(self.enc_sendbuffer.pop() + DATA_PARTIT_BYTE)
 
 		else:
 			buf = data + DATA_PARTIT_BYTE
