@@ -980,16 +980,20 @@ class Protocol:
 		try:
 			if (client.use_secure_session()):
 				if (client.has_insecure_password()):
-					## first login, ignore (becomes false if password
-					## authenticates against the DB, so not critical)
-					pass
+					## client has an old-style password in DB, but decided to
+					## use a secure login --> deny since DB value will not be
+					## matched by new-style secure password test
+					##
+					## TODO: change password to new-style for user so creating new account is not needed
+					self.out_DENIED(client, username, "Can not use secure LOGIN with old-style password.")
+					return
 
 				good, user_or_error = self.userdb.secure_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 			else:
 				if (not client.has_insecure_password()):
 					## client has a new-style password in DB, but decided to
-					## use an insecure login (which can not be authenticated
-					## anymore anyway) --> deny
+					## use an insecure login --> deny since DB value will not
+					## be matched by old-style insecure password test
 					self.out_DENIED(client, username, "Can not use non-secure LOGIN with new-style password.")
 					return
 
