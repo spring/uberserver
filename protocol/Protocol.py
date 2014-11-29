@@ -3091,15 +3091,18 @@ class Protocol:
 	##
 	## enc_msg = ENCODE(MSG)
 	##
-	def in_GETSIGNEDMSG(self, client, enc_msg_str = ""):
-		if (len(enc_msg_str) == 0):
-			enc_msg_str = self._get_motd_string(client)
-			sgn_msg_str = self.rsa_cipher_obj.sign_bytes(enc_msg_str.encode(UNICODE_ENCODING))
-		else:
-			enc_msg_str = enc_msg_str.encode(UNICODE_ENCODING)
-			sgn_msg_str = self.rsa_cipher_obj.sign_bytes(SAFE_DECODE_FUNC(enc_msg_str))
+	def in_GETSIGNEDMSG(self, client, enc_msg = ""):
+		if (client.use_secure_session()):
+			return
 
-		client.Send("SIGNEDMSG %s" % ENCODE_FUNC(sgn_msg_str))
+		if (len(enc_msg) == 0):
+			enc_msg = self._get_motd_string(client)
+			msg_sig = self.rsa_cipher_obj.sign_bytes(enc_msg.encode(UNICODE_ENCODING))
+		else:
+			enc_msg = enc_msg.encode(UNICODE_ENCODING)
+			msg_sig = self.rsa_cipher_obj.sign_bytes(SAFE_DECODE_FUNC(enc_msg))
+
+		client.Send("SIGNEDMSG %s" % ENCODE_FUNC(msg_sig))
 
 	##
 	## set the AES session key that *this* client and
@@ -3111,15 +3114,15 @@ class Protocol:
 	## returns ACCEPTED, where DECODE is the standard
 	## base64 decoding scheme
 	##
-	## enc_key_msg = ENCODE(ENCRYPT_RSA(AES_KEY, RSA_PUB_KEY))
+	## enc_key = ENCODE(ENCRYPT_RSA(AES_KEY, RSA_PUB_KEY))
 	##
-	def in_SETSHAREDKEY(self, client, enc_key_msg = ""):
+	def in_SETSHAREDKEY(self, client, enc_key = ""):
 		old_key_str = client.get_session_key()
 		old_key_sig = SECURE_HASH_FUNC(old_key_str).digest()
 		new_key_str = ""
 		new_key_sig = ""
 
-		if (len(enc_key_msg) == 0):
+		if (len(enc_key) == 0):
 			if (not client.use_secure_session()):
 				return
 			## no longer allow clients to disable secure sessions
@@ -3145,13 +3148,11 @@ class Protocol:
 		##   (the output of HASH(DECODE(DECRYPT_RSA(...)))) so as
 		##   to ensure it has the proper length
 		try:
-			new_key_msg = self.rsa_cipher_obj.decode_decrypt_bytes_utf8(enc_key_msg, SAFE_DECODE_FUNC)
+			new_key_msg = self.rsa_cipher_obj.decode_decrypt_bytes_utf8(enc_key, SAFE_DECODE_FUNC)
 			new_key_str = SECURE_HASH_FUNC(new_key_msg).digest()
 			new_key_sig = SECURE_HASH_FUNC(new_key_str).digest()
 
-			## too-short keys are not allowed, can be sent either
-			## as plaintext (if no key was established yet) or as
-			## encrypted data
+			## too-short keys (before hashing) are not allowed
 			if (len(new_key_msg) < CryptoHandler.MIN_AES_KEY_SIZE):
 				client.Send("SHAREDKEY REJECTED %s %d" % (ENCODE_FUNC(new_key_sig), CryptoHandler.MIN_AES_KEY_SIZE))
 				return
@@ -3192,6 +3193,8 @@ class Protocol:
 
 	def in_ACKSHAREDKEY(self, client):
 		if (not client.use_secure_session()):
+			return
+		if (client.get_session_key_received_ack()):
 			return
 
 		## client has acknowledged our SHAREDKEY ACCEPTED response
