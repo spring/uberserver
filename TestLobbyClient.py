@@ -20,7 +20,6 @@ from CryptoHandler import str_to_int32
 from CryptoHandler import DATA_MARKER_BYTE
 from CryptoHandler import DATA_PARTIT_BYTE
 from CryptoHandler import UNICODE_ENCODING
-from CryptoHandler import NUM_SESSION_KEYS
 
 from base64 import b64encode as ENCODE_FUNC
 from base64 import b64decode as DECODE_FUNC
@@ -31,6 +30,9 @@ USE_THREADS = False
 CLIENT_NAME = "ubertest%02d"
 CLIENT_PWRD = "KeepItSecretKeepItSafe%02d"
 MAGIC_WORDS = "SqueamishOssifrage"
+
+## number of keys to keep in memory
+NUM_SESSION_KEYS = 4
 
 HOST_SERVER = ("localhost", 8200)
 MAIN_SERVER = ("lobby.springrts.com", 8200)

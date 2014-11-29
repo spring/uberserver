@@ -42,7 +42,6 @@ PWRD_HASH_ROUNDS = 1024 ## stretching KDF (anti-BFA)
 USR_DB_SALT_SIZE =   16 ## bytes
 MIN_AES_KEY_SIZE =   16 ## bytes
 MIN_PASSWORD_LEN =   12 ## bytes
-NUM_SESSION_KEYS =    8 ## should be at least 2
 
 MD5LEG_HASH_FUNC = MD5.new
 SHA256_HASH_FUNC = SHA256.new
