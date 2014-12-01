@@ -6,13 +6,18 @@ import time
 import threading
 import traceback
 
+from base64 import b64encode as ENCODE_FUNC
+## from base64 import b64decode as DECODE_FUNC
+
 import CryptoHandler
-from CryptoHandler import aes_cipher
-from CryptoHandler import rsa_cipher
+
 from CryptoHandler import MD5LEG_HASH_FUNC as LEGACY_HASH_FUNC
 from CryptoHandler import SHA256_HASH_FUNC as SECURE_HASH_FUNC
 from CryptoHandler import GLOBAL_RAND_POOL
 
+from CryptoHandler import encrypt_authenticate_message
+from CryptoHandler import extract_message_and_auth_code
+from CryptoHandler import check_message_auth_code
 from CryptoHandler import safe_decode as SAFE_DECODE_FUNC
 from CryptoHandler import int32_to_str
 from CryptoHandler import str_to_int32
@@ -21,8 +26,6 @@ from CryptoHandler import DATA_MARKER_BYTE
 from CryptoHandler import DATA_PARTIT_BYTE
 from CryptoHandler import UNICODE_ENCODING
 
-from base64 import b64encode as ENCODE_FUNC
-from base64 import b64decode as DECODE_FUNC
 
 NUM_CLIENTS = 1
 NUM_UPDATES = 10000
@@ -77,8 +80,8 @@ class LobbyClient:
 		self.sum_ping_time =   0.0
 		self.iters = 0
 
-		self.aes_cipher_obj = aes_cipher("")
-		self.rsa_cipher_obj = rsa_cipher(None)
+		self.aes_cipher_obj = CryptoHandler.aes_cipher("")
+		self.rsa_cipher_obj = CryptoHandler.rsa_cipher(None)
 
 		## start with a NULL session-key
 		self.set_session_key("")
@@ -101,8 +104,9 @@ class LobbyClient:
 		self.rejected_registration    = False ## set on in_REGISTRATIONDENIED
 		self.accepted_authentication  = False ## set on in_ACCEPTED
 
-		self.want_secure_session = True
 		self.received_public_key = False
+		self.want_secure_session = True
+		self.want_msg_auth_codes = True
 
 		self.reset_session_state()
 
@@ -117,6 +121,7 @@ class LobbyClient:
 	def get_session_key(self): return (self.aes_cipher_obj.get_key())
 
 	def use_secure_session(self): return (len(self.get_session_key()) != 0)
+	def use_msg_auth_codes(self): return (self.want_msg_auth_codes)
 
 	def reset_session_state(self):
 		self.sent_unacked_shared_key = False
@@ -127,6 +132,7 @@ class LobbyClient:
 	def Send(self, data, batch = True):
 		## test-client never tries to send unicode strings, so
 		## we do not need to add encode(UNICODE_ENCODING) calls
+		##
 		## print("[Send][time=%d::iter=%d] data=\"%s\" sec_sess=%d key_acked=%d queue=%s batch=%d" % (time.time(), self.iters, data, self.use_secure_session(), self.client_acked_shared_key, self.data_send_queue, batch))
 		assert(type(data) == str)
 
@@ -135,14 +141,12 @@ class LobbyClient:
 			cmd = cmd[0]
 			return (self.want_secure_session and (not cmd in ALLOWED_OPEN_COMMANDS))
 
-		def compose_encrypted_blob(txt):
-			ctr = self.outgoing_msg_ctr
-			hdr = DATA_MARKER_BYTE
-			pay = self.aes_cipher_obj.encrypt_encode_bytes(int32_to_str(ctr) + txt)
-			msg = hdr + pay + DATA_PARTIT_BYTE
+		def wrap_encrypt_authenticate_message(raw_msg):
+			msg_ctr = int32_to_str(self.outgoing_msg_ctr)
+			enc_msg = encrypt_authenticate_message(self.aes_cipher_obj, msg_ctr + raw_msg, self.use_msg_auth_codes())
 
 			self.outgoing_msg_ctr += 1
-			return msg
+			return enc_msg
 
 		buf = ""
 
@@ -161,10 +165,10 @@ class LobbyClient:
 						buf += (self.data_send_queue.pop() + DATA_PARTIT_BYTE)
 
 					## batch-encrypt into one blob (more efficient)
-					buf = compose_encrypted_blob(buf)
+					buf = wrap_encrypt_authenticate_message(buf)
 				else:
 					while (len(self.data_send_queue) > 0):
-						buf += compose_encrypted_blob(self.data_send_queue.pop() + DATA_PARTIT_BYTE)
+						buf += wrap_encrypt_authenticate_message(self.data_send_queue.pop() + DATA_PARTIT_BYTE)
 
 		else:
 			buf = data + DATA_PARTIT_BYTE
@@ -202,13 +206,16 @@ class LobbyClient:
 
 		for raw_data_blob in data_blobs:
 			if (self.use_secure_session()):
-				if (raw_data_blob[0] != DATA_MARKER_BYTE):
+				(enc_data_blob, enc_data_hmac) = extract_message_and_auth_code(raw_data_blob)
+
+				if (len(enc_data_blob) == 0):
+					continue
+				if (self.want_msg_auth_codes and (not check_message_auth_code(enc_data_blob, enc_data_hmac, self.get_session_key()))):
 					continue
 
 				## after decryption dec_command might represent a batch of
 				## commands separated by newlines, all of which need to be
 				## handled successfully
-				enc_data_blob = raw_data_blob[1: ]
 				dec_data_blob = self.aes_cipher_obj.decode_decrypt_bytes_utf8(enc_data_blob, SAFE_DECODE_FUNC)
 
 				## ignore any replayed messages
@@ -400,15 +407,15 @@ class LobbyClient:
 
 
 	##
-	## "PUBLICKEY %s" % (ENCODE("PEM(PUB_KEY)", force_sec_auths, force_sec_comms))
+	## "PUBLICKEY %s" % (ENCODE("PEM(PUB_KEY)", force_sec_auths, force_sec_comms, use_authent_codes))
 	##
-	def in_PUBLICKEY(self, enc_pem_pub_key, force_sec_auths, force_sec_comms):
+	def in_PUBLICKEY(self, enc_pem_pub_key, session_flag_bits):
 		assert(not self.received_public_key)
 		assert(not self.sent_unacked_shared_key)
 		assert(not self.server_valid_shared_key)
 		assert(not self.client_acked_shared_key)
 
-		rsa_pub_key_str = DECODE_FUNC(enc_pem_pub_key)
+		rsa_pub_key_str = SAFE_DECODE_FUNC(enc_pem_pub_key)
 		rsa_pub_key_obj = self.rsa_cipher_obj.import_key(rsa_pub_key_str)
 		rsa_pri_key_obj = CryptoHandler.RSA_NULL_KEY_OBJ
 		## this enables key decryption (to emulate server) for local testing
@@ -426,11 +433,18 @@ class LobbyClient:
 
 		## client should never want to connect insecurely,
 		## but in case it does the server's say is *FINAL*
-		if (not self.want_secure_session):
-			try:
-				self.want_secure_session = (int(force_sec_auths) != 0) or (int(force_sec_comms) != 0)
-			except:
-				pass
+		try:
+			session_flag_bits = int(session_flag_bits)
+
+			force_sec_auths = (session_flag_bits & (1 << 0))
+			force_sec_comms = (session_flag_bits & (1 << 1))
+			force_msg_auths = (session_flag_bits & (1 << 2))
+
+			self.want_secure_session |= force_sec_auths
+			self.want_secure_session |= force_sec_comms
+			self.want_msg_auth_codes  = force_msg_auths
+		except:
+			pass
 
 		self.received_public_key = True
 
@@ -446,7 +460,7 @@ class LobbyClient:
 	def in_SIGNEDMSG(self, msg_sig):
 		print("[SIGNEDMSG][time=%d::iter=%d] msg_sig=%s" % (time.time(), self.iters, msg_sig))
 		assert(self.received_public_key)
-		assert(self.rsa_cipher_obj.auth_bytes(MAGIC_WORDS, DECODE_FUNC(msg_sig)))
+		assert(self.rsa_cipher_obj.auth_bytes(MAGIC_WORDS, SAFE_DECODE_FUNC(msg_sig)))
 
 	##
 	## "SHAREDKEY %s %s %s" % (KEYSTATUS={"ACCEPTED", "REJECTED", "ENFORCED", "DISABLED"}, "KEYDIGEST" [, "EXTRADATA"])
@@ -470,7 +484,7 @@ class LobbyClient:
 			return
 
 		elif (key_status == "ACCEPTED"):
-			server_key_sig = DECODE_FUNC(key_digest)
+			server_key_sig = SAFE_DECODE_FUNC(key_digest)
 			client_key_sha = SECURE_HASH_FUNC(self.session_keys[self.session_key_id])
 			client_key_sig = client_key_sha.digest()
 

@@ -1,8 +1,6 @@
 import os
 
 import base64
-## prefer the libcrypto versions
-## import hashlib
 
 from Crypto import Random
 from Crypto.Cipher import AES
@@ -10,6 +8,11 @@ from Crypto.PublicKey import RSA
 from Crypto.Hash import MD5
 from Crypto.Hash import SHA
 from Crypto.Hash import SHA256
+
+## needs to be imported from hashlib, libcrypto
+## versions do not have a block_size member var
+from hashlib import sha256 as HMAC_HASH
+from hmac import HMAC as HMAC_FUNC
 
 try:
 	from Crypto.Cipher import PKCS1_OAEP as RSA_PAD_SCHEME
@@ -34,6 +37,7 @@ RSA_KEY_FMT_NAME = "PEM"
 RSA_KEY_DIR_NAME = "./"
 RSA_PUB_KEY_FILE = "rsa_pub_key.pem"
 RSA_PRI_KEY_FILE = "rsa_pri_key.pem"
+
 DATA_MARKER_BYTE = "\x01"
 DATA_PARTIT_BYTE = "\n"
 UNICODE_ENCODING = "utf-8"
@@ -43,22 +47,65 @@ USR_DB_SALT_SIZE =   16 ## bytes
 MIN_AES_KEY_SIZE =   16 ## bytes
 MIN_PASSWORD_LEN =   12 ## bytes
 
+## hashlib.sha{1,256}
 MD5LEG_HASH_FUNC = MD5.new
 SHA256_HASH_FUNC = SHA256.new
 
 GLOBAL_RAND_POOL = Random.new()
 
 
-
-def safe_decode(s):
+def safe_decode(s, decode_func = base64.b64decode):
 	try:
-		r = base64.b64decode(s)
+		r = decode_func(s)
 	except:
 		## if <s> is not a base64-encoded string, then
 		## it probably contains plaintext (UTF-8) data
 		r = s
 
 	return r
+
+
+def encrypt_authenticate_message(aes_obj, raw_msg, add_mac):
+	assert(type(raw_msg) == str)
+	assert(isinstance(aes_obj, aes_cipher))
+
+	pay = aes_obj.encrypt_encode_bytes(raw_msg)
+	mac = ""
+
+	if (add_mac):
+		mac = calc_message_auth_code(pay, aes_obj.get_key())
+
+	return (DATA_MARKER_BYTE + pay + mac + DATA_PARTIT_BYTE)
+
+def extract_message_and_auth_code(raw_data_blob):
+	if (raw_data_blob[0] != DATA_MARKER_BYTE):
+		return ("", "")
+
+	i = 1
+	j = raw_data_blob.find(DATA_MARKER_BYTE, i)
+
+	## check if a MAC is included after the payload
+	if (j != -1):
+		msg = raw_data_blob[i    : j]
+		mac = raw_data_blob[j + 1:  ]
+	else:
+		msg = raw_data_blob[i: ]
+		mac = ""
+
+	return (msg, mac)
+
+
+def calc_message_auth_code(msg, key, encode_func = base64.b64encode):
+	## calculate crypto-checksum over msg (H((K ^ O) | H((K ^ I) | M)))
+	mac = HMAC_FUNC(key, msg, HMAC_HASH)
+	mac = DATA_MARKER_BYTE + encode_func(mac.digest())
+	return mac
+
+def check_message_auth_code(enc_msg, msg_mac, key, decode_func = safe_decode):
+	msg_mac = decode_func(msg_mac)
+	our_mac = HMAC_FUNC(key, enc_msg, HMAC_HASH)
+	our_mac = our_mac.digest()
+	return (our_mac == msg_mac)
 
 
 def int32_to_str(n):

@@ -33,9 +33,10 @@ class DataHandler:
 		self.sighup = False
 		self.crypto_key_dir = "server-rsa-keys/"
 
-		self.force_secure_client_auths = True ## if true, LOGIN and REGISTER must be encrypted
-		self.force_secure_client_comms = True ## if true, ALL commands must be encrypted
-		
+		self.force_secure_client_auths =  True ## if true, LOGIN and REGISTER must be encrypted
+		self.force_secure_client_comms =  True ## if true, ALL commands must be encrypted
+		self.use_message_authent_codes = False ## if true, all messages must include (H)MACs
+
 		self.chanserv = None
 		self.userdb = None
 		self.channeldb = None
@@ -199,6 +200,9 @@ class DataHandler:
 				except: pass
 			elif arg == 'sec_comms':
 				try: self.force_secure_client_comms = (int(argp[0]) != 0)
+				except: pass
+			elif arg == 'msg_hmacs':
+				try: self.use_message_authent_codes = (int(argp[0]) != 0)
 				except: pass
 
 		sqlalchemy = __import__('sqlalchemy')

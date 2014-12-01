@@ -205,6 +205,7 @@ class Protocol:
 
 	def force_secure_auths(self): return (self._root.force_secure_client_auths)
 	def force_secure_comms(self): return (self._root.force_secure_client_comms)
+	def use_msg_auth_codes(self): return (self._root.use_message_authent_codes)
 
 	def _new(self, client):
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0'))
@@ -3055,10 +3056,15 @@ class Protocol:
 		rsa_pub_key_obj = self.rsa_cipher_obj.get_pub_key()
 		rsa_pub_key_str = rsa_pub_key_obj.exportKey(CryptoHandler.RSA_KEY_FMT_NAME)
 
+		session_flag_bits  = 0
+		session_flag_bits |= (self.force_secure_auths() << 0)
+		session_flag_bits |= (self.force_secure_comms() << 1)
+		session_flag_bits |= (self.use_msg_auth_codes() << 2)
+
 		## technically the key does not need to be encoded
 		## (PEM is a text-format), but this keeps protocol
 		## consistent
-		client.Send("PUBLICKEY %s %d %d" % (ENCODE_FUNC(rsa_pub_key_str), self.force_secure_auths(), self.force_secure_comms()))
+		client.Send("PUBLICKEY %s %d" % (ENCODE_FUNC(rsa_pub_key_str), session_flag_bits))
 
 	##
 	## sign a client text-message using server's private RSA key

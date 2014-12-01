@@ -3,7 +3,11 @@ from collections import defaultdict
 
 from BaseClient import BaseClient
 
-from CryptoHandler import aes_cipher
+import CryptoHandler
+
+from CryptoHandler import encrypt_authenticate_message
+from CryptoHandler import extract_message_and_auth_code
+from CryptoHandler import check_message_auth_code
 from CryptoHandler import safe_decode as SAFE_DECODE_FUNC
 from CryptoHandler import int32_to_str
 from CryptoHandler import str_to_int32
@@ -11,6 +15,7 @@ from CryptoHandler import str_to_int32
 from CryptoHandler import DATA_MARKER_BYTE
 from CryptoHandler import DATA_PARTIT_BYTE
 from CryptoHandler import UNICODE_ENCODING
+
 
 class Client(BaseClient):
 	'this object represents one server-side connected client'
@@ -111,7 +116,7 @@ class Client(BaseClient):
 		## AES cipher used for encrypted protocol communication
 		## with this client; starts with a NULL session-key and
 		## becomes active when client sends SETSHAREDKEY
-		self.set_aes_cipher_obj(aes_cipher(""))
+		self.set_aes_cipher_obj(CryptoHandler.aes_cipher(""))
 		self.set_session_key("")
 
 		self.set_session_key_received_ack(False)
@@ -127,7 +132,7 @@ class Client(BaseClient):
 	def get_session_key(self): return (self.aes_cipher_obj.get_key())
 
 	def use_secure_session(self): return (len(self.get_session_key()) != 0)
-
+	def use_msg_auth_codes(self): return (self._root.use_message_authent_codes)
 
 	def set_msg_id(self, msg):
 		self.msg_id = ""
@@ -234,7 +239,11 @@ class Client(BaseClient):
 
 		for raw_data_blob in raw_data_blobs:
 			if (self.use_secure_session()):
-				if (raw_data_blob[0] != DATA_MARKER_BYTE):
+				(enc_data_blob, enc_data_hmac) = extract_message_and_auth_code(raw_data_blob)
+
+				if (len(enc_data_blob) == 0):
+					continue
+				if (self.use_msg_auth_codes() and (not check_message_auth_code(enc_data_blob, enc_data_hmac, self.get_session_key()))):
 					continue
 
 				## handle an encrypted client command, using the AES session key
@@ -258,7 +267,6 @@ class Client(BaseClient):
 				##   client -->   C=ENCODE(ENCRYPT("CMD1 ARG11 ARG12 ...\nCMD2 ARG21 ...\n"))
 				##   server --> DECRYPT(DECODE(C))="CMD1 ARG11 ARG12 ...\nCMD2 ARG21 ...\n"
 				##
-				enc_data_blob = raw_data_blob[1: ]
 				dec_data_blob = self.aes_cipher_obj.decode_decrypt_bytes_utf8(enc_data_blob, SAFE_DECODE_FUNC)
 
 				## ignore any replayed messages
@@ -311,14 +319,12 @@ class Client(BaseClient):
 
 		assert(type(data) == str)
 
-		def compose_encrypted_blob(txt):
-			ctr = self.outgoing_msg_ctr
-			hdr = DATA_MARKER_BYTE
-			pay = self.aes_cipher_obj.encrypt_encode_bytes(int32_to_str(ctr) + txt)
-			msg = hdr + pay + DATA_PARTIT_BYTE
+		def wrap_encrypt_authenticate_message(raw_msg):
+			msg_ctr = int32_to_str(self.outgoing_msg_ctr)
+			enc_msg = encrypt_authenticate_message(self.aes_cipher_obj, msg_ctr + raw_msg, self.use_msg_auth_codes())
 
 			self.outgoing_msg_ctr += 1
-			return msg
+			return enc_msg
 
 		buf = ""
 
@@ -342,10 +348,10 @@ class Client(BaseClient):
 						buf += (self.enc_sendbuffer.pop() + DATA_PARTIT_BYTE)
 
 					## batch-encrypt into one blob (more efficient)
-					buf = compose_encrypted_blob(buf)
+					buf = wrap_encrypt_authenticate_message(buf)
 				else:
 					while (len(self.enc_sendbuffer) > 0):
-						buf += compose_encrypted_blob(self.enc_sendbuffer.pop() + DATA_PARTIT_BYTE)
+						buf += wrap_encrypt_authenticate_message(self.enc_sendbuffer.pop() + DATA_PARTIT_BYTE)
 
 		else:
 			buf = data + DATA_PARTIT_BYTE
