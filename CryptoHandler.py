@@ -69,13 +69,15 @@ def encrypt_authenticate_message(aes_obj, raw_msg, add_mac):
 	assert(type(raw_msg) == str)
 	assert(isinstance(aes_obj, aes_cipher))
 
-	pay = aes_obj.encrypt_encode_bytes(raw_msg)
-	mac = ""
+	enc_msg = aes_obj.encrypt_encode_bytes(raw_msg)
+	msg_mac = calc_message_auth_code(enc_msg, aes_obj.get_key())
+	msg_bdy = DATA_MARKER_BYTE + enc_msg
+	msg_ext = ""
 
 	if (add_mac):
-		mac = calc_message_auth_code(pay, aes_obj.get_key())
+		msg_ext = DATA_MARKER_BYTE + msg_mac
 
-	return (DATA_MARKER_BYTE + pay + mac + DATA_PARTIT_BYTE)
+	return (msg_bdy + msg_ext + DATA_PARTIT_BYTE)
 
 def extract_message_and_auth_code(raw_data_blob):
 	if (raw_data_blob[0] != DATA_MARKER_BYTE):
@@ -98,7 +100,7 @@ def extract_message_and_auth_code(raw_data_blob):
 def calc_message_auth_code(msg, key, encode_func = base64.b64encode):
 	## calculate crypto-checksum over msg (H((K ^ O) | H((K ^ I) | M)))
 	mac = HMAC_FUNC(key, msg, HMAC_HASH)
-	mac = DATA_MARKER_BYTE + encode_func(mac.digest())
+	mac = encode_func(mac.digest())
 	return mac
 
 def check_message_auth_code(enc_msg, msg_mac, key, decode_func = safe_decode):
