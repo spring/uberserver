@@ -294,10 +294,10 @@ class Protocol:
 			## TODO: SPADS bug is fixed, remove self.binary / uncomment in half a year or so (abma, 2014.11.04)
 			self.binary = False
 		except:
-			## err = ":".join("{:02x}".format(ord(c)) for c in msg)
-			## self.out_SERVERMSG(client, "Invalid unicode-encoding received (should be %s), skipped message %s" % (UNICODE_ENCODING, err), True)
-
 			self.binary = True
+			##if (not client.use_secure_session()):
+			##	err = ":".join("{:02x}".format(ord(c)) for c in msg)
+			##	self.out_SERVERMSG(client, "Invalid unicode-encoding received (should be %s), skipped message %s" % (UNICODE_ENCODING, err), True)
 			## return False
 
 			
@@ -319,10 +319,10 @@ class Protocol:
 
 		## HACK for spads (see above)
 		if (self.binary and not command in ("SAYPRIVATE")):
-			err = ":".join("{:02x}".format(ord(c)) for c in msg)
-			self.out_SERVERMSG(client, "Invalid unicode-encoding received (should be %s), skipped message %s" % (UNICODE_ENCODING, err), True)
+			if (not client.use_secure_session()):
+				err = ":".join("{:02x}".format(ord(c)) for c in msg)
+				self.out_SERVERMSG(client, "Invalid unicode-encoding received (should be %s), skipped message %s" % (UNICODE_ENCODING, err), True)
 			return False
-
 
 
 		allowed = False
@@ -331,11 +331,13 @@ class Protocol:
 				allowed = True
 				break
 
-		if not allowed:
-			if not command in restricted_list:
-				self.out_SERVERMSG(client, '%s failed. Command does not exist.' % command, True)
-			else:
-				self.out_SERVERMSG(client, '%s failed. Insufficient rights.' % command, True)
+		if (not allowed):
+			## do not leak information in secure context
+			if (not client.use_secure_session()):
+				if not command in restricted_list:
+					self.out_SERVERMSG(client, '%s failed. Command does not exist.' % command, True)
+				else:
+					self.out_SERVERMSG(client, '%s failed. Insufficient rights.' % command, True)
 			return False
 
 		function = getattr(self, 'in_' + command)
@@ -959,8 +961,9 @@ class Protocol:
 				for flag in flags:
 					client.compat[flag] = True
 					if not flag in flag_map:
-						unsupported +=  " " +flag
-				if len(unsupported)>0:
+						unsupported +=  (" " + flag)
+
+				if (len(unsupported) > 0):
 					self.out_SERVERMSG(client, 'Unsupported/unknown compatibility flag(s) in LOGIN: %s' % (unsupported), True)
 			try:
 				client.last_id = uint32(user_id)
@@ -970,33 +973,13 @@ class Protocol:
 			lobby_id = sentence_args
 
 
-		## test if password is well-formed
-		good, reason = self._validPasswordSyntax(client, password)
-
-		if (not good):
-			self.out_DENIED(client, username, reason)
-			return
-
 		try:
+			## no longer test if password is well-formed here
+			## (the DB checks are sufficient and it allows an
+			## old-style password to be converted seamlessly)
 			if (client.use_secure_session()):
-				if (client.has_insecure_password()):
-					## client has an old-style password in DB, but decided to
-					## use a secure login --> deny since DB value will not be
-					## matched by new-style secure password test
-					##
-					## TODO: change password to new-style for user so creating new account is not needed
-					self.out_DENIED(client, username, "Can not use secure LOGIN with old-style password.")
-					return
-
 				good, user_or_error = self.userdb.secure_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 			else:
-				if (not client.has_insecure_password()):
-					## client has a new-style password in DB, but decided to
-					## use an insecure login --> deny since DB value will not
-					## be matched by old-style insecure password test
-					self.out_DENIED(client, username, "Can not use non-secure LOGIN with new-style password.")
-					return
-
 				good, user_or_error = self.userdb.legacy_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 		except Exception, e:
 			self._root.console_write('Handler %s:%s <%s> Error reading from DB in in_LOGIN: %s ' % (client.handler.num, client.session_id, client.username, e.message))
@@ -1027,7 +1010,7 @@ class Protocol:
 
 		## if not a secure authentication, the client should
 		## still only be using an old-style unsalted password
-		assert(client.use_secure_session() == (not client.has_insecure_password()))
+		assert(client.use_secure_session() == (not client.has_legacy_password()))
 
 		client.local_ip = None
 		if local_ip.startswith('127.') or not validateIP(local_ip):
@@ -2659,39 +2642,32 @@ class Protocol:
 			self.out_SERVERMSG(client, '%s' % reason)
 			return
 
+		db_user = self.clientFromUsername(client.username, True)
+
+		if (db_user == None):
+			return
+
 		if (client.use_secure_session()):
 			## secure command (meaning we want our password salted, etc.)
 			##
-			## disallow changing to new-style password if command is not
-			## encrypted for obvious reasons (would be sent in plaintext)
-			user = self.clientFromUsername(client.username, True)
-
-			if (user == None):
-				return
-
-			## check if the supplied old password is authentic
-			if (not self.userdb.secure_test_user_pwrd(user, cur_password)):
+			## disallow converting old-style MD5 password to new-style if
+			## command is not encrypted (for obvious reasons: it would be
+			## sent in plaintext, unhashed)
+			## check if the supplied current password is authentic
+			if (not self.userdb.secure_test_user_pwrd(db_user, cur_password)):
 				self.out_SERVERMSG(client, 'Incorrect old password.')
 				return
 
-			## change in-memory, then commit to DB
-			user.set_pwrd_salt(self.userdb.gen_user_pwrd_hash_and_salt(new_password))
-
-			self.userdb.save_user(user)
+			self.userdb.secure_update_user_pwrd(db_user, new_password)
 			self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
 		else:
-			user = self.clientFromUsername(client.username, True)
-
-			if (user == None):
+			if (not self.userdb.legacy_test_user_pwrd(db_user, cur_password)):
+				self.out_SERVERMSG(client, 'Incorrect old password.')
 				return
 
-			if (not self.userdb.legacy_test_user_pwrd(user, cur_password)):
-				user.set_pwrd_salt((new_password, ""))
+			self.userdb.legacy_update_user_pwrd(db_user, new_password)
+			self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
 
-				self.userdb.save_user(user)
-				self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
-			else:
-				self.out_SERVERMSG(client, 'Incorrect old password.')
 
 	def in_GETLOBBYVERSION(self, client, username):
 		'''
@@ -2733,7 +2709,7 @@ class Protocol:
 		## if this user has created a secure account, disallow
 		## anyone but himself to change his password (there are
 		## better methods for account recovery)
-		if (not targetUser.has_insecure_password()):
+		if (not targetUser.has_legacy_password()):
 			self.out_SERVERMSG(client, "Password for user %s can not be changed." % username)
 			return
 
@@ -2750,10 +2726,8 @@ class Protocol:
 		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		## THIS IS NOT AN ACTION ADMINS SHOULD BE ABLE TO TAKE
 		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		targetUser.set_pwrd_salt((newpass, ""))
-
 		self._root.console_write('Handler %s: <%s> changed password of <%s>.' % (client.handler.num, client.username, username))
-		self.userdb.save_user(targetUser)
+		self.userdb.legacy_update_user_pwrd(targetUser, newpass)
 		self.out_SERVERMSG(client, 'Password for <%s> successfully changed to %s' % (username, newpass))
 
 
@@ -2829,7 +2803,7 @@ class Protocol:
 		## if this user has created a secure account, disallow
 		## anyone but himself to login with it (password should
 		## NEVER be shared by user to anyone, including admins)
-		if (not targetUser.has_insecure_password()):
+		if (not targetUser.has_legacy_password()):
 			client.Send('TESTLOGINDENY')
 			return
 

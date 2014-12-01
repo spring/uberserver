@@ -213,8 +213,8 @@ class DataHandler:
 				dbapi_con.execute('PRAGMA journal_mode = MEMORY')
 				dbapi_con.execute('PRAGMA synchronous = OFF')
 			## FIXME: "ImportError: cannot import name event"
-			from sqlalchemy import event
-			event.listen(self.engine, 'connect', _fk_pragma_on_connect)
+			#from sqlalchemy import event
+			#event.listen(self.engine, 'connect', _fk_pragma_on_connect)
 		else:
 			self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.max_threads * 2, pool_recycle=300)
 

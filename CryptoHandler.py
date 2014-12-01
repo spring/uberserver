@@ -268,7 +268,7 @@ class rsa_cipher:
 			## RSAobj.verify() expects a tuple
 			ret = (self.pub_key.verify(msg_bytes.digest(), (long(sig_bytes), 0L)))
 
-		assert(type(ret) == type(True))
+		assert(type(ret) == bool)
 		return ret
 
 

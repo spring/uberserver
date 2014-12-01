@@ -5,19 +5,20 @@ class BaseClient(object):
 		## (here "old" means user was registered over an unencrypted link, without salt)
 		self.set_user_pwrd_salt(username, (password, randsalt))
 
-	def has_insecure_password(self):
+	## note: do not call on Client instances prior to login
+	def has_legacy_password(self):
 		return (len(self.randsalt) == 0)
 
 
 	def set_user_pwrd_salt(self, user_name = "", pwrd_hash_salt = ("", "")):
-		assert(type(pwrd_hash_salt) == type(()))
+		assert(type(pwrd_hash_salt) == tuple)
 
 		self.username = user_name
 		self.password = pwrd_hash_salt[0]
 		self.randsalt = pwrd_hash_salt[1]
 
 	def set_pwrd_salt(self, pwrd_hash_salt):
-		assert(type(pwrd_hash_salt) == type(()))
+		assert(type(pwrd_hash_salt) == tuple)
 
 		self.password = pwrd_hash_salt[0]
 		self.randsalt = pwrd_hash_salt[1]
