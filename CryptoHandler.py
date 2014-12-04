@@ -54,6 +54,9 @@ SHA256_HASH_FUNC = SHA256.new
 GLOBAL_RAND_POOL = Random.new()
 
 
+def null_encode(s): return s
+def null_decode(s): return s
+
 def safe_decode(s, decode_func = base64.b64decode):
 	try:
 		r = decode_func(s)
@@ -64,20 +67,6 @@ def safe_decode(s, decode_func = base64.b64decode):
 
 	return r
 
-
-def encrypt_authenticate_message(aes_obj, raw_msg, add_mac):
-	assert(type(raw_msg) == str)
-	assert(isinstance(aes_obj, aes_cipher))
-
-	enc_msg = aes_obj.encrypt_encode_bytes(raw_msg)
-	msg_mac = calc_message_auth_code(enc_msg, aes_obj.get_key())
-	msg_bdy = DATA_MARKER_BYTE + enc_msg
-	msg_ext = ""
-
-	if (add_mac):
-		msg_ext = DATA_MARKER_BYTE + msg_mac
-
-	return (msg_bdy + msg_ext + DATA_PARTIT_BYTE)
 
 def extract_message_and_auth_code(raw_data_blob):
 	if (raw_data_blob[0] != DATA_MARKER_BYTE):
@@ -97,17 +86,36 @@ def extract_message_and_auth_code(raw_data_blob):
 	return (msg, mac)
 
 
-def calc_message_auth_code(msg, key, encode_func = base64.b64encode):
-	## calculate crypto-checksum over msg (H((K ^ O) | H((K ^ I) | M)))
-	mac = HMAC_FUNC(key, msg, HMAC_HASH)
-	mac = encode_func(mac.digest())
-	return mac
+def encrypt_sign_message(aes_obj, raw_msg, use_macs):
+	assert(isinstance(aes_obj, aes_cipher))
 
-def check_message_auth_code(enc_msg, msg_mac, key, decode_func = safe_decode):
-	msg_mac = decode_func(msg_mac)
-	our_mac = HMAC_FUNC(key, enc_msg, HMAC_HASH)
-	our_mac = our_mac.digest()
-	return (our_mac == msg_mac)
+	ret_msg = ""
+	msg_mac = ""
+
+	if (use_macs):
+		(enc_msg, msg_mac) = aes_obj.encrypt_sign_bytes(raw_msg)
+	else:
+		enc_msg = aes_obj.encrypt_encode_bytes(raw_msg)
+
+	ret_msg += (DATA_MARKER_BYTE + enc_msg)
+	ret_msg += (DATA_MARKER_BYTE + msg_mac)
+
+	return (ret_msg + DATA_PARTIT_BYTE)
+
+def decrypt_auth_message(aes_obj, raw_msg, use_macs):
+	assert(isinstance(aes_obj, aes_cipher))
+
+	(enc_msg, msg_mac) = extract_message_and_auth_code(raw_msg)
+
+	if (len(enc_msg) == 0):
+		return ""
+
+	if (use_macs):
+		dec_data_blob = aes_obj.auth_decrypt_bytes_utf8((enc_msg, msg_mac), safe_decode)
+	else:
+		dec_data_blob = aes_obj.decode_decrypt_bytes_utf8(enc_msg, safe_decode)
+
+	return dec_data_blob
 
 
 def int32_to_str(n):
@@ -403,4 +411,37 @@ class aes_cipher:
 		dec_bytes = aes_object.decrypt(enc_bytes[AES.block_size: ])
 		dec_bytes = unpad_str(dec_bytes, self.pad_length)
 		return dec_bytes
+
+
+	def encrypt_sign_bytes_utf8(self, raw_msg, encode_func = base64.b64encode):
+		return (self.encrypt_sign_bytes(raw_msg.encode(UNICODE_ENCODING), encode_func))
+	def auth_decrypt_bytes_utf8(self, (enc_msg, msg_mac), decode_func = base64.b64decode):
+		return (self.auth_decrypt_bytes((enc_msg.encode(UNICODE_ENCODING), msg_mac.encode(UNICODE_ENCODING)), decode_func))
+
+	def encrypt_sign_bytes(self, raw_msg, encode_func = base64.b64encode):
+		assert(type(raw_msg) == str)
+
+		## encrypt, then sign (HMAC = H((K ^ O) | H((K ^ I) | M)))
+		enc_msg = self.encrypt_encode_bytes(raw_msg, null_encode)
+		msg_mac = HMAC_FUNC(self.get_key(), enc_msg, HMAC_HASH)
+		msg_mac = encode_func(msg_mac.digest())
+		enc_msg = encode_func(enc_msg)
+
+		return (enc_msg, msg_mac)
+
+	def auth_decrypt_bytes(self, (enc_msg, msg_mac), decode_func = base64.b64decode):
+		assert(type(enc_msg) == str)
+		assert(type(msg_mac) == str)
+
+		## auth, then decrypt
+		msg_mac = decode_func(msg_mac)
+		enc_msg = decode_func(enc_msg)
+		our_mac = HMAC_FUNC(self.get_key(), enc_msg, HMAC_HASH)
+		our_mac = our_mac.digest()
+
+		if (our_mac == msg_mac):
+			return (self.decode_decrypt_bytes(enc_msg, null_decode))
+
+		## counts as false
+		return ""
 

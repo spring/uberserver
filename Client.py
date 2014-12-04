@@ -5,10 +5,8 @@ from BaseClient import BaseClient
 
 import CryptoHandler
 
-from CryptoHandler import encrypt_authenticate_message
-from CryptoHandler import extract_message_and_auth_code
-from CryptoHandler import check_message_auth_code
-from CryptoHandler import safe_decode as SAFE_DECODE_FUNC
+from CryptoHandler import encrypt_sign_message
+from CryptoHandler import decrypt_auth_message
 from CryptoHandler import int32_to_str
 from CryptoHandler import str_to_int32
 
@@ -209,6 +207,7 @@ class Client(BaseClient):
 
 	def HandleProtocolCommands(self, split_data, msg_limits):
 		assert(type(split_data) == list)
+		assert(type(split_data[-1]) == str)
 
 		msg_length_limit = msg_limits['msglength']
 		check_msg_limits = (not ('disabled' in msg_limits))
@@ -224,7 +223,7 @@ class Client(BaseClient):
 		## data is in buffer
 		self.data = split_data[-1]
 
-		assert(type(self.data) == str)
+		commands_buffer = []
 
 		def check_message_timestamp(msg):
 			ctr = str_to_int32(msg)
@@ -235,15 +234,12 @@ class Client(BaseClient):
 			self.incoming_msg_ctr = ctr
 			return True
 
-		commands_buffer = []
-
 		for raw_data_blob in raw_data_blobs:
 			if (self.use_secure_session()):
-				(enc_data_blob, enc_data_hmac) = extract_message_and_auth_code(raw_data_blob)
+				dec_data_blob = decrypt_auth_message(self.aes_cipher_obj, raw_data_blob, self.use_msg_auth_codes())
 
-				if (len(enc_data_blob) == 0):
-					continue
-				if (self.use_msg_auth_codes() and (not check_message_auth_code(enc_data_blob, enc_data_hmac, self.get_session_key()))):
+				## can only happen in case of an invalid MAC
+				if (len(dec_data_blob) == 0):
 					continue
 
 				## handle an encrypted client command, using the AES session key
@@ -267,8 +263,6 @@ class Client(BaseClient):
 				##   client -->   C=ENCODE(ENCRYPT("CMD1 ARG11 ARG12 ...\nCMD2 ARG21 ...\n"))
 				##   server --> DECRYPT(DECODE(C))="CMD1 ARG11 ARG12 ...\nCMD2 ARG21 ...\n"
 				##
-				dec_data_blob = self.aes_cipher_obj.decode_decrypt_bytes_utf8(enc_data_blob, SAFE_DECODE_FUNC)
-
 				## ignore any replayed messages
 				if (not check_message_timestamp(dec_data_blob[0: 4])):
 					continue
@@ -319,12 +313,12 @@ class Client(BaseClient):
 
 		assert(type(data) == str)
 
-		def wrap_encrypt_authenticate_message(raw_msg):
-			msg_ctr = int32_to_str(self.outgoing_msg_ctr)
-			enc_msg = encrypt_authenticate_message(self.aes_cipher_obj, msg_ctr + raw_msg, self.use_msg_auth_codes())
+		def wrap_encrypt_sign_message(raw_msg):
+			raw_msg = int32_to_str(self.outgoing_msg_ctr) + raw_msg
+			ret_msg = encrypt_sign_message(self.aes_cipher_obj, raw_msg, self.use_msg_auth_codes())
 
 			self.outgoing_msg_ctr += 1
-			return enc_msg
+			return ret_msg
 
 		buf = ""
 
@@ -348,10 +342,10 @@ class Client(BaseClient):
 						buf += (self.enc_sendbuffer.pop() + DATA_PARTIT_BYTE)
 
 					## batch-encrypt into one blob (more efficient)
-					buf = wrap_encrypt_authenticate_message(buf)
+					buf = wrap_encrypt_sign_message(buf)
 				else:
 					while (len(self.enc_sendbuffer) > 0):
-						buf += wrap_encrypt_authenticate_message(self.enc_sendbuffer.pop() + DATA_PARTIT_BYTE)
+						buf += wrap_encrypt_sign_message(self.enc_sendbuffer.pop() + DATA_PARTIT_BYTE)
 
 		else:
 			buf = data + DATA_PARTIT_BYTE

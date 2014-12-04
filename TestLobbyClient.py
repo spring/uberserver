@@ -15,10 +15,9 @@ from CryptoHandler import MD5LEG_HASH_FUNC as LEGACY_HASH_FUNC
 from CryptoHandler import SHA256_HASH_FUNC as SECURE_HASH_FUNC
 from CryptoHandler import GLOBAL_RAND_POOL
 
-from CryptoHandler import encrypt_authenticate_message
-from CryptoHandler import extract_message_and_auth_code
-from CryptoHandler import check_message_auth_code
 from CryptoHandler import safe_decode as SAFE_DECODE_FUNC
+from CryptoHandler import encrypt_sign_message
+from CryptoHandler import decrypt_auth_message
 from CryptoHandler import int32_to_str
 from CryptoHandler import str_to_int32
 
@@ -141,12 +140,12 @@ class LobbyClient:
 			cmd = cmd[0]
 			return (self.want_secure_session and (not cmd in ALLOWED_OPEN_COMMANDS))
 
-		def wrap_encrypt_authenticate_message(raw_msg):
-			msg_ctr = int32_to_str(self.outgoing_msg_ctr)
-			enc_msg = encrypt_authenticate_message(self.aes_cipher_obj, msg_ctr + raw_msg, self.use_msg_auth_codes())
+		def wrap_encrypt_sign_message(raw_msg):
+			raw_msg = int32_to_str(self.outgoing_msg_ctr) + raw_msg
+			ret_msg = encrypt_sign_message(self.aes_cipher_obj, raw_msg, self.use_msg_auth_codes())
 
 			self.outgoing_msg_ctr += 1
-			return enc_msg
+			return ret_msg
 
 		buf = ""
 
@@ -165,10 +164,10 @@ class LobbyClient:
 						buf += (self.data_send_queue.pop() + DATA_PARTIT_BYTE)
 
 					## batch-encrypt into one blob (more efficient)
-					buf = wrap_encrypt_authenticate_message(buf)
+					buf = wrap_encrypt_sign_message(buf)
 				else:
 					while (len(self.data_send_queue) > 0):
-						buf += wrap_encrypt_authenticate_message(self.data_send_queue.pop() + DATA_PARTIT_BYTE)
+						buf += wrap_encrypt_sign_message(self.data_send_queue.pop() + DATA_PARTIT_BYTE)
 
 		else:
 			buf = data + DATA_PARTIT_BYTE
@@ -206,22 +205,19 @@ class LobbyClient:
 
 		for raw_data_blob in data_blobs:
 			if (self.use_secure_session()):
-				(enc_data_blob, enc_data_hmac) = extract_message_and_auth_code(raw_data_blob)
+				dec_data_blob = decrypt_auth_message(self.aes_cipher_obj, raw_data_blob, self.use_msg_auth_codes())
 
-				if (len(enc_data_blob) == 0):
+				## can only happen in case of an invalid MAC
+				if (len(dec_data_blob) == 0):
 					continue
-				if (self.want_msg_auth_codes and (not check_message_auth_code(enc_data_blob, enc_data_hmac, self.get_session_key()))):
-					continue
-
-				## after decryption dec_command might represent a batch of
-				## commands separated by newlines, all of which need to be
-				## handled successfully
-				dec_data_blob = self.aes_cipher_obj.decode_decrypt_bytes_utf8(enc_data_blob, SAFE_DECODE_FUNC)
 
 				## ignore any replayed messages
 				if (not check_message_timestamp(dec_data_blob[0: 4])):
 					continue
 
+				## after decryption dec_command might represent a batch of
+				## commands separated by newlines, all of which need to be
+				## handled successfully
 				split_commands = dec_data_blob[4: ].split(DATA_PARTIT_BYTE)
 				strip_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in split_commands]
 
