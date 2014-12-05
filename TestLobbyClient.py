@@ -142,10 +142,10 @@ class LobbyClient:
 
 		def wrap_encrypt_sign_message(raw_msg):
 			raw_msg = int32_to_str(self.outgoing_msg_ctr) + raw_msg
-			ret_msg = encrypt_sign_message(self.aes_cipher_obj, raw_msg, self.use_msg_auth_codes())
+			enc_msg = encrypt_sign_message(self.aes_cipher_obj, raw_msg, self.use_msg_auth_codes())
 
 			self.outgoing_msg_ctr += 1
-			return ret_msg
+			return enc_msg
 
 		buf = ""
 
@@ -236,6 +236,8 @@ class LobbyClient:
 		## probably caused by trailing newline ("abc\n".split("\n") == ["abc", ""])
 		if (len(msg) <= 1):
 			return True
+
+		assert(type(msg) == str)
 
 		numspaces = msg.count(' ')
 

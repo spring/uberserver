@@ -286,20 +286,19 @@ class Protocol:
 
 	def _handle(self, client, msg):
 		try:
-			## message might contain UTF-8 byte sequences, so always
-			## try converting it to a native unicode string (this is
-			## somewhat undesirable because it needs to be undone for
-			## SETSHAREDKEY and GETSIGNEDMSG)
+			## protocol operates on unicode strings internally; this is
+			## somewhat undesirable because it needs to be undone in the
+			## SETSHAREDKEY and GETSIGNEDMSG handlers
+			## message should not contain non-ASCII bytes since protocol
+			## is specified as text-only, so decoding it *should* always
+			## succeed
 			msg = msg.decode(UNICODE_ENCODING)
-
-			## TODO: SPADS bug is fixed, remove self.binary / uncomment in half a year or so (abma, 2014.11.04)
-			self.binary = False
 		except:
-			self.binary = True
-			##if (not client.use_secure_session()):
-			##	err = ":".join("{:02x}".format(ord(c)) for c in msg)
-			##	self.out_SERVERMSG(client, "Invalid unicode-encoding received (should be %s), skipped message %s" % (UNICODE_ENCODING, err), True)
-			## return False
+			if (not client.use_secure_session()):
+				out = "Invalid unicode-encoding received (should be %s), skipped message %s"
+				err = ":".join("{:02x}".format(ord(c)) for c in msg)
+				self.out_SERVERMSG(client, out % (UNICODE_ENCODING, err), True)
+			return False
 
 			
 		# client.Send() prepends client.msg_id if the current thread
@@ -316,17 +315,8 @@ class Protocol:
 			command = msg
 
 		command = command.upper()
-
-
-		## HACK for spads (see above)
-		if (self.binary and not command in ("SAYPRIVATE")):
-			if (not client.use_secure_session()):
-				err = ":".join("{:02x}".format(ord(c)) for c in msg)
-				self.out_SERVERMSG(client, "Invalid unicode-encoding received (should be %s), skipped message %s" % (UNICODE_ENCODING, err), True)
-			return False
-
-
 		allowed = False
+
 		for level in client.accesslevels:
 			if command in restricted[level]:
 				allowed = True
@@ -1137,6 +1127,7 @@ class Protocol:
 				else:
 					self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, [], client)
 
+
 	def in_SAYPRIVATE(self, client, user, msg):
 		'''
 		Send a message in private to another user.
@@ -1144,15 +1135,21 @@ class Protocol:
 		@required.str user: The target user.
 		@required.str message: The message to send.
 		'''
-		if not msg: return
+		if not msg:
+			return
+
 		receiver = self.clientFromUsername(user)
+
 		if receiver:
-			if not self.binary:
-				msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
-				if not msg or not msg.strip(): return
-			client.Send('SAYPRIVATE %s %s'%(user, msg), self.binary)
+			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
+
+			if not msg or not msg.strip():
+				return
+
+			client.Send('SAYPRIVATE %s %s' % (user, msg))
+
 			if not self.is_ignored(receiver, client):
-				receiver.Send('SAIDPRIVATE %s %s' %(client.username, msg), self.binary)
+				receiver.Send('SAIDPRIVATE %s %s' % (client.username, msg))
 
 	def in_SAYPRIVATEEX(self, client, user, msg):
 		'''
@@ -1161,14 +1158,22 @@ class Protocol:
 		@required.str user: The target user.
 		@required.str message: The action to send.
 		'''
-		if not msg: return
+		if not msg:
+			return
+
 		receiver = self.clientFromUsername(user)
+
 		if receiver:
 			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
-			if not msg or not msg.strip(): return
-			client.Send('SAYPRIVATEEX %s %s'%(user, msg))
+
+			if not msg or not msg.strip():
+				return
+
+			client.Send('SAYPRIVATEEX %s %s' % (user, msg))
+
 			if not self.is_ignored(receiver, client):
-				receiver.Send('SAIDPRIVATEEX %s %s'%(client.username, msg))
+				receiver.Send('SAIDPRIVATEEX %s %s' % (client.username, msg))
+
 
 	def in_MUTE(self, client, chan, user, duration=None, args=''):
 		'''
@@ -3076,15 +3081,18 @@ class Protocol:
 	## enc_msg = ENCODE(MSG)
 	##
 	def in_GETSIGNEDMSG(self, client, enc_msg = ""):
+		assert(type(enc_msg) == unicode)
+
 		if (client.use_secure_session()):
 			return
 
+		## grab the MOTD (also in unicode) if needed
 		if (len(enc_msg) == 0):
 			enc_msg = self._get_motd_string(client)
-			msg_sig = self.rsa_cipher_obj.sign_bytes(enc_msg.encode(UNICODE_ENCODING))
-		else:
-			enc_msg = enc_msg.encode(UNICODE_ENCODING)
-			msg_sig = self.rsa_cipher_obj.sign_bytes(SAFE_DECODE_FUNC(enc_msg))
+
+		enc_msg = enc_msg.encode(UNICODE_ENCODING)
+		raw_msg = SAFE_DECODE_FUNC(enc_msg)
+		msg_sig = self.rsa_cipher_obj.sign_bytes(raw_msg)
 
 		client.Send("SIGNEDMSG %s" % ENCODE_FUNC(msg_sig))
 
@@ -3101,6 +3109,8 @@ class Protocol:
 	## enc_key = ENCODE(ENCRYPT_RSA(AES_KEY, RSA_PUB_KEY))
 	##
 	def in_SETSHAREDKEY(self, client, enc_key = ""):
+		assert(type(enc_key) == unicode)
+
 		old_key_str = client.get_session_key()
 		old_key_sig = SECURE_HASH_FUNC(old_key_str).digest()
 		new_key_str = ""

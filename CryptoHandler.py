@@ -87,35 +87,40 @@ def extract_message_and_auth_code(raw_data_blob):
 
 
 def encrypt_sign_message(aes_obj, raw_msg, use_macs):
+	assert(type(raw_msg) == str)
 	assert(isinstance(aes_obj, aes_cipher))
 
-	ret_msg = ""
-	msg_mac = ""
+	ret_enc_msg = ""
+	ret_msg_mac = ""
 
 	if (use_macs):
-		(enc_msg, msg_mac) = aes_obj.encrypt_sign_bytes(raw_msg)
+		## enc_msg_mac := (enc_msg, msg_mac)
+		enc_msg_mac = aes_obj.encrypt_sign_bytes(raw_msg)
+		ret_enc_msg = DATA_MARKER_BYTE + enc_msg_mac[0]
+		ret_msg_mac = DATA_MARKER_BYTE + enc_msg_mac[1]
 	else:
-		enc_msg = aes_obj.encrypt_encode_bytes(raw_msg)
+		raw_enc_msg = aes_obj.encrypt_encode_bytes(raw_msg)
+		ret_enc_msg = DATA_MARKER_BYTE + raw_enc_msg
 
-	ret_msg += (DATA_MARKER_BYTE + enc_msg)
-	ret_msg += (DATA_MARKER_BYTE + msg_mac)
-
-	return (ret_msg + DATA_PARTIT_BYTE)
+	return (ret_enc_msg + ret_msg_mac + DATA_PARTIT_BYTE)
 
 def decrypt_auth_message(aes_obj, raw_msg, use_macs):
+	assert(type(raw_msg) == str)
 	assert(isinstance(aes_obj, aes_cipher))
 
-	(enc_msg, msg_mac) = extract_message_and_auth_code(raw_msg)
+	## enc_msg_mac := (enc_msg, msg_mac)
+	enc_msg_mac = extract_message_and_auth_code(raw_msg)
 
-	if (len(enc_msg) == 0):
+	## missing lead marker byte
+	if (len(enc_msg_mac[0]) == 0):
 		return ""
 
 	if (use_macs):
-		dec_data_blob = aes_obj.auth_decrypt_bytes_utf8((enc_msg, msg_mac), safe_decode)
+		dec_msg = aes_obj.auth_decrypt_bytes(enc_msg_mac, safe_decode)
 	else:
-		dec_data_blob = aes_obj.decode_decrypt_bytes_utf8(enc_msg, safe_decode)
+		dec_msg = aes_obj.decode_decrypt_bytes(enc_msg_mac[0], safe_decode)
 
-	return dec_data_blob
+	return dec_msg
 
 
 def int32_to_str(n):

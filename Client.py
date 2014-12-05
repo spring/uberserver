@@ -300,7 +300,7 @@ class Client(BaseClient):
 	##
 	## send data to client
 	##
-	def Send(self, data, binary = False, batch = True):
+	def Send(self, data, batch = True):
 		## don't append new data to buffer when client gets removed
 		if ((not data) or self.removing):
 			return
@@ -308,17 +308,20 @@ class Client(BaseClient):
 		if (self.handler.thread == thread.get_ident()):
 			data = self.msg_id + data
 
-		if ((not binary) or (type(data) == unicode)):
+		## this *must* always succeed (protocol operates on
+		## unicode internally, but is otherwise fully ASCII
+		## and will never send raw binary data)
+		if (type(data) == unicode):
 			data = data.encode(UNICODE_ENCODING)
 
 		assert(type(data) == str)
 
 		def wrap_encrypt_sign_message(raw_msg):
 			raw_msg = int32_to_str(self.outgoing_msg_ctr) + raw_msg
-			ret_msg = encrypt_sign_message(self.aes_cipher_obj, raw_msg, self.use_msg_auth_codes())
+			enc_msg = encrypt_sign_message(self.aes_cipher_obj, raw_msg, self.use_msg_auth_codes())
 
 			self.outgoing_msg_ctr += 1
-			return ret_msg
+			return enc_msg
 
 		buf = ""
 
