@@ -1632,7 +1632,7 @@ class Protocol:
 			int(battle_id), int(type), int(natType), int(passworded), int(port), int32(maphash), int32(hashcode)
 		except Exception, e:
 			self.out_OPENBATTLEFAILED(client, 'Invalid argument type, send this to your lobby dev: id=%s type=%s natType=%s passworded=%s port=%s maphash=%s gamehash=%s - %s' %
-						(battle_id, type, natType, passworded, port, maphash, hashcode, e.replace("\n", "")))
+						(battle_id, type, natType, passworded, port, maphash, hashcode, str(e).replace("\n", "")))
 			return False
 
 		client.current_battle = battle_id
