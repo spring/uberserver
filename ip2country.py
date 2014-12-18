@@ -1,4 +1,5 @@
 from pygeoip import pygeoip
+import traceback
 
 dbfile = 'GeoIP.dat'
 
@@ -29,9 +30,11 @@ except:
 def loaddb():
 	global geoip
 	try:
-		geoip = pygeoip.Database('GeoIP.dat')
+		geoip = pygeoip.Database(dbfile)
 		return True
-	except:
+	except Exception as e:
+		print("Couldn't load %s: %s" % (dbfile, str(e)))
+		print(traceback.format_exc())
 		return False
 
 working = loaddb()
