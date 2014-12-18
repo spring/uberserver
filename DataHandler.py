@@ -33,8 +33,8 @@ class DataHandler:
 		self.sighup = False
 		self.crypto_key_dir = "server-rsa-keys/"
 
-		self.force_secure_client_auths =  True ## if true, LOGIN and REGISTER must be encrypted
-		self.force_secure_client_comms =  True ## if true, ALL commands must be encrypted
+		self.force_secure_client_auths =  False ## if true, LOGIN and REGISTER must be encrypted
+		self.force_secure_client_comms =  False ## if true, ALL commands must be encrypted
 		self.use_message_authent_codes = False ## if true, all messages must include (H)MACs
 
 		self.chanserv = None
