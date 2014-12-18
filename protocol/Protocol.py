@@ -1065,7 +1065,7 @@ class Protocol:
 				if not battle_user == battle.host:
 					client.SendBattle(battle, 'JOINEDBATTLE %s %s' % (battle.id, battle_user))
 
-		self.broadcast_SendUser(client, 'CLIENTSTATUS %s %s' % (username, client.status))
+		self.broadcast_SendUser(client, 'CLIENTSTATUS %s %s' % (client.username, client.status))
 
 		for username in usernames:
 			# potential problem spot, might need to check to make sure username is still in user db
