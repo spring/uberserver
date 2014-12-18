@@ -2820,7 +2820,7 @@ class Protocol:
 			return
 
 		if (self.userdb.legacy_test_user_pwrd(targetUser, password)):
-			client.Send('TESTLOGINACCEPT %s %s' % (targetUser.username, user.db_id))
+			client.Send('TESTLOGINACCEPT %s %s' % (targetUser.username, targetUser.db_id))
 
 
 	def in_EXIT(self, client, reason=('Exiting')):
