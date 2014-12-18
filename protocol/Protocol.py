@@ -2642,7 +2642,7 @@ class Protocol:
 		if (cur_password == new_password):
 			return
 
-		good, reason = self._validPasswordSyntax(new_password)
+		good, reason = self._validPasswordSyntax(client, new_password)
 
 		if (not good):
 			self.out_SERVERMSG(client, '%s' % reason)
