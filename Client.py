@@ -270,7 +270,7 @@ class Client(BaseClient):
 				split_commands = dec_data_blob[4: ].split(DATA_PARTIT_BYTE)
 				strip_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in split_commands]
 			else:
-				if (raw_data_blob[0] == DATA_MARKER_BYTE):
+				if (len(raw_data_blob) <= 0) or (raw_data_blob[0] == DATA_MARKER_BYTE):
 					continue
 
 				## strips leading spaces and trailing carriage returns
