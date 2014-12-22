@@ -235,11 +235,14 @@ class Client(BaseClient):
 			return True
 
 		for raw_data_blob in raw_data_blobs:
+			if (len(raw_data_blob) == 0):
+				continue
+
 			if (self.use_secure_session()):
 				dec_data_blob = decrypt_auth_message(self.aes_cipher_obj, raw_data_blob, self.use_msg_auth_codes())
 
-				## can only happen in case of an invalid MAC
-				if (len(dec_data_blob) == 0):
+				## can only happen in case of an invalid MAC or missing timestamp
+				if (len(dec_data_blob) < 4):
 					continue
 
 				## handle an encrypted client command, using the AES session key
@@ -270,7 +273,7 @@ class Client(BaseClient):
 				split_commands = dec_data_blob[4: ].split(DATA_PARTIT_BYTE)
 				strip_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in split_commands]
 			else:
-				if (len(raw_data_blob) <= 0) or (raw_data_blob[0] == DATA_MARKER_BYTE):
+				if (raw_data_blob[0] == DATA_MARKER_BYTE):
 					continue
 
 				## strips leading spaces and trailing carriage returns
