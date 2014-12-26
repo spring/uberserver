@@ -86,7 +86,7 @@ class Client(BaseClient):
 			'mod':{'msglength':10000, 'bytespersecond':10000, 'seconds':10},
 			'admin':{'msglength':10000, 'bytespersecond':100000, 'seconds':10},
 		}
-		self.msglengthhistory = {}
+		self.msg_length_history = {}
 		self.lastsaid = {}
 		self.current_channel = ''
 		
@@ -175,18 +175,18 @@ class Client(BaseClient):
 		bytespersecond = msg_limits['bytespersecond']
 		seconds = msg_limits['seconds']
 
-		if (now in self.msglengthhistory):
-			self.msglengthhistory[now] += len(data)
+		if (now in self.msg_length_history):
+			self.msg_length_history[now] += len(data)
 		else:
-			self.msglengthhistory[now] = len(data)
+			self.msg_length_history[now] = len(data)
 
 		total = 0
 
-		for iter in dict(self.msglengthhistory):
+		for iter in dict(self.msg_length_history):
 			if (iter < now - (seconds - 1)):
-				del self.msglengthhistory[iter]
+				del self.msg_length_history[iter]
 			else:
-				total += self.msglengthhistory[iter]
+				total += self.msg_length_history[iter]
 
 		if total > (bytespersecond * seconds):
 			if not self.access in ('admin', 'mod'):
@@ -199,6 +199,9 @@ class Client(BaseClient):
 		## keep appending until we see at least one newline
 		self.data += data
 
+		## if too much data has accumulated without a newline, clear
+		if (len(self.data) > (msg_limits['msglength'] * 32)):
+			del self.data; self.data = ""; return
 		if (self.data.count('\n') == 0):
 			return
 
