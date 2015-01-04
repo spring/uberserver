@@ -427,11 +427,6 @@ class DataHandler:
 
 	def _rebind_slow(self):
 		try:
-			self.parseFiles()
-		except:
-			self.error(traceback.format_exc())
-		
-		try:
 			self.dispatcher.rebind()
 				
 			for channel in dict(self.channels): # hack, but I guess reloading is all a hack :P
