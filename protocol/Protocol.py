@@ -906,14 +906,6 @@ class Protocol:
 		if (not self.can_client_authenticate(client, username, True)):
 			return
 
-		# FIXME: is checked first because of a springie bug
-		if (username in self._root.usernames):
-			self.out_DENIED(client, username, 'Already logged in.', False)
-			return
-
-		if (client.failed_logins > 2):
-			self.out_DENIED(client, username, "Too many failed logins.")
-			return
 
 		good, reason = self._validUsernameSyntax(username)
 
@@ -981,6 +973,14 @@ class Protocol:
 				reason = user_or_error
 
 			self.out_DENIED(client, username, reason)
+			return
+
+		if (username in self._root.usernames):
+			self.out_DENIED(client, username, 'Already logged in.', False)
+			return
+
+		if (client.failed_logins > 2):
+			self.out_DENIED(client, username, "Too many failed logins.")
 			return
 
 		assert(user_or_error != None)
