@@ -2,7 +2,6 @@
 # coding=utf-8
 
 import inspect, time, re
-import json
 
 import traceback, sys, os
 import socket
@@ -116,7 +115,6 @@ restricted = {
 	'MYSTATUS',
 	'PORTTEST',
 	'RENAMEACCOUNT',
-	'SETBATTLE',
 
 	],
 
@@ -3005,45 +3003,6 @@ class Protocol:
 		user.email = newmail
 		self.userdb.save_user(user)
 		self.out_SERVERMSG(client,"changed email to %s"%(user.email))
-
-	def in_SETBATTLE(self, client, tags):
-		'''
-		set a value in a battle, for example:
-
-		@required tags: tags to be set, see SETSCRIPTTAGS, current supported tags:
-				status=<battlestatus> <color>
-			{ "username": {
-				"user1" {
-					"status": 1,
-					"color" : 2
-					}
-				}
-			}
-			(without newline)
-		'''
-		try:
-			data = json.loads(tags)
-		except:
-			self.out_FAILED(client, "SETBATTLE", "invalid json format", True)
-			return
-		try:
-			for key, value in tags.iteritems():
-				if key == "username":
-					for subkey, subvalue in value.iteritems():
-						if not self._canForceBattle(client, subvalue):
-							return
-						username = subvalue
-						user = self.clientFromUsername(username)
-						for subsubkey, subsubvalue in subvalue.iteritems():
-							if subsubkey == "status":
-								self.in_MYBATTLESTATUS(client, subsubvalue, client.color)
-							if subsubkey == "color":
-								self.in_MYBATTLESTATUS(client, client.status, subsubvalue)
-						else:
-							self.out_FAILED(client, "SETBATTLE", "unknown tag %s=%s" % (key, value), True)
-		except:
-			self.out_FAILED(client, "SETBATTLE", "couldn't handle values", True)
-
 
 	##
 	## send the server's public RSA key to a client (which
