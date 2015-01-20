@@ -22,6 +22,7 @@ from DataHandler import DataHandler
 from Client import Client
 from NATServer import NATServer
 from Dispatcher import Dispatcher
+from XmlRpcServer import XmlRpcServer
 
 import ip2country # just to make sure it's downloaded
 import ChanServ
@@ -103,6 +104,16 @@ if chanserv:
 	chanserv = ChanServ.ChanServClient(_root, address, _root.session_id)
 	dispatcher.addClient(chanserv)
 	_root.chanserv = chanserv
+
+try:
+	xmlrpcserver = XmlRpcServer(_root, "", 8300)
+	try:
+		thread.start_new_thread(xmlrpcserver.start,())
+	except NameError:
+		_thread.start_new_thread(xmlrpcserver.start,())
+	_root.console_write('Listening for XMLRPC clients on port %d' % xmlrpcserver.port)
+except socket.error:
+	print('Error: Could not start XmlRpcServer.')
 
 try:
 	dispatcher.pump()

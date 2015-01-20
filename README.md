@@ -21,3 +21,4 @@ setup MySQL/PostgreSQL/etc.
 
 # Logs
 - `$PWD/server.log`
+- `$PWD/xmlrpc.log`
