@@ -100,9 +100,9 @@ class Rename(object):
 		self.original = original
 		self.new = new
 		self.time = datetime.now()
-		
+
 	def __repr__(self):
-		return "<Rename('%s')>" % self.ip_address
+		return "<Rename('%s' -> '%s')>" % (self.original, self.new)
 mapper(Rename, renames_table)
 ##########################################
 ignores_table = Table('ignores', metadata,
