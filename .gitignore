@@ -1,6 +1,11 @@
 *.pyc
 *~
 *.swp
+.project
+.pydevproject
+.idea
+.settings
+xmlrpc.log
 /sqlalchemy/
 /server.log*
 /server.db
