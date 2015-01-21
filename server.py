@@ -106,7 +106,7 @@ if chanserv:
 	_root.chanserv = chanserv
 
 try:
-	xmlrpcserver = XmlRpcServer(_root, "", 8300)
+	xmlrpcserver = XmlRpcServer(_root, "127.0.0.1", 8300)
 	try:
 		thread.start_new_thread(xmlrpcserver.start,())
 	except NameError:
