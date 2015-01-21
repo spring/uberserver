@@ -122,6 +122,23 @@ def decrypt_auth_message(aes_obj, raw_msg, use_macs):
 
 	return dec_msg
 
+def verify_message_auth_code(our_mac, msg_mac, ses_key):
+	## two rounds closes a timing side-channel
+	msg_mac = HMAC_FUNC(ses_key, msg_mac, HMAC_HASH)
+	our_mac = HMAC_FUNC(ses_key, our_mac, HMAC_HASH)
+	msg_mac = msg_mac.digest()
+	our_mac = our_mac.digest()
+	num_val = 0
+
+	if (len(msg_mac) != len(our_mac)):
+		return False
+
+	## fixed linear-time comparison closes another
+	for i in xrange(len(our_mac)):
+		num_val += (our_mac[i] == msg_mac[i])
+
+	return (num_val == len(our_mac))
+
 
 def int32_to_str(n):
 	assert(n >= (0      ))
@@ -444,7 +461,7 @@ class aes_cipher:
 		our_mac = HMAC_FUNC(self.get_key(), enc_msg, HMAC_HASH)
 		our_mac = our_mac.digest()
 
-		if (our_mac == msg_mac):
+		if (verify_message_auth_code(our_mac, msg_mac, self.get_key())):
 			return (self.decode_decrypt_bytes(enc_msg, null_decode))
 
 		## counts as false

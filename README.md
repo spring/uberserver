@@ -5,8 +5,8 @@
 # Installation
 ```
 # git clone git@github.com:spring/uberserver.git
-# virtualenv virtenvs/uberserver
-# source virtenvs/uberserver/bin/activate
+# virtualenv ~/virtenvs/uberserver
+# source ~/virtenvs/uberserver/bin/activate
 # pip install pycrypto
 # pip install SQLAlchemy
 ```
@@ -16,9 +16,10 @@ Performance will be OK for testing and small setups. For production use,
 setup MySQL/PostgreSQL/etc.
 
 # Usage
-
-./server.py
+```
+# source ~/virtenvs/uberserver/bin/activate
+# ./server.py
+```
 
 # Logs
 - `$PWD/server.log`
-- `$PWD/xmlrpc.log`

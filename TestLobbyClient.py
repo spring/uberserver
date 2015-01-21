@@ -204,11 +204,14 @@ class LobbyClient:
 			return True
 
 		for raw_data_blob in data_blobs:
+			if (len(raw_data_blob) == 0):
+				continue
+
 			if (self.use_secure_session()):
 				dec_data_blob = decrypt_auth_message(self.aes_cipher_obj, raw_data_blob, self.use_msg_auth_codes())
 
-				## can only happen in case of an invalid MAC
-				if (len(dec_data_blob) == 0):
+				## can only happen in case of an invalid MAC or missing timestamp
+				if (len(dec_data_blob) < 4):
 					continue
 
 				## ignore any replayed messages

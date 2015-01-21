@@ -2,7 +2,6 @@
 # coding=utf-8
 
 import inspect, time, re
-import json
 
 import traceback, sys, os
 import socket
@@ -116,7 +115,6 @@ restricted = {
 	'MYSTATUS',
 	'PORTTEST',
 	'RENAMEACCOUNT',
-	'SETBATTLE',
 
 	],
 
@@ -908,14 +906,6 @@ class Protocol:
 		if (not self.can_client_authenticate(client, username, True)):
 			return
 
-		# FIXME: is checked first because of a springie bug
-		if (username in self._root.usernames):
-			self.out_DENIED(client, username, 'Already logged in.', False)
-			return
-
-		if (client.failed_logins > 2):
-			self.out_DENIED(client, username, "Too many failed logins.")
-			return
 
 		good, reason = self._validUsernameSyntax(username)
 
@@ -983,6 +973,14 @@ class Protocol:
 				reason = user_or_error
 
 			self.out_DENIED(client, username, reason)
+			return
+
+		if (username in self._root.usernames):
+			self.out_DENIED(client, username, 'Already logged in.', False)
+			return
+
+		if (client.failed_logins > 2):
+			self.out_DENIED(client, username, "Too many failed logins.")
 			return
 
 		assert(user_or_error != None)
@@ -1801,10 +1799,7 @@ class Protocol:
 		user = self.clientFromUsername(username)
 		battle_id = user.current_battle
 
-		battlehost = False
-		if self._canForceBattle(client, username):
-			battlehost = True
-		elif not 'mod' in client.accesslevels:
+		if not 'mod' in client.accesslevels and not self._canForceBattle(client, username):
 			client.Send('FORCEJOINBATTLEFAILED You are not allowed to force this user into battle.')
 			return
 
@@ -3008,45 +3003,6 @@ class Protocol:
 		user.email = newmail
 		self.userdb.save_user(user)
 		self.out_SERVERMSG(client,"changed email to %s"%(user.email))
-
-	def in_SETBATTLE(self, client, tags):
-		'''
-		set a value in a battle, for example:
-
-		@required tags: tags to be set, see SETSCRIPTTAGS, current supported tags:
-				status=<battlestatus> <color>
-			{ "username": {
-				"user1" {
-					"status": 1,
-					"color" : 2
-					}
-				}
-			}
-			(without newline)
-		'''
-		try:
-			data = json.loads(tags)
-		except:
-			self.out_FAILED(client, "SETBATTLE", "invalid json format", True)
-			return
-		try:
-			for key, value in tags.iteritems():
-				if key == "username":
-					for subkey, subvalue in value.iteritems():
-						if not self._canForceBattle(client, subvalue):
-							return
-						username = subvalue
-						user = self.clientFromUsername(username)
-						for subsubkey, subsubvalue in subvalue.iteritems():
-							if subsubkey == "status":
-								self.in_MYBATTLESTATUS(client, subsubvalue, client.color)
-							if subsubkey == "color":
-								self.in_MYBATTLESTATUS(client, client.status, subsubvalue)
-						else:
-							self.out_FAILED(client, "SETBATTLE", "unknown tag %s=%s" % (key, value), True)
-		except:
-			self.out_FAILED(client, "SETBATTLE", "couldn't handle values", True)
-
 
 	##
 	## send the server's public RSA key to a client (which

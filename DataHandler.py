@@ -427,11 +427,6 @@ class DataHandler:
 
 	def _rebind_slow(self):
 		try:
-			self.parseFiles()
-		except:
-			self.error(traceback.format_exc())
-		
-		try:
 			self.dispatcher.rebind()
 				
 			for channel in dict(self.channels): # hack, but I guess reloading is all a hack :P
@@ -452,14 +447,16 @@ class DataHandler:
 		self.rotatelogfile()
 		self.parseFiles()
 		reload(sys.modules['SayHooks'])
+		reload(sys.modules['ChanServ'])
+		reload(sys.modules['BaseClient'])
+		reload(sys.modules['SQLUsers'])
+		reload(sys.modules['Client'])
+		reload(sys.modules['CryptoHandler'])
 		reload(sys.modules['protocol.AutoDict'])
 		reload(sys.modules['protocol.Channel'])
 		reload(sys.modules['protocol.Battle'])
 		reload(sys.modules['protocol.Protocol'])
 		reload(sys.modules['protocol'])
-		reload(sys.modules['ChanServ'])
-		reload(sys.modules['Client'])
-		reload(sys.modules['SQLUsers'])
 		self.SayHooks = __import__('SayHooks')
 		ip2country.reloaddb()
 		thread.start_new_thread(self._rebind_slow, ()) # why should reloading block the thread? :)
