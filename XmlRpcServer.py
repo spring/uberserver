@@ -49,7 +49,7 @@ class XmlRpcServer(object):
         self._server.register_instance(_RpcFuncs(self._root))
 
     def start(self):
-        logger.info('Listening for XMLRPC clients on port %d', self.port)
+        logger.info('Listening for XMLRPC clients on %s:%d', self.host, self.port)
         self._server.serve_forever()
 
     def shutdown(self):

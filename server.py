@@ -92,7 +92,6 @@ _root.console_write()
 _root.local_ip = local_addr
 _root.online_ip = web_addr
 
-_root.console_write('Listening for clients on port %i'%port)
 _root.console_write('Using %i client handling thread(s).'%_root.max_threads)
 
 dispatcher = Dispatcher(_root, server)
@@ -106,12 +105,12 @@ if chanserv:
 	_root.chanserv = chanserv
 
 try:
-	xmlrpcserver = XmlRpcServer(_root, "127.0.0.1", 8300)
+	xmlrpcserver = XmlRpcServer(_root, _root.xmlhost, _root.xmlport)
 	try:
 		thread.start_new_thread(xmlrpcserver.start,())
 	except NameError:
 		_thread.start_new_thread(xmlrpcserver.start,())
-	_root.console_write('Listening for XMLRPC clients on port %d' % xmlrpcserver.port)
+	_root.console_write('Listening for XMLRPC clients on %s:%d' % (_root.xmlhost, _root.xmlport))
 except socket.error:
 	print('Error: Could not start XmlRpcServer.')
 
