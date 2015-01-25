@@ -67,7 +67,8 @@ class _RpcFuncs(object):
             renames = list()
             for rename in db_user.renames:
                 renames.append(rename.original)
-                renames.append(rename.new)
+            if db_user.renames:
+                renames.append(db_user.renames[-1].new)
             renames = set(renames)
             result = {"status": 0, "accountid": int(db_user.id), "username": str(db_user.username),
                       "ingame_time": int(db_user.ingame_time), "email": str(db_user.email),
