@@ -1,3 +1,11 @@
+#
+# xmlrpc class for auth of replays.springrts.com
+#
+# TODO:
+#  - remove dependency to Protocol.py
+#  - move SQLAlchemy calls to SQLUsers.py
+#  -> remove _FakeClient
+
 import BaseHTTPServer
 from SimpleXMLRPCServer import SimpleXMLRPCServer
 from base64 import b64encode
@@ -59,10 +67,10 @@ class _RpcFuncs(object):
     def get_account_info(self, username, password):
         password_enc = unicode(b64encode(LEGACY_HASH_FUNC(password).digest()))
         client = _FakeClient(self._root)
-        self._proto.in_TESTLOGIN(client, unicode(username), password_enc)
+        self._proto.in_TESTLOGIN(client, unicode(username), password_enc) # FIXME: don't use Protocol.py
         logger.debug("client.reply: %s", client.reply)
         if client.reply.startswith("TESTLOGINACCEPT %s" % username):
-            session = self._root.userdb.sessionmaker()
+            session = self._root.userdb.sessionmaker() # FIXME: move to SQLUsers.py
             db_user = session.query(User).filter(User.username == username).first()
             renames = list()
             for rename in db_user.renames:
