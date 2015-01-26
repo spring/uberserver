@@ -181,7 +181,10 @@ class ChanServ:
 			elif cmd == 'history':
 				if access in ['mod', 'founder', 'op']:
 					channel.history = not channel.history
-					return '#%s: history enabled=%s' % (chan, str(channel.history))
+					self.channeldb.setHistory(channel)
+					msg = '#%s: history enabled=%s' % (chan, str(channel.history))
+					channel.channelMessage(msg)
+					return msg
 				else:
 					return '#%s: You do not have permission to change history setting in the channel' % chan
 		if cmd == 'register':

@@ -1018,6 +1018,14 @@ class ChannelsHandler:
 			session.commit()
 		session.close()
 
+	def setHistory(self, chan):
+		session = self.sessionmaker()
+		entry = session.query(Channel).filter(Channel.name == chan.name).first()
+		if entry:
+			entry.history = chan.history
+			session.commit()
+		session.close()
+
 	def register(self, channel, client, target):
 		session = self.sessionmaker()
 		entry = session.query(Channel).filter(Channel.name == channel.name)

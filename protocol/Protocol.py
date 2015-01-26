@@ -3176,6 +3176,9 @@ class Protocol:
 		if not channel.chanserv:
 			self.out_FAILED(client, "SUBSCRIBE", "Channel %s isn't registered, can't subscribe!" %(chan))
 			return
+		if not channel.history:
+			self.out_FAILED(client, "SUBSCRIBE", "History for channel %s is disabled, can't subscribe!" %(chan))
+			return
 		good, reason = self.userdb.add_channelhistory_subscription(channel.id, client.db_id)
 		if not good:
 			self.out_FAILED(client, "SUBSCRIBE", reason)
@@ -3198,9 +3201,6 @@ class Protocol:
 			return
 
 		channel = self._root.channels[chan]
-		if not channel.chanserv:
-			self.out_FAILED(client, "UNSUBSCRIBE", "Channel %s isn't registered, can't unsubscribe!" %(chan))
-			return
 		good, reason = self.userdb.remove_channelhistory_subscription(channel.id, client.db_id)
 		if not good:
 			self.out_FAILED(client, "UNSUBSCRIBE", reason)
