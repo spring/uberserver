@@ -108,6 +108,11 @@ restricted = {
 	'FRIENDLIST',
 	'FRIENDREQUESTLIST',
 	########
+	# channel subscriptions
+	'SUBSCRIBE',
+	'UNSUBSCRIBE',
+	'LISTSUBSCRIPTIONS',
+	########
 	# meta
 	'CHANGEPASSWORD',
 	'GETINGAMETIME',
@@ -1104,6 +1109,8 @@ class Protocol:
 					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 				else:
 					self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, [], client)
+					if channel.history:
+						self.userdb.add_channel_message(channel.id, client.db_id, msg)
 
 	def in_SAYEX(self, client, chan, msg):
 		'''
@@ -3150,8 +3157,65 @@ class Protocol:
 		## client has acknowledged our SHAREDKEY ACCEPTED response
 		client.set_session_key_received_ack(True)
 
+	def in_SUBSCRIBE(self, client, subscribeargs):
+		args = self._parseTags(subscribeargs)
+		if not 'chanName' in args:
+			self.out_FAILED(client, "SUBSCRIBE", "chanName missing")
+			return
+		chan = args['chanName']
+		good, reason = self._validChannelSyntax(chan)
+		if not good:
+			self.out_FAILED(client, "SUBSCRIBE", reason)
+			return
 
+		if chan not in self._root.channels:
+			self.out_FAILED(client, "SUBSCRIBE", "Channel %s doesn't exist" %(chan))
+			return
 
+		channel = self._root.channels[chan]
+		if not channel.chanserv:
+			self.out_FAILED(client, "SUBSCRIBE", "Channel %s isn't registered, can't subscribe!" %(chan))
+			return
+		good, reason = self.userdb.add_channelhistory_subscription(channel.id, client.db_id)
+		if not good:
+			self.out_FAILED(client, "SUBSCRIBE", reason)
+			return
+		self.out_OK(client, "SUBSCRIBE")
+
+	def in_UNSUBSCRIBE(self, client, subscribeargs):
+		args = self._parseTags(subscribeargs)
+		if not 'chanName' in args:
+			self.out_FAILED(client, "UNSUBSCRIBE", "chanName missing")
+			return
+		chan = args['chanName']
+		good, reason = self._validChannelSyntax(chan)
+		if not good:
+			self.out_FAILED(client, "UNSUBSCRIBE", reason)
+			return
+
+		if chan not in self._root.channels:
+			self.out_FAILED(client, "UNSUBSCRIBE", "Channel %s doesn't exist" %(chan))
+			return
+
+		channel = self._root.channels[chan]
+		if not channel.chanserv:
+			self.out_FAILED(client, "UNSUBSCRIBE", "Channel %s isn't registered, can't unsubscribe!" %(chan))
+			return
+		good, reason = self.userdb.remove_channelhistory_subscription(channel.id, client.db_id)
+		if not good:
+			self.out_FAILED(client, "UNSUBSCRIBE", reason)
+			return
+		self.out_OK(client, "UNSUBSCRIBE")
+
+	def in_LISTSUBSCRIPTIONS(self, client):
+		good, reason = self.userdb.get_channel_subscriptions(client.db_id)
+		if not good:
+			self.out_FAILED(client, "LISTSUBSCRIPTIONS", reason)
+			return
+		client.Send("STARTLISTSUBSCRIPTION")
+		for chan in reason:
+			client.Send("LISTSUBSCRIPTION chanName=%s" % (chan))
+		client.Send("ENDLISTSUBSCRIPTION")
 
 	# Begin outgoing protocol section #
 	#
@@ -3190,10 +3254,13 @@ class Protocol:
 		if log:
 			self._root.console_write('Handler %s <%s>: %s %s' % (client.handler.num, client.username, cmd, message))
 
+	def out_OK(self, client, cmd):
+		client.Send('OK %s' %(cmd))
 
 def check_protocol_commands():
 	for command in restricted_list:
 		if 'in_' + command not in dir(Protocol):
+			self._root.console_write("command not implemented: %s" % command)
 			return False
 	return True
 assert(check_protocol_commands())

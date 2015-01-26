@@ -14,7 +14,7 @@ from BaseClient import BaseClient
 
 
 try:
-	from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean, Text, DateTime
+	from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean, Text, DateTime, ForeignKeyConstraint
 	from sqlalchemy.orm import mapper, sessionmaker, relation
 	from sqlalchemy.exc import IntegrityError
 except ImportError, e:
@@ -185,7 +185,8 @@ channels_table = Table('channels', metadata,
 	Column('antishock', Boolean),
 	)
 class Channel(object):
-	def __init__(self, name, key='', chanserv=False, owner='', topic='', topic_time=0, topic_owner='', antispam=False, admins='', autokick='ban', censor=False, antishock=False):
+	def __init__(self, name, id = -1, key='', chanserv=False, owner='', topic='', topic_time=0, topic_owner='', antispam=False, admins='', autokick='ban', censor=False, antishock=False, store_history=False):
+		self.id = id
 		self.name = name
 		self.key = key
 		self.chanserv = chanserv
@@ -198,10 +199,47 @@ class Channel(object):
 		self.autokick = autokick
 		self.censor = censor
 		self.antishock = antishock
+		self.store_history = history
 
 	def __repr__(self):
 		return "<Channel('%s')>" % self.name
 mapper(Channel, channels_table)
+##########################################
+channelshistory_table = Table('channel_history', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('time', DateTime),
+	Column('msg', Text),
+	)
+class ChannelHistory(object):
+	def __init__(self, channel_id, user_id, msg):
+		self.channel_id = channel_id
+		self.used_id = user_id
+		self.time = datetime.now()
+		self.msg = msg
+
+	def __repr__(self):
+		return "<ChannelHistory('%s')>" % self.name
+mapper(ChannelHistory, channelshistory_table)
+##########################################
+channelshistorysubscriptions_table = Table('channel_history_subscriptions', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('user_id', Integer),
+	ForeignKeyConstraint(['user_id'], ['users.id']),
+	Column('channel_id', Integer),
+	ForeignKeyConstraint(['channel_id'], ['channels.id'])
+	)
+class ChannelHistorySubscription(object):
+	def __init__(self, channel_id, user_id):
+		self.user_id = user_id
+		self.channel_id = channel_id
+
+	def __repr__(self):
+		return "<ChannelHistorySubscription('%s')>" % self.name
+mapper(ChannelHistorySubscription, channelshistorysubscriptions_table)
+
+
 ##########################################
 banip_table = Table('ban_ip', metadata, # server bans
 	Column('id', Integer, primary_key=True),
@@ -843,6 +881,60 @@ class UsersHandler:
 		session.close()
 		return users
 
+	def add_channel_message(self, channel_id, user_id, msg):
+		session = self.sessionmaker()
+		entry = ChannelHistory(channel_id, user_id, msg)
+		session.add(entry)
+		session.commit()
+		session.close()
+
+	#returns a list of channel messages since starttime for the specific userid when he is subscribed to the channel
+	# [[date, user, msg], [date, user, msg], ...]
+	def get_channel_messages(self, user_id, channel_id, starttime):
+		session = self.sessionmaker()
+		entry = session.query(ChannelHistorySubscription).filter(ChannelHistorySubscription.channel_id == channel_id).filter(ChannelHistorySubscription.user_id == friend_user_id).first()
+		if not entry():
+			session.close()
+			return []
+		entry = ChannelHistory(channel_id, user_id, msg)
+		reqs = session.query(ChannelHistory).filter(ChannelHistory.id == channel_id).filter(ChannelHistory.time >= starttime)
+		msgs = [(req.date, req.user_id, req.msg) for req in reqs]
+		session.close()
+		return msgs
+
+	def add_channelhistory_subscription(self, channel_id, user_id):
+		assert(channel_id > 0)
+		assert(user_id > 0)
+		try:
+			session = self.sessionmaker()
+			entry = ChannelHistorySubscription(channel_id, user_id)
+			session.add(entry)
+			session.commit()
+			session.close()
+		except IntegrityError:
+			session.close()
+			return False, "Already subscribed"
+		except Exception as e:
+			return False, str(e)
+		return True, ""
+
+	def remove_channelhistory_subscription(self, channel_id, user_id):
+		try:
+			session = self.sessionmaker()
+			session.query(ChannelHistorySubscription).filter(ChannelHistorySubscription.channel_id == channel_id).filter(ChannelHistorySubscription.user_id == user_id).delete()
+			session.commit()
+			session.close()
+		except Exception as e:
+			return False, str(e)
+		return True, ""
+
+	def get_channel_subscriptions(self, user_id):
+		#FIXME!!!
+		session = self.sessionmaker()
+		#reqs = session.query(ChannelHistorySubscription, User, Channel).filter(ChannelHistorySubscription.user_id == user_id).join(User).join(Channel).all()
+		#channels = [(req.name, req.name) for req in reqs]
+		session.close()
+		return True, ["implementme"]
 
 class ChannelsHandler:
 	def __init__(self, root, engine):
@@ -855,7 +947,16 @@ class ChannelsHandler:
 		response = session.query(Channel)
 		channels = {}
 		for chan in response:
-			channels[chan.name] = {'owner':chan.owner, 'key':chan.key, 'topic':chan.topic or '', 'antispam':chan.antispam, 'admins':[]}
+			channels[chan.name] = {
+					'id': chan.id,
+					'owner':chan.owner,
+					'key':chan.key,
+					'topic':chan.topic or '',
+					'antispam':chan.antispam,
+					'admins':[],
+					'chanserv': True
+				}
+			print(channels[chan.name])
 		session.close()
 		return channels
 

@@ -178,7 +178,12 @@ class ChanServ:
 					else: return '#%s: <%s> not in channel' % (chan, target)
 				else:
 					return '#%s: You do not have permission to kick users from the channel' % chan
-		
+			elif cmd == 'history':
+				if access in ['mod', 'founder', 'op']:
+					channel.history = not channel.history
+					return '#%s: history enabled=%s' % (chan, str(channel.history))
+				else:
+					return '#%s: You do not have permission to change history setting in the channel' % chan
 		if cmd == 'register':
 			if client.isMod():
 				if not args: args = user
