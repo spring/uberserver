@@ -188,6 +188,7 @@ flag_map = {
 	'm': 'matchmaking',      # FORCEJOINBATTLE from battle hosts for matchmaking
 	'cl': 'cleanupBattles',  # BATTLEOPENED / OPENBATTLE with support for engine/version
 	'p':  'agreementPlain',  # AGREEMENT is plaintext
+	'o': 'offlineChat',      # offline support for SAID/SAIDEX
 }
 
 class Protocol:
@@ -634,6 +635,14 @@ class Protocol:
 			(tag, value) = tagpair.split('=',1)
 			tags.update({tag:value})
 		return tags
+
+	def _dictToTags(self, dictionary):
+		res = ""
+		for key in dictionary:
+			if res:
+				res += "\t"
+			res += key + "=" + str(dictionary[key])
+		return res
 
 	def _canForceBattle(self, client, username = None):
 		' returns true when client can force sth. to a battle / username in current battle (=client is host & username is in battle)'
@@ -1090,7 +1099,7 @@ class Protocol:
 			client.access = 'fresh'
 			self._calc_access_status(client)
 
-	def in_SAY(self, client, chan, msg):
+	def in_SAY(self, client, chan, params):
 		'''
 		Send a message to all users in specified channel.
 		The client must be in the channel to send it a message.
@@ -1098,19 +1107,57 @@ class Protocol:
 		@required.str channel: The target channel.
 		@required.str message: The message to send.
 		'''
-		if not msg: return
-		if chan in self._root.channels:
-			channel = self._root.channels[chan]
-			user = client.username
-			if user in channel.users:
-				msg = self.SayHooks.hook_SAY(self, client, chan, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel # nevermind, i just need to add inchan :>
-				if not msg or not msg.strip(): return
-				if channel.isMuted(client):
-					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
-				else:
-					self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, [], client)
-					if channel.history:
-						self.userdb.add_channel_message(channel.id, client.db_id, msg)
+		if not params: return
+		if not chan in self._root.channels:
+			return
+
+		channel = self._root.channels[chan]
+
+		if not client.username in channel.users:
+			return
+
+		action = False
+		if client.compat['o']:
+	                params = self._parseTags(params)
+			msg = params['msg']
+			if not "msg" in params:
+				return
+			if "action" in params:
+				action = True
+		else:
+			msg = params
+
+		msg = self.SayHooks.hook_SAY(self, client, chan, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel # nevermind, i just need to add inchan :>
+		if not msg or not msg.strip(): return
+
+		if channel.isMuted(client):
+			client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
+			return
+
+		# old style SAID
+		oldout = 'SAID %s %s %s' % (chan, client.username, msg)
+
+		# new style SAID
+		outparams = {
+				'chan': chan,
+				'userName': client.username,
+				'timestamp': int(time.time()), # FIXME: returns localtime, should be UTC
+				'msg': msg.replace("\t", "        "),
+			}
+		if action:
+			outparams['action'] = 'yes'
+		newout = 'SAID ' + self._dictToTags(outparams)
+
+		for username in channel.users:
+			if client.username == username: # don't send back to sender
+				continue
+			user = self.clientFromUsername(username)
+			if client.compat['o']:
+				client.Send(newout)
+			else:
+				client.Send(oldout)
+		if channel.history:
+			self.userdb.add_channel_message(channel.id, client.db_id, msg)
 
 	def in_SAYEX(self, client, chan, msg):
 		'''
@@ -1121,6 +1168,9 @@ class Protocol:
 		@required.str message: The action to send.
 		'''
 		if not msg: return
+		if client.compat['o']:
+			self.out_FAILED("SAYEX", "use SAY action=yes")
+			return
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			user  = client.username
