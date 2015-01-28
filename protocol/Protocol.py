@@ -1119,9 +1119,9 @@ class Protocol:
 		action = False
 		if client.compat['o']:
 	                params = self._parseTags(params)
-			msg = params['msg']
 			if not "msg" in params:
 				return
+			msg = params['msg']
 			if "action" in params:
 				action = True
 		else:
