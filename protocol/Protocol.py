@@ -1577,7 +1577,12 @@ class Protocol:
 		elif client.compat['et']: # supports sendEmptyTopic
 			client.Send('NOCHANNELTOPIC %s' % chan)
 
-		#print(self.userdb.get_channel_messages(client.db_id, channel.id, client.last_login))
+		msgs = self.userdb.get_channel_messages(client.db_id, channel.id, client.last_login)
+		for msg in msgs:
+			if client.compat['o']:
+				client.Send("SAID " + self._dictToTags( { "chanName": chan, "time": msg[0].isoformat(), "userName": msg[1], "msg": msg[2]} ))
+			else:
+				client.Send("SAID %s %s %s" %(chan, msg[1], msg[2]))
 
 		# disabled because irc bridge spams JOIN commands
 		#
