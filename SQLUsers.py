@@ -1058,11 +1058,8 @@ if __name__ == '__main__':
 		msgs = userdb.get_channel_messages(channel.id, client.id, now + timedelta(0, i))
 		assert(len(msgs) == 20 - i)
 		if (len(msgs) > 0):
-			print msgs[0][2] +" == " + "test message %d" % i
+			assert(msgs[0][0] == now + timedelta(0, i))
+			assert(msgs[0][1] == client.username)
 			assert(msgs[0][2] == "test message %d" % i)
-
-
-
-
 
 
