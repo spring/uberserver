@@ -1141,7 +1141,7 @@ class Protocol:
 		outparams = {
 				'chan': chan,
 				'userName': client.username,
-				'timestamp': int(time.time()), # FIXME: returns localtime, should be UTC
+				#'timestamp': int(time.time()), # FIXME: returns localtime, should be UTC
 				'msg': msg.replace("\t", "        "),
 			}
 		if action:
