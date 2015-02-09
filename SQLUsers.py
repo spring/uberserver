@@ -215,7 +215,7 @@ channelshistory_table = Table('channel_history', metadata,
 class ChannelHistory(object):
 	def __init__(self, channel_id, user_id, msg):
 		self.channel_id = channel_id
-		self.used_id = user_id
+		self.user_id = user_id
 		self.time = datetime.now()
 		self.msg = msg
 
