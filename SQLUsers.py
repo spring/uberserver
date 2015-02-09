@@ -892,13 +892,13 @@ class UsersHandler:
 	# [[date, user, msg], [date, user, msg], ...]
 	def get_channel_messages(self, user_id, channel_id, starttime):
 		session = self.sessionmaker()
-		entry = session.query(ChannelHistorySubscription).filter(ChannelHistorySubscription.channel_id == channel_id).filter(ChannelHistorySubscription.user_id == friend_user_id).first()
-		if not entry():
+		entry = session.query(ChannelHistorySubscription).filter(ChannelHistorySubscription.channel_id == channel_id).filter(ChannelHistorySubscription.user_id == user_id).first()
+		if not entry:
 			session.close()
 			return []
-		entry = ChannelHistory(channel_id, user_id, msg)
-		reqs = session.query(ChannelHistory).filter(ChannelHistory.id == channel_id).filter(ChannelHistory.time >= starttime)
-		msgs = [(req.date, req.user_id, req.msg) for req in reqs]
+		# FIXME: (sadly ) has to return real username, can't use userid here
+		reqs = session.query(ChannelHistory).filter(ChannelHistory.channel_id == channel_id).filter(ChannelHistory.time >= starttime)
+		msgs = [(req.time, req.user_id, req.msg) for req in reqs]
 		session.close()
 		return msgs
 

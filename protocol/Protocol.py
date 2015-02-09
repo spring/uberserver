@@ -641,7 +641,7 @@ class Protocol:
 		for key in dictionary:
 			if res:
 				res += "\t"
-			res += key + "=" + str(dictionary[key])
+			res += key + "=" + dictionary[key]
 		return res
 
 	def _canForceBattle(self, client, username = None):
@@ -1088,7 +1088,6 @@ class Protocol:
 
 		client.Send('LOGININFOEND')
 		self._informErrors(client)
-
 
 
 	def in_CONFIRMAGREEMENT(self, client):
@@ -1577,6 +1576,8 @@ class Protocol:
 			client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topictime, top))
 		elif client.compat['et']: # supports sendEmptyTopic
 			client.Send('NOCHANNELTOPIC %s' % chan)
+
+		#print(self.userdb.get_channel_messages(client.db_id, channel.id, client.last_login))
 
 		# disabled because irc bridge spams JOIN commands
 		#
