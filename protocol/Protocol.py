@@ -1153,7 +1153,7 @@ class Protocol:
 				user.Send(newout)
 			else:
 				user.Send(oldout)
-		if channel.history:
+		if channel.store_history:
 			self.userdb.add_channel_message(channel.id, client.db_id, msg)
 
 	def in_SAYEX(self, client, chan, msg):
@@ -3225,7 +3225,7 @@ class Protocol:
 		if not channel.chanserv:
 			self.out_FAILED(client, "SUBSCRIBE", "Channel %s isn't registered, can't subscribe!" %(chan))
 			return
-		if not channel.history:
+		if not channel.store_history:
 			self.out_FAILED(client, "SUBSCRIBE", "History for channel %s is disabled, can't subscribe!" %(chan))
 			return
 		good, reason = self.userdb.add_channelhistory_subscription(channel.id, client.db_id)

@@ -180,9 +180,9 @@ class ChanServ:
 					return '#%s: You do not have permission to kick users from the channel' % chan
 			elif cmd == 'history':
 				if access in ['mod', 'founder', 'op']:
-					channel.history = not channel.history
+					channel.store_history = not channel.store_history
 					self.channeldb.setHistory(channel)
-					msg = '#%s: history enabled=%s' % (chan, str(channel.history))
+					msg = '#%s: history enabled=%s' % (chan, str(channel.store_history))
 					channel.channelMessage(msg)
 					return msg
 				else:

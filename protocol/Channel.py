@@ -6,7 +6,7 @@ class Channel(AutoDict):
 						ban={}, allow=[], autokick='ban', chanserv=False,
 						owner='', mutelist={}, antispam=False,
 						censor=False, antishock=False, topic=None,
-						key=None, history=False, **kwargs):
+						key=None, store_history=False, **kwargs):
 		self.id = id
 		self._root = root
 		self.name = name
@@ -23,7 +23,7 @@ class Channel(AutoDict):
 		self.antishock = antishock
 		self.topic = topic
 		self.key = key
-		self.history = history
+		self.store_history = store_history
 		self.__AutoDictInit__()
 
 		if self._root and chanserv and self._root.chanserv and not name in self._root.channels:

@@ -16,7 +16,7 @@ from BaseClient import BaseClient
 
 
 try:
-	from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean, Text, DateTime, ForeignKeyConstraint
+	from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean, Text, DateTime, ForeignKeyConstraint, UniqueConstraint
 	from sqlalchemy.orm import mapper, sessionmaker, relation
 	from sqlalchemy.exc import IntegrityError
 except ImportError, e:
@@ -230,7 +230,8 @@ channelshistorysubscriptions_table = Table('channel_history_subscriptions', meta
 	Column('user_id', Integer),
 	ForeignKeyConstraint(['user_id'], ['users.id']),
 	Column('channel_id', Integer),
-	ForeignKeyConstraint(['channel_id'], ['channels.id'])
+	ForeignKeyConstraint(['channel_id'], ['channels.id']),
+	UniqueConstraint('user_id', 'channel_id', name='user_chan')
 	)
 class ChannelHistorySubscription(object):
 	def __init__(self, channel_id, user_id):
