@@ -509,8 +509,8 @@ class UsersHandler:
 		entry = session.query(User).filter(User.id==db_id).first()
 		if entry and not entry.logins[-1].end:
 			entry.logins[-1].end = datetime.now()
+			entry.last_login = datetime.now() # in real its last online / last seen
 			session.commit()
-		
 		session.close()
 
 
