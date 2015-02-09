@@ -431,7 +431,6 @@ class UsersHandler:
 				reason += 'hours remaining: %s' % (timeleft / (60 * 60))
 
 		dbuser.logins.append(Login(now, ip, lobby_id, user_id, cpu, local_ip, country))
-		dbuser.last_login = now
 		dbuser.time = now
 		dbuser.last_ip = ip
 		dbuser.last_id = user_id
@@ -448,6 +447,7 @@ class UsersHandler:
 			user_copy.lobby_id = lobby_id
 			reason = user_copy
 
+		dbuser.last_login = now # store current time to db but keep last_login in in user_copy
 		session.commit()
 		session.close()
 
