@@ -183,9 +183,10 @@ channels_table = Table('channels', metadata,
 	Column('autokick', String(5)),
 	Column('censor', Boolean),
 	Column('antishock', Boolean),
+	Column('store_history', Boolean),
 	)
 class Channel(object):
-	def __init__(self, name, id = -1, key='', chanserv=False, owner='', topic='', topic_time=0, topic_owner='', antispam=False, admins='', autokick='ban', censor=False, antishock=False, store_history=False):
+	def __init__(self, name, id = -1, key='', chanserv=False, owner='', topic='', topic_time=datetime.now(), topic_owner='', antispam=False, admins='', autokick='ban', censor=False, antishock=False, store_history=False):
 		self.id = id
 		self.name = name
 		self.key = key
@@ -199,7 +200,7 @@ class Channel(object):
 		self.autokick = autokick
 		self.censor = censor
 		self.antishock = antishock
-		self.store_history = history
+		self.store_history = store_history
 
 	def __repr__(self):
 		return "<Channel('%s')>" % self.name
@@ -912,7 +913,13 @@ class ChannelsHandler:
 		self._root = root
 		metadata.create_all(engine)
 		self.sessionmaker = sessionmaker(bind=engine, autoflush=True)
-	
+
+	def load_channel(self, name):
+		session = self.sessionmaker()
+		entry = session.query(Channel).filter(Channel.name == name).first()
+		session.close()
+		return entry
+
 	def load_channels(self):
 		session = self.sessionmaker()
 		response = session.query(Channel)
@@ -931,12 +938,6 @@ class ChannelsHandler:
 		session.close()
 		return channels
 
-	def inject_channel(self, channel):
-		session = self.sessionmaker()
-		session.add(channel)
-		session.commit()
-		session.close()
-	
 	def save_channel(self, channel):
 
 		if channel.topic:
@@ -950,20 +951,7 @@ class ChannelsHandler:
 			topic_text, topic_time, topic_owner = ('', 0, '')
 		
 		session = self.sessionmaker()
-		entry = session.query(Channel)
-		entry.name = channel.chan
-		entry.key = channel.key
-		entry.chanserv = channel.chanserv
-		entry.owner = channel.owner
-		entry.topic = topic_text
-		entry.topic_time = topic_time
-		entry.topic_owner = topic_owner
-		entry.antispam = channel.antispam
-		entry.autokick = channel.autokick
-		entry.censor = channel.censor
-		entry.antishock = channel.antishock
-
-		session.add(entry)
+		session.add(channel)
 		session.commit()
 		session.close()
 
@@ -993,7 +981,7 @@ class ChannelsHandler:
 		session = self.sessionmaker()
 		entry = session.query(Channel).filter(Channel.name == chan.name).first()
 		if entry:
-			entry.history = chan.history
+			entry.store_history = chan.store_history
 			session.commit()
 		session.close()
 
@@ -1020,23 +1008,40 @@ class ChannelsHandler:
 			session.delete(entry)
 			session.commit()
 		session.close()
-	
 
 if __name__ == '__main__':
 	class root():
 		censor = False
 		pass
 
-	import sqlalchemy
+	import sqlalchemy, os
+	os.remove("test.db")
 	engine = sqlalchemy.create_engine("sqlite:///test.db")
 	def _fk_pragma_on_connect(dbapi_con, con_record):
 	        dbapi_con.execute('PRAGMA journal_mode = MEMORY')
 	        dbapi_con.execute('PRAGMA synchronous = OFF')
-	## FIXME: "ImportError: cannot import name event"
-	from sqlalchemy import event
-	event.listen(engine, 'connect', _fk_pragma_on_connect)
+	sqlalchemy.event.listen(engine, 'connect', _fk_pragma_on_connect)
+
 	root = root()
 	userdb = UsersHandler(root, engine)
 	channeldb = ChannelsHandler(root, engine)
-	assert(userdb.legacy_register_user(u"user", u"pass", "192.168.1.1", "DE"))
+
+	username = u"test"
+	channelname = u"testchannel"
+
+	# test save/load user
+	userdb.legacy_register_user(username, u"pass", "192.168.1.1", "DE")
+	client = userdb.clientFromUsername(username)
+
+	# test save/load channel
+	channeldb.save_channel(Channel(channelname))
+	channel = channeldb.load_channel(channelname)
+	assert(channel.store_history == False)
+
+	channel.store_history = True
+	channeldb.setHistory(channel)
+	channel = channeldb.load_channel(channelname)
+	assert(channel.store_history == True)
+
+
 
