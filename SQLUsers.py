@@ -220,7 +220,7 @@ class ChannelHistory(object):
 		self.msg = msg
 
 	def __repr__(self):
-		return "<ChannelHistory('%s')>" % self.name
+		return "<ChannelHistory('%s')>" % self.channel_id
 mapper(ChannelHistory, channelshistory_table)
 ##########################################
 channelshistorysubscriptions_table = Table('channel_history_subscriptions', metadata,
@@ -731,35 +731,6 @@ class UsersHandler:
 		session.close()
 		return True, 'Success.'
 
-	"""
-	## unused
-	def inject_user(self, user, password, ip, last_login, register_date, uid, ingame, country, bot, access, id):
-		entry = User(user, password, "", ip)
-		entry.last_login = last_login
-		entry.last_id = uid
-		entry.ingame_time = ingame
-		entry.register_date = register_date
-		entry.access = access
-		entry.bot = bot
-		entry.id = id
-		return entry
-
-	def inject_users(self, accounts):
-		session = self.sessionmaker()
-		for user in accounts:
-			try:
-				entry = self.inject_user(user['user'], user['pass'], user['last_ip'], user['last_login'], user['register_date'],
-							user['uid'], user['ingame'], user['country'], user['bot'], user['access'], user['id'])
-				session.add(entry)
-				session.commit()
-				print("Inserted: " + user['user'])
-			except IntegrityError:
-				session.rollback()
-				#print("Duplicate Entry: " + user['user'])
-		session.commit()
-		session.close()
-	"""
-
 	def clean_users(self):
 		''' delete old user accounts (very likely unused) '''
 		session = self.sessionmaker()
@@ -896,9 +867,9 @@ class UsersHandler:
 		if not entry:
 			session.close()
 			return []
-		# FIXME: (sadly ) has to return real username, can't use userid here
-		reqs = session.query(ChannelHistory).filter(ChannelHistory.channel_id == channel_id).filter(ChannelHistory.time >= starttime)
-		msgs = [(req.time, req.user_id, req.msg) for req in reqs]
+		reqs = session.query(ChannelHistory, User).filter(ChannelHistory.channel_id == channel_id).filter(ChannelHistory.time >= starttime).filter(ChannelHistory.user_id == User.id).all()
+		print(reqs)
+		msgs = [(req.one.time, req.two.username, req.one.msg) for req in reqs]
 		session.close()
 		return msgs
 
@@ -1050,4 +1021,22 @@ class ChannelsHandler:
 			session.commit()
 		session.close()
 	
+
+if __name__ == '__main__':
+	class root():
+		censor = False
+		pass
+
+	import sqlalchemy
+	engine = sqlalchemy.create_engine("sqlite:///test.db")
+	def _fk_pragma_on_connect(dbapi_con, con_record):
+	        dbapi_con.execute('PRAGMA journal_mode = MEMORY')
+	        dbapi_con.execute('PRAGMA synchronous = OFF')
+	## FIXME: "ImportError: cannot import name event"
+	from sqlalchemy import event
+	event.listen(engine, 'connect', _fk_pragma_on_connect)
+	root = root()
+	userdb = UsersHandler(root, engine)
+	channeldb = ChannelsHandler(root, engine)
+	assert(userdb.legacy_register_user(u"user", u"pass", "192.168.1.1", "DE"))
 
