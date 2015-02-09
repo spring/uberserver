@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 from datetime import datetime, timedelta
 
 from base64 import b64encode as ENCODE_FUNC

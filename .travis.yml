@@ -10,6 +10,8 @@ install:
 
 script:
    - protocol/Protocol.py
+   - ./SQLUsers.py
+   - ./
    - ./server.py &
    - sleep 30 # wait for server to start up
    - ./TestLobbyClient.py
