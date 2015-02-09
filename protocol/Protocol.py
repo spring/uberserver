@@ -1152,10 +1152,10 @@ class Protocol:
 			if client.username == username: # don't send back to sender
 				continue
 			user = self.clientFromUsername(username)
-			if client.compat['o']:
-				client.Send(newout)
+			if user.compat['o']:
+				user.Send(newout)
 			else:
-				client.Send(oldout)
+				user.Send(oldout)
 		if channel.history:
 			self.userdb.add_channel_message(channel.id, client.db_id, msg)
 
