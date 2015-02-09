@@ -1149,8 +1149,6 @@ class Protocol:
 		newout = 'SAID ' + self._dictToTags(outparams)
 
 		for username in channel.users:
-			if client.username == username: # don't send back to sender
-				continue
 			user = self.clientFromUsername(username)
 			if user.compat['o']:
 				user.Send(newout)
