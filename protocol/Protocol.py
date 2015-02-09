@@ -3257,12 +3257,9 @@ class Protocol:
 		self.out_OK(client, "UNSUBSCRIBE")
 
 	def in_LISTSUBSCRIPTIONS(self, client):
-		good, reason = self.userdb.get_channel_subscriptions(client.db_id)
-		if not good:
-			self.out_FAILED(client, "LISTSUBSCRIPTIONS", reason)
-			return
+		subscriptions = self.userdb.get_channel_subscriptions(client.db_id)
 		client.Send("STARTLISTSUBSCRIPTION")
-		for chan in reason:
+		for chan in subscriptions:
 			client.Send("LISTSUBSCRIPTION chanName=%s" % (chan))
 		client.Send("ENDLISTSUBSCRIPTION")
 

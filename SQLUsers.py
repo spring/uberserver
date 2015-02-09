@@ -901,12 +901,12 @@ class UsersHandler:
 		return True, ""
 
 	def get_channel_subscriptions(self, user_id):
-		#FIXME!!!
 		session = self.sessionmaker()
-		#reqs = session.query(ChannelHistorySubscription, User, Channel).filter(ChannelHistorySubscription.user_id == user_id).join(User).join(Channel).all()
-		#channels = [(req.name, req.name) for req in reqs]
+		reqs = session.query(ChannelHistorySubscription, Channel).filter(ChannelHistorySubscription.user_id == user_id) \
+			.filter(ChannelHistorySubscription.user_id == user_id).all()
+		channels = [(channel.name) for sub, channel in reqs]
 		session.close()
-		return True, ["implementme"]
+		return channels
 
 class ChannelsHandler:
 	def __init__(self, root, engine):
@@ -1051,6 +1051,10 @@ if __name__ == '__main__':
 	# test channel message history
 	now = datetime.now()
 	userdb.add_channelhistory_subscription(channel.id, client.id)
+	subscriptions = userdb.get_channel_subscriptions(client.id)
+	assert(len(subscriptions) == 1)
+	assert(subscriptions[0] == channelname)
+
 	for i in range(0, 20):
 		userdb.add_channel_message(channel.id, client.id, "test message %d" % i, now + timedelta(0, i))
 
