@@ -188,8 +188,7 @@ channels_table = Table('channels', metadata,
 	Column('store_history', Boolean),
 	)
 class Channel(object):
-	def __init__(self, name, id = -1, key='', chanserv=False, owner='', topic='', topic_time=datetime.now(), topic_owner='', antispam=False, admins='', autokick='ban', censor=False, antishock=False, store_history=False):
-		self.id = id
+	def __init__(self, name,  key='', chanserv=False, owner='', topic='', topic_time=datetime.now(), topic_owner='', antispam=False, admins='', autokick='ban', censor=False, antishock=False, store_history=False):
 		self.name = name
 		self.key = key
 		self.chanserv = chanserv
@@ -216,10 +215,10 @@ channelshistory_table = Table('channel_history', metadata,
 	Column('msg', Text),
 	)
 class ChannelHistory(object):
-	def __init__(self, channel_id, user_id, msg):
+	def __init__(self, channel_id, user_id, msg, time):
 		self.channel_id = channel_id
 		self.user_id = user_id
-		self.time = datetime.now()
+		self.time = time
 		self.msg = msg
 
 	def __repr__(self):
@@ -855,9 +854,9 @@ class UsersHandler:
 		session.close()
 		return users
 
-	def add_channel_message(self, channel_id, user_id, msg):
+	def add_channel_message(self, channel_id, user_id, msg, date = datetime.now()):
 		session = self.sessionmaker()
-		entry = ChannelHistory(channel_id, user_id, msg)
+		entry = ChannelHistory(channel_id, user_id, msg, date)
 		session.add(entry)
 		session.commit()
 		session.close()
@@ -871,8 +870,7 @@ class UsersHandler:
 			session.close()
 			return []
 		reqs = session.query(ChannelHistory, User).filter(ChannelHistory.channel_id == channel_id).filter(ChannelHistory.time >= starttime).filter(ChannelHistory.user_id == User.id).all()
-		print(reqs)
-		msgs = [(req.one.time, req.two.username, req.one.msg) for req in reqs]
+		msgs = [(history.time, user.username, history.msg) for history, user in reqs ]
 		session.close()
 		return msgs
 
@@ -1017,7 +1015,10 @@ if __name__ == '__main__':
 		pass
 
 	import sqlalchemy, os
-	os.remove("test.db")
+	try: # cleanup old db
+		os.remove("test.db")
+	except:
+		pass
 	engine = sqlalchemy.create_engine("sqlite:///test.db")
 	def _fk_pragma_on_connect(dbapi_con, con_record):
 	        dbapi_con.execute('PRAGMA journal_mode = MEMORY')
@@ -1038,12 +1039,30 @@ if __name__ == '__main__':
 	# test save/load channel
 	channeldb.save_channel(Channel(channelname))
 	channel = channeldb.load_channel(channelname)
-	assert(channel.store_history == False)
 
+	# test setHistory
+	assert(channel.store_history == False)
 	channel.store_history = True
 	channeldb.setHistory(channel)
 	channel = channeldb.load_channel(channelname)
 	assert(channel.store_history == True)
+
+
+	# test channel message history
+	now = datetime.now()
+	userdb.add_channelhistory_subscription(channel.id, client.id)
+	for i in range(0, 20):
+		userdb.add_channel_message(channel.id, client.id, "test message %d" % i, now + timedelta(0, i))
+
+	for i in range(0,21):
+		msgs = userdb.get_channel_messages(channel.id, client.id, now + timedelta(0, i))
+		assert(len(msgs) == 20 - i)
+		if (len(msgs) > 0):
+			print msgs[0][2] +" == " + "test message %d" % i
+			assert(msgs[0][2] == "test message %d" % i)
+
+
+
 
 
 
