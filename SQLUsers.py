@@ -936,7 +936,6 @@ class ChannelsHandler:
 					'chanserv': True,
 					'store_history': chan.store_history,
 				}
-			print(channels[chan.name])
 		session.close()
 		return channels
 
