@@ -933,7 +933,8 @@ class ChannelsHandler:
 					'topic':chan.topic or '',
 					'antispam':chan.antispam,
 					'admins':[],
-					'chanserv': True
+					'chanserv': True,
+					'store_history': chan.store_history,
 				}
 			print(channels[chan.name])
 		session.close()
