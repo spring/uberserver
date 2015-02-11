@@ -2853,28 +2853,28 @@ class Protocol:
 		good, reason = self._validUsernameSyntax(username)
 
 		if (not good):
-			return 'TESTLOGINDENY %s' %(reason)
+			return False, reason
 
 		targetUser = self.clientFromUsername(username, True)
 
 		if (not targetUser):
-			return 'TESTLOGINDENY'
+			return False, "Invalid password or username"
 
 		## if this user has created a secure account, disallow
 		## anyone but himself to login with it (password should
 		## NEVER be shared by user to anyone, including admins)
 		if (not targetUser.has_legacy_password()):
-			return 'TESTLOGINDENY'
+			return False, "Invalid password or username"
 
 		good, reason = self._validLegacyPasswordSyntax(password)
 
 		if (not good):
-			return 'TESTLOGINDENY %s' %(reason)
-			return
+			return False, reason
 
 		if (self.userdb.legacy_test_user_pwrd(targetUser, password)):
-			return 'TESTLOGINACCEPT %s %s' % (targetUser.username, targetUser.db_id)
+			return False, '%s %s' % (targetUser.username, targetUser.db_id)
 
+		return False, "Invalid password or username"
 
 	def in_EXIT(self, client, reason=('Exiting')):
 		'''

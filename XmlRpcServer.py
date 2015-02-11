@@ -65,9 +65,9 @@ class _RpcFuncs(object):
 
     def get_account_info(self, username, password):
         password_enc = unicode(b64encode(LEGACY_HASH_FUNC(password).digest()))
-        reply = self._proto._testlogin(unicode(username), password_enc) # FIXME: don't use Protocol.py
-        logger.debug("reply: %s", reply)
-        if reply.startswith("TESTLOGINACCEPT %s" % username):
+        good, reason = self._proto._testlogin(unicode(username), password_enc) # FIXME: don't use Protocol.py
+        logger.debug("reply: %s", reason)
+        if good:
             session = self._root.userdb.sessionmaker() # FIXME: move to SQLUsers.py
             db_user = session.query(User).filter(User.username == username).first()
             renames = list()
