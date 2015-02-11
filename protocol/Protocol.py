@@ -136,7 +136,6 @@ restricted = {
 	'GETLASTLOGINTIME',
 	'GETUSERID',
 	'SETBOTMODE',
-	'TESTLOGIN',
 	'GETLOBBYVERSION',
 	],
 'admin':[
