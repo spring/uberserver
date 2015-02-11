@@ -2843,7 +2843,7 @@ class Protocol:
 			kickeduser.Remove('was kicked from server by <%s>: %s' % (client.username, reason))
 
 
-	def in_TESTLOGIN(self, client, username, password):
+	def _testlogin(self, username, password):
 		'''
 		Test logging in as target user. [mod]
 
@@ -2853,29 +2853,27 @@ class Protocol:
 		good, reason = self._validUsernameSyntax(username)
 
 		if (not good):
-			client.Send('TESTLOGINDENY %s' %(reason))
-			return
+			return 'TESTLOGINDENY %s' %(reason)
 
 		targetUser = self.clientFromUsername(username, True)
 
 		if (not targetUser):
-			client.Send('TESTLOGINDENY')
-			return
+			return 'TESTLOGINDENY'
+
 		## if this user has created a secure account, disallow
 		## anyone but himself to login with it (password should
 		## NEVER be shared by user to anyone, including admins)
 		if (not targetUser.has_legacy_password()):
-			client.Send('TESTLOGINDENY')
-			return
+			return 'TESTLOGINDENY'
 
 		good, reason = self._validLegacyPasswordSyntax(password)
 
 		if (not good):
-			client.Send('TESTLOGINDENY %s' %(reason))
+			return 'TESTLOGINDENY %s' %(reason)
 			return
 
 		if (self.userdb.legacy_test_user_pwrd(targetUser, password)):
-			client.Send('TESTLOGINACCEPT %s %s' % (targetUser.username, targetUser.db_id))
+			return 'TESTLOGINACCEPT %s %s' % (targetUser.username, targetUser.db_id)
 
 
 	def in_EXIT(self, client, reason=('Exiting')):

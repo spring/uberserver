@@ -4,7 +4,6 @@
 # TODO:
 #  - remove dependency to Protocol.py
 #  - move SQLAlchemy calls to SQLUsers.py
-#  -> remove _FakeClient
 
 import BaseHTTPServer
 from SimpleXMLRPCServer import SimpleXMLRPCServer
@@ -66,10 +65,9 @@ class _RpcFuncs(object):
 
     def get_account_info(self, username, password):
         password_enc = unicode(b64encode(LEGACY_HASH_FUNC(password).digest()))
-        client = _FakeClient(self._root)
-        self._proto.in_TESTLOGIN(client, unicode(username), password_enc) # FIXME: don't use Protocol.py
-        logger.debug("client.reply: %s", client.reply)
-        if client.reply.startswith("TESTLOGINACCEPT %s" % username):
+        reply = self._proto._testlogin(unicode(username), password_enc) # FIXME: don't use Protocol.py
+        logger.debug("reply: %s", reply)
+        if reply.startswith("TESTLOGINACCEPT %s" % username):
             session = self._root.userdb.sessionmaker() # FIXME: move to SQLUsers.py
             db_user = session.query(User).filter(User.username == username).first()
             renames = list()
@@ -89,14 +87,3 @@ class _RpcFuncs(object):
         else:
             return {"status": 1}
 
-
-class _FakeClient(object):
-    """
-    Protocol.Protocol uses this object for communication.
-    """
-    def __init__(self, root):
-        self._root = root
-        self.reply = ""
-
-    def Send(self, reply):
-        self.reply = reply
