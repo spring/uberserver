@@ -26,10 +26,8 @@ class DataHandler:
 		self.log = False
 		self.logfile = None
 		self.logfilename = 'server.log'
-		self.agreementfile = 'agreement.rtf' #FIXME: remove/deprecated
-		self.agreementfileplain = 'agreement.txt'
-		self.agreement = [] #FIXME: remove
-		self.agreementplain = []
+		self.agreementfile = 'agreement.txt'
+		self.agreement = []
 		self.server = 'TASServer'
 		self.server_version = 0.36
 		self.sighup = False
@@ -214,7 +212,7 @@ class DataHandler:
 			print('You might want to install a real database server or use LAN mode')
 			print()
 			self.max_threads = 1
-			self.engine = sqlalchemy.create_engine(self.sqlurl)
+			self.engine = sqlalchemy.create_engine(self.sqlurl, echo=False)
 			def _fk_pragma_on_connect(dbapi_con, con_record):
 				dbapi_con.execute('PRAGMA journal_mode = MEMORY')
 				dbapi_con.execute('PRAGMA synchronous = OFF')
@@ -282,10 +280,6 @@ class DataHandler:
 		ins = open(self.agreementfile, "r" )
 		for line in ins:
 			self.agreement.append(line.rstrip('\r\n'))
-		self.agreementplain = []
-		ins = open(self.agreementfileplain, "r" )
-		for line in ins:
-			self.agreementplain.append(line.rstrip('\r\n'))
 		ins.close()
 
 	def getUserDB(self):

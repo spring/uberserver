@@ -197,7 +197,6 @@ class Protocol:
 		self.SayHooks = root.SayHooks
 		self.dir = dir(self)
 		self.agreement = root.agreement
-		self.agreementplain = root.agreementplain
 		self.stats = {}
 
 		## generates new keys if directory is empty, otherwise imports
@@ -1031,11 +1030,7 @@ class Protocol:
 
 		if (client.access == 'agreement'):
 			self._root.console_write('Handler %s:%s Sent user <%s> the terms of service on session.' % (client.handler.num, client.session_id, user_or_error.username))
-			if client.compat['p']:
-				agreement = self.agreementplain
-			else:
-				agreement = self.agreement
-			for line in agreement:
+			for line in self.agreement:
 				client.Send("AGREEMENT %s" %(line))
 			client.Send('AGREEMENTEND')
 			return
