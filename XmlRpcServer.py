@@ -14,7 +14,8 @@ from logging.handlers import TimedRotatingFileHandler
 
 from protocol import Protocol
 from CryptoHandler import MD5LEG_HASH_FUNC as LEGACY_HASH_FUNC
-from SQLUsers import User
+from SQLUsers import User, Rename, Login
+from sqlalchemy import and_
 
 # logging
 xmlrpc_logfile = os.path.join(os.path.dirname(__file__), "xmlrpc.log")
@@ -70,19 +71,17 @@ class _RpcFuncs(object):
 		if not good:
 			return {"status": 1}
 		session = self._root.userdb.sessionmaker() # FIXME: move to SQLUsers.py
-		db_user = session.query(User).filter(User.username == username).first()
-		renames = list()
-		for rename in db_user.renames:
-			renames.append(rename.original)
-		if db_user.renames:
-			renames.append(db_user.renames[-1].new)
-		renames = set(renames) # HACK to remove duplicates
+		db_user = session.query(User.id, User.username, User.ingame_time, User.email).filter(User.username == username).first()
+		renames = session.query(Rename.original).distinct(Rename.original).filter(Rename.user_id == db_user.id).all()
+		renames = [ r[0] for r in renames]
+
+		country = session.query(Login.country).filter(and_(Login.country != '??', Login.country != None, Login.country != '')).first()
 		result = {"status": 0, "accountid": int(db_user.id), "username": str(db_user.username),
-			"ingame_time": int(db_user.ingame_time), "email": str(db_user.email),
-			"aliases": list(renames)}
-		try:
-			result["country"] = db_user.logins[-1].country
-		except:
-			result["country"] = ""
+				"ingame_time": int(db_user.ingame_time), "email": str(db_user.email),
+				"aliases": renames,
+				"country": country[0] if country else ''
+			 }
+
+		session.close()
 		return result
 
