@@ -854,13 +854,15 @@ class UsersHandler:
 		users = [(req.user_id, req.msg) for req in reqs]
 		session.close()
 		return users
-
-	def add_channel_message(self, channel_id, user_id, msg, date = datetime.now()):
+	def _add_channel_message(self, channel_id, user_id, msg, date = datetime.now()):
 		session = self.sessionmaker()
 		entry = ChannelHistory(channel_id, user_id, msg, date)
 		session.add(entry)
 		session.commit()
 		session.close()
+
+	def add_channel_message(self, channel_id, user_id, msg):
+		self._add_channel_message(channel_id, user_id, msg, datetime.now())
 
 	#returns a list of channel messages since starttime for the specific userid when he is subscribed to the channel
 	# [[date, user, msg], [date, user, msg], ...]
@@ -1057,7 +1059,7 @@ if __name__ == '__main__':
 	assert(subscriptions[0] == channelname)
 
 	for i in range(0, 20):
-		userdb.add_channel_message(channel.id, client.id, "test message %d" % i, now + timedelta(0, i))
+		userdb._add_channel_message(channel.id, client.id, "test message %d" % i, now + timedelta(0, i))
 
 	for i in range(0,21):
 		msgs = userdb.get_channel_messages(channel.id, client.id, now + timedelta(0, i))
@@ -1066,5 +1068,7 @@ if __name__ == '__main__':
 			assert(msgs[0][0] == now + timedelta(0, i))
 			assert(msgs[0][1] == client.username)
 			assert(msgs[0][2] == "test message %d" % i)
+
+	print("Tests went ok")
 
 
