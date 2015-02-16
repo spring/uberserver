@@ -188,13 +188,13 @@ channels_table = Table('channels', metadata,
 	Column('store_history', Boolean),
 	)
 class Channel(object):
-	def __init__(self, name,  key='', chanserv=False, owner='', topic='', topic_time=datetime.now(), topic_owner='', antispam=False, admins='', autokick='ban', censor=False, antishock=False, store_history=False):
+	def __init__(self, name,  key='', chanserv=False, owner='', topic='', topic_time=None, topic_owner='', antispam=False, admins='', autokick='ban', censor=False, antishock=False, store_history=False):
 		self.name = name
 		self.key = key
 		self.chanserv = chanserv
 		self.owner = owner
 		self.topic = topic
-		self.topic_time = topic_time
+		self.topic_time = topic_time or datetime.now()
 		self.topic_owner = topic_owner
 		self.antispam = antispam
 		self.admins = admins
@@ -253,11 +253,11 @@ banip_table = Table('ban_ip', metadata, # server bans
 	Column('updated', DateTime),
 	)
 class BanIP(object):
-	def __init__(self, ip = None, issuer_id = None, reason = "", end_time = datetime.now()):
+	def __init__(self, ip = None, issuer_id = None, reason = "", end_time = None):
 		self.issuer_id = issuer_id
 		self.ip = ip
 		self.reason = reason
-		self.end_time = end_time
+		self.end_time = end_time or datetime.now()
 		self.updated = datetime.now()
 mapper(BanIP, banip_table)
 ##########################################
@@ -270,11 +270,11 @@ banuser_table = Table('ban_user', metadata, # server bans
 	Column('updated', DateTime),
 	)
 class BanUser(object):
-	def __init__(self, user_id = None, issuer_id = None, reason = "", end_time = datetime.now()):
+	def __init__(self, user_id = None, issuer_id = None, reason = "", end_time = None):
 		self.user_id = user_id
 		self.issuer_id = issuer_id
 		self.reason = reason
-		self.end_time = end_time
+		self.end_time = end_time or datetime.now()
 		self.updated = datetime.now()
 mapper(BanUser, banuser_table)
 ##########################################
@@ -854,15 +854,15 @@ class UsersHandler:
 		users = [(req.user_id, req.msg) for req in reqs]
 		session.close()
 		return users
-	def _add_channel_message(self, channel_id, user_id, msg, date):
+
+	def add_channel_message(self, channel_id, user_id, msg, date = None):
+		if date is None:
+			date = datetime.now()
 		session = self.sessionmaker()
 		entry = ChannelHistory(channel_id, user_id, msg, date)
 		session.add(entry)
 		session.commit()
 		session.close()
-
-	def add_channel_message(self, channel_id, user_id, msg):
-		self._add_channel_message(channel_id, user_id, msg, datetime.now())
 
 	#returns a list of channel messages since starttime for the specific userid when he is subscribed to the channel
 	# [[date, user, msg], [date, user, msg], ...]
@@ -1059,7 +1059,7 @@ if __name__ == '__main__':
 	assert(subscriptions[0] == channelname)
 
 	for i in range(0, 20):
-		userdb._add_channel_message(channel.id, client.id, "test message %d" % i, now + timedelta(0, i))
+		userdb.add_channel_message(channel.id, client.id, "test message %d" % i, now + timedelta(0, i))
 
 	for i in range(0,21):
 		msgs = userdb.get_channel_messages(channel.id, client.id, now + timedelta(0, i))
