@@ -854,7 +854,7 @@ class UsersHandler:
 		users = [(req.user_id, req.msg) for req in reqs]
 		session.close()
 		return users
-	def _add_channel_message(self, channel_id, user_id, msg, date = datetime.now()):
+	def _add_channel_message(self, channel_id, user_id, msg, date):
 		session = self.sessionmaker()
 		entry = ChannelHistory(channel_id, user_id, msg, date)
 		session.add(entry)
