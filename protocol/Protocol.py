@@ -2165,6 +2165,11 @@ class Protocol:
 					self.out_SERVERMSG(client, "UPDATEBATTLEINFO failed - Invalid map hash send: %s %s " %(str(mapname),str(maphash)), True)
 					maphash = 0
 					return
+
+				if not mapname:
+					self.out_SERVERMSG(client, "UPDATEBATTLEINFO failed - Empty mapname send: %s" %(str(maphash)), True)
+					return
+
 				old = battle.copy()
 				updated = {'id':battle_id, 'locked':int(locked), 'maphash':maphash, 'map':mapname}
 				battle.update(**updated)
