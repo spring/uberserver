@@ -191,6 +191,8 @@ class ChanServ:
 			if client.isMod():
 				if not args: args = user
 				self.Send('JOIN %s' % chan)
+				if not chan in self._root.channels:
+					return '# Channel %s does not exist.' % (chan)
 				channel = self._root.channels[chan]
 				target = self.client._protocol.clientFromUsername(args)
 				if target:
