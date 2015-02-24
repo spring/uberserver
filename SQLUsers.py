@@ -905,8 +905,7 @@ class UsersHandler:
 
 	def get_channel_subscriptions(self, user_id):
 		session = self.sessionmaker()
-		reqs = session.query(ChannelHistorySubscription, Channel).filter(ChannelHistorySubscription.user_id == user_id) \
-			.filter(ChannelHistorySubscription.user_id == user_id).all()
+		reqs = session.query(ChannelHistorySubscription, Channel).filter(ChannelHistorySubscription.user_id == user_id).filter(ChannelHistorySubscription.channel_id == Channel.id) .all()
 		channels = [(channel.name) for sub, channel in reqs]
 		session.close()
 		return channels
