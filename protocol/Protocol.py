@@ -2749,13 +2749,22 @@ class Protocol:
 		@required.str username: The target user.
 		@required.bool mode: The resulting bot mode.
 		'''
-		user = self.clientFromUsername(username, True)
+		online = False
+		user = self.clientFromUsername(username)
 		if user:
-			bot = (mode.lower() in ('true', 'yes', '1'))
-			user.bot = bot
-			self.userdb.save_user(user)
-			self.out_SERVERMSG(client, 'Botmode for <%s> successfully changed to %s' % (username, bot))
+			online = True
+		else: # not online, try to load from db
+			user = self.clientFromUsername(username, True)
+			if not user:
+				return
 
+		bot = (mode.lower() in ('true', 'yes', '1'))
+		user.bot = bot
+		self.userdb.save_user(user)
+		if online:
+			self._calc_status(client, client.status)
+			self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status))
+		self.out_SERVERMSG(client, 'Botmode for <%s> successfully changed to %s' % (username, bot))
 
 	def in_CHANGEACCOUNTPASS(self, client, username, newpass):
 		'''
