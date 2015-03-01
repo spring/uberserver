@@ -14,7 +14,6 @@ from CryptoHandler import DATA_MARKER_BYTE
 from CryptoHandler import DATA_PARTIT_BYTE
 from CryptoHandler import UNICODE_ENCODING
 
-
 class Client(BaseClient):
 	'this object represents one server-side connected client'
 
@@ -56,7 +55,7 @@ class Client(BaseClient):
 		## note: this NEVER becomes false after LOGIN!
 		self.logged_in = False
 
-		self.status = '12'
+		self.status = 12
 		self.is_ingame = False
 		self.cpu = 0
 		self.access = 'fresh'

@@ -9,7 +9,7 @@ class ChanServ:
 		self.channeldb = root.channeldb
 	
 	def onLogin(self):
-		self.client.status = self.client._protocol._calc_status(self.client, 0)
+		self.client._protocol._calc_status(self.client, 0)
 		for channel in self._root.channels.values():
 			self.Send('JOIN %s' % str(channel.name))
 	

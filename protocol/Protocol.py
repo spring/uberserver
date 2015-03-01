@@ -437,7 +437,6 @@ class Protocol:
 		client.away = (away == '1')
 		status = self._bin2dec('%s%s%s%s%s%s%s'%(bot, access, rank1, rank2, rank3, away, ingame))
 		client.status = status
-		return status
 
 	def _calc_battlestatus(self, client):
 		battlestatus = client.battlestatus
@@ -1047,7 +1046,7 @@ class Protocol:
 		self._root.console_write('Handler %s:%s Successfully logged in user <%s> (access=%s).' % (client.handler.num, client.session_id, user_or_error.username, client.access))
 		self._root.db_ids[client.db_id] = client
 		self._root.usernames[user_or_error.username] = client
-		client.status = self._calc_status(client, 0)
+		self._calc_status(client, 0)
 
 		ignoreList = self.userdb.get_ignored_user_ids(client.db_id)
 		client.ignored = {ignoredUserId:True for ignoredUserId in ignoreList}
@@ -1075,14 +1074,13 @@ class Protocol:
 				if not battle_user == battle.host:
 					client.SendBattle(battle, 'JOINEDBATTLE %s %s' % (battle.id, battle_user))
 
-		self.broadcast_SendUser(client, 'CLIENTSTATUS %s %s' % (client.username, client.status))
+		self.broadcast_SendUser(client, 'CLIENTSTATUS %s %d' % (client.username, client.status))
 
 		for username in usernames:
 			# potential problem spot, might need to check to make sure username is still in user db
 			if username == user_or_error.username:
 				continue
-
-			client.SendUser(username, 'CLIENTSTATUS %s %s' % (username, usernames[username].status))
+			client.SendUser(username, 'CLIENTSTATUS %s %d' % (username, usernames[username].status))
 
 		client.Send('LOGININFOEND')
 		self._informErrors(client)
@@ -2195,7 +2193,7 @@ class Protocol:
 			self.out_SERVERMSG(client, 'MYSTATUS failed - invalid status %s'%(_status), True)
 			return
 		was_ingame = client.is_ingame
-		client.status = self._calc_status(client, status)
+		self._calc_status(client, status)
 		if client.is_ingame and not was_ingame:
 			battle_id = client.current_battle
 			if battle_id in self._root.battles:
@@ -2215,7 +2213,7 @@ class Protocol:
 				client.ingame_time += int(ingame_time)
 				self.userdb.save_user(client)
 		if not client.username in self._root.usernames: return
-		self._root.broadcast('CLIENTSTATUS %s %s'%(client.username, client.status))
+		self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status))
 
 	def in_CHANNELS(self, client):
 		'''
@@ -2972,7 +2970,7 @@ class Protocol:
 		user.access = access
 		if username in self._root.usernames:
 			self._calc_access_status(user)
-			self._root.broadcast('CLIENTSTATUS %s %s' % (username, user.status))
+			self._root.broadcast('CLIENTSTATUS %s %d' % (username, user.status))
 		self.userdb.save_user(user)
 		# remove the new mod/admin from everyones ignore list and notify affected users
 		if access in ('mod', 'admin'):
