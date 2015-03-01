@@ -3307,9 +3307,9 @@ class Protocol:
 
 	def out_FAILED(self, client, cmd, message, log = False):
 		'''
-			send to a client when a command failed (CURRENTLY ONLY SET{BATTLE,SCRIPTTAGS})
+			send to a client when a command failed
 		'''
-		client.Send('FAILED %s %s' %(cmd, message))
+		client.Send('FAILED ' + self._dictToTags({'msg':message, 'cmd':cmd}))
 		if log:
 			self._root.console_write('Handler %s <%s>: %s %s' % (client.handler.num, client.username, cmd, message))
 
