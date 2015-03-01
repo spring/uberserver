@@ -431,6 +431,8 @@ class DataHandler:
 				self.channels[channel] = sys.modules['protocol.Protocol'].Channel(self, channel, **chan)
 			
 			self.protocol = Protocol(self)
+			self.userdb = UsersHandler(self, self.engine)
+			self.channeldb = ChannelsHandler(self, self.engine)
 		except:
 			self.error(traceback.format_exc())
 			
