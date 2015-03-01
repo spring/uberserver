@@ -1,32 +1,11 @@
 import inspect, sys, os, types, time, string
 
-_permissionlist = ['admin', 'adminchan', 'mod', 'modchan', 'chanowner', 'chanadmin', 'chanpublic', 'public', 'battlehost', 'battlepublic']
-_permissiondocs = {
-					'admin':'Admin Commands', 
-					'adminchan':'Admin Commands (channel)', 
-					'mod':'Moderator Commands', 
-					'modchan':'Moderator Commands (channel)', 
-					'chanowner':'Channel Owner Commands (channel)', 
-					'chanadmin':'Channel Admin Commands (channel)', 
-					'chanpublic':'Public Commands (channel)', 
-					'public':'Public Commands', 
-					'battlepublic':'Public Commands (battle)', 
-					'battlehost':'Battle Host Commands', 
-					}
-
-def _erase():
-	l = dict(globals())
-	for iter in l:
-		if not iter == '_erase':
-			del globals()[iter]
-
-global bad_word_dict
-global bad_site_list
 bad_word_dict = {}
 bad_site_list = []
 
 def _update_lists():
 	try:
+		bad_word_dict = {}
 		f = open('bad_words.txt', 'r')
 		for line in f.readlines():
 			if line.count(' ') < 1:
@@ -38,6 +17,7 @@ def _update_lists():
 	except Exception as e:
 		print('Error parsing profanity list: %s' %(e))
 	try:
+		bad_site_list = []
 		f = open('bad_sites.txt', 'r')
 		for line in f.readlines():
 			line = line.strip()
@@ -46,12 +26,6 @@ def _update_lists():
 	except Exception as e:
 		print('Error parsing shock site list: %s' %(e))
 				
-def _clear_lists():
-	global bad_word_dict
-	global bad_site_list
-	bad_word_dict = {}
-	bad_site_list = []
-
 _update_lists()
 
 chars = string.ascii_letters + string.digits
