@@ -29,8 +29,8 @@ from base64 import b64decode as DECODE_FUNC
 ranks = (5, 15, 30, 100, 300, 1000, 3000)
 
 restricted = {
-'disabled':[],
-'everyone':[
+'disabled':set(),
+'everyone':set([
 	'HASH',
 	'EXIT',
 	'PING',
@@ -41,10 +41,15 @@ restricted = {
 	'GETSIGNEDMSG',
 	'SETSHAREDKEY',
 	'ACKSHAREDKEY',
-	],
-'fresh':['LOGIN','REGISTER'],
-'agreement':['CONFIRMAGREEMENT'],
-'user':[
+	]),
+'fresh':set([
+	'LOGIN',
+	'REGISTER'
+	]),
+'agreement':set([
+	'CONFIRMAGREEMENT'
+	]),
+'user':set([
 	########
 	# battle
 	'ADDBOT',
@@ -120,10 +125,8 @@ restricted = {
 	'MYSTATUS',
 	'PORTTEST',
 	'RENAMEACCOUNT',
-
-	],
-
-'mod':[
+	]),
+'mod':set([
 	'BAN',
 	'BANIP',
 	'UNBAN',
@@ -137,8 +140,8 @@ restricted = {
 	'GETUSERID',
 	'SETBOTMODE',
 	'GETLOBBYVERSION',
-	],
-'admin':[
+	]),
+'admin':set([
 	#########
 	# server
 	'ADMINBROADCAST',
@@ -153,12 +156,13 @@ restricted = {
 	'GETACCOUNTACCESS',
 	'FORCEJOIN',
 	'SETACCESS',
-	],
+	]),
 }
 
-restricted_list = []
+restricted_list = set()
 for level in restricted:
-	restricted_list += restricted[level]
+	for cmd in restricted[level]:
+		restricted_list.add(cmd)
 
 ipRegex = r"^([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])$"
 re_ip = re.compile(ipRegex)
@@ -3308,7 +3312,7 @@ class Protocol:
 def check_protocol_commands():
 	for command in restricted_list:
 		if 'in_' + command not in dir(Protocol):
-			self._root.console_write("command not implemented: %s" % command)
+			print("command not implemented: %s" % command)
 			return False
 	return True
 assert(check_protocol_commands())
