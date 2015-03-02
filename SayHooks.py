@@ -2,6 +2,7 @@ import inspect, sys, os, types, time, string
 
 bad_word_dict = {}
 bad_site_list = []
+chars = string.ascii_letters + string.digits
 
 def _update_lists():
 	try:
@@ -9,11 +10,12 @@ def _update_lists():
 		bad_word_dict = {}
 		f = open('bad_words.txt', 'r')
 		for line in f.readlines():
-			if not line.strip(): continue
+			line = line.strip()
+			if not line: continue
 			if line.count(' ') < 1:
-				bad_word_dict[line.strip()] = '***'
+				bad_word_dict[line] = '***'
 			else:
-				sline = line.strip().split(' ', 1)
+				sline = line.split(' ', 1)
 				bad_word_dict[sline[0]] = ' '.join(sline[1:])
 		f.close()
 	except Exception as e:
@@ -24,14 +26,17 @@ def _update_lists():
 		f = open('bad_sites.txt', 'r')
 		for line in f.readlines():
 			line = line.strip()
-			if line and not line in bad_site_list: bad_site_list.append(line)
+			if not line: continue
+			if line in bad_site_list:
+				print("duplicate line in bad_sites.txt: %s" %(line))
+			else:
+				bad_site_list.append(line)
 		f.close()
 	except Exception as e:
 		print('Error parsing shock site list: %s' %(e))
 
 _update_lists()
 
-chars = string.ascii_letters + string.digits
 
 def _process_word(word):
 	if word == word.upper(): uppercase = True
