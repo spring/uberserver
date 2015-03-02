@@ -67,7 +67,7 @@ class DataHandler:
 	def showhelp(self):
 		print('Usage: server.py [OPTIONS]...')
 		print('Starts uberserver.')
-		print()
+		print('')
 		print('Options:')
 		print('  -h, --help')
 		print('      { Displays this screen then exits }')
@@ -210,7 +210,7 @@ class DataHandler:
 			print('Multiple threads are not supported with sqlite, forcing a single thread')
 			print('Please note the server performance will not be optimal')
 			print('You might want to install a real database server or use LAN mode')
-			print()
+			print('')
 			self.max_threads = 1
 			self.engine = sqlalchemy.create_engine(self.sqlurl, echo=False)
 			def _fk_pragma_on_connect(dbapi_con, con_record):
