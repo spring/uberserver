@@ -1675,6 +1675,11 @@ class Protocol:
 			else:
 				return False
 
+		title = self.SayHooks.hook_OPENBATTLE(self, client, title)
+		if not title or not title.strip():
+			self.out_OPENBATTLEFAILED(client, "invalid title")
+			return False
+
 		battle_id = str(self._root.nextbattle)
 		self._root.nextbattle += 1
 
@@ -1748,6 +1753,11 @@ class Protocol:
 		else:
 			return False
 
+		title = self.SayHooks.hook_OPENBATTLE(self, client, title)
+		if not title or not title.strip():
+			self.out_OPENBATTLEFAILED(client, "invalid title")
+			return False
+
 		battle_id = str(self._root.nextbattle) # not thread-safe
 		self._root.nextbattle += 1
 		client.current_battle = battle_id
@@ -1803,6 +1813,8 @@ class Protocol:
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
+			msg = self.SayHooks.hook_SAYBATTLE(self, client, battle_id, msg)
+			if not msg or not msg.strip(): return
 			self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg), client)
 
 	def in_SAYBATTLEPRIVATE(self, client, username, msg):
