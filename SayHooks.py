@@ -5,9 +5,11 @@ bad_site_list = []
 
 def _update_lists():
 	try:
+		global bad_word_dict
 		bad_word_dict = {}
 		f = open('bad_words.txt', 'r')
 		for line in f.readlines():
+			if not line.strip(): continue
 			if line.count(' ') < 1:
 				bad_word_dict[line.strip()] = '***'
 			else:
@@ -17,6 +19,7 @@ def _update_lists():
 	except Exception as e:
 		print('Error parsing profanity list: %s' %(e))
 	try:
+		global bad_site_list
 		bad_site_list = []
 		f = open('bad_sites.txt', 'r')
 		for line in f.readlines():
@@ -25,7 +28,7 @@ def _update_lists():
 		f.close()
 	except Exception as e:
 		print('Error parsing shock site list: %s' %(e))
-				
+
 _update_lists()
 
 chars = string.ascii_letters + string.digits
@@ -150,5 +153,14 @@ def hook_SAYPRIVATE(self, client, target, msg):
 	return _site_censor(msg)
 
 def hook_SAYBATTLE(self, client, battle_id, msg):
-	return msg # no way to respond in battles atm
+	msg = _word_censor(msg)
+	msg = _site_censor(msg)
+	return msg
+
+def hook_OPENBATTLE(self, client, title):
+	print title
+	title = _word_censor(title)
+	title = _site_censor(title)
+	print title
+	return title
 
