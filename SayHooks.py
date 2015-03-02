@@ -163,9 +163,7 @@ def hook_SAYBATTLE(self, client, battle_id, msg):
 	return msg
 
 def hook_OPENBATTLE(self, client, title):
-	print title
 	title = _word_censor(title)
 	title = _site_censor(title)
-	print title
 	return title
 
