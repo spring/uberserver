@@ -3326,7 +3326,7 @@ class Protocol:
 			self._root.console_write('Handler %s <%s>: %s %s' % (client.handler.num, client.username, cmd, message))
 
 	def out_OK(self, client, cmd):
-		client.Send('OK ' + self.dictToTags({'cmd': cmd}))
+		client.Send('OK ' + self._dictToTags({'cmd': cmd}))
 
 def check_protocol_commands():
 	for command in restricted_list:
