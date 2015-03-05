@@ -1122,9 +1122,6 @@ class Protocol:
 		else:
 			msg = params
 
-		msg = self.SayHooks.hook_SAY(self, client, chan, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel # nevermind, i just need to add inchan :>
-		if not msg or not msg.strip(): return
-
 		if channel.isMuted(client):
 			client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 			return
@@ -1168,8 +1165,6 @@ class Protocol:
 			channel = self._root.channels[chan]
 			user  = client.username
 			if user in channel.users:
-				msg = self.SayHooks.hook_SAYEX(self, client, chan, msg) # comment out to remove sayhook # might want at the beginning in case someone needs to unban themselves from a channel
-				if not msg or not msg.strip(): return
 				if channel.isMuted(client):
 					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 				else:
@@ -1189,11 +1184,6 @@ class Protocol:
 		receiver = self.clientFromUsername(user)
 
 		if receiver:
-			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
-
-			if not msg or not msg.strip():
-				return
-
 			client.Send('SAYPRIVATE %s %s' % (user, msg))
 
 			if not self.is_ignored(receiver, client):
@@ -1212,11 +1202,6 @@ class Protocol:
 		receiver = self.clientFromUsername(user)
 
 		if receiver:
-			msg = self.SayHooks.hook_SAYPRIVATE(self, client, user, msg) # comment out to remove sayhook
-
-			if not msg or not msg.strip():
-				return
-
 			client.Send('SAYPRIVATEEX %s %s' % (user, msg))
 
 			if not self.is_ignored(receiver, client):
@@ -1800,8 +1785,6 @@ class Protocol:
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
 			user = client.username
-			msg = self.SayHooks.hook_SAYBATTLE(self, client, battle_id, msg)
-			if not msg or not msg.strip(): return
 			self.broadcast_SendBattle(battle, 'SAIDBATTLE %s %s' % (user, msg), client)
 
 	def in_SAYBATTLEEX(self, client, msg):
@@ -1813,8 +1796,6 @@ class Protocol:
 		battle_id = client.current_battle
 		if battle_id in self._root.battles:
 			battle = self._root.battles[battle_id]
-			msg = self.SayHooks.hook_SAYBATTLE(self, client, battle_id, msg)
-			if not msg or not msg.strip(): return
 			self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg), client)
 
 	def in_SAYBATTLEPRIVATE(self, client, username, msg):
