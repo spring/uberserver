@@ -122,14 +122,13 @@ def _spam_rec(client, chan, msg):
 	else:
 		client.lastsaid[chan][now].append(msg)
 
-def _chan_msg_filter(self, client, chan, msg):
+def _chan_msg_filter(self, client, channel, msg):
 	username = client.username
-	channel = self._root.channels[chan]
 	
 	if channel.isMuted(client): return msg # client is muted, no use doing anything else
 	if channel.antispam and not channel.isOp(client): # don't apply antispam to ops
-		_spam_rec(client, chan, msg)
-		if _spam_enum(client, chan):
+		_spam_rec(client, channel.name, msg)
+		if _spam_enum(client, channel.name):
 			channel.muteUser(self._root.chanserv, client, 15, ip=True, quiet=True)
 			# this next line is necessary, because users aren't always muted i.e. you can't mute channel founders or moderators
 			if channel.isMuted(client):
@@ -137,29 +136,10 @@ def _chan_msg_filter(self, client, chan, msg):
 				#if quiet: # maybe make quiet a channel-wide setting, so mute/kick/op/etc would be silent
 				#	client.Send('CHANNELMESAGE %s You were quietly muted for spamming.'%chan)
 				return ''
-			
-	if channel.censor:
-		msg = _word_censor(msg)
-	if channel.antishock:
-		msg = _site_censor(msg)
 	return msg
 
 def hook_SAY(self, client, chan, msg):
-	user = client.username
-	channel = self._root.channels[chan]
 	msg = _chan_msg_filter(self, client, chan, msg)
-	return msg
-
-def hook_SAYEX(self, client, chan, msg):
-	msg = _chan_msg_filter(self, client, chan, msg)
-	return msg
-
-def hook_SAYPRIVATE(self, client, target, msg):
-	return _site_censor(msg)
-
-def hook_SAYBATTLE(self, client, battle_id, msg):
-	msg = _word_censor(msg)
-	msg = _site_censor(msg)
 	return msg
 
 def hook_OPENBATTLE(self, client, title):

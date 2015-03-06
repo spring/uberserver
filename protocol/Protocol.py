@@ -1122,6 +1122,9 @@ class Protocol:
 		else:
 			msg = params
 
+		msg = self.SayHooks.hook_SAY(self, client, channel, msg)
+		if not msg or not msg.strip(): return
+
 		if channel.isMuted(client):
 			client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 			return
@@ -1164,6 +1167,8 @@ class Protocol:
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			user  = client.username
+			msg = self.SayHooks.hook_SAY(self, client, channel, msg)
+			if not msg or not msg.strip(): return
 			if user in channel.users:
 				if channel.isMuted(client):
 					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
