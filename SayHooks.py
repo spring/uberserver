@@ -122,7 +122,7 @@ def _spam_rec(client, chan, msg):
 	else:
 		client.lastsaid[chan][now].append(msg)
 
-def _chan_msg_filter(self, client, channel, msg):
+def hook_SAY(self, client, channel, msg):
 	username = client.username
 	
 	if channel.isMuted(client): return msg # client is muted, no use doing anything else
@@ -136,10 +136,6 @@ def _chan_msg_filter(self, client, channel, msg):
 				#if quiet: # maybe make quiet a channel-wide setting, so mute/kick/op/etc would be silent
 				#	client.Send('CHANNELMESAGE %s You were quietly muted for spamming.'%chan)
 				return ''
-	return msg
-
-def hook_SAY(self, client, chan, msg):
-	msg = _chan_msg_filter(self, client, chan, msg)
 	return msg
 
 def hook_OPENBATTLE(self, client, title):
