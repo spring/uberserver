@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 from datetime import datetime, timedelta
 
@@ -1056,9 +1057,9 @@ if __name__ == '__main__':
 	subscriptions = userdb.get_channel_subscriptions(client.id)
 	assert(len(subscriptions) == 1)
 	assert(subscriptions[0] == channelname)
-
+	msg = u'test message %d äöüÄÖÜß'
 	for i in range(0, 20):
-		userdb.add_channel_message(channel.id, client.id, "test message %d" % i, now + timedelta(0, i))
+		userdb.add_channel_message(channel.id, client.id, msg % i, now + timedelta(0, i))
 
 	for i in range(0,21):
 		msgs = userdb.get_channel_messages(channel.id, client.id, now + timedelta(0, i))
@@ -1066,7 +1067,7 @@ if __name__ == '__main__':
 		if (len(msgs) > 0):
 			assert(msgs[0][0] == now + timedelta(0, i))
 			assert(msgs[0][1] == client.username)
-			assert(msgs[0][2] == "test message %d" % i)
+			assert(msgs[0][2] == msg % i)
 
 	print("Tests went ok")
 
