@@ -974,16 +974,18 @@ class ChannelsHandler:
 		session = self.sessionmaker()
 		entry = session.query(Channel).filter(Channel.name == channel.name)
 		if entry and not entry.first():
-			entry = Channel(channel.name)
-			session.add(entry)
+			session.add(channel)
 			if channel.topic:
 				entry.topic = channel.topic['text']
 				entry.topic_time =  datetime.fromtimestamp(channel.topic['time'])
 				entry.topic_owner = channel.topic['user']
 			else:
 				entry.topic_time = datetime.now()
+			session.commit()
+			entry = session.query(Channel).filter(Channel.name == channel.name).first() # set db id to runtime object
+			channel.id = entry.id
+
 		entry.owner = target.username
-		session.commit()
 		session.close()
 
 	def unRegister(self, client, channel):
