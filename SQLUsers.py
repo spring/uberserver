@@ -1006,7 +1006,7 @@ if __name__ == '__main__':
 		os.remove("test.db")
 	except:
 		pass
-	engine = sqlalchemy.create_engine("sqlite:///test.db")
+	engine = sqlalchemy.create_engine("sqlite:///test.db", echo=False)
 	def _fk_pragma_on_connect(dbapi_con, con_record):
 	        dbapi_con.execute('PRAGMA journal_mode = MEMORY')
 	        dbapi_con.execute('PRAGMA synchronous = OFF')
