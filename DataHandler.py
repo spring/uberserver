@@ -78,7 +78,7 @@ class DataHandler:
 		if self.sqlurl.startswith('sqlite'):
 			print('Multiple threads are not supported with sqlite, forcing a single thread')
 			print('Please note the server performance will not be optimal')
-			print('You might want to install a real database server or use LAN mode')
+			print('You might want to install a real database server')
 			print('')
 			self.max_threads = 1
 			self.engine = sqlalchemy.create_engine(self.sqlurl, echo=False)
