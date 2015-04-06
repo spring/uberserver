@@ -1024,8 +1024,9 @@ if __name__ == '__main__':
 	client = userdb.clientFromUsername(username)
 
 	# test save/load channel
-	channeldb.register(Channel(channelname), client)
-	channel = channeldb.load_channel(channelname)
+	channel = Channel(channelname)
+	channeldb.register(channel, client)
+	assert(channel.id > 0)
 
 	# test setHistory
 	assert(channel.store_history == False)
