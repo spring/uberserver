@@ -128,6 +128,8 @@ class DataHandler:
 
 	def shutdown(self):
 		self.socket.close()
+		self.running = False
+		self.console_print_step() # flush console buffer
 
 	def showhelp(self):
 		print('Usage: server.py [OPTIONS]...')

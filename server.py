@@ -91,8 +91,6 @@ for client in dict(_root.clients):
 	except: pass # for good measure
 
 _root.shutdown()
-_root.running = False
-_root.console_print_step()
 
 memdebug = False
 if memdebug:
