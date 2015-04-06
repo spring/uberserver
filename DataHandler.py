@@ -5,8 +5,16 @@ from protocol.Channel import Channel
 from protocol.Protocol import Protocol
 from SQLUsers import UsersHandler, ChannelsHandler
 from CryptoHandler import UNICODE_ENCODING
+import ChanServ
 import ip2country
 import datetime
+import Dispatcher
+try:
+	from urllib2 import urlopen
+except:
+	# The urllib2 module has been split across several modules in Python 3.0
+	from urllib.request import urlopen
+
 
 separator = '-'*60
 
@@ -62,7 +70,64 @@ class DataHandler:
 		self.clients = {}
 		self.db_ids = {}
 		self.battles = {}
+		self.socket = None
+		self.detectIp()
+
+	def init(self):
+		sqlalchemy = __import__('sqlalchemy')
+		if self.sqlurl.startswith('sqlite'):
+			print('Multiple threads are not supported with sqlite, forcing a single thread')
+			print('Please note the server performance will not be optimal')
+			print('You might want to install a real database server or use LAN mode')
+			print('')
+			self.max_threads = 1
+			self.engine = sqlalchemy.create_engine(self.sqlurl, echo=False)
+			def _fk_pragma_on_connect(dbapi_con, con_record):
+				dbapi_con.execute('PRAGMA journal_mode = MEMORY')
+				dbapi_con.execute('PRAGMA synchronous = OFF')
+			## FIXME: "ImportError: cannot import name event"
+			from sqlalchemy import event
+			event.listen(self.engine, 'connect', _fk_pragma_on_connect)
+		else:
+			self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.max_threads * 2, pool_recycle=300)
+
+		self.userdb = UsersHandler(self, self.engine)
+		self.channeldb = ChannelsHandler(self, self.engine)
+
+		self.socket = self.createSocket()
+		self.dispatcher = Dispatcher.Dispatcher(self, self.socket)
+		channels = self.channeldb.load_channels()
+
+		for name in channels:
+			channel = channels[name]
+
+			owner = None
+			admins = []
+			client = self.userdb.clientFromUsername(channel['owner'])
+			if client and client.id: owner = client.id
+
+			for user in channel['admins']:
+				client = userdb.clientFromUsername(user)
+				if client and client.id:
+					admins.append(client.id)
+
+			self.channels[name] = Channel(self, name, chanserv=bool(owner), id = channel['id'], owner=owner, admins=admins, key=channel['key'], antispam=channel['antispam'], topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time())}, store_history = channel['store_history'] )
+
+		self.chanserv = ChanServ.ChanServClient(self, (self.online_ip, 0), self.session_id)
+		self.dispatcher.addClient(self.chanserv)
+
+		for name in channels:
+			self.chanserv.HandleProtocolCommand('JOIN %s' % name)
+
+		if not self.log:
+			self.rotatelogfile()
+
+		self.parseFiles()
+		self.protocol = Protocol(self)
 		thread.start_new_thread(self.event_loop, ())
+
+	def shutdown(self):
+		self.socket.close()
 
 	def showhelp(self):
 		print('Usage: server.py [OPTIONS]...')
@@ -117,6 +182,7 @@ class DataHandler:
 		print(' server.py -p 8300 -n 8301')
 		print()
 		exit()
+
 	def parseArgv(self, argv):
 		'parses command-line options'
 		args = {'ignoreme':[]}
@@ -205,53 +271,6 @@ class DataHandler:
 				try: self.use_message_authent_codes = (int(argp[0]) != 0)
 				except: pass
 
-		sqlalchemy = __import__('sqlalchemy')
-		if self.sqlurl.startswith('sqlite'):
-			print('Multiple threads are not supported with sqlite, forcing a single thread')
-			print('Please note the server performance will not be optimal')
-			print('You might want to install a real database server or use LAN mode')
-			print('')
-			self.max_threads = 1
-			self.engine = sqlalchemy.create_engine(self.sqlurl, echo=False)
-			def _fk_pragma_on_connect(dbapi_con, con_record):
-				dbapi_con.execute('PRAGMA journal_mode = MEMORY')
-				dbapi_con.execute('PRAGMA synchronous = OFF')
-			## FIXME: "ImportError: cannot import name event"
-			from sqlalchemy import event
-			event.listen(self.engine, 'connect', _fk_pragma_on_connect)
-		else:
-			self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.max_threads * 2, pool_recycle=300)
-
-		self.userdb = UsersHandler(self, self.engine)
-		self.channeldb = ChannelsHandler(self, self.engine)
-		channels = self.channeldb.load_channels()
-		
-		for name in channels:
-			channel = channels[name]
-			
-			owner = None
-			admins = []
-			client = self.userdb.clientFromUsername(channel['owner'])
-			if client and client.id: owner = client.id
-				
-			for user in channel['admins']:
-				client = userdb.clientFromUsername(user)
-				if client and client.id:
-					admins.append(client.id)
-				
-			self.channels[name] = Channel(self, name, chanserv=bool(owner), id = channel['id'], owner=owner, admins=admins, key=channel['key'], antispam=channel['antispam'], topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time())}, store_history = channel['store_history'] )
-			
-		if self.chanserv:
-			for name in channels:
-				self.chanserv.client.HandleProtocolCommand('JOIN %s' % name)
-		
-		if not self.log:
-			self.rotatelogfile()
-		
-		self.parseFiles()
-
-		self.protocol = Protocol(self)
-	
 	def parseFiles(self):
 		if os.path.isfile('motd.txt'):
 			motd = []
@@ -418,6 +437,8 @@ class DataHandler:
 	def admin_broadcast(self, msg):
 		for user in dict(self.usernames):
 			client = self.usernames[user]
+			if user == "ChanServ": # needed to allow "reload"
+				continue
 			if 'admin' in client.accesslevels:
 				client.Send('SERVERMSG Admin broadcast: %s'%msg)
 
@@ -433,9 +454,10 @@ class DataHandler:
 			self.protocol = Protocol(self)
 			self.userdb = UsersHandler(self, self.engine)
 			self.channeldb = ChannelsHandler(self, self.engine)
+			self.chanserv.reload()
 		except:
 			self.error(traceback.format_exc())
-			
+
 		self.admin_broadcast('Done reloading.')
 		self.console_write('Done reloading.')
 
@@ -476,4 +498,36 @@ class DataHandler:
 		self.logfile = file(self.logfilename, 'w')
 		print('Logging enabled at: %s' % self.logfilename)
 		self.log = True
+
+	def detectIp(self):
+		self.console_write('\nDetecting local IP:')
+		try: local_addr = socket.gethostbyname(socket.gethostname())
+		except: local_addr = '127.0.0.1'
+		self.console_write(local_addr)
+
+		self.console_write('Detecting online IP:')
+		#try:
+		timeout = socket.getdefaulttimeout()
+		socket.setdefaulttimeout(5)
+		web_addr = urlopen('http://springrts.com/lobby/getip.php').read()
+		socket.setdefaulttimeout(timeout)
+		self.console_write(web_addr)
+		#except:
+		#	web_addr = local_addr
+		#	self.console_write('not online')
+		self.console_write()
+
+		self.local_ip = local_addr
+		self.online_ip = web_addr
+
+	def createSocket(self):
+		backlog = 100
+		server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		server.setsockopt( socket.SOL_SOCKET, socket.SO_REUSEADDR,
+				                server.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR) | 1 )
+				                # fixes TIME_WAIT :D
+		server.bind(("",self.port))
+		server.listen(backlog)
+		return server
+
 

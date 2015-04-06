@@ -234,6 +234,9 @@ class ChanServClient(Client):
 		self._root.usernames[self.username] = self
 		self._root.console_write('Successfully logged in static user <%s> on session %s.'%(self.username, self.session_id))
 		
+	def reload(self):
+		self.ChanServ = ChanServ(self, self._root)
+
 	def Bind(self, handler=None, protocol=None):
 		if handler:
 			self.handler = handler
