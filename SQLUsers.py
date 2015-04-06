@@ -944,27 +944,6 @@ class ChannelsHandler:
 		session.close()
 		return channels
 
-	def save_channel(self, channel):
-
-		if channel.topic:
-			topic_text = channel.topic['text']
-			topic_time = channel.topic['time']
-			if 'owner' in channel.topic:
-				topic_owner = channel.topic['owner']
-			else:
-				topic_owner = ''
-		else:
-			topic_text, topic_time, topic_owner = ('', 0, '')
-		
-		session = self.sessionmaker()
-		session.add(channel)
-		session.commit()
-		session.close()
-
-	def save_channels(self, channels):
-		for channel in channels:
-			self.save_channel(channel)
-
 	def setTopic(self, user, chan, topic):
 		session = self.sessionmaker()
 		entry = session.query(Channel).filter(Channel.name == chan.name).first()
@@ -991,7 +970,7 @@ class ChannelsHandler:
 			session.commit()
 		session.close()
 
-	def register(self, channel, client, target):
+	def register(self, channel, target):
 		session = self.sessionmaker()
 		entry = session.query(Channel).filter(Channel.name == channel.name)
 		if entry and not entry.first():
@@ -1043,7 +1022,7 @@ if __name__ == '__main__':
 	client = userdb.clientFromUsername(username)
 
 	# test save/load channel
-	channeldb.save_channel(Channel(channelname))
+	channeldb.register(Channel(channelname), client)
 	channel = channeldb.load_channel(channelname)
 
 	# test setHistory

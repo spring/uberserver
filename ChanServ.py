@@ -197,7 +197,7 @@ class ChanServ:
 				target = self.client._protocol.clientFromUsername(args)
 				if target:
 					channel.setFounder(client, target)
-					self.channeldb.register(channel, client, target) # register channel in db
+					self.channeldb.register(channel, target) # register channel in db
 					return '#%s: Successfully registered to <%s>' % (chan, args.split(' ',1)[0])
 				else:
 					return '#%s: User <%s> does not exist.' % (chan, args)
