@@ -250,11 +250,6 @@ class DataHandler:
 					self.argeementfile = argp[0]
 				except:
 					print('Error reading agreement file')
-			elif arg in ['p', 'agreementplain']:
-				try:
-					self.argeementfileplain = argp[0]
-				except:
-					print('Error reading agreement file')
 			elif arg == 'proxies':
 				try:
 					self.trusted_proxyfile = argp[0]
