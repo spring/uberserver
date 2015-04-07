@@ -254,7 +254,7 @@ class Protocol:
 			try:
 				self.userdb.end_session(client.db_id)
 			except Exception, e:
-				self._root.console_write('Handler %s:%s <%s> Error writing to db in _remove: %s '%(client.handler.num, client.session_id, client.username, e.message))
+				self._root.console_write('%s <%s> Error writing to db in _remove: %s '%(client.session_id, client.username, e.message))
 		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
 
 
@@ -542,7 +542,7 @@ class Protocol:
 			client.Send("MOTD Your client uses the 'eb' compatibility flag, which is replaced by 'cl' please update it!")
 			client.Send("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
 		if len(missing_flags) > 0:
-			self._root.console_write('Handler %s:%s <%s> client "%s" missing compat flags:%s'%(client.handler.num, client.session_id, client.username, client.lobby_id, missing_flags))
+			self._root.console_write('%s <%s> client "%s" missing compat flags:%s'%(client.session_id, client.username, client.lobby_id, missing_flags))
 
 
 
@@ -885,14 +885,14 @@ class Protocol:
 			good, reason = self.userdb.legacy_register_user(username, password, client.ip_address, client.country_code)
 
 		if (good):
-			self._root.console_write('Handler %s:%s Successfully registered user <%s>.' % (client.handler.num, client.session_id, username))
+			self._root.console_write('%s Successfully registered user <%s>.' % (client.session_id, username))
 
 			client.Send('REGISTRATIONACCEPTED')
 
 			newClient = self.clientFromUsername(username, True)
 			newClient.access = 'agreement'
 		else:
-			self._root.console_write('Handler %s:%s Registration failed for user <%s>.' % (client.handler.num, client.session_id, username))
+			self._root.console_write('%s Registration failed for user <%s>.' % (client.session_id, username))
 			client.Send('REGISTRATIONDENIED %s' % reason)
 
 
@@ -978,7 +978,7 @@ class Protocol:
 			else:
 				good, user_or_error = self.userdb.legacy_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 		except Exception, e:
-			self._root.console_write('Handler %s:%s <%s> Error reading from DB in in_LOGIN: %s ' % (client.handler.num, client.session_id, client.username, e.message))
+			self._root.console_write('%s <%s> Error reading from DB in in_LOGIN: %s ' % (client.session_id, client.username, e.message))
 			## in this case DB return values are undefined
 			good = False
 			reason = "DB error"
@@ -1032,7 +1032,7 @@ class Protocol:
 			client.setFlagByIP(local_ip, False)
 
 		if (client.access == 'agreement'):
-			self._root.console_write('Handler %s:%s Sent user <%s> the terms of service on session.' % (client.handler.num, client.session_id, user_or_error.username))
+			self._root.console_write('%s Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
 			for line in self.agreement:
 				client.Send("AGREEMENT %s" %(line))
 			client.Send('AGREEMENTEND')
@@ -1043,7 +1043,7 @@ class Protocol:
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
 
-		self._root.console_write('Handler %s:%s Successfully logged in user <%s> (access=%s).' % (client.handler.num, client.session_id, user_or_error.username, client.access))
+		self._root.console_write('%s Successfully logged in user <%s> (access=%s).' % (client.session_id, user_or_error.username, client.access))
 		self._root.db_ids[client.db_id] = client
 		self._root.usernames[user_or_error.username] = client
 		self._calc_status(client, 0)
@@ -2796,7 +2796,7 @@ class Protocol:
 		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		## THIS IS NOT AN ACTION ADMINS SHOULD BE ABLE TO TAKE
 		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		self._root.console_write('Handler %s: <%s> changed password of <%s>.' % (client.handler.num, client.username, username))
+		self._root.console_write('<%s> changed password of <%s>.' % (client.username, username))
 		self.userdb.legacy_update_user_pwrd(targetUser, newpass)
 		self.out_SERVERMSG(client, 'Password for <%s> successfully changed to %s' % (username, newpass))
 
@@ -3286,14 +3286,14 @@ class Protocol:
 			client.failed_logins = client.failed_logins + 1
 
 		client.Send("DENIED %s" %(reason))
-		self._root.console_write('Handler %s:%s Failed to log in user <%s>: %s.'%(client.handler.num, client.session_id, username, reason))
+		self._root.console_write('%s Failed to log in user <%s>: %s.'%(client.session_id, username, reason))
 
 	def out_OPENBATTLEFAILED(self, client, reason):
 		'''
 			response to OPENBATTLE
 		'''
 		client.Send('OPENBATTLEFAILED %s' % (reason))
-		self._root.console_write('Handler %s: <%s> OPENBATTLEFAILED: %s' % (client.handler.num, client.username, reason))
+		self._root.console_write('<%s> OPENBATTLEFAILED: %s' % (client.username, reason))
 
 	def out_SERVERMSG(self, client, message, log = False):
 		'''
@@ -3301,7 +3301,7 @@ class Protocol:
 		'''
 		client.Send('SERVERMSG %s' %(message))
 		if log:
-			self._root.console_write('Handler %s: <%s>: %s' % (client.handler.num, client.username, message))
+			self._root.console_write('<%s>: %s' % (client.username, message))
 
 	def out_FAILED(self, client, cmd, message, log = False):
 		'''
@@ -3309,7 +3309,7 @@ class Protocol:
 		'''
 		client.Send('FAILED ' + self._dictToTags({'msg':message, 'cmd':cmd}))
 		if log:
-			self._root.console_write('Handler %s <%s>: %s %s' % (client.handler.num, client.username, cmd, message))
+			self._root.console_write('<%s>: %s %s' % (client.username, cmd, message))
 
 	def out_OK(self, client, cmd):
 		client.Send('OK ' + self._dictToTags({'cmd': cmd}))
