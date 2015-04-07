@@ -200,7 +200,6 @@ class Protocol:
 		self.userdb = root.getUserDB()
 		self.SayHooks = root.SayHooks
 		self.dir = dir(self)
-		self.agreement = root.agreement
 		self.stats = {}
 
 		## generates new keys if directory is empty, otherwise imports
@@ -1033,7 +1032,7 @@ class Protocol:
 
 		if (client.access == 'agreement'):
 			self._root.console_write('%s Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
-			for line in self.agreement:
+			for line in self._root.agreement:
 				client.Send("AGREEMENT %s" %(line))
 			client.Send('AGREEMENTEND')
 			return
