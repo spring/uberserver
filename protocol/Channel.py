@@ -162,7 +162,7 @@ class Channel(AutoDict):
 			self.allow.remove(client.db_id)
 			self.channelMessage('<%s> has been disallowed in this channel by <%s>' % (target.username, client.username))
 
-	def muteUser(self, client, target, duration=0, ip=False):
+	def muteUser(self, client, target, duration=0):
 		if self.isFounder(target): return
 		if target and not client.db_id in self.mutelist:
 			self.channelMessage('<%s> has muted <%s>' % (client.username, target.username))
@@ -173,7 +173,7 @@ class Channel(AutoDict):
 				else:
 					duration = time.time() + duration
 			except: duration = 0
-			self.mutelist[target.db_id] = {'expires':duration, 'ip':ip}
+			self.mutelist[target.db_id] = {'expires':duration }
 
 	def unmuteUser(self, client, target):
 		if target and target.db_id in self.mutelist:

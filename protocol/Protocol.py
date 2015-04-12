@@ -1212,7 +1212,7 @@ class Protocol:
 				receiver.Send('SAIDPRIVATEEX %s %s' % (client.username, msg))
 
 
-	def in_MUTE(self, client, chan, user, duration=None, args=''):
+	def in_MUTE(self, client, chan, user, duration=0):
 		'''
 		Mute target user in target channel.
 		[operator]
@@ -1220,23 +1220,13 @@ class Protocol:
 		@required.str channel: The target channel.
 		@required.str user: The user to mute.
 		@optional.float duration: The duration for which to mute the user. Defaults to forever.
-		@optional.str args: Space-separated additional arguments to the mute, as follows:
-
-		arg: description
-		--------------------
-		ip: mutes by IP address
 		'''
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			if channel.isOp(client):
-				ip = False
-				if args:
-					for arg in args.lower().split(' '):
-						if arg == 'ip':
-							ip = True
 				target = self.clientFromUsername(user)
 				if target:
-					channel.muteUser(client, target, duration, ip)
+					channel.muteUser(client, target, duration)
 
 	def in_UNMUTE(self, client, chan, user):
 		'''
