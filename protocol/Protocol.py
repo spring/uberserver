@@ -1224,23 +1224,19 @@ class Protocol:
 
 		arg: description
 		--------------------
-		quiet: doesn't send a message to the channel about the mute
 		ip: mutes by IP address
 		'''
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			if channel.isOp(client):
 				ip = False
-				quiet = False
 				if args:
 					for arg in args.lower().split(' '):
 						if arg == 'ip':
 							ip = True
-						elif arg == 'quiet':
-							quiet = True
 				target = self.clientFromUsername(user)
 				if target:
-					channel.muteUser(client, target, duration, quiet, ip)
+					channel.muteUser(client, target, duration, ip)
 
 	def in_UNMUTE(self, client, chan, user):
 		'''
