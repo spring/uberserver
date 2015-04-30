@@ -1918,80 +1918,84 @@ class Protocol:
 		if client.current_battle in self._root.battles:
 			client.Send('JOINBATTLEFAILED You are already in a battle.')
 			return
-		if battle_id in self._root.battles:
-			battle = self._root.battles[battle_id]
-			if not username in battle.users:
-				host = self.clientFromUsername(battle.host)
-				if battle.passworded == 1 and not battle.password == password:
-					if not (host.compat['b'] and username in battle.authed_users): # supports battleAuth
-						client.Send('JOINBATTLEFAILED Incorrect password.')
-						return
-				if battle.locked:
-					client.Send('JOINBATTLEFAILED Battle is locked.')
-					return
-				if username in host.battle_bans: # TODO: make this depend on db_id instead
-					client.Send('JOINBATTLEFAILED <%s> has banned you from their battles.' % battle.host)
-					return
-				if host.compat['b'] and not username in battle.authed_users: # supports battleAuth
-					battle.pending_users.add(username)
-					if client.ip_address in self._root.trusted_proxies:
-						client_ip = client.local_ip
-					else:
-						client_ip = client.ip_address
-					host.Send('JOINBATTLEREQUEST %s %s' % (username, client_ip))
-					return
-				battle_users = battle.users
-				battle_bots = battle.bots
-				startrects = battle.startrects
-				client.Send('JOINBATTLE %s %s' % (battle_id, battle.hashcode))
-				battle.users.append(username)
-				scripttags = []
-				script_tags = dict(battle.script_tags)
-				for tag in script_tags:
-					scripttags.append('%s=%s'%(tag, script_tags[tag]))
-				client.Send('SETSCRIPTTAGS %s'%'\t'.join(scripttags))
-				if battle.disabled_units:
-					client.Send('DISABLEUNITS %s' % ' '.join(battle.disabled_units))
-				self._root.broadcast('JOINEDBATTLE %s %s' % (battle_id, username), ignore=(battle.host, username))
 
-				scriptPassword = client.scriptPassword
-				if host.compat['sp'] and scriptPassword: # supports scriptPassword
-					host.Send('JOINEDBATTLE %s %s %s' % (battle_id, username, scriptPassword))
-					client.Send('JOINEDBATTLE %s %s %s' % (battle_id, username, scriptPassword))
-				else:
-					host.Send('JOINEDBATTLE %s %s' % (battle_id, username))
-					client.Send('JOINEDBATTLE %s %s' % (battle_id, username))
+		if battle_id not in self._root.battles:
+			client.Send('JOINBATTLEFAILED Unable to join battle.')
+			return
+		battle = self._root.battles[battle_id]
+		if username in battle.users: # user is already in battle
+			return
 
-				if battle.natType > 0:
-					host = battle.host
-					if host == username:
-						raise NameError, '%s is having an identity crisis' % (host)
-					if client.udpport:
-						self._root.usernames[host].Send('CLIENTIPPORT %s %s %s' % (username, client.ip_address, client.udpport))
-
-				specs = 0
-				for username in battle.users:
-					user = self.clientFromUsername(username)
-					if user and user.battlestatus['mode'] == '0':
-						specs += 1
-
-				for user in battle_users:
-					battle_user = self._root.usernames[user]
-					battlestatus = self._calc_battlestatus(battle_user)
-					teamcolor = battle_user.teamcolor
-					client.Send('CLIENTBATTLESTATUS %s %s %s' % (user, battlestatus, teamcolor))
-				for iter in battle_bots:
-					bot = battle_bots[iter]
-					client.Send('ADDBOT %s %s' % (battle_id, iter)+' %(owner)s %(battlestatus)s %(teamcolor)s %(AIDLL)s' % (bot))
-				for allyno in startrects:
-					rect = startrects[allyno]
-					client.Send('ADDSTARTRECT %s' % (allyno)+' %(left)s %(top)s %(right)s %(bottom)s' % (rect))
-				client.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
-				client.teamcolor = '0'
-				client.current_battle = battle_id
-				client.Send('REQUESTBATTLESTATUS')
+		host = self.clientFromUsername(battle.host)
+		if battle.passworded == 1 and not battle.password == password:
+			if not (host.compat['b'] and username in battle.authed_users): # supports battleAuth
+				client.Send('JOINBATTLEFAILED Incorrect password.')
 				return
-		client.Send('JOINBATTLEFAILED Unable to join battle.')
+		if battle.locked:
+			client.Send('JOINBATTLEFAILED Battle is locked.')
+			return
+		if username in host.battle_bans: # TODO: make this depend on db_id instead
+			client.Send('JOINBATTLEFAILED <%s> has banned you from their battles.' % battle.host)
+			return
+		if host.compat['b'] and not username in battle.authed_users: # supports battleAuth
+			battle.pending_users.add(username)
+			if client.ip_address in self._root.trusted_proxies:
+				client_ip = client.local_ip
+			else:
+				client_ip = client.ip_address
+			host.Send('JOINBATTLEREQUEST %s %s' % (username, client_ip))
+			return
+		battle_users = battle.users
+		battle_bots = battle.bots
+		startrects = battle.startrects
+		client.Send('JOINBATTLE %s %s' % (battle_id, battle.hashcode))
+		battle.users.append(username)
+		scripttags = []
+		script_tags = dict(battle.script_tags)
+		for tag in script_tags:
+			scripttags.append('%s=%s'%(tag, script_tags[tag]))
+		client.Send('SETSCRIPTTAGS %s'%'\t'.join(scripttags))
+		if battle.disabled_units:
+			client.Send('DISABLEUNITS %s' % ' '.join(battle.disabled_units))
+		self._root.broadcast('JOINEDBATTLE %s %s' % (battle_id, username), ignore=(battle.host, username))
+
+		scriptPassword = client.scriptPassword
+		if host.compat['sp'] and scriptPassword: # supports scriptPassword
+			host.Send('JOINEDBATTLE %s %s %s' % (battle_id, username, scriptPassword))
+			client.Send('JOINEDBATTLE %s %s %s' % (battle_id, username, scriptPassword))
+		else:
+			host.Send('JOINEDBATTLE %s %s' % (battle_id, username))
+			client.Send('JOINEDBATTLE %s %s' % (battle_id, username))
+
+		if battle.natType > 0:
+			host = battle.host
+			if host == username:
+				raise NameError, '%s is having an identity crisis' % (host)
+			if client.udpport:
+				self._root.usernames[host].Send('CLIENTIPPORT %s %s %s' % (username, client.ip_address, client.udpport))
+
+		specs = 0
+		for username in battle.users:
+			user = self.clientFromUsername(username)
+			if user and user.battlestatus['mode'] == '0':
+				specs += 1
+
+		for user in battle_users:
+			battle_user = self._root.usernames[user]
+			battlestatus = self._calc_battlestatus(battle_user)
+			teamcolor = battle_user.teamcolor
+			client.Send('CLIENTBATTLESTATUS %s %s %s' % (user, battlestatus, teamcolor))
+		for iter in battle_bots:
+			bot = battle_bots[iter]
+			client.Send('ADDBOT %s %s' % (battle_id, iter)+' %(owner)s %(battlestatus)s %(teamcolor)s %(AIDLL)s' % (bot))
+		for allyno in startrects:
+			rect = startrects[allyno]
+			client.Send('ADDSTARTRECT %s' % (allyno)+' %(left)s %(top)s %(right)s %(bottom)s' % (rect))
+		client.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
+		client.teamcolor = '0'
+		client.current_battle = battle_id
+		client.Send('REQUESTBATTLESTATUS')
+		return
 
 	def in_SETSCRIPTTAGS(self, client, scripttags):
 		'''
