@@ -1908,6 +1908,12 @@ class Protocol:
 		'''
 		if scriptPassword: client.scriptPassword = scriptPassword
 
+		try:
+			battle_id = int32(battle_id)
+		except:
+			client.Send('JOINBATTLEFAILED Invalid battle id: %s.' %(str(battle_id)))
+			return
+
 		username = client.username
 		if client.current_battle in self._root.battles:
 			client.Send('JOINBATTLEFAILED You are already in a battle.')
