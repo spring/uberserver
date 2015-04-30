@@ -1655,7 +1655,7 @@ class Protocol:
 			self.out_OPENBATTLEFAILED(client, "invalid title")
 			return False
 
-		battle_id = str(self._root.nextbattle)
+		battle_id = self._root.nextbattle # not thread safe
 		self._root.nextbattle += 1
 
 		if password == '*':
@@ -1733,7 +1733,7 @@ class Protocol:
 			self.out_OPENBATTLEFAILED(client, "invalid title")
 			return False
 
-		battle_id = str(self._root.nextbattle) # not thread-safe
+		battle_id = self._root.nextbattle # not thread-safe
 		self._root.nextbattle += 1
 		client.current_battle = battle_id
 		if password == '*':
