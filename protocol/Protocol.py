@@ -2090,12 +2090,12 @@ class Protocol:
 		try:
 			battlestatus = int32(_battlestatus)
 		except:
-			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid status: %d.' % (_battlestatus), True)
+			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid status: %s.' % (_battlestatus), True)
 			return
 
 		if battlestatus < 1:
 			battlestatus = battlestatus + 2147483648
-			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid status is below 1: %d.' % (_battlestatus), True)
+			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid status is below 1: %s.' % (_battlestatus), True)
 
 		try:
 			myteamcolor = int32(_myteamcolor)
