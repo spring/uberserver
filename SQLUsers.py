@@ -760,8 +760,8 @@ class UsersHandler:
 		# last login > 3 years
 		session.query(User).filter(User.last_login < now - timedelta(days=1095)).delete()
 
-		# old messages > 1 month
-		session.query(ChannelHistory).filter(ChannelHistory.time < now - timedelta(days=90)).delete()
+		# old messages > 2 weeks
+		session.query(ChannelHistory).filter(ChannelHistory.time < now - timedelta(days=14)).delete()
 
 		session.commit()
 		session.close()
