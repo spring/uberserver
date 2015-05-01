@@ -108,7 +108,7 @@ class Client(BaseClient):
 
 		self.ignored = {}
 		
-		self._root.console_write('Client connected from %s:%s, session ID %s.' % (self.ip_address, self.port, session_id))
+		self._root.console_write('[%s] Client connected from %s:%s' % (session_id, self.ip_address, self.port))
 
 		## AES cipher used for encrypted protocol communication
 		## with this client; starts with a NULL session-key and

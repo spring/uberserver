@@ -253,7 +253,7 @@ class Protocol:
 			try:
 				self.userdb.end_session(client.db_id)
 			except Exception, e:
-				self._root.console_write('%s <%s> Error writing to db in _remove: %s '%(client.session_id, client.username, e.message))
+				self._root.console_write('[%s] <%s> Error writing to db in _remove: %s '%(client.session_id, client.username, e.message))
 		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
 
 
@@ -541,7 +541,7 @@ class Protocol:
 			client.Send("MOTD Your client uses the 'eb' compatibility flag, which is replaced by 'cl' please update it!")
 			client.Send("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
 		if len(missing_flags) > 0:
-			self._root.console_write('%s <%s> client "%s" missing compat flags:%s'%(client.session_id, client.username, client.lobby_id, missing_flags))
+			self._root.console_write('[%s] <%s> client "%s" missing compat flags:%s'%(client.session_id, client.username, client.lobby_id, missing_flags))
 
 
 
@@ -884,14 +884,14 @@ class Protocol:
 			good, reason = self.userdb.legacy_register_user(username, password, client.ip_address, client.country_code)
 
 		if (good):
-			self._root.console_write('%s Successfully registered user <%s>.' % (client.session_id, username))
+			self._root.console_write('[%s] Successfully registered user <%s>.' % (client.session_id, username))
 
 			client.Send('REGISTRATIONACCEPTED')
 
 			newClient = self.clientFromUsername(username, True)
 			newClient.access = 'agreement'
 		else:
-			self._root.console_write('%s Registration failed for user <%s>.' % (client.session_id, username))
+			self._root.console_write('[%s] Registration failed for user <%s>.' % (client.session_id, username))
 			client.Send('REGISTRATIONDENIED %s' % reason)
 
 
@@ -977,7 +977,7 @@ class Protocol:
 			else:
 				good, user_or_error = self.userdb.legacy_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 		except Exception, e:
-			self._root.console_write('%s <%s> Error reading from DB in in_LOGIN: %s ' % (client.session_id, client.username, e.message))
+			self._root.console_write('[%s] <%s> Error reading from DB in in_LOGIN: %s ' % (client.session_id, client.username, e.message))
 			## in this case DB return values are undefined
 			good = False
 			reason = "DB error"
@@ -1031,7 +1031,7 @@ class Protocol:
 			client.setFlagByIP(local_ip, False)
 
 		if (client.access == 'agreement'):
-			self._root.console_write('%s Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
+			self._root.console_write('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
 			for line in self._root.agreement:
 				client.Send("AGREEMENT %s" %(line))
 			client.Send('AGREEMENTEND')
@@ -1042,7 +1042,7 @@ class Protocol:
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
 
-		self._root.console_write('%s Successfully logged in user <%s> (access=%s).' % (client.session_id, user_or_error.username, client.access))
+		self._root.console_write('[%s] Successfully logged in user <%s> (access=%s).' % (client.session_id, user_or_error.username, client.access))
 		self._root.db_ids[client.db_id] = client
 		self._root.usernames[user_or_error.username] = client
 		self._calc_status(client, 0)
@@ -3281,7 +3281,7 @@ class Protocol:
 			client.failed_logins = client.failed_logins + 1
 
 		client.Send("DENIED %s" %(reason))
-		self._root.console_write('%s Failed to log in user <%s>: %s.'%(client.session_id, username, reason))
+		self._root.console_write('[%s] Failed to log in user <%s>: %s.'%(client.session_id, username, reason))
 
 	def out_OPENBATTLEFAILED(self, client, reason):
 		'''

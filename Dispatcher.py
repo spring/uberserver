@@ -91,5 +91,5 @@ class Dispatcher:
 		except AttributeError:
 			pass
 		
-		self._root.console_write('Client disconnected from %s, session ID was %s: %s'%(client.ip_address, client.session_id, reason))
+		self._root.console_write('[%s] disconnected from %s: %s'%(client.session_id, client.ip_address, reason))
 
