@@ -1690,29 +1690,10 @@ class Protocol:
 
 	def in_OPENBATTLEEX(self, client, type, natType, password, port, maxplayers, hashcode, rank, maphash, engine, version, sentence_args):
 		'''
-		Host a new extended battle with the arguments specified.
-
-		@required.int type: The type of battle to host.
-		#0: Battle
-		#1: Hosted replay
-
-		@required.int natType: The method of NAT transversal to use.
-		#0: None
-		#1: Hole punching
-		#2: Fixed source ports
-
-		@required.str password: The password to use, or "*" to use no password.
-		@required.int port:
-		@required.int maxplayers:
-		@required.sint modhash: Mod hash, as returned by unitsync.dll.
-		@required.int rank: Recommended minimum rank to join the battle. Current ranks range from 0-7.
-		@required.sint maphash: Map hash, as returned by unitsync.dll.
-		@required.str engine: The engine name, lowercase, with no spaces.
-		@required.str version: The engine version.
-		@required.sentence.str mapName: The map name.
-		@required.sentence.str title: The battle's title.
-		@required.sentence.str modName: The mod name.
+		@deprecated
 		'''
+
+		self.out_SERVERMSG(client, 'OPENBATTLEEX is deprecated, please update lobby client and use OPENBATTLE!', True)
 		if client.current_battle in self._root.battles:
 			self.in_LEAVEBATTLE(client)
 
