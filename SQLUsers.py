@@ -43,6 +43,7 @@ users_table = Table('users', metadata,
 	Column('access', String(32)),
 	Column('email', String(254)), # http://www.rfc-editor.org/errata_search.php?rfc=3696&eid=1690
 	Column('bot', Integer),
+	mysql_charset='utf8',
 	)
 
 class User(BaseClient):
@@ -75,6 +76,7 @@ logins_table = Table('logins', metadata,
 	Column('country', String(4)),
 	Column('end', DateTime),
 	Column('user_id', String(128)),
+	mysql_charset='utf8',
 	)
 class Login(object):
 	def __init__(self, now, ip_address, lobby_id, user_id, cpu, local_ip, country):
@@ -97,6 +99,7 @@ renames_table = Table('renames', metadata,
 	Column('original', String(40)),
 	Column('new', String(40)), # FIXME: not needed
 	Column('time', DateTime),
+	mysql_charset='utf8',
 	)
 class Rename(object):
 	def __init__(self, original, new):
@@ -114,6 +117,7 @@ ignores_table = Table('ignores', metadata,
 	Column('ignored_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('reason', String(128)),
 	Column('time', DateTime),
+	mysql_charset='utf8',
 	)
 class Ignore(object):
 	def __init__(self, user_id, ignored_user_id, reason):
@@ -131,6 +135,7 @@ friends_table = Table('friends', metadata,
 	Column('first_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('second_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('time', DateTime),
+	mysql_charset='utf8',
 	)
 class Friend(object):
 	def __init__(self, first_user_id, second_user_id):
@@ -148,6 +153,7 @@ friendRequests_table = Table('friendRequests', metadata,
 	Column('friend_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('msg', String(128)),
 	Column('time', DateTime),
+	mysql_charset='utf8',
 	)
 class FriendRequest(object):
 	def __init__(self, user_id, friend_user_id, msg):
@@ -187,6 +193,7 @@ channels_table = Table('channels', metadata,
 	Column('censor', Boolean),
 	Column('antishock', Boolean),
 	Column('store_history', Boolean),
+	mysql_charset='utf8',
 	)
 class Channel(object):
 	def __init__(self, name,  key='', chanserv=False, owner='', topic='', topic_time=None, topic_owner='', antispam=False, admins='', autokick='ban', censor=False, antishock=False, store_history=False):
@@ -214,6 +221,7 @@ channelshistory_table = Table('channel_history', metadata,
 	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('time', DateTime),
 	Column('msg', Text),
+	mysql_charset='utf8',
 	)
 class ChannelHistory(object):
 	def __init__(self, channel_id, user_id, msg, time):
@@ -232,7 +240,8 @@ channelshistorysubscriptions_table = Table('channel_history_subscriptions', meta
 	ForeignKeyConstraint(['user_id'], ['users.id']),
 	Column('channel_id', Integer),
 	ForeignKeyConstraint(['channel_id'], ['channels.id']),
-	UniqueConstraint('user_id', 'channel_id', name='user_chan')
+	UniqueConstraint('user_id', 'channel_id', name='user_chan'),
+	mysql_charset='utf8',
 	)
 class ChannelHistorySubscription(object):
 	def __init__(self, channel_id, user_id):
@@ -252,6 +261,7 @@ banip_table = Table('ban_ip', metadata, # server bans
 	Column('reason', Text),
 	Column('end_time', DateTime),
 	Column('updated', DateTime),
+	mysql_charset='utf8',
 	)
 class BanIP(object):
 	def __init__(self, ip = None, issuer_id = None, reason = "", end_time = None):
@@ -269,6 +279,7 @@ banuser_table = Table('ban_user', metadata, # server bans
 	Column('reason', Text),
 	Column('end_time', DateTime),
 	Column('updated', DateTime),
+	mysql_charset='utf8',
 	)
 class BanUser(object):
 	def __init__(self, user_id = None, issuer_id = None, reason = "", end_time = None):
