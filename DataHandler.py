@@ -309,8 +309,7 @@ class DataHandler:
 
 	def event_loop(self):
 		start = time.time()
-		lastsave = lastmute = lastidle = lastload = start
-		load = 0
+		lastmute = lastidle = start
 		try:
 			os.getloadavg()
 			hasload = True
@@ -321,19 +320,18 @@ class DataHandler:
 				now = time.time()
 				if now - lastmute >= 1:
 					lastmute = now
-					self.mute_timeout_step()
+					self.mute_timeout_step(now)
 				elif now - lastidle > 10:
 					lastidle = now
-					self.idle_timeout_step()
+					self.idle_timeout_step(now)
 				else:
 					self.console_print_step()
 			except:
 				self.error(traceback.format_exc())	
 			time.sleep(max(0.1, 1 - (time.time() - start)))
 
-	def mute_timeout_step(self):
+	def mute_timeout_step(self, now):
 		try:
-			now = time.time()
 			channels = dict(self.channels)
 			for chan in channels:
 				channel = channels[chan]
@@ -348,8 +346,7 @@ class DataHandler:
 		except:
 			self.error(traceback.format_exc())
 
-	def idle_timeout_step(self):
-		now = time.time()
+	def idle_timeout_step(self, now):
 		for client in self.clients.values():
 			if client.static: continue
 			if not client.logged_in and client.last_login < now - 60:
