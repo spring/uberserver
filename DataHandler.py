@@ -308,8 +308,7 @@ class DataHandler:
 		if username in self.usernames: return self.usernames[username]
 
 	def event_loop(self):
-		start = time.time()
-		lastmute = lastidle = start
+		lastmute = lastidle = self.start_time
 		while self.running:
 			now = time.time()
 			try:
@@ -323,7 +322,7 @@ class DataHandler:
 					self.console_print_step()
 			except:
 				self.error(traceback.format_exc())
-			time.sleep(max(0.1, 1 - (now - start)))
+			time.sleep(max(0.1, 1 - (now - self.start_time)))
 
 	def mute_timeout_step(self, now):
 		try:
