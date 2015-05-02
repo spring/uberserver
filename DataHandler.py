@@ -310,14 +310,9 @@ class DataHandler:
 	def event_loop(self):
 		start = time.time()
 		lastmute = lastidle = start
-		try:
-			os.getloadavg()
-			hasload = True
-		except:
-			hasload = False
 		while self.running:
+			now = time.time()
 			try:
-				now = time.time()
 				if now - lastmute >= 1:
 					lastmute = now
 					self.mute_timeout_step(now)
@@ -327,8 +322,8 @@ class DataHandler:
 				else:
 					self.console_print_step()
 			except:
-				self.error(traceback.format_exc())	
-			time.sleep(max(0.1, 1 - (time.time() - start)))
+				self.error(traceback.format_exc())
+			time.sleep(max(0.1, 1 - (now - start)))
 
 	def mute_timeout_step(self, now):
 		try:
