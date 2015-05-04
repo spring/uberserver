@@ -386,7 +386,7 @@ class Client(BaseClient):
 		except UnicodeDecodeError:
 			self.sendingmessage = None
 			self._root.console_write('Error sending unicode string, message dropped.')
-		except socket.error, e:
+		except socket.error as e:
 			if e == errno.EAGAIN:
 				return
 			self.msg_sendbuffer = []

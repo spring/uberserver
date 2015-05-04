@@ -20,7 +20,7 @@ try:
 	from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean, Text, DateTime, ForeignKeyConstraint, UniqueConstraint
 	from sqlalchemy.orm import mapper, sessionmaker, relation
 	from sqlalchemy.exc import IntegrityError
-except ImportError, e:
+except ImportError as e:
 	print("ERROR: sqlalchemy isn't installed: " + str(e))
 	print("ERROR: please install sqlalchemy, on debian the command is sth. like: ")
 	print("sudo apt-get install python-sqlalchemy")
