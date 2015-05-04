@@ -1,6 +1,6 @@
 
 import Multiplexer, Client
-import socket, traceback
+import socket, thread, traceback
 from protocol import Protocol, Channel
 
 class Dispatcher:
@@ -10,6 +10,7 @@ class Dispatcher:
 		self.poller = Multiplexer.EpollMultiplexer()
 		self.socketmap = {}
 		self.protocol = Protocol.Protocol(root)
+		self.thread = thread.get_ident()
 	
 	def pump(self):
 		self.poller.register(self.server)

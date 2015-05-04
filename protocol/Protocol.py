@@ -252,7 +252,7 @@ class Protocol:
 			self.broadcast_RemoveUser(client)
 			try:
 				self.userdb.end_session(client.db_id)
-			except Exception, e:
+			except Exception as e:
 				self._root.console_write('[%s] <%s> Error writing to db in _remove: %s '%(client.session_id, client.username, e.message))
 		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
 
@@ -976,7 +976,7 @@ class Protocol:
 				good, user_or_error = self.userdb.secure_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 			else:
 				good, user_or_error = self.userdb.legacy_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
-		except Exception, e:
+		except Exception as e:
 			self._root.console_write('[%s] <%s> Error reading from DB in in_LOGIN: %s ' % (client.session_id, client.username, e.message))
 			## in this case DB return values are undefined
 			good = False
@@ -1112,7 +1112,7 @@ class Protocol:
 
 		action = False
 		if client.compat['o']:
-	                params = self._parseTags(params)
+			params = self._parseTags(params)
 			if not "msg" in params:
 				return
 			msg = params['msg']
@@ -1665,7 +1665,7 @@ class Protocol:
 
 		try:
 			int(battle_id), int(type), int(natType), int(passworded), int(port), int32(maphash), int32(hashcode)
-		except Exception, e:
+		except Exception as e:
 			self.out_OPENBATTLEFAILED(client, 'Invalid argument type, send this to your lobby dev: id=%s type=%s natType=%s passworded=%s port=%s maphash=%s gamehash=%s - %s' %
 						(battle_id, type, natType, passworded, port, maphash, hashcode, str(e).replace("\n", "")))
 			return False

@@ -186,7 +186,7 @@ def read_file(file_name, file_mode):
 def write_file(file_name, file_mode, file_data):
 	try:
 		f = open(file_name, file_mode)
-		os.fchmod(f.fileno(), 0600)
+		os.fchmod(f.fileno(), 0o600)
 		f.write("%s" % file_data)
 		f = f.close()
 	except IOError:
@@ -269,7 +269,7 @@ class rsa_cipher:
 		assert(key_dir[-1] == '/')
 
 		if (not os.path.isdir(key_dir)):
-			os.mkdir(key_dir, 0700)
+			os.mkdir(key_dir, 0o700)
 
 		write_file(key_dir + RSA_PUB_KEY_FILE, "w", self.pub_key.exportKey(RSA_KEY_FMT_NAME))
 		write_file(key_dir + RSA_PRI_KEY_FILE, "w", self.pri_key.exportKey(RSA_KEY_FMT_NAME))
@@ -345,7 +345,7 @@ class rsa_cipher:
 			ret = self.msg_auth_scheme.verify(msg_bytes, sig_bytes)
 		else:
 			## RSAobj.verify() expects a tuple
-			ret = (self.pub_key.verify(msg_bytes.digest(), (long(sig_bytes), 0L)))
+			ret = (self.pub_key.verify(msg_bytes.digest(), (long(sig_bytes), long(0))))
 
 		assert(type(ret) == bool)
 		return ret
@@ -399,7 +399,7 @@ class aes_cipher:
 		assert(key_dir[-1] == '/')
 
 		if (not os.path.isdir(key_dir)):
-			os.mkdir(key_dir, 0700)
+			os.mkdir(key_dir, 0o700)
 
 		write_file(key_dir + AES_RAW_KEY_FILE, "wb", self.get_key())
 
@@ -437,7 +437,7 @@ class aes_cipher:
 
 	def encrypt_sign_bytes_utf8(self, raw_msg, encode_func = base64.b64encode):
 		return (self.encrypt_sign_bytes(raw_msg.encode(UNICODE_ENCODING), encode_func))
-	def auth_decrypt_bytes_utf8(self, (enc_msg, msg_mac), decode_func = base64.b64decode):
+	def auth_decrypt_bytes_utf8(self, enc_msg, msg_mac, decode_func = base64.b64decode):
 		return (self.auth_decrypt_bytes((enc_msg.encode(UNICODE_ENCODING), msg_mac.encode(UNICODE_ENCODING)), decode_func))
 
 	def encrypt_sign_bytes(self, raw_msg, encode_func = base64.b64encode):
@@ -451,7 +451,7 @@ class aes_cipher:
 
 		return (enc_msg, msg_mac)
 
-	def auth_decrypt_bytes(self, (enc_msg, msg_mac), decode_func = base64.b64decode):
+	def auth_decrypt_bytes(self, enc_msg, msg_mac, decode_func = base64.b64decode):
 		assert(type(enc_msg) == str)
 		assert(type(msg_mac) == str)
 

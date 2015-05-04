@@ -354,7 +354,7 @@ class DataHandler:
 		try:
 			while self.console_buffer:
 				line = self.console_buffer.pop(0).encode(UNICODE_ENCODING)
-				print line
+				print(line)
 				if self.log:
 					self.logfile.write(line+'\n')
 			
