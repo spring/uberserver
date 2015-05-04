@@ -1,5 +1,5 @@
 import time
-from select import * # eww hack but saves the other hack of selectively importing constants
+from select import EPOLLIN, EPOLLPRI, EPOLLOUT, EPOLLERR, EPOLLHUP, epoll
 
 class EpollMultiplexer:
 
