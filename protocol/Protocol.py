@@ -3209,9 +3209,6 @@ class Protocol:
 			return
 
 		channel = self._root.channels[chan]
-		if not channel.chanserv:
-			self.out_FAILED(client, "SUBSCRIBE", "Channel %s isn't registered, can't subscribe!" %(chan))
-			return
 		if not channel.store_history:
 			self.out_FAILED(client, "SUBSCRIBE", "History for channel %s is disabled, can't subscribe!" %(chan))
 			return
