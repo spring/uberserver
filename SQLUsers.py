@@ -890,6 +890,8 @@ class UsersHandler:
 		reqs = session.query(ChannelHistory, User).filter(ChannelHistory.channel_id == channel_id).filter(ChannelHistory.time >= starttime).filter(ChannelHistory.user_id == User.id).all()
 		msgs = [(history.time, user.username, history.msg) for history, user in reqs ]
 		session.close()
+		if len(msgs)>0:
+			assert(type(msgs[0][2]) == unicode)
 		return msgs
 
 	def add_channelhistory_subscription(self, channel_id, user_id):
@@ -1064,7 +1066,8 @@ if __name__ == '__main__':
 			assert(msgs[0][0] == now + timedelta(0, i))
 			assert(msgs[0][1] == client.username)
 			assert(msgs[0][2] == msg % i)
-
+			assert(type(msgs[0][2]) == unicode)
+	userdb.clean_users()
 	print("Tests went ok")
 
 
