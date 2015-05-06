@@ -1504,7 +1504,7 @@ class Protocol:
 		chan = chan.lstrip('#')
 
 		# FIXME: unhardcode this
-		if client.bot and chan == "newbies" and client.username != "ChanServ":
+		if client.bot and chan in ("newbies", "ba") and client.username != "ChanServ":
 			client.Send('JOINFAILED %s No bots allowed in #newbies!' %(chan))
 			return
 
