@@ -3266,7 +3266,7 @@ class Protocol:
 			response to OPENBATTLE
 		'''
 		client.Send('OPENBATTLEFAILED %s' % (reason))
-		self._root.console_write('<%s> OPENBATTLEFAILED: %s' % (client.username, reason))
+		self._root.console_write('[%s] <%s> OPENBATTLEFAILED: %s' % (client.session_id, client.username, reason))
 
 	def out_SERVERMSG(self, client, message, log = False):
 		'''
@@ -3274,7 +3274,7 @@ class Protocol:
 		'''
 		client.Send('SERVERMSG %s' %(message))
 		if log:
-			self._root.console_write('<%s>: %s' % (client.username, message))
+			self._root.console_write('[%s] <%s>: %s' % (client.session_id, client.username, message))
 
 	def out_FAILED(self, client, cmd, message, log = False):
 		'''
@@ -3282,7 +3282,7 @@ class Protocol:
 		'''
 		client.Send('FAILED ' + self._dictToTags({'msg':message, 'cmd':cmd}))
 		if log:
-			self._root.console_write('<%s>: %s %s' % (client.username, cmd, message))
+			self._root.console_write('[%s] <%s>: %s %s' % (client.session_id, client.username, cmd, message))
 
 	def out_OK(self, client, cmd):
 		client.Send('OK ' + self._dictToTags({'cmd': cmd}))
