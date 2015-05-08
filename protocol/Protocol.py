@@ -1563,10 +1563,11 @@ class Protocol:
 			client.Send('NOCHANNELTOPIC %s' % chan)
 
 		msgs = self.userdb.get_channel_messages(client.db_id, channel.id, client.last_login)
-		for msg in msgs:
-			if client.compat['o']:
+		if client.compat['o']:
+			for msg in msgs:
 				client.Send("SAID " + self._dictToTags( { "chanName": chan, "time": msg[0].isoformat(), "userName": msg[1], "msg": msg[2]} ))
-			else:
+		else:
+			for msg in msgs:
 				client.Send("SAID %s %s %s" %(chan, msg[1], msg[2]))
 
 		# disabled because irc bridge spams JOIN commands
