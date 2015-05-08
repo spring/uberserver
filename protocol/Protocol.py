@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-import inspect, time, re
+import inspect, time, re, threading
 
 import traceback, sys, os
 import socket
@@ -201,6 +201,7 @@ class Protocol:
 		self.SayHooks = root.SayHooks
 		self.dir = dir(self)
 		self.stats = {}
+		self.lockGetNextBattleId = threading.Lock()
 
 		## generates new keys if directory is empty, otherwise imports
 		self.rsa_cipher_obj = CryptoHandler.rsa_cipher(root.crypto_key_dir)
@@ -661,6 +662,12 @@ class Protocol:
 	def _informErrors(self, client):
 		if client.lobby_id in ("SpringLobby 0.188 (win x32)", "SpringLobby 0.200 (win x32)"):
 			client.Send("SAYPRIVATE ChanServ The autoupdater of SpringLobby 0.188 is broken, please manually update: http://springrts.com/phpbb/viewtopic.php?f=64&t=31224")
+	def _getNextBattleId(self):
+		self.lockGetNextBattleId.acquire()
+		self._root.nextbattle += 1 #FIXME: handle overflow (int32)
+		id = self._root.nextbattle
+		self.lockGetNextBattleId.release()
+		return id
 
 	def clientFromID(self, db_id, fromdb = False):
 		'given a user database id, returns a client object from memory or the database'
@@ -1655,8 +1662,7 @@ class Protocol:
 			self.out_OPENBATTLEFAILED(client, "invalid title")
 			return False
 
-		battle_id = self._root.nextbattle # not thread safe
-		self._root.nextbattle += 1
+		battle_id = self._getNextBattleId()
 
 		if password == '*':
 			passworded = 0
@@ -1714,8 +1720,8 @@ class Protocol:
 			self.out_OPENBATTLEFAILED(client, "invalid title")
 			return False
 
-		battle_id = self._root.nextbattle # not thread-safe
-		self._root.nextbattle += 1
+		battle_id = self._getNextBattleId()
+
 		client.current_battle = battle_id
 		if password == '*':
 			passworded = 0
