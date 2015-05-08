@@ -1053,7 +1053,7 @@ if __name__ == '__main__':
 	subscriptions = userdb.get_channel_subscriptions(client.id)
 	assert(len(subscriptions) == 1)
 	assert(subscriptions[0] == channelname)
-	msg = u'test message %d äöüÄÖÜß'
+	msg = u'test message %d äöüÄÖÜß ?(?_°)?'
 	for i in range(0, 20):
 		userdb.add_channel_message(channel.id, client.id, msg % i, now + timedelta(0, i))
 
