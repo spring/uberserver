@@ -202,6 +202,7 @@ class Protocol:
 		self.dir = dir(self)
 		self.stats = {}
 		self.lockGetNextBattleId = threading.Lock()
+		self.lockChangeUser = threading.Lock()
 
 		## generates new keys if directory is empty, otherwise imports
 		self.rsa_cipher_obj = CryptoHandler.rsa_cipher(root.crypto_key_dir)
@@ -237,9 +238,11 @@ class Protocol:
 				return
 
 			channels = list(client.channels)
+			self.lockChangeUser.acquire()
 			del self._root.usernames[user]
 			if client.db_id in self._root.db_ids:
 				del self._root.db_ids[client.db_id]
+			self.lockChangeUser.release()
 
 			for chan in channels:
 				channel = self._root.channels[chan]
@@ -1050,8 +1053,12 @@ class Protocol:
 			return
 
 		self._root.console_write('[%s] Successfully logged in user <%s> (access=%s).' % (client.session_id, user_or_error.username, client.access))
+
+		self.lockChangeUser.acquire()
 		self._root.db_ids[client.db_id] = client
 		self._root.usernames[user_or_error.username] = client
+		self.lockChangeUser.release()
+
 		self._calc_status(client, 0)
 
 		ignoreList = self.userdb.get_ignored_user_ids(client.db_id)
