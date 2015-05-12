@@ -1631,10 +1631,12 @@ class Protocol:
 
 		engine = 'spring'
 		version = self._root.latestspringversion
-		if client.compat['cl']: #supports cleanupBattles
-			if sentence_args.count('\t') <= 3:
-				self.out_OPENBATTLEFAILED(client, 'To few arguments.')
-				return False
+		map = None
+		title = None
+		modname = None
+		argcount = sentence_args.count('\t')
+
+		if client.compat['cl'] and argcount == 4: #supports cleanupBattles
 			engine, version, map, title, modname = sentence_args.split('\t', 4)
 			if not engine:
 				self.out_OPENBATTLEFAILED(client, 'No engine specified.')
@@ -1642,32 +1644,23 @@ class Protocol:
 			if not version:
 				self.out_OPENBATTLEFAILED(client, 'No engine version specified.')
 				return False
-			if not map:
-				self.out_OPENBATTLEFAILED(client, 'No map name specified.')
-				return False
-			if not title:
-				self.out_OPENBATTLEFAILED(client, 'No title name specified.')
-				return False
-			if not modname:
-				self.out_OPENBATTLEFAILED(client, 'No game name specified.')
-				return False
-		else:
-			if sentence_args.count('\t') <= 1:
-				self.out_OPENBATTLEFAILED(client, 'To few arguments.')
-				return False
+		elif not client.compat['cl'] and argcount == 2:
 			map, title, modname = sentence_args.split('\t',2)
+		else:
+			self.out_OPENBATTLEFAILED(client, 'To few arguments: %d', argcount)
+			return False
 
-			if not modname:
-				self.out_OPENBATTLEFAILED(client, 'No game name specified.')
-				return False
-			if not map:
-				self.out_OPENBATTLEFAILED(client, 'No map name specified.')
-				return False
-
+		if not map:
+			self.out_OPENBATTLEFAILED(client, 'No map name specified.')
+			return False
 		title = self.SayHooks.hook_OPENBATTLE(self, client, title)
 		if not title or not title.strip():
 			self.out_OPENBATTLEFAILED(client, "invalid title")
 			return False
+		if not modname:
+			self.out_OPENBATTLEFAILED(client, 'No game name specified.')
+			return False
+
 
 		battle_id = self._getNextBattleId()
 
