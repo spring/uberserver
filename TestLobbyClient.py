@@ -405,6 +405,8 @@ class LobbyClient:
 
 		self.Send("ACKSHAREDKEY")
 
+	def out_SAYPRIVATE(self, user, msg):
+		self.Send("SAYPRIVATE %s %s" % (user, msg))
 
 
 	##
@@ -623,6 +625,13 @@ class LobbyClient:
 		print(msg)
 	def in_LEFT(self, msg):
 		print(msg)
+
+	def in_SAIDPRIVATE(self, msg):
+		user, msg = msg.split(" ")
+		self.out_SAYPRIVATE(user,"You said: " + msg)
+
+	def in_SAYPRIVATE(self, msg):
+		print "SAY " +  msg
 
 
 	def Update(self):
