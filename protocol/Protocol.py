@@ -2148,8 +2148,8 @@ class Protocol:
 					maphash = 0
 					return
 
-				if not mapname:
-					self.out_SERVERMSG(client, "UPDATEBATTLEINFO failed - Empty mapname send: %s" %(str(maphash)), True)
+				if not mapname or "\t" in mapname:
+					self.out_SERVERMSG(client, "UPDATEBATTLEINFO failed - invalid mapname send: %s" %(str(mapname)), True)
 					return
 
 				old = battle.copy()
