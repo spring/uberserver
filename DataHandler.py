@@ -2,7 +2,6 @@ import thread, time, sys, os, socket
 
 import traceback
 from protocol.Channel import Channel
-from protocol.Protocol import Protocol
 from SQLUsers import UsersHandler, ChannelsHandler
 from CryptoHandler import UNICODE_ENCODING
 import ChanServ
@@ -49,7 +48,6 @@ class DataHandler:
 		self.userdb = None
 		self.channeldb = None
 		self.engine = None
-		self.protocol = None
 		self.updatefile = None
 		self.trusted_proxyfile = None
 		
@@ -123,7 +121,6 @@ class DataHandler:
 			self.rotatelogfile()
 
 		self.parseFiles()
-		self.protocol = Protocol(self)
 		thread.start_new_thread(self.event_loop, ())
 
 	def shutdown(self):
@@ -334,7 +331,7 @@ class DataHandler:
 					expiretime = mutelist[db_id]['expires']
 					if 0 < expiretime and expiretime < now:
 						del channel.mutelist[db_id]
-						client = self.protocol.clientFromID(db_id)
+						client = self.clientFromID(db_id)
 						if client:
 							channel.channelMessage('<%s> has been unmuted (mute expired).' % client.username)
 		except:
@@ -439,7 +436,6 @@ class DataHandler:
 				del chan['name'] # 'cause we're passing it ourselves
 				self.channels[channel] = sys.modules['protocol.Protocol'].Channel(self, channel, **chan)
 			
-			self.protocol = Protocol(self)
 			self.userdb = UsersHandler(self, self.engine)
 			self.channeldb = ChannelsHandler(self, self.engine)
 			self.chanserv.reload()
