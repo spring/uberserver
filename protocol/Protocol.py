@@ -1629,38 +1629,36 @@ class Protocol:
 		if client.current_battle in self._root.battles:
 			self.in_LEAVEBATTLE(client)
 
-		engine = 'spring'
-		version = self._root.latestspringversion
+		engine = None
+		version = None
 		map = None
 		title = None
 		modname = None
-		argcount = sentence_args.count('\t')
 
+		argcount = sentence_args.count('\t')
 		if client.compat['cl'] and argcount == 4: #supports cleanupBattles
 			engine, version, map, title, modname = sentence_args.split('\t', 4)
-			if not engine:
-				self.out_OPENBATTLEFAILED(client, 'No engine specified.')
-				return False
-			if not version:
-				self.out_OPENBATTLEFAILED(client, 'No engine version specified.')
-				return False
 		elif not client.compat['cl'] and argcount == 2:
 			map, title, modname = sentence_args.split('\t',2)
+			engine = 'spring'
+			version = self._root.latestspringversion
 		else:
 			self.out_OPENBATTLEFAILED(client, 'To few arguments: %d', argcount)
 			return False
 
-		if not map:
-			self.out_OPENBATTLEFAILED(client, 'No map name specified.')
-			return False
-		title = self.SayHooks.hook_OPENBATTLE(self, client, title)
-		if not title or not title.strip():
-			self.out_OPENBATTLEFAILED(client, "invalid title")
-			return False
-		if not modname:
-			self.out_OPENBATTLEFAILED(client, 'No game name specified.')
-			return False
+		title = self.SayHooks.hook_OPENBATTLE(self, client, title).strip()
 
+		checkvars = [
+			(engine, 'No engine specified.'),
+			(version, 'No engine version specified.'),
+			(map, "No map name specified"),
+			(title, "invalid title"),
+			(modname, "No game name specified")]
+
+		for var, error in checkvars:
+			if not var:
+				self.out_OPENBATTLEFAILED(client, error)
+				return
 
 		battle_id = self._getNextBattleId()
 
