@@ -16,31 +16,36 @@ class Dispatcher:
 		self.poller.register(self.server)
 		self.poller.pump(self.callback)
 
+	def _handleNewClient(self, sock):
+		try:
+			conn, addr = sock.accept()
+		except socket.error as e:
+			if e[0] == 24: # ulimit maxfiles, need to raise ulimit
+				self._root.console_write('Maximum files reached, refused new connection.')
+			else:
+				raise socket.error(e)
+		client = Client.Client(self._root, conn, addr, self._root.session_id)
+		self.addClient(client)
+
+	def _handleClientData(self, sock):
+		try:
+			data = sock.recv(4096)
+			if not data:
+				raise socket.error('Connection closed.')
+			if not sock in self.socketmap: # for threading, just need to pass this to a worker thread... remember to fix the problem for any calls to handler, and fix msg ids (handler.thread)
+				self._root.console_write('Problem, sockets are not being cleaned up properly.')
+				return
+			self.socketmap[sock].Handle(data)
+		except socket.error:
+			self.removeSocket(sock)
+
 	def callback(self, inputs, outputs, errors):
 		try:
 			for s in inputs:
 				if s == self.server:
-					try:
-						conn, addr = self.server.accept()
-					except socket.error as e:
-						if e[0] == 24: # ulimit maxfiles, need to raise ulimit
-							self._root.console_write('Maximum files reached, refused new connection.')
-						else:
-							raise socket.error(e)
-					client = Client.Client(self._root, conn, addr, self._root.session_id)
-					self.addClient(client)
+					self._handleNewClient(s)
 				else:
-					try:
-						data = s.recv(4096)
-						if data:
-							if s in self.socketmap: # for threading, just need to pass this to a worker thread... remember to fix the problem for any calls to handler, and fix msg ids (handler.thread)
-									self.socketmap[s].Handle(data)
-							else:
-								self._root.console_write('Problem, sockets are not being cleaned up properly.')
-						else:
-							raise socket.error('Connection closed.')
-					except socket.error:
-						self.removeSocket(s)
+					self._handleClientData(s)
 			
 			for s in outputs:
 				try:
