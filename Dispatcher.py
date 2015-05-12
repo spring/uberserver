@@ -76,7 +76,7 @@ class Dispatcher:
 		s = client.conn
 		if s in self.socketmap: del self.socketmap[s]
 		self.poller.unregister(s)
-		
+		del self._root.clients[client.session_id]
 		try:
 			s.shutdown(socket.SHUT_RDWR)
 			s.close()

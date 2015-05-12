@@ -228,37 +228,37 @@ class Protocol:
 			client.removing = True
 
 	def _remove(self, client, reason='Quit'):
-		if client.username and client.username in self._root.usernames:
-			if client.removing: return
-			if client.static: return # static clients don't disconnect
-			client.removing = True
-			user = client.username
-			if not client == self._root.usernames[user]:
-				client.removing = False # 'cause we really aren't anymore
-				return
+		if client.static: return # static clients don't disconnect
+		if not client.username in self._root.usernames: # client didn't full login
+			return
+		if client.removing:
+			return
+		client.removing = True
 
-			channels = list(client.channels)
-			self.lockChangeUser.acquire()
-			del self._root.usernames[user]
-			if client.db_id in self._root.db_ids:
-				del self._root.db_ids[client.db_id]
-			self.lockChangeUser.release()
 
-			for chan in channels:
-				channel = self._root.channels[chan]
-				if user in channel.users:
-					self.in_LEAVE(client, chan, reason)
+		user = client.username
+		self.lockChangeUser.acquire()
+		del self._root.usernames[user]
+		if client.db_id in self._root.db_ids:
+			del self._root.db_ids[client.db_id]
+		self.lockChangeUser.release()
 
-			battle_id = client.current_battle
-			if battle_id:
-				self.in_LEAVEBATTLE(client)
+		channels = list(client.channels)
+		for chan in channels:
+			channel = self._root.channels[chan]
+			if user in channel.users:
+				self.in_LEAVE(client, chan, reason)
 
-			self.broadcast_RemoveUser(client)
-			try:
-				self.userdb.end_session(client.db_id)
-			except Exception as e:
-				self._root.console_write('[%s] <%s> Error writing to db in _remove: %s '%(client.session_id, client.username, e.message))
-		if client.session_id in self._root.clients: del self._root.clients[client.session_id]
+		battle_id = client.current_battle
+		if battle_id:
+			self.in_LEAVEBATTLE(client)
+
+		self.broadcast_RemoveUser(client)
+		try:
+			self.userdb.end_session(client.db_id)
+		except Exception as e:
+			self._root.console_write('[%s] <%s> Error writing to db in _remove: %s '%(client.session_id, client.username, e.message))
+
 
 
 	def get_function_args(self, client, command, function, numspaces, args):
