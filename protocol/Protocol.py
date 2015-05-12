@@ -1632,37 +1632,36 @@ class Protocol:
 		engine = 'spring'
 		version = self._root.latestspringversion
 		if client.compat['cl']: #supports cleanupBattles
-			if sentence_args.count('\t') > 3:
-				engine, version, map, title, modname = sentence_args.split('\t', 4)
-				if not engine:
-					self.out_OPENBATTLEFAILED(client, 'No engine specified.')
-					return False
-				if not version:
-					self.out_OPENBATTLEFAILED(client, 'No engine version specified.')
-					return False
-				if not map:
-					self.out_OPENBATTLEFAILED(client, 'No map name specified.')
-					return False
-				if not title:
-					self.out_OPENBATTLEFAILED(client, 'No title name specified.')
-					return False
-				if not modname:
-					self.out_OPENBATTLEFAILED(client, 'No game name specified.')
-					return False
-			else:
+			if sentence_args.count('\t') <= 3:
 				self.out_OPENBATTLEFAILED(client, 'To few arguments.')
 				return False
+			engine, version, map, title, modname = sentence_args.split('\t', 4)
+			if not engine:
+				self.out_OPENBATTLEFAILED(client, 'No engine specified.')
+				return False
+			if not version:
+				self.out_OPENBATTLEFAILED(client, 'No engine version specified.')
+				return False
+			if not map:
+				self.out_OPENBATTLEFAILED(client, 'No map name specified.')
+				return False
+			if not title:
+				self.out_OPENBATTLEFAILED(client, 'No title name specified.')
+				return False
+			if not modname:
+				self.out_OPENBATTLEFAILED(client, 'No game name specified.')
+				return False
 		else:
-			if sentence_args.count('\t') > 1:
-				map, title, modname = sentence_args.split('\t',2)
+			if sentence_args.count('\t') <= 1:
+				self.out_OPENBATTLEFAILED(client, 'To few arguments.')
+				return False
+			map, title, modname = sentence_args.split('\t',2)
 
-				if not modname:
-					self.out_OPENBATTLEFAILED(client, 'No game name specified.')
-					return False
-				if not map:
-					self.out_OPENBATTLEFAILED(client, 'No map name specified.')
-					return False
-			else:
+			if not modname:
+				self.out_OPENBATTLEFAILED(client, 'No game name specified.')
+				return False
+			if not map:
+				self.out_OPENBATTLEFAILED(client, 'No map name specified.')
 				return False
 
 		title = self.SayHooks.hook_OPENBATTLE(self, client, title)
