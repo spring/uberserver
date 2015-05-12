@@ -187,7 +187,7 @@ flag_map = {
 	'b': 'battleAuth',       # JOINBATTLEREQUEST/ACCEPT/DENY
 	'sp': 'scriptPassword',  # scriptPassword in JOINEDBATTLE
 	'et': 'sendEmptyTopic',  # send NOCHANNELTOPIC on join if channel has no topic
-	'eb': 'extendedBattles', # deprecated use cl instead: extended battle commands with support for engine/version
+	'eb': 'extendedBattles', # deprecated use cl instead
 	'm': 'matchmaking',      # FORCEJOINBATTLE from battle hosts for matchmaking
 	'cl': 'cleanupBattles',  # BATTLEOPENED / OPENBATTLE with support for engine/version
 	'p':  'agreementPlain',  # AGREEMENT is plaintext
@@ -542,8 +542,8 @@ class Protocol:
 			client.Send("MOTD see htpp://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
 			missing_flags += ' p'
 		if client.compat['eb']:
-			client.Send("MOTD Your client uses the 'eb' compatibility flag, which is replaced by 'cl' please update it!")
-			client.Send("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
+			client.out_SERVERMSG(client, "Your client uses the 'eb' compatibility flag, which is replaced by 'cl' please update it!")
+			client.out_SERVERMSG(client, "see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
 		if len(missing_flags) > 0:
 			self._root.console_write('[%s] <%s> client "%s" missing compat flags:%s'%(client.session_id, client.username, client.lobby_id, missing_flags))
 
