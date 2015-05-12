@@ -70,13 +70,18 @@ class Dispatcher:
 	
 	def finishRemove(self, client, reason='Quit'):
 		if client.static: return # static clients don't disconnect
+
+		if client.session_id in self._root.clients: # double-safety
+			del self._root.clients[client.session_id] # remove client from client list, if anything fails, client isn't handled any more
+		else:
+			self._root.console_write('[%s] tried to delete client which was already deleted: %s: %s'%(client.session_id, client.ip_address, reason))
+
 		if client._protocol:
 			client._protocol._remove(client, reason)
 		
 		s = client.conn
 		if s in self.socketmap: del self.socketmap[s]
 		self.poller.unregister(s)
-		del self._root.clients[client.session_id]
 		try:
 			s.shutdown(socket.SHUT_RDWR)
 			s.close()
