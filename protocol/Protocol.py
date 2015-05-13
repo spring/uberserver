@@ -2078,7 +2078,7 @@ class Protocol:
 			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid status: %s.' % (_battlestatus), True)
 			return
 
-		if battlestatus < 1:
+		if battlestatus < 0:
 			battlestatus = battlestatus + 2147483648
 			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid status is below 1: %s. Please update your lobby!' % (_battlestatus), True)
 
