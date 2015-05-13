@@ -2080,7 +2080,7 @@ class Protocol:
 
 		if battlestatus < 0:
 			battlestatus = battlestatus + 2147483648
-			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid status is below 1: %s. Please update your lobby!' % (_battlestatus), True)
+			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid status is below 0: %s. Please update your lobby!' % (_battlestatus), True)
 
 		try:
 			myteamcolor = int32(_myteamcolor)
