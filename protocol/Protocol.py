@@ -707,7 +707,7 @@ class Protocol:
 		for username in users:
 			client = self.clientFromUsername(username)
 			if client and (sourceClient == None or not sourceClient.db_id in client.ignored):
-				client.SendBattle(battle, data)
+				client.Send(data)
 
 	def broadcast_AddUser(self, client):
 		'queues the protocol for adding a user - experiment in loose thread-safety'
