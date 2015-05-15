@@ -1077,6 +1077,7 @@ class Protocol:
 			battle = battles[battle]
 			ubattle = battle.copy()
 			client.AddBattle(battle)
+			self.client_AddBattle(client, battle)
 			client.SendBattle(battle, 'UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % ubattle)
 			for battle_user in battle.users:
 				if not battle_user == battle.host:
