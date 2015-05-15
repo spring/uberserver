@@ -403,7 +403,6 @@ class Client(BaseClient):
 		session_id = user.session_id
 		if session_id in self.users: return
 		self.users.add(session_id)
-		self._protocol.client_AddUser(self, user)
 	
 	def RemoveUser(self, user):
 		if type(user) in (str, unicode):
@@ -412,7 +411,6 @@ class Client(BaseClient):
 		session_id = user.session_id
 		if session_id in self.users:
 			self.users.remove(session_id)
-			self._protocol.client_RemoveUser(self, user)
 	
 	def SendUser(self, user, data):
 		if type(user) in (str, unicode):

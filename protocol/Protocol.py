@@ -709,19 +709,19 @@ class Protocol:
 			if client and (sourceClient == None or not sourceClient.db_id in client.ignored):
 				client.SendBattle(battle, data)
 
-	def broadcast_AddUser(self, user):
+	def broadcast_AddUser(self, client):
 		'queues the protocol for adding a user - experiment in loose thread-safety'
 		users = dict(self._root.usernames)
 		for name in users:
-			if not name == user.username:
-				users[name].AddUser(user)
+			if not name == client.username:
+				self.client_AddUser(users[name], client)
 
-	def broadcast_RemoveUser(self, user):
+	def broadcast_RemoveUser(self, client):
 		'queues the protocol for removing a user - experiment in loose thread-safety'
 		users = dict(self._root.usernames)
 		for name in users:
-			if not name == user.username:
-				users[name].RemoveUser(user)
+			if not name == client.username:
+				self.client_RemoveUser(users[name], client)
 
 	def broadcast_SendUser(self, user, data):
 		'queues the protocol for receiving a user-specific message - experiment in loose thread-safety'
