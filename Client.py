@@ -424,13 +424,11 @@ class Client(BaseClient):
 		battle_id = battle.id
 		if battle_id in self.battles: return
 		self.battles.add(battle_id)
-		self._protocol.client_AddBattle(self, battle)
 	
 	def RemoveBattle(self, battle):
 		battle_id = battle.id
 		if battle_id in self.battles:
 			self.battles.remove(battle_id)
-			self._protocol.client_RemoveBattle(self, battle)
 	
 	def SendBattle(self, battle, data):
 		battle_id = battle.id
