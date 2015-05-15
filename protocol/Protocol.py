@@ -2026,38 +2026,39 @@ class Protocol:
 
 		username = client.username
 		battle_id = client.current_battle
-		if battle_id in self._root.battles:
-			battle = self._root.battles[battle_id]
-			if battle.host == client.username:
-				self.broadcast_RemoveBattle(battle)
-				client.hostport = None
-				del self._root.battles[battle_id]
-				client.current_battle = None
-			elif username in battle.users:
-				battle.users.remove(username)
-				if username in battle.authed_users:
-					battle.authed_users.remove(username)
+		if not battle_id in self._root.battles:
+			return
+		battle = self._root.battles[battle_id]
+		if battle.host == client.username:
+			self.broadcast_RemoveBattle(battle)
+			client.hostport = None
+			del self._root.battles[battle_id]
+			client.current_battle = None
+			return
+		battle.users.remove(username)
+		if username in battle.authed_users:
+			battle.authed_users.remove(username)
 
-				battle_bots = dict(client.battle_bots)
-				for bot in battle_bots:
-					del client.battle_bots[bot]
-					if bot in battle.bots:
-						del battle.bots[bot]
-						self._root.broadcast_battle('REMOVEBOT %s %s' % (battle_id, bot), battle_id)
-				self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, client.username))
-				client.current_battle = None
+		battle_bots = dict(client.battle_bots)
+		for bot in battle_bots:
+			del client.battle_bots[bot]
+			if bot in battle.bots:
+				del battle.bots[bot]
+				self._root.broadcast_battle('REMOVEBOT %s %s' % (battle_id, bot), battle_id)
+		self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, client.username))
+		client.current_battle = None
 
-				oldspecs = battle.spectators
+		oldspecs = battle.spectators
 
-				specs = 0
-				for username in battle.users:
-					user = self.clientFromUsername(username)
-					if user and user.battlestatus['mode'] == '0':
-						specs += 1
+		specs = 0
+		for username in battle.users:
+			user = self.clientFromUsername(username)
+			if user and user.battlestatus['mode'] == '0':
+				specs += 1
 
-				battle.spectators = specs
-				if oldspecs != specs:
-					self._root.broadcast('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % battle.copy())
+		battle.spectators = specs
+		if oldspecs != specs:
+			self._root.broadcast('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % battle.copy())
 
 	def in_MYBATTLESTATUS(self, client, _battlestatus, _myteamcolor):
 		'''
