@@ -230,13 +230,14 @@ class Protocol:
 		if client.static: return # static clients don't disconnect
 		if not client.username in self._root.usernames: # client didn't full login
 			return
+		self.lockChangeUser.acquire()
 		if client.removing:
+			self.lockChangeUser.release()
 			return
 		client.removing = True
 
 
 		user = client.username
-		self.lockChangeUser.acquire()
 		del self._root.usernames[user]
 		if client.db_id in self._root.db_ids:
 			del self._root.db_ids[client.db_id]
@@ -248,8 +249,7 @@ class Protocol:
 			if user in channel.users:
 				self.in_LEAVE(client, chan, reason)
 
-		battle_id = client.current_battle
-		if battle_id:
+		if client.current_battle:
 			self.in_LEAVEBATTLE(client)
 
 		self.broadcast_RemoveUser(client)
