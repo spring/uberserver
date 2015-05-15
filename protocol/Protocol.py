@@ -691,14 +691,14 @@ class Protocol:
 	def broadcast_AddBattle(self, battle):
 		'queues the protocol for adding a battle - experiment in loose thread-safety'
 		users = dict(self._root.usernames)
-		for client in users:
-			self.client_AddBattle(self, client, battle)
+		for name in users:
+			self.client_AddBattle(users[name], battle)
 
 	def broadcast_RemoveBattle(self, battle):
 		'queues the protocol for removing a battle - experiment in loose thread-safety'
 		users = dict(self._root.usernames)
-		for client in users:
-			self.client_RemoveBattle(client, battle)
+		for name in users:
+			self.client_RemoveBattle(users[name], battle)
 
 	# the sourceClient is only sent for SAY*, and RING commands
 	def broadcast_SendBattle(self, battle, data, sourceClient=None):
@@ -1069,6 +1069,7 @@ class Protocol:
 		for username in usernames:
 			addclient = usernames[username]
 			client.AddUser(addclient)
+			self.client_AddUser(client, addclient)
 
 		battles = dict(self._root.battles)
 
