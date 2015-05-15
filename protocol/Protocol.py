@@ -542,8 +542,8 @@ class Protocol:
 			client.Send("MOTD see htpp://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
 			missing_flags += ' p'
 		if client.compat['eb']:
-			client.out_SERVERMSG(client, "Your client uses the 'eb' compatibility flag, which is replaced by 'cl' please update it!")
-			client.out_SERVERMSG(client, "see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
+			self.out_SERVERMSG(client, "Your client uses the 'eb' compatibility flag, which is replaced by 'cl' please update it!")
+			self.out_SERVERMSG(client, "see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
 		if len(missing_flags) > 0:
 			self._root.console_write('[%s] <%s> client "%s" missing compat flags:%s'%(client.session_id, client.username, client.lobby_id, missing_flags))
 
