@@ -723,12 +723,6 @@ class Protocol:
 			if not name == client.username:
 				self.client_RemoveUser(users[name], client)
 
-	def broadcast_SendUser(self, user, data):
-		'queues the protocol for receiving a user-specific message - experiment in loose thread-safety'
-		users = dict(self._root.usernames)
-		for name in users:
-			users[name].SendUser(user, data)
-
 	def client_AddUser(self, client, user):
 		'sends the protocol for adding a user'
 		if client.compat['a']: #accountIDs
@@ -1083,7 +1077,7 @@ class Protocol:
 				if not battle_user == battle.host:
 					client.SendBattle(battle, 'JOINEDBATTLE %s %s' % (battle.id, battle_user))
 
-		self.broadcast_SendUser(client, 'CLIENTSTATUS %s %d' % (client.username, client.status))
+		self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status))
 
 		for username in usernames:
 			# potential problem spot, might need to check to make sure username is still in user db
