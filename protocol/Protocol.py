@@ -31,7 +31,6 @@ ranks = (5, 15, 30, 100, 300, 1000, 3000)
 restricted = {
 'disabled':set(),
 'everyone':set([
-	'HASH',
 	'EXIT',
 	'PING',
 	'LISTCOMPFLAGS',
@@ -855,11 +854,6 @@ class Protocol:
 		port = int(port)
 		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		sock.sendto('Port testing...', (host, port))
-
-
-
-	def in_HASH(self, client):
-		self.out_SERVERMSG(client, 'The HASH command is no longer supported.')
 
 
 	def in_REGISTER(self, client, username, password):
