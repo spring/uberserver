@@ -2294,9 +2294,18 @@ class Protocol:
 		'''
 		if not self._canForceBattle(client):
 			return
-		allyno = int32(allyno)
 		battle = self._root.battles[client.current_battle]
-		rect = {'left':left, 'top':top, 'right':right, 'bottom':bottom}
+		try:
+			allyno = int32(allyno)
+			rect = {
+				'left':uint32(left),
+				'top':uint32(top),
+				'right':uint32(right),
+				'bottom':uint32(bottom)
+				}
+		except:
+			self.out_SERVERMSG(client, "invalid ADDSTARTRECT received")
+			return
 		battle.startrects[allyno] = rect
 		self._root.broadcast_battle('ADDSTARTRECT %s' % (allyno)+' %(left)s %(top)s %(right)s %(bottom)s' %(rect), client.current_battle, [client.username])
 
