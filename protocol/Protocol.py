@@ -2315,7 +2315,7 @@ class Protocol:
 			del battle.startrects[allyno]
 		except:
 			self.out_SERVERMSG(client, 'invalid rect removed: %d' % (allyno), True)
-			pass
+			return
 		self._root.broadcast_battle('REMOVESTARTRECT %s' % allyno, client.current_battle, [client.username])
 
 	def in_DISABLEUNITS(self, client, units):
