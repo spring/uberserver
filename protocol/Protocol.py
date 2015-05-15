@@ -1062,7 +1062,6 @@ class Protocol:
 
 		for username in usernames:
 			addclient = usernames[username]
-			client.AddUser(addclient)
 			self.client_AddUser(client, addclient)
 
 		battles = dict(self._root.battles)
@@ -1070,12 +1069,11 @@ class Protocol:
 		for battle in battles:
 			battle = battles[battle]
 			ubattle = battle.copy()
-			client.AddBattle(battle)
 			self.client_AddBattle(client, battle)
-			client.SendBattle(battle, 'UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % ubattle)
+			client.Send('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % ubattle)
 			for battle_user in battle.users:
 				if not battle_user == battle.host:
-					client.SendBattle(battle, 'JOINEDBATTLE %s %s' % (battle.id, battle_user))
+					client.Send('JOINEDBATTLE %s %s' % (battle.id, battle_user))
 
 		self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status))
 
@@ -1083,7 +1081,7 @@ class Protocol:
 			# potential problem spot, might need to check to make sure username is still in user db
 			if username == user_or_error.username:
 				continue
-			client.SendUser(username, 'CLIENTSTATUS %s %d' % (username, usernames[username].status))
+			client.Send('CLIENTSTATUS %s %d' % (username, usernames[username].status))
 
 		client.Send('LOGININFOEND')
 		self._informErrors(client)

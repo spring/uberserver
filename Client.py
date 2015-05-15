@@ -103,9 +103,6 @@ class Client(BaseClient):
 		self.lastdata = now
 		self.last_id = 0
 		
-		self.users = set([]) # session_id
-		self.battles = set([]) # [battle_id] = [user1, user2, user3, etc]
-
 		self.ignored = {}
 		
 		self._root.console_write('[%s] Client connected from %s:%s' % (session_id, self.ip_address, self.port))
@@ -393,47 +390,6 @@ class Client(BaseClient):
 			self.sendingmessage = None
 		
 		self.handler.poller.setoutput(self.conn, bool(self.msg_sendbuffer or self.sendingmessage))
-	
-	# Queuing
-	
-	def AddUser(self, user):
-		if type(user) in (str, unicode):
-			try: user = self._root.usernames[user]
-			except: return
-		session_id = user.session_id
-		if session_id in self.users: return
-		self.users.add(session_id)
-	
-	def RemoveUser(self, user):
-		if type(user) in (str, unicode):
-			try: user = self._root.usernames[user]
-			except: return
-		session_id = user.session_id
-		if session_id in self.users:
-			self.users.remove(session_id)
-	
-	def SendUser(self, user, data):
-		if type(user) in (str, unicode):
-			try: user = self._root.usernames[user]
-			except: return
-		session_id = user.session_id
-		if session_id in self.users:
-			self.Send(data)
-	
-	def AddBattle(self, battle):
-		battle_id = battle.id
-		if battle_id in self.battles: return
-		self.battles.add(battle_id)
-	
-	def RemoveBattle(self, battle):
-		battle_id = battle.id
-		if battle_id in self.battles:
-			self.battles.remove(battle_id)
-	
-	def SendBattle(self, battle, data):
-		battle_id = battle.id
-		if battle_id in self.battles:
-			self.Send(data)
 	
 	def isAdmin(self):
 		return ('admin' in self.accesslevels)
