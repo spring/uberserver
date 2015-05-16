@@ -1146,6 +1146,9 @@ class Protocol:
 
 		for username in channel.users:
 			user = self.clientFromUsername(username)
+			if not user:
+				self._root.console_write('[%s] ERROR: <%s>: %s %s user not in channel: %s' % (client.session_id, client.username, chan, params, username))
+				continue
 			if user.compat['o']:
 				user.Send(newout)
 			else:
