@@ -39,24 +39,24 @@ class Channel(AutoDict):
 		self.owner = owner.db_id
 
 	def addUser(self, client):
-		username = client.username
+		sessenid = client.sessionid
 		if not username in self.users:
-			self.users.append(username)
-			self.broadcast('JOINED %s %s' % (self.name, username))
+			self.users.append(sessionid)
+			self.broadcast('JOINED %s %s' % (self.name, client.username))
 
 	def removeUser(self, client, reason=None):
 		chan = self.name
-		username = client.username
+		sessenid = client.sessionid
 
-		if username in self.users:
-			self.users.remove(username)
+		if sessenid in self.users:
+			self.users.remove(sessenid)
 
 			if self.name in client.channels:
 				client.channels.remove(chan)
 			if reason and len(reason) > 0:
-				self._root.broadcast('LEFT %s %s %s' % (chan, username, reason), chan)
+				self._root.broadcast('LEFT %s %s %s' % (chan, client.username, reason), chan)
 			else:
-				self._root.broadcast('LEFT %s %s' % (chan, username), chan)
+				self._root.broadcast('LEFT %s %s' % (chan, client.username), chan)
 
 	def isAdmin(self, client):
 		return client and ('admin' in client.accesslevels)
@@ -135,7 +135,7 @@ class Channel(AutoDict):
 
 	def kickUser(self, client, target, reason=''):
 		if self.isFounder(target): return
-		if target and target.username in self.users:
+		if target and target.session_id in self.users:
 			target.Send('FORCELEAVECHANNEL %s %s %s' % (self.name, client.username, reason))
 			self.channelMessage('<%s> has kicked <%s> from the channel%s' % (client.username, target.username, (' (reason: %s)'%reason if reason else '')))
 			self.removeUser(target, 'kicked from channel%s' % (' (reason: %s)'%reason if reason else ''))
