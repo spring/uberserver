@@ -419,7 +419,7 @@ class DataHandler:
 		if type(ignore) in (str, unicode): ignore = [ignore]
 		if battle_id in self.battles:
 			battle = self.battles[battle_id]
-			clients = [self.clientFromSession(user) for user in list(battle.users)]
+			clients = [self.clientFromSession(user) for user in battle.users]
 			self.multicast(clients, msg, ignore, sourceClient)
 
 	def admin_broadcast(self, msg):
