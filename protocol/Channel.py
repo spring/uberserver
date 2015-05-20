@@ -2,7 +2,7 @@ from AutoDict import AutoDict
 import time
 
 class Channel(AutoDict):
-	def __init__(self, root, name, id = 0, users=[], admins=[],
+	def __init__(self, root, name, id = 0, users=set(), admins=[],
 						ban={}, allow=[], autokick='ban', chanserv=False,
 						owner='', mutelist={}, antispam=False,
 						censor=False, antishock=False, topic=None,

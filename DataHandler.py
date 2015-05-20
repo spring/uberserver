@@ -304,6 +304,9 @@ class DataHandler:
 	def clientFromUsername(self, username):
 		if username in self.usernames: return self.usernames[username]
 
+	def clientFromSession(self, session_id):
+		if session_id in self.clients: return self.clients[session_id]
+
 	def event_loop(self):
 		lastmute = lastidle = self.start_time
 		while self.running:
@@ -404,7 +407,7 @@ class DataHandler:
 			if chan in self.channels:
 				channel = self.channels[chan]
 				if len(channel.users) > 0:
-					clients = [self.clientFromUsername(user) for user in list(channel.users)]
+					clients = [self.clientFromSession(user) for user in list(channel.users)]
 					self.multicast(clients, msg, ignore, sourceClient)
 			else:
 				clients = [self.clientFromUsername(user) for user in list(self.usernames)]
@@ -416,7 +419,7 @@ class DataHandler:
 		if type(ignore) in (str, unicode): ignore = [ignore]
 		if battle_id in self.battles:
 			battle = self.battles[battle_id]
-			clients = [self.clientFromUsername(user) for user in list(battle.users)]
+			clients = [self.clientFromSession(user) for user in list(battle.users)]
 			self.multicast(clients, msg, ignore, sourceClient)
 
 	def admin_broadcast(self, msg):

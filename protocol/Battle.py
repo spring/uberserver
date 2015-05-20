@@ -24,8 +24,8 @@ class Battle(AutoDict):
 		self.title = title
 		self.modname = modname
 		self.passworded = passworded
-		self.users = users
-		self.host = host
+		self.users = users # list with all session_ids of joined users
+		self.host = host # client.session_id
 		self.startrects = startrects
 		self.disabled_units = disabled_units
 
