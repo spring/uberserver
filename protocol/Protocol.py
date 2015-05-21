@@ -691,12 +691,12 @@ class Protocol:
 		return client
 
 	def broadcast_AddBattle(self, battle):
-		for name in self._root.usernames:
-			self.client_AddBattle(self._root.usernames[name], battle)
+		for client in self._root.usernames.itervalues():
+			self.client_AddBattle(client, battle)
 
 	def broadcast_RemoveBattle(self, battle):
-		for name in self._root.usernames:
-			self.client_RemoveBattle(self._root.usernames[name], battle)
+		for client in self._root.usernames.itervalues():
+			self.client_RemoveBattle(client, battle)
 
 	# the sourceClient is only sent for SAY*, and RING commands
 	def broadcast_SendBattle(self, battle, data, sourceClient=None):
@@ -706,14 +706,14 @@ class Protocol:
 				client.Send(data)
 
 	def broadcast_AddUser(self, client):
-		for name in self._root.usernames:
+		for name, receiver in self._root.usernames.iteritems():
 			if not name == client.username:
-				self.client_AddUser(self._root.usernames[name], client)
+				self.client_AddUser(receiver, client)
 
 	def broadcast_RemoveUser(self, client):
-		for name in self._root.usernames:
+		for name, receiver in self._root.usernames.iteritems():
 			if not name == client.username:
-				self.client_RemoveUser(self._root.usernames[name], client)
+				self.client_RemoveUser(receiver, client)
 
 	def client_AddUser(self, client, user):
 		'sends the protocol for adding a user'
