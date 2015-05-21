@@ -1637,7 +1637,7 @@ class Protocol:
 			engine = 'spring'
 			version = self._root.latestspringversion
 		else:
-			self.out_OPENBATTLEFAILED(client, 'To few arguments: %d', argcount)
+			self.out_OPENBATTLEFAILED(client, 'To few arguments: %d' %(argcount))
 			return False
 
 		title = self.SayHooks.hook_OPENBATTLE(self, client, title).strip()
