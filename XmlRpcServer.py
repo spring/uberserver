@@ -61,12 +61,12 @@ class _RpcFuncs(object):
 		All methods of this class will be exposed via XMLRPC.
 	"""
 	def __init__(self, root):
+		assert(root != None)
 		self._root = root
-		self._proto = Protocol.Protocol(self._root)
 
 	def get_account_info(self, username, password):
 		password_enc = unicode(b64encode(LEGACY_HASH_FUNC(password).digest()))
-		good = self._proto._testlogin(unicode(username), password_enc) # FIXME: don't use Protocol.py
+		good = self._root.dispatcher.protocol._testlogin(unicode(username), password_enc) # FIXME: don't use Protocol.py
 		logger.debug("reply: %s", good)
 		if not good:
 			return {"status": 1}
