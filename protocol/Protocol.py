@@ -71,7 +71,6 @@ restricted = {
 	'LEAVEBATTLE',
 	'MYBATTLESTATUS',
 	'OPENBATTLE',
-	'OPENBATTLEEX',
 	'REMOVEBOT',
 	'REMOVESCRIPTTAGS',
 	'REMOVESTARTRECT',
@@ -756,12 +755,6 @@ class Protocol:
 		ubattle['host'] = host.username # session_id -> username
 		if client.compat['cl']: #supports cleanupBattles
 			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s\t%(version)s\t%(map)s\t%(title)s\t%(modname)s' % ubattle)
-		elif client.compat['eb']: #FIXME: this shouldn't be used at all, supports extendedBattles
-			if (' ' in ubattle['engine']) or (' ' in  ubattle['version']):
-				ubattle['title'] = 'Incompatible (%(engine)s %(version)s) %(title)s' % ubattle
-			ubattle['engine'] = ubattle['engine'].split(" ")[0]
-			ubattle['version'] = ubattle['version'].split(" ")[0]
-			client.Send('BATTLEOPENEDEX %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s %(version)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
 		else:
 			# give client without version support a hint, that this battle is incompatible to his version
 			if not (battle.engine == 'spring' and (battle.version == self._root.latestspringversion or battle.version == self._root.latestspringversion + '.0')):
@@ -1694,63 +1687,6 @@ class Protocol:
 		self._root.battles[battle_id] = battle
 		self.broadcast_AddBattle(battle)
 		client.Send('OPENBATTLE %s'%battle_id)
-		client.Send('REQUESTBATTLESTATUS')
-
-	def in_OPENBATTLEEX(self, client, type, natType, password, port, maxplayers, hashcode, rank, maphash, engine, version, sentence_args):
-		'''
-		@deprecated
-		'''
-
-		self.out_SERVERMSG(client, 'OPENBATTLEEX is deprecated, please update lobby client and use OPENBATTLE!', True)
-		if client.current_battle in self._root.battles:
-			self.in_LEAVEBATTLE(client)
-
-		if sentence_args.count('\t') > 1:
-			map, title, modname = sentence_args.split('\t', 2)
-
-			if not modname:
-				self.out_OPENBATTLEFAILED(client, 'No game name specified.')
-				return
-			if not map:
-				self.out_OPENBATTLEFAILED(client, 'No map name specified.')
-				return
-		else:
-			return False
-
-		title = self.SayHooks.hook_OPENBATTLE(self, client, title)
-		if not title or not title.strip():
-			self.out_OPENBATTLEFAILED(client, "invalid title")
-			return False
-
-		battle_id = self._getNextBattleId()
-
-		client.current_battle = battle_id
-		if password == '*':
-			passworded = 0
-		else:
-			passworded = 1
-
-		host = client.username
-		battle = Battle(
-						root=self._root, id=battle_id, type=type, natType=int(natType),
-						password=password, port=port, maxplayers=maxplayers, hashcode=hashcode,
-						rank=rank, maphash=maphash, map=map, title=title, modname=modname,
-						passworded=passworded, host=host, users=[host],
-						engine=engine, version=version
-					)
-		ubattle = battle.copy()
-
-		try:
-			int(battle_id), int(type), int(natType), int(passworded), int(port), int32(maphash), int32(hashcode)
-		except:
-			client.current_battle = None
-			self.out_OPENBATTLEFAILED(client, 'Invalid argument type, send this to your lobby dev:'
-						'id=%(id)s type=%(type)s natType=%(natType)s passworded=%(passworded)s port=%(port)s maphash=%(maphash)s gamehash=%(hashcode)s' % (ubattle))
-			return
-
-		self.broadcast_AddBattle(battle)
-		self._root.battles[battle_id] = battle
-		client.Send('OPENBATTLE %s' % battle_id)
 		client.Send('REQUESTBATTLESTATUS')
 
 	def in_SAYBATTLE(self, client, msg):
