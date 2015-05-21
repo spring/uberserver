@@ -691,39 +691,29 @@ class Protocol:
 		return client
 
 	def broadcast_AddBattle(self, battle):
-		'queues the protocol for adding a battle - experiment in loose thread-safety'
-		users = dict(self._root.usernames)
-		for name in users:
-			self.client_AddBattle(users[name], battle)
+		for name in self._root.usernames:
+			self.client_AddBattle(self._root.usernames[name], battle)
 
 	def broadcast_RemoveBattle(self, battle):
-		'queues the protocol for removing a battle - experiment in loose thread-safety'
-		users = dict(self._root.usernames)
-		for name in users:
-			self.client_RemoveBattle(users[name], battle)
+		for name in self._root.usernames:
+			self.client_RemoveBattle(self._root.usernames[name], battle)
 
 	# the sourceClient is only sent for SAY*, and RING commands
 	def broadcast_SendBattle(self, battle, data, sourceClient=None):
-		'queues the protocol for sending text in a battle - experiment in loose thread-safety'
-		users = list(battle.users)
-		for session_id in users:
+		for session_id in battle.users:
 			client = self.clientFromSession(session_id)
 			if sourceClient == None or not sourceClient.db_id in client.ignored:
 				client.Send(data)
 
 	def broadcast_AddUser(self, client):
-		'queues the protocol for adding a user - experiment in loose thread-safety'
-		users = dict(self._root.usernames)
-		for name in users:
+		for name in self._root.usernames:
 			if not name == client.username:
-				self.client_AddUser(users[name], client)
+				self.client_AddUser(self._root.usernames[name], client)
 
 	def broadcast_RemoveUser(self, client):
-		'queues the protocol for removing a user - experiment in loose thread-safety'
-		users = dict(self._root.usernames)
-		for name in users:
+		for name in self._root.usernames:
 			if not name == client.username:
-				self.client_RemoveUser(users[name], client)
+				self.client_RemoveUser(self._root.usernames[name], client)
 
 	def client_AddUser(self, client, user):
 		'sends the protocol for adding a user'
