@@ -696,7 +696,7 @@ class Protocol:
 
 	def broadcast_RemoveBattle(self, battle):
 		for client in self._root.usernames.itervalues():
-			self.client_RemoveBattle(client, battle)
+			client.Send('BATTLECLOSED %s' % battle.id)
 
 	# the sourceClient is only sent for SAY*, and RING commands
 	def broadcast_SendBattle(self, battle, data, sourceClient=None):
@@ -729,7 +729,6 @@ class Protocol:
 	def client_AddBattle(self, client, battle):
 		'sends the protocol for adding a battle'
 		ubattle = battle.copy()
-		if not battle.host in self._root.clients: return
 
 		host = self._root.clients[battle.host]
 		if host.ip_address == client.ip_address: # translates the ip to always be compatible with the client
@@ -741,15 +740,12 @@ class Protocol:
 		ubattle['host'] = host.username # session_id -> username
 		if client.compat['cl']: #supports cleanupBattles
 			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s\t%(version)s\t%(map)s\t%(title)s\t%(modname)s' % ubattle)
-		else:
-			# give client without version support a hint, that this battle is incompatible to his version
-			if not (battle.engine == 'spring' and (battle.version == self._root.latestspringversion or battle.version == self._root.latestspringversion + '.0')):
-				ubattle['title'] = 'Incompatible (%(engine)s %(version)s) %(title)s' % ubattle
-			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
+			return
 
-	def client_RemoveBattle(self, client, battle):
-		'sends the protocol for removing a battle'
-		client.Send('BATTLECLOSED %s' % battle.id)
+		# give client without version support a hint, that this battle is incompatible to his version
+		if not (battle.engine == 'spring' and (battle.version == self._root.latestspringversion or battle.version == self._root.latestspringversion + '.0')):
+			ubattle['title'] = 'Incompatible (%(engine)s %(version)s) %(title)s' % ubattle
+		client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
 
 	def is_ignored(self, client, ignoredClient):
 		# verify that this is an online client (only those have an .ignored attr)
@@ -898,7 +894,6 @@ class Protocol:
 		b: If client is hosting a battle, prompts them with JOINBATTLEREQUEST when a user tries to join their battle
 		sp: If client is hosting a battle, sends them other clients' script passwords as an additional argument to JOINEDBATTLE.
 		et: When client joins a channel, sends NOCHANNELTOPIC if the channel has no topic.
-		eb: Enables receiving extended battle commands, like BATTLEOPENEDEX
 		'''
 		assert(type(password) == unicode)
 
