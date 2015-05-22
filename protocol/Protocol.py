@@ -198,8 +198,6 @@ class Protocol:
 		self.SayHooks = root.SayHooks
 		self.dir = dir(self)
 		self.stats = {}
-		self.lockGetNextBattleId = threading.Lock()
-		self.lockChangeUser = threading.Lock()
 
 		## generates new keys if directory is empty, otherwise imports
 		self.rsa_cipher_obj = CryptoHandler.rsa_cipher(root.crypto_key_dir)
@@ -228,18 +226,11 @@ class Protocol:
 		if client.static: return # static clients don't disconnect
 		if not client.username in self._root.usernames: # client didn't full login
 			return
-		self.lockChangeUser.acquire()
-		if client.removing:
-			self.lockChangeUser.release()
-			return
-		client.removing = True
-
 
 		user = client.username
 		del self._root.usernames[user]
 		if client.db_id in self._root.db_ids:
 			del self._root.db_ids[client.db_id]
-		self.lockChangeUser.release()
 
 		channels = list(client.channels)
 		for chan in channels:
@@ -660,10 +651,8 @@ class Protocol:
 		if client.lobby_id in ("SpringLobby 0.188 (win x32)", "SpringLobby 0.200 (win x32)"):
 			client.Send("SAYPRIVATE ChanServ The autoupdater of SpringLobby 0.188 is broken, please manually update: http://springrts.com/phpbb/viewtopic.php?f=64&t=31224")
 	def _getNextBattleId(self):
-		self.lockGetNextBattleId.acquire()
 		self._root.nextbattle += 1 #FIXME: handle overflow (int32)
 		id = self._root.nextbattle
-		self.lockGetNextBattleId.release()
 		return id
 
 	def clientFromID(self, db_id, fromdb = False):
@@ -1024,10 +1013,8 @@ class Protocol:
 
 		self._root.console_write('[%s] Successfully logged in user <%s> (access=%s).' % (client.session_id, user_or_error.username, client.access))
 
-		self.lockChangeUser.acquire()
 		self._root.db_ids[client.db_id] = client
 		self._root.usernames[user_or_error.username] = client
-		self.lockChangeUser.release()
 
 		self._calc_status(client, 0)
 
@@ -1656,8 +1643,6 @@ class Protocol:
 						passworded=passworded, host=client.session_id, users={client.session_id},
 						engine=engine, version=version
 					)
-		ubattle = battle.copy()
-
 
 		self._root.battles[battle_id] = battle
 		self.broadcast_AddBattle(battle)
