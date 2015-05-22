@@ -1040,18 +1040,12 @@ class Protocol:
 		self._checkCompat(client)
 		self.broadcast_AddUser(client)
 
-		usernames = dict(self._root.usernames) # cache them here in case anyone joins/leaves or hosts/closes a battle
-
-		for username in usernames:
-			addclient = usernames[username]
+		for addclient in self._root.usernames.itervalues():
 			self.client_AddUser(client, addclient)
 
-		battles = dict(self._root.battles)
-
-		for battle in battles:
-			battle = battles[battle]
-			ubattle = battle.copy()
+		for battle in self._root.battles.itervalues():
 			self.client_AddBattle(client, battle)
+			ubattle = battle.copy()
 			client.Send('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % ubattle)
 			for session_id in battle.users:
 				client = self.clientFromSession(session_id)
@@ -1060,11 +1054,11 @@ class Protocol:
 
 		self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status))
 
-		for username in usernames:
+		for addclient in self._root.usernames.itervalues():
 			# potential problem spot, might need to check to make sure username is still in user db
-			if username == user_or_error.username:
+			if addclient.username == user_or_error.username:
 				continue
-			client.Send('CLIENTSTATUS %s %d' % (username, usernames[username].status))
+			client.Send('CLIENTSTATUS %s %d' % (username, addclient.status))
 
 		client.Send('LOGININFOEND')
 		self._informErrors(client)
