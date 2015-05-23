@@ -401,8 +401,6 @@ class DataHandler:
 
 	def _rebind_slow(self):
 		try:
-			self.dispatcher.rebind()
-				
 			for channel in dict(self.channels): # hack, but I guess reloading is all a hack :P
 				chan = self.channels[channel].copy()
 				del chan['name'] # 'cause we're passing it ourselves
@@ -410,7 +408,7 @@ class DataHandler:
 			
 			self.userdb = UsersHandler(self, self.engine)
 			self.channeldb = ChannelsHandler(self, self.engine)
-			self.chanserv.reload()
+			self.chanserv.reload(self.protocol)
 		except:
 			self.error(traceback.format_exc())
 
