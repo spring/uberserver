@@ -13,13 +13,15 @@ class Chat(LineReceiver, Client.Client):
 
 	def connectionMade(self):
 		self.root.session_id += 1
-		self.root.clients[self.root.session_id] = self
+		self.session_id = self.root.session_id
+		self.root.clients[self.session_id] = self
 		peer = (self.transport.getPeer().host, self.transport.getPeer().port)
-		super(Chat, self).__init__( self.root, None, peer, self.root.session_id)
+		super(Chat, self).__init__( self.root, None, peer, self.session_id)
 		self.Bind(None, self.root.protocol)
 
 	def connectionLost(self, reason):
 		self.root.protocol._remove(self, reason)
+		del self.root.clients[self.session_id]
 
 	def dataReceived(self, data):
 		self.Handle(data)
