@@ -232,8 +232,7 @@ class Protocol:
 		if client.db_id in self._root.db_ids:
 			del self._root.db_ids[client.db_id]
 
-		channels = list(client.channels)
-		for chan in channels:
+		for chan in client.channels:
 			channel = self._root.channels[chan]
 			if user in channel.users:
 				self.in_LEAVE(client, chan, reason)
@@ -496,7 +495,7 @@ class Protocol:
 		}
 
 		if (self._root.motd):
-			for line in list(self._root.motd):
+			for line in self._root.motd:
 				for key, value in replace_vars.iteritems():
 					line = line.replace(key, value)
 
@@ -1220,9 +1219,8 @@ class Protocol:
 		'''
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
-			mutelist = dict(channel.mutelist)
 			client.Send('MUTELISTBEGIN %s' % chan)
-			for user in mutelist:
+			for user in channel.mutelist:
 				m = mutelist[user].copy()
 				message = self._time_until(m['expires']) + (' by IP.' if m['ip'] else '.')
 				user = self.clientFromID(user)
@@ -1832,8 +1830,7 @@ class Protocol:
 		client.Send('JOINBATTLE %s %s' % (battle_id, battle.hashcode))
 		battle.users.append(client.session_id)
 		scripttags = []
-		script_tags = dict(battle.script_tags)
-		for tag in script_tags:
+		for tag in battle.script_tags:
 			scripttags.append('%s=%s'%(tag, script_tags[tag]))
 		client.Send('SETSCRIPTTAGS %s'%'\t'.join(scripttags))
 		if battle.disabled_units:
@@ -1935,8 +1932,7 @@ class Protocol:
 		if username in battle.authed_users:
 			battle.authed_users.remove(username)
 
-		battle_bots = dict(client.battle_bots)
-		for bot in battle_bots:
+		for bot in client.battle_bots:
 			del client.battle_bots[bot]
 			if bot in battle.bots:
 				del battle.bots[bot]
@@ -2719,7 +2715,7 @@ class Protocol:
 		if user in self._root.usernames:
 			kickeduser = self._root.usernames[user]
 			if reason: reason = ' (reason: %s)' % reason
-			for chan in list(kickeduser.channels):
+			for chan in kickeduser.channels:
 				self._root.broadcast('CHANNELMESSAGE %s <%s> kicked <%s> from the server%s'%(chan, client.username, user, reason),chan)
 			self.out_SERVERMSG(client, 'You\'ve kicked <%s> from the server.' % user)
 			self.out_SERVERMSG(kickeduser, 'You\'ve been kicked from server by <%s>%s' % (client.username, reason))
