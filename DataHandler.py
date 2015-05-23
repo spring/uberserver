@@ -7,7 +7,8 @@ from CryptoHandler import UNICODE_ENCODING
 import ChanServ
 import ip2country
 import datetime
-import Dispatcher
+import Protocol
+
 try:
 	from urllib2 import urlopen
 except:
@@ -68,7 +69,6 @@ class DataHandler:
 		self.clients = {}
 		self.db_ids = {}
 		self.battles = {}
-		self.socket = None
 		self.detectIp()
 
 	def init(self):
@@ -92,8 +92,6 @@ class DataHandler:
 		self.userdb = UsersHandler(self, self.engine)
 		self.channeldb = ChannelsHandler(self, self.engine)
 
-		self.socket = self.createSocket()
-		self.dispatcher = Dispatcher.Dispatcher(self, self.socket)
 		channels = self.channeldb.load_channels()
 
 		for name in channels:
@@ -111,8 +109,7 @@ class DataHandler:
 
 			self.channels[name] = Channel(self, name, chanserv=bool(owner), id = channel['id'], owner=owner, admins=admins, key=channel['key'], antispam=channel['antispam'], topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time())}, store_history = channel['store_history'] )
 
-		self.chanserv = ChanServ.ChanServClient(self, (self.online_ip, 0), self.session_id)
-		self.dispatcher.addClient(self.chanserv)
+		#self.dispatcher.addClient(self.chanserv)
 
 		for name in channels:
 			self.chanserv.HandleProtocolCommand('JOIN %s' % name)
@@ -121,10 +118,11 @@ class DataHandler:
 			self.rotatelogfile()
 
 		self.parseFiles()
-		thread.start_new_thread(self.event_loop, ())
+		self.protocol = Protocol.Protocol(self)
+		self.chanserv = ChanServ.ChanServClient(self, (self.online_ip, 0), self.session_id)
+		self.chanserv.reload(self.protocol)
 
 	def shutdown(self):
-		self.socket.close()
 		self.running = False
 		self.console_print_step() # flush console buffer
 
@@ -384,7 +382,8 @@ class DataHandler:
 			except: lines = ['Failed to print lines of type %s'%type(lines)]
 		strtime = datetime.datetime.fromtimestamp(int(time.time())).isoformat() + ' '
 		for line in lines:
-			self.console_buffer += [ strtime + line ]
+			print(strtime + line)
+			#self.console_buffer += [ strtime + line ]
 
 	# the sourceClient is only sent for SAY*, and RING commands
 	def multicast(self, clients, msg, ignore=(), sourceClient=None):

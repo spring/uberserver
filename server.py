@@ -8,6 +8,7 @@ except:
 	import _thread
 
 import traceback, signal, socket, sys
+from twisted.internet import reactor
 
 sys.path.append("protocol")
 sys.path.append(".")
@@ -19,6 +20,7 @@ from XmlRpcServer import XmlRpcServer
 
 import ip2country # just to make sure it's downloaded
 import ChanServ
+import twistedserver
 
 # uncomment for debugging deadlocks, creates a stacktrace at the given interval to stdout
 #import stacktracer
@@ -71,7 +73,9 @@ except socket.error:
 _root.init()
 
 try:
-	_root.dispatcher.pump()
+	reactor.listenTCP(8200, twistedserver.ChatFactory(_root))
+	reactor.run()
+
 except KeyboardInterrupt:
 	_root.console_write()
 	_root.console_write('Server killed by keyboard interrupt.')
@@ -79,16 +83,6 @@ except:
 	_root.error(traceback.format_exc())
 	_root.console_write('Deep error, exiting...')
 	_root.console_print_step() # try to flush output buffer to log file
-
-# _root.console_write('Killing handlers.')
-# for handler in _root.clienthandlers:
-# 	handler.running = False
-_root.console_write('Killing clients.')
-for client in dict(_root.clients):
-	try:
-		conn = _root.clients[client].conn
-		if conn: conn.close()
-	except: pass # for good measure
 
 _root.shutdown()
 
