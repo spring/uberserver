@@ -6,7 +6,7 @@ python:
 #   - "3.3"
 #   - "3.4"
 install:
-   - pip install SQLAlchemy pycrypto
+   - pip install SQLAlchemy pycrypto twisted
 
 script:
    - protocol/Protocol.py
