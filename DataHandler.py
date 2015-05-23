@@ -9,18 +9,22 @@ import ip2country
 import datetime
 import Protocol
 
+import logging
+from logging.handlers import TimedRotatingFileHandler
+
+separator = '-'*60
+
 try:
 	from urllib2 import urlopen
 except:
 	# The urllib2 module has been split across several modules in Python 3.0
 	from urllib.request import urlopen
 
-
-separator = '-'*60
-
 class DataHandler:
 
 	def __init__(self):
+		self.logfilename = "server.log"
+		self.initlogger(self.logfilename)
 		self.local_ip = None
 		self.online_ip = None
 		self.session_id = 0
@@ -31,9 +35,6 @@ class DataHandler:
 		self.xmlhost = '127.0.0.1'
 		self.natport = self.port + 1
 		self.latestspringversion = '*'
-		self.log = False
-		self.logfile = None
-		self.logfilename = 'server.log'
 		self.agreementfile = 'agreement.txt'
 		self.agreement = []
 		self.server = 'TASServer'
@@ -70,6 +71,18 @@ class DataHandler:
 		self.db_ids = {}
 		self.battles = {}
 		self.detectIp()
+
+	def initlogger(self, filename):
+		# logging
+		server_logfile = os.path.join(os.path.dirname(__file__), filename)
+		self.logger = logging.getLogger()
+		self.logger.setLevel(logging.DEBUG)
+		fh = TimedRotatingFileHandler(server_logfile, when="midnight", backupCount=6)
+		formatter = logging.Formatter(fmt='%(asctime)s %(levelname)-5s %(module)s.%(funcName)s:%(lineno)d  %(message)s',
+						datefmt='%Y-%m-%d %H:%M:%S')
+		fh.setFormatter(formatter)
+		fh.setLevel(logging.DEBUG)
+		self.logger.addHandler(fh)
 
 	def init(self):
 		sqlalchemy = __import__('sqlalchemy')
@@ -114,9 +127,6 @@ class DataHandler:
 		for name in channels:
 			self.chanserv.HandleProtocolCommand('JOIN %s' % name)
 
-		if not self.log:
-			self.rotatelogfile()
-
 		self.parseFiles()
 		self.protocol = Protocol.Protocol(self)
 		self.chanserv = ChanServ.ChanServClient(self, (self.online_ip, 0), self.session_id)
@@ -124,7 +134,6 @@ class DataHandler:
 
 	def shutdown(self):
 		self.running = False
-		self.console_print_step() # flush console buffer
 
 	def showhelp(self):
 		print('Usage: server.py [OPTIONS]...')
@@ -224,7 +233,6 @@ class DataHandler:
 			elif arg in ['o', 'output']:
 				try: self.logfilename = argp[0]
 				except: print('Error specifying log location')
-				self.rotatelogfile()
 			elif arg in ['u', 'sighup']:
 				self.sighup = True
 			elif arg in ['v', 'latestspringversion']:
@@ -310,14 +318,9 @@ class DataHandler:
 		while self.running:
 			now = time.time()
 			try:
-				if now - lastmute >= 1:
+				if now - lastmute >= 1: #FIXME: reenable after twisted switch
 					lastmute = now
 					self.mute_timeout_step(now)
-				elif now - lastidle > 10:
-					lastidle = now
-					self.idle_timeout_step(now)
-				else:
-					self.console_print_step()
 			except:
 				self.error(traceback.format_exc())
 			time.sleep(max(0.1, 1 - (now - self.start_time)))
@@ -338,41 +341,9 @@ class DataHandler:
 		except:
 			self.error(traceback.format_exc())
 
-	def idle_timeout_step(self, now):
-		for client in self.clients.values():
-			if client.static: continue
-			if not client.logged_in and client.last_login < now - 60:
-				client.Send("SERVERMSG timed out, no login within 60 seconds!")
-				client.Remove("Connection timed out, didn't login")
-			elif client.lastdata < now - 60:
-				client.Send("SERVERMSG timed out, no data or PING received for >60 seconds, closing connection")
-				client.Remove("Connection timed out")
-
-	def console_print_step(self):
-		try:
-			while self.console_buffer:
-				line = self.console_buffer.pop(0).encode(UNICODE_ENCODING)
-				print(line)
-				if self.log:
-					self.logfile.write(line+'\n')
-			
-			if self.logfile:
-				self.logfile.flush()
-		except:
-			print(separator)
-			print(traceback.format_exc())
-			print(separator)
-
 	def error(self, error):
-		error = '%s\n%s\n%s'%(separator,error,separator)
-		self.console_write(error)
-		for user in dict(self.usernames):
-			try:
-				if self.usernames[user].debug:
-					for line in error.split('\n'):
-						if line:
-							self.usernames[user].Send('SERVERMSG %s'%line)
-			except KeyError: pass # the user was removed
+		self.console_write('%s\n%s\n%s'%(separator,error,separator))
+		self.logger.error(error)
 
 	def console_write(self, lines=''):
 		if type(lines) in(str, unicode):
@@ -380,10 +351,9 @@ class DataHandler:
 		elif not type(lines) in (list, tuple, set):
 			try: lines = [lines.__repr__()]
 			except: lines = ['Failed to print lines of type %s'%type(lines)]
-		strtime = datetime.datetime.fromtimestamp(int(time.time())).isoformat() + ' '
 		for line in lines:
-			print(strtime + line)
-			#self.console_buffer += [ strtime + line ]
+			print(line)
+			self.logger.info(line)
 
 	# the sourceClient is only sent for SAY*, and RING commands
 	def multicast(self, clients, msg, ignore=(), sourceClient=None):
@@ -450,7 +420,6 @@ class DataHandler:
 	def reload(self):
 		self.admin_broadcast('Reloading...')
 		self.console_write('Reloading...')
-		self.rotatelogfile()
 		self.parseFiles()
 		reload(sys.modules['SayHooks'])
 		reload(sys.modules['ChanServ'])
@@ -466,24 +435,6 @@ class DataHandler:
 		self.SayHooks = __import__('SayHooks')
 		ip2country.reloaddb()
 		thread.start_new_thread(self._rebind_slow, ()) # why should reloading block the thread? :)
-
-	def rotatelogfile(self):
-		self.log = False
-		try:
-			if self.logfile:
-				self.console_print_step() # flush logfile
-				self.logfile.close()
-			oldfilename = self.logfilename + ".old"
-			if os.path.exists(oldfilename):
-				os.remove(oldfilename)
-			os.rename(self.logfilename, oldfilename)
-		except OSError as e:
-			print("Error rotaing logfile %s"% (e.strerror))
-		except IOError as e:
-			print("Error rotaing logfile %s"% (e.strerror))
-		self.logfile = file(self.logfilename, 'w')
-		print('Logging enabled at: %s' % self.logfilename)
-		self.log = True
 
 	def detectIp(self):
 		self.console_write('\nDetecting local IP:')
