@@ -683,7 +683,9 @@ class Protocol:
 
 	def broadcast_RemoveBattle(self, battle):
 		for client in self._root.usernames.itervalues():
-			client.Send('BATTLECLOSED %s' % battle.id)
+			if battle.id in client.battles:
+				client.battles.remove(battle.id)
+				client.Send('BATTLECLOSED %s' % battle.id)
 
 	# the sourceClient is only sent for SAY*, and RING commands
 	def broadcast_SendBattle(self, battle, data, sourceClient=None):
@@ -714,6 +716,9 @@ class Protocol:
 		client.Send('REMOVEUSER %s' % user.username)
 
 	def client_AddBattle(self, client, battle):
+		if battle.id in client.battles: # client already received this battle, don't send twice
+			return
+		client.battles.add(battle.id)
 		'sends the protocol for adding a battle'
 		ubattle = battle.copy()
 

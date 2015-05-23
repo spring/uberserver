@@ -58,7 +58,6 @@ class Client(BaseClient):
 		self.cpu = 0
 		self.access = 'fresh'
 		self.accesslevels = ['fresh','everyone']
-		self.channels = []
 		
 		self.battle_bots = {}
 		self.current_battle = None
@@ -102,6 +101,8 @@ class Client(BaseClient):
 		self.last_id = 0
 		
 		self.ignored = {}
+		self.battles = set() # we keep a copy here to not send a invalid state-change
+		self.channels = set()
 		
 		self._root.console_write('[%s] Client connected from %s:%s' % (session_id, self.ip_address, self.port))
 
