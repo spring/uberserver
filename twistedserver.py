@@ -1,10 +1,11 @@
 from twisted.internet.protocol import Factory
 from twisted.protocols.basic import LineReceiver
+from twisted.protocols.policies import TimeoutMixin
 from protocol import Protocol
 import DataHandler
 import Client
 
-class Chat(LineReceiver, Client.Client):
+class Chat(LineReceiver, Client.Client, TimeoutMixin):
 
 	def __init__(self, root):
 		self.root = root
@@ -14,6 +15,7 @@ class Chat(LineReceiver, Client.Client):
 		self.root.session_id += 1
 		self.session_id = self.root.session_id
 		self.root.clients[self.session_id] = self
+		self.setTimeout(60)
 		peer = (self.transport.getPeer().host, self.transport.getPeer().port)
 		super(Chat, self).__init__( self.root, None, peer, self.session_id)
 		self.Bind(None, self.root.protocol)
@@ -23,7 +25,12 @@ class Chat(LineReceiver, Client.Client):
 		del self.root.clients[self.session_id]
 
 	def dataReceived(self, data):
+		if self.username:
+			self.resetTimeout()
 		self.Handle(data)
+
+	def timeoutConnection(self):
+	        self.transport.abortConnection()
 
 	def Send(self, msg):
 		self.transport.write(msg.encode("utf-8")+"\n")
