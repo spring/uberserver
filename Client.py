@@ -178,7 +178,7 @@ class Client(BaseClient):
 
 		total = 0
 
-		for iter in self.msg_length_history:
+		for iter in dict(self.msg_length_history):
 			if (iter < now - (seconds - 1)):
 				del self.msg_length_history[iter]
 			else:
