@@ -17,7 +17,6 @@ class Chat(LineReceiver, Client.Client):
 		peer = (self.transport.getPeer().host, self.transport.getPeer().port)
 		super(Chat, self).__init__( self.root, None, peer, self.root.session_id)
 		self.Bind(None, self.root.protocol)
-		self.root.protocol._new(self)
 
 	def connectionLost(self, reason):
 		self.root.protocol._remove(self, reason)
