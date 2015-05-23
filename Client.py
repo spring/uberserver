@@ -1,4 +1,4 @@
-import socket, time, sys, thread, ip2country, errno
+import socket, time, sys, ip2country, errno
 from collections import defaultdict
 
 from BaseClient import BaseClient
@@ -38,10 +38,8 @@ class Client(BaseClient):
 		self.session_id = session_id
 		self.db_id = session_id
 		
-		self.handler = None
 		self.static = False
 		self._protocol = None
-		self.removing = False
 		self.sendError = False
 		self.msg_id = ''
 		self.msg_sendbuffer = []
@@ -148,8 +146,7 @@ class Client(BaseClient):
 		if force or cc != '??':
 			self.country_code = cc
 
-	def Bind(self, handler=None, protocol=None):
-		if handler:	self.handler = handler
+	def Bind(self, protocol=None):
 		if protocol:
 			if not self._protocol:
 				protocol._new(self)
@@ -286,29 +283,13 @@ class Client(BaseClient):
 			else:
 				self.HandleProtocolCommand(command)
 
-	def HandleProtocolCommand(self, cmd):
-		## probably caused by trailing newline ("abc\n".split("\n") == ["abc", ""])
-		if (len(cmd) <= 1):
-			return
-
-		self._protocol._handle(self, cmd)
-
-
-	def Remove(self, reason='Quit'):
-		while self.msg_sendbuffer:
-			self.FlushBuffer()
-		self.handler.finishRemove(self, reason)
-
 	##
 	## send data to client
 	##
 	def Send(self, data, batch = True):
 		## don't append new data to buffer when client gets removed
-		if ((not data) or self.removing):
+		if not data:
 			return
-
-		if (self.handler.thread == thread.get_ident()):
-			data = self.msg_id + data
 
 		## this *must* always succeed (protocol operates on
 		## unicode internally, but is otherwise fully ASCII
@@ -357,40 +338,8 @@ class Client(BaseClient):
 
 		if (len(buf) == 0):
 			return
+		self.transport.write(buf.encode("utf-8")+"\n")
 
-		self.msg_sendbuffer.append(buf)
-		self.handler.poller.setoutput(self.conn, True)
-
-
-	def FlushBuffer(self):
-		# client gets removed, delete buffers
-		if self.removing:
-			self.msg_sendbuffer = []
-			self.sendingmessage = None
-			return
-		if not self.sendingmessage:
-			message = ''
-			while not message:
-				if not self.msg_sendbuffer: # just in case, since it returns before going to the end...
-					self.handler.poller.setoutput(self.conn, False)
-					return
-				message = self.msg_sendbuffer.pop(0)
-			self.sendingmessage = message
-		senddata = self.sendingmessage# [:64] # smaller chunks interpolate better, maybe base this off of number of clients?
-		try:
-			sent = self.conn.send(senddata)
-			self.sendingmessage = self.sendingmessage[sent:] # only removes the number of bytes sent
-		except UnicodeDecodeError:
-			self.sendingmessage = None
-			self._root.console_write('Error sending unicode string, message dropped.')
-		except socket.error as e:
-			if e == errno.EAGAIN:
-				return
-			self.msg_sendbuffer = []
-			self.sendingmessage = None
-		
-		self.handler.poller.setoutput(self.conn, bool(self.msg_sendbuffer or self.sendingmessage))
-	
 	def isAdmin(self):
 		return ('admin' in self.accesslevels)
 	

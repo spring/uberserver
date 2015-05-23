@@ -215,7 +215,6 @@ class Protocol:
 			login_string += "\nREDIRECT " + self._root.redirect
 
 		client.Send(login_string)
-		client.FlushBuffer() #FIXME: shouldn't be required
 
 		if self._root.redirect:
 			# this will make the server not accepting any commands

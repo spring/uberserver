@@ -1,11 +1,11 @@
 from twisted.internet.protocol import Factory
-from twisted.protocols.basic import LineReceiver
+from twisted.internet import protocol
 from twisted.protocols.policies import TimeoutMixin
 from protocol import Protocol
 import DataHandler
 import Client
 
-class Chat(LineReceiver, Client.Client, TimeoutMixin):
+class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 
 	def __init__(self, root):
 		self.root = root
@@ -17,8 +17,8 @@ class Chat(LineReceiver, Client.Client, TimeoutMixin):
 		self.root.clients[self.session_id] = self
 		self.setTimeout(60)
 		peer = (self.transport.getPeer().host, self.transport.getPeer().port)
-		super(Chat, self).__init__( self.root, None, peer, self.session_id)
-		self.Bind(None, self.root.protocol)
+		Client.Client.__init__(self, self.root, None, peer, self.session_id)
+		self.Bind(self.root.protocol)
 
 	def connectionLost(self, reason):
 		self.root.protocol._remove(self, reason)
@@ -29,17 +29,18 @@ class Chat(LineReceiver, Client.Client, TimeoutMixin):
 			self.resetTimeout()
 		self.Handle(data)
 
+	def HandleProtocolCommand(self, cmd):
+		## probably caused by trailing newline ("abc\n".split("\n") == ["abc", ""])
+		if (len(cmd) < 1):
+			return
+		self.root.protocol._handle(self, cmd)
+
+
 	def timeoutConnection(self):
 	        self.transport.abortConnection()
 
-	def Send(self, msg):
-		self.transport.write(msg.encode("utf-8")+"\n")
-
-	def FlushBuffer(self): #Client overrides
-		pass
-
-	def Remove(self, reason):
-		pass
+	def Remove(self, reason='Quit'):
+		self.transport.abortConnection()
 
 class ChatFactory(Factory):
 

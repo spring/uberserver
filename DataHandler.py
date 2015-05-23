@@ -327,10 +327,10 @@ class DataHandler:
 
 	def mute_timeout_step(self, now):
 		try:
-			channels = dict(self.channels)
+			channels = self.channels
 			for chan in channels:
 				channel = channels[chan]
-				mutelist = dict(channel.mutelist)
+				mutelist = channel.mutelist
 				for db_id in mutelist:
 					expiretime = mutelist[db_id]['expires']
 					if 0 < expiretime and expiretime < now:
@@ -376,10 +376,10 @@ class DataHandler:
 			if chan in self.channels:
 				channel = self.channels[chan]
 				if len(channel.users) > 0:
-					clients = [self.clientFromSession(user) for user in list(channel.users)]
+					clients = [self.clientFromSession(user) for user in channel.users]
 					self.multicast(clients, msg, ignore, sourceClient)
 			else:
-				clients = [self.clientFromUsername(user) for user in list(self.usernames)]
+				clients = [self.clientFromUsername(user) for user in self.usernames]
 				self.multicast(clients, msg, ignore, sourceClient)
 		except: self.error(traceback.format_exc())
 
@@ -392,7 +392,7 @@ class DataHandler:
 			self.multicast(clients, msg, ignore, sourceClient)
 
 	def admin_broadcast(self, msg):
-		for user in dict(self.usernames):
+		for user in self.usernames:
 			client = self.usernames[user]
 			if user == "ChanServ": # needed to allow "reload"
 				continue
