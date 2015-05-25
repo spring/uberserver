@@ -38,10 +38,14 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 
 
 	def timeoutConnection(self):
-	        self.transport.abortConnection()
+		if self.username:
+			self.Send("SERVERMSG timeout: didn't login within 60 seconds")
+		else:
+			self.Send("SERVERMSG timeout: no data received within 60 seconds")
+	        self.transport.loseConnection()
 
 	def Remove(self, reason='Quit'):
-		self.transport.abortConnection()
+		self.transport.loseConnection()
 
 class ChatFactory(Factory):
 
