@@ -1028,7 +1028,8 @@ class Protocol:
 
 		for addclient in self._root.usernames.itervalues():
 			client.RealSend(self.client_AddUser(client, addclient))
-			client.RealSend('CLIENTSTATUS %s %d' % (username, addclient.status))
+			if addclient.status != 0:
+				client.RealSend('CLIENTSTATUS %s %d' % (addclient.username, addclient.status))
 
 		for battle in self._root.battles.itervalues():
 			client.RealSend(self.client_AddBattle(client, battle))
@@ -1039,8 +1040,8 @@ class Protocol:
 				if not battleclient.session_id == battle.host:
 					client.RealSend('JOINEDBATTLE %s %s' % (battle.id, battleclient.name))
 
-		self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status)) # broadcast current client status
-
+		if client.status != 0:
+			self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status)) # broadcast current client status
 
 		client.Send('LOGININFOEND')
 		client.flushBuffer()
