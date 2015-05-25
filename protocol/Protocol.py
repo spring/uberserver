@@ -1495,7 +1495,7 @@ class Protocol:
 				client.Send('JOINFAILED %s You are not allowed' % chan)
 				return
 		if not chan in client.channels:
-			client.channels.append(chan)
+			client.channels.add(chan)
 		client.Send('JOIN %s'%chan)
 		self._root.broadcast('JOINED %s %s' % (chan, user), chan)
 		channel.users.add(client.session_id)

@@ -73,7 +73,7 @@ except socket.error:
 _root.init()
 
 try:
-	reactor.listenTCP(8200, twistedserver.ChatFactory(_root))
+	reactor.listenTCP(_root.port, twistedserver.ChatFactory(_root))
 	reactor.run()
 
 except KeyboardInterrupt:

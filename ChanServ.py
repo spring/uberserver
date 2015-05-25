@@ -232,6 +232,7 @@ class ChanServClient(Client):
 		self.cpu = '9001'
 		self.lobby_id = 'ChanServ'
 		self._root.usernames[self.username] = self
+		self._root.clients[session_id] = self
 		self._root.console_write('[%s] Successfully logged in static user <%s>'%(self.session_id, self.username))
 		
 	def reload(self, protocol):
