@@ -124,13 +124,14 @@ class DataHandler:
 
 		#self.dispatcher.addClient(self.chanserv)
 
-		for name in channels:
-			self.chanserv.HandleProtocolCommand('JOIN %s' % name)
 
 		self.parseFiles()
 		self.protocol = Protocol.Protocol(self)
 		self.chanserv = ChanServ.ChanServClient(self, (self.online_ip, 0), self.session_id)
 		self.chanserv.reload(self.protocol)
+
+		for name in channels:
+			self.chanserv.HandleProtocolCommand('JOIN %s' % name)
 
 	def shutdown(self):
 		self.running = False

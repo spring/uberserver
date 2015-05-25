@@ -204,7 +204,7 @@ class Client(BaseClient):
 		## probably caused by trailing newline ("abc\n".split("\n") == ["abc", ""])
 		if (len(cmd) < 1):
 			return
-		self.root.protocol._handle(self, cmd)
+		self._root.protocol._handle(self, cmd)
 
 	def HandleProtocolCommands(self, split_data, msg_limits):
 		assert(type(split_data) == list)
