@@ -14,6 +14,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 	def connectionMade(self):
 		self.root.session_id += 1
 		self.session_id = self.root.session_id
+		assert(self.session_id not in self.root.clients)
 		self.root.clients[self.session_id] = self
 		self.setTimeout(60)
 		peer = (self.transport.getPeer().host, self.transport.getPeer().port)
