@@ -18,7 +18,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 		self.root.clients[self.session_id] = self
 		self.setTimeout(60)
 		peer = (self.transport.getPeer().host, self.transport.getPeer().port)
-		Client.Client.__init__(self, self.root, None, peer, self.session_id)
+		Client.Client.__init__(self, self.root, peer, self.session_id)
 		self.Bind(self.root.protocol)
 
 	def connectionLost(self, reason):

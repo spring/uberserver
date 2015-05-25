@@ -17,10 +17,9 @@ from CryptoHandler import UNICODE_ENCODING
 class Client(BaseClient):
 	'this object represents one server-side connected client'
 
-	def __init__(self, root, connection, address, session_id):
+	def __init__(self, root, address, session_id):
 		'initial setup for the connected client'
 		self._root = root
-		self.conn = connection
 
 		# detects if the connection is from this computer
 		if address[0].startswith('127.'):
