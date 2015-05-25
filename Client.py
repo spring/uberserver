@@ -200,6 +200,11 @@ class Client(BaseClient):
 
 		self.HandleProtocolCommands(self.data.split(DATA_PARTIT_BYTE), msg_limits)
 
+	def HandleProtocolCommand(self, cmd):
+		## probably caused by trailing newline ("abc\n".split("\n") == ["abc", ""])
+		if (len(cmd) < 1):
+			return
+		self.root.protocol._handle(self, cmd)
 
 	def HandleProtocolCommands(self, split_data, msg_limits):
 		assert(type(split_data) == list)

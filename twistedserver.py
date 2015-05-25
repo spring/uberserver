@@ -30,13 +30,6 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 			self.resetTimeout()
 		self.Handle(data)
 
-	def HandleProtocolCommand(self, cmd):
-		## probably caused by trailing newline ("abc\n".split("\n") == ["abc", ""])
-		if (len(cmd) < 1):
-			return
-		self.root.protocol._handle(self, cmd)
-
-
 	def timeoutConnection(self):
 		if self.username:
 			self.Send("SERVERMSG timeout: didn't login within 60 seconds")
