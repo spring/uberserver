@@ -22,7 +22,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 		self.Bind(self.root.protocol)
 
 	def connectionLost(self, reason):
-		self.root.protocol._remove(self, reason)
+		self.root.protocol._remove(self, reason.value)
 		del self.root.clients[self.session_id]
 
 	def dataReceived(self, data):

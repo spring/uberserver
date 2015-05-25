@@ -220,9 +220,11 @@ class Protocol:
 			# this will make the server not accepting any commands
 			# the client will be disconnected with "Connection timed out, didn't login"
 			client.removing = True
+		self._root.console_write('[%s] Client connected from %s:%s' % (client.session_id, client.ip_address, client.port))
 
 	def _remove(self, client, reason='Quit'):
 		if client.static: return # static clients don't disconnect
+		self._root.console_write('[%s] disconnected from %s: %s'%(client.session_id, client.ip_address, reason))
 		if not client.username in self._root.usernames: # client didn't full login
 			return
 

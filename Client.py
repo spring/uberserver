@@ -105,8 +105,6 @@ class Client(BaseClient):
 		self.ignored = {}
 		self.battles = set() # we keep a copy here to not send a invalid state-change
 		self.channels = set()
-		
-		self._root.console_write('[%s] Client connected from %s:%s' % (session_id, self.ip_address, self.port))
 
 		## AES cipher used for encrypted protocol communication
 		## with this client; starts with a NULL session-key and
