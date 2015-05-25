@@ -219,7 +219,7 @@ class ChanServClient(Client):
 	def __init__(self, root, address, session_id):
 		'initial setup for the connected client'
 		
-		Client.__init__(self, root, None, address, session_id)
+		Client.__init__(self, root, address, session_id)
 		
 		self.static = True # can't be removed... don't want to anyway :)
 		self.logged_in = True
