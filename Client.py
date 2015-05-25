@@ -341,11 +341,12 @@ class Client(BaseClient):
 
 		if (len(buf) == 0):
 			return
-		self.transport.write(buf.encode("utf-8"))
+		self.transport.write(buf)
 
 	def Send(self, data, batch = True):
+		data = data.encode("utf-8")
 		if self.buffersend:
-			buffer += buf.encode("utf-8")
+			buffer += data
 		else:
 			self.RealSend(data, batch)
 

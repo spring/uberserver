@@ -510,22 +510,22 @@ class Protocol:
 		motd_lines = motd_string.split('\n')
 
 		for line in motd_lines:
-			client.Send('MOTD %s' % line)
+			client.RealSend('MOTD %s' % line)
 
 	def _checkCompat(self, client):
 		missing_flags = ""
 		'check the compatibility flags of client and report possible/upcoming problems to it'
 		if not client.compat['sp']: # blocks protocol increase to 0.37
-			client.Send("MOTD Your client doesn't support the 'sp' compatibility flag, please upgrade it!")
-			client.Send("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.36")
+			client.RealSend("MOTD Your client doesn't support the 'sp' compatibility flag, please upgrade it!")
+			client.RealSend("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.36")
 			missing_flags += ' sp'
 		if not client.compat['cl']: # cl should be used (bugfixed version of eb)
-			client.Send("MOTD Your client doesn't support the 'cl' compatibility flag, please upgrade it!")
-			client.Send("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
+			client.RealSend("MOTD Your client doesn't support the 'cl' compatibility flag, please upgrade it!")
+			client.RealSend("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
 			missing_flags += ' cl'
 		if not client.compat['p']:
-			client.Send("MOTD Your client doesn't support the 'p' compatibility flag, please upgrade it!")
-			client.Send("MOTD see htpp://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
+			client.RealSend("MOTD Your client doesn't support the 'p' compatibility flag, please upgrade it!")
+			client.RealSend("MOTD see htpp://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
 			missing_flags += ' p'
 		if len(missing_flags) > 0:
 			self._root.console_write('[%s] <%s> client "%s" missing compat flags:%s'%(client.session_id, client.username, client.lobby_id, missing_flags))
@@ -694,17 +694,18 @@ class Protocol:
 
 	def broadcast_AddUser(self, client):
 		for name, receiver in self._root.usernames.iteritems():
-			if not name == client.username:
-				client.Send(self.client_AddUser(receiver, client))
+			if client.session_id == receiver.session_id: # don't send ADDUSER to self
+				continue
+			receiver.Send(self.client_AddUser(receiver, client))
 
 	def broadcast_RemoveUser(self, client):
 		for name, receiver in self._root.usernames.iteritems():
 			if not name == client.username:
 				self.client_RemoveUser(receiver, client)
 
-	def client_AddUser(self, client, user):
+	def client_AddUser(self, receiver, user):
 		'sends the protocol for adding a user'
-		if client.compat['a']: #accountIDs
+		if receiver.compat['a']: #accountIDs
 			return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, user.cpu, user.db_id)
 		else:
 			return 'ADDUSER %s %s %s' % (user.username, user.country_code, user.cpu)
@@ -1024,10 +1025,10 @@ class Protocol:
 
 		self._sendMotd(client, self._get_motd_string(client))
 		self._checkCompat(client)
-		self.broadcast_AddUser(client)
 
 		for addclient in self._root.usernames.itervalues():
 			client.RealSend(self.client_AddUser(client, addclient))
+			client.RealSend('CLIENTSTATUS %s %d' % (username, addclient.status))
 
 		for battle in self._root.battles.itervalues():
 			client.RealSend(self.client_AddBattle(client, battle))
@@ -1040,15 +1041,11 @@ class Protocol:
 
 		self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status)) # broadcast current client status
 
-		for addclient in self._root.usernames.itervalues(): # send to client client status except itself status
-			# potential problem spot, might need to check to make sure username is still in user db
-			if addclient.username == user_or_error.username:
-				continue
-			client.RealSend('CLIENTSTATUS %s %d' % (username, addclient.status))
 
 		client.Send('LOGININFOEND')
 		client.flushBuffer()
 		self._informErrors(client)
+		self.broadcast_AddUser(client) # send ADDUSER to all clients except self
 
 
 	def in_CONFIRMAGREEMENT(self, client):
