@@ -679,13 +679,11 @@ class Protocol:
 
 	def broadcast_AddBattle(self, battle):
 		for client in self._root.usernames.itervalues():
-			self.client_AddBattle(client, battle)
+			client.Send(self.client_AddBattle(client, battle))
 
 	def broadcast_RemoveBattle(self, battle):
 		for client in self._root.usernames.itervalues():
-			if battle.id in client.battles:
-				client.battles.remove(battle.id)
-				client.Send('BATTLECLOSED %s' % battle.id)
+			client.Send('BATTLECLOSED %s' % battle.id)
 
 	# the sourceClient is only sent for SAY*, and RING commands
 	def broadcast_SendBattle(self, battle, data, sourceClient=None):
@@ -697,7 +695,7 @@ class Protocol:
 	def broadcast_AddUser(self, client):
 		for name, receiver in self._root.usernames.iteritems():
 			if not name == client.username:
-				self.client_AddUser(receiver, client)
+				client.Send(self.client_AddUser(receiver, client))
 
 	def broadcast_RemoveUser(self, client):
 		for name, receiver in self._root.usernames.iteritems():
@@ -707,18 +705,15 @@ class Protocol:
 	def client_AddUser(self, client, user):
 		'sends the protocol for adding a user'
 		if client.compat['a']: #accountIDs
-			client.Send('ADDUSER %s %s %s %s' % (user.username, user.country_code, user.cpu, user.db_id))
+			return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, user.cpu, user.db_id)
 		else:
-			client.Send('ADDUSER %s %s %s' % (user.username, user.country_code, user.cpu))
+			return 'ADDUSER %s %s %s' % (user.username, user.country_code, user.cpu)
 
 	def client_RemoveUser(self, client, user):
 		'sends the protocol for removing a user'
 		client.Send('REMOVEUSER %s' % user.username)
 
 	def client_AddBattle(self, client, battle):
-		if battle.id in client.battles: # client already received this battle, don't send twice
-			return
-		client.battles.add(battle.id)
 		'sends the protocol for adding a battle'
 		ubattle = battle.copy()
 
@@ -731,13 +726,12 @@ class Protocol:
 		ubattle.update({'ip':translated_ip})
 		ubattle['host'] = host.username # session_id -> username
 		if client.compat['cl']: #supports cleanupBattles
-			client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s\t%(version)s\t%(map)s\t%(title)s\t%(modname)s' % ubattle)
-			return
+			return 'BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s\t%(version)s\t%(map)s\t%(title)s\t%(modname)s' % ubattle
 
 		# give client without version support a hint, that this battle is incompatible to his version
 		if not (battle.engine == 'spring' and (battle.version == self._root.latestspringversion or battle.version == self._root.latestspringversion + '.0')):
 			ubattle['title'] = 'Incompatible (%(engine)s %(version)s) %(title)s' % ubattle
-		client.Send('BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle)
+		return 'BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle
 
 	def is_ignored(self, client, ignoredClient):
 		# verify that this is an online client (only those have an .ignored attr)
@@ -961,16 +955,24 @@ class Protocol:
 			self.out_DENIED(client, username, reason)
 			return
 
-		if (username in self._root.usernames):
-			self.out_DENIED(client, username, 'Already logged in.', False)
-			return
-
 		if (client.failed_logins > 2):
 			self.out_DENIED(client, username, "Too many failed logins.")
 			return
 
 		assert(user_or_error != None)
 		assert(type(user_or_error) != str)
+
+		# needs to be checked directly before it is added, to make it somelike atomic as we have no locking over threads
+		if (username in self._root.usernames):
+			self.out_DENIED(client, username, 'Already logged in.', False)
+			return
+		client.isloggingin = True
+		client.buffersend = True # enqeue all sends to client made from other threads until server state is send
+		#assert(not client.db_id in self._root.db_ids)
+		self._root.db_ids[client.db_id] = client
+		#assert(not user_or_error.username in self._root.usernames)
+		self._root.usernames[user_or_error.username] = client
+
 
 		## update local client fields from DB User values
 		client.logged_in = True
@@ -995,62 +997,57 @@ class Protocol:
 
 		client.ingame_time = user_or_error.ingame_time
 
-		if user_or_error.id == None:
-			client.db_id = client.session_id
-		else:
-			client.db_id = user_or_error.id
+		client.db_id = user_or_error.id
+		assert(client.db_id >= 0)
 		if client.ip_address in self._root.trusted_proxies:
 			client.setFlagByIP(local_ip, False)
 
 		if (client.access == 'agreement'):
+			client.buffersend = False
 			self._root.console_write('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
 			for line in self._root.agreement:
 				client.Send("AGREEMENT %s" %(line))
 			client.Send('AGREEMENTEND')
 			return
 
-		# needs to be checked directly before it is added, to make it somelike atomic as we have no locking over threads
-		if user_or_error.username in self._root.usernames:
-			self.out_DENIED(client, username, 'Already logged in.', False)
-			return
-
 		self._root.console_write('[%s] Successfully logged in user <%s> (access=%s).' % (client.session_id, user_or_error.username, client.access))
 
-		self._root.db_ids[client.db_id] = client
-		self._root.usernames[user_or_error.username] = client
 
 		self._calc_status(client, 0)
 
 		ignoreList = self.userdb.get_ignored_user_ids(client.db_id)
 		client.ignored = {ignoredUserId:True for ignoredUserId in ignoreList}
 
-		client.Send('ACCEPTED %s' % user_or_error.username)
+		client.buffersend = False
+
+		client.RealSend('ACCEPTED %s' % user_or_error.username)
 
 		self._sendMotd(client, self._get_motd_string(client))
 		self._checkCompat(client)
 		self.broadcast_AddUser(client)
 
 		for addclient in self._root.usernames.itervalues():
-			self.client_AddUser(client, addclient)
+			client.RealSend(self.client_AddUser(client, addclient))
 
 		for battle in self._root.battles.itervalues():
-			self.client_AddBattle(client, battle)
+			client.RealSend(self.client_AddBattle(client, battle))
 			ubattle = battle.copy()
-			client.Send('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % ubattle)
+			client.RealSend('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % ubattle)
 			for session_id in battle.users:
-				client = self.clientFromSession(session_id)
-				if not client.session_id == battle.host:
-					client.Send('JOINEDBATTLE %s %s' % (battle.id, client.name))
+				battleclient = self.clientFromSession(session_id)
+				if not battleclient.session_id == battle.host:
+					client.RealSend('JOINEDBATTLE %s %s' % (battle.id, battleclient.name))
 
-		self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status))
+		self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status)) # broadcast current client status
 
-		for addclient in self._root.usernames.itervalues():
+		for addclient in self._root.usernames.itervalues(): # send to client client status except itself status
 			# potential problem spot, might need to check to make sure username is still in user db
 			if addclient.username == user_or_error.username:
 				continue
-			client.Send('CLIENTSTATUS %s %d' % (username, addclient.status))
+			client.RealSend('CLIENTSTATUS %s %d' % (username, addclient.status))
 
 		client.Send('LOGININFOEND')
+		client.flushBuffer()
 		self._informErrors(client)
 
 

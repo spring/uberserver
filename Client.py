@@ -36,7 +36,7 @@ class Client(BaseClient):
 		self.setFlagByIP(self.ip_address)
 		
 		self.session_id = session_id
-		self.db_id = session_id
+		self.db_id = -1
 		
 		self.static = False
 		self._protocol = None
@@ -99,6 +99,8 @@ class Client(BaseClient):
 		self.register_date = now
 		self.lastdata = now
 		self.last_id = 0
+		self.buffersend = False # write all sends to a buffer (used when a client is logging in but didn't receive full server state)
+		self.buffer = ""
 		
 		self.ignored = {}
 		self.battles = set() # we keep a copy here to not send a invalid state-change
@@ -287,7 +289,7 @@ class Client(BaseClient):
 	##
 	## send data to client
 	##
-	def Send(self, data, batch = True):
+	def RealSend(self, data, batch = True):
 		## don't append new data to buffer when client gets removed
 		if not data:
 			return
@@ -339,7 +341,18 @@ class Client(BaseClient):
 
 		if (len(buf) == 0):
 			return
-		self.transport.write(buf.encode("utf-8")+"\n")
+		self.transport.write(buf.encode("utf-8"))
+
+	def Send(self, data, batch = True):
+		if self.buffersend:
+			buffer += buf.encode("utf-8")
+		else:
+			self.RealSend(data, batch)
+
+	def flushBuffer(self):
+		self.transport.write(self.buffer)
+		buffer = ""
+		self.buffersend = False
 
 	def isAdmin(self):
 		return ('admin' in self.accesslevels)
