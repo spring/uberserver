@@ -1,4 +1,4 @@
-import thread, time, sys, os, socket
+import time, sys, os, socket
 
 import traceback
 from protocol.Channel import Channel
@@ -154,8 +154,6 @@ class DataHandler:
 		print('      { Reload the server on SIGHUP (if SIGHUP is supported by OS) }')
 		print('  -v, --latestspringversion version')
 		print('      { Sets latest Spring version to this string. Defaults to "*" }')
-		print('  -m, --maxthreads number')
-		print('      { Uses the specified number of threads for handling clients }')
 		print('  -s, --sqlurl SQLURL')
 		print('      { Uses SQL database at the specified sqlurl for user, channel, and ban storage. }')
 		print('  -c, --no-censor')
@@ -238,9 +236,6 @@ class DataHandler:
 			elif arg in ['v', 'latestspringversion']:
 				try: self.latestspringversion = argp[0] # ' '.join(argp) # shouldn't have spaces
 				except: print('Error specifying latest spring version')
-			elif arg in ['m', 'maxthreads']:
-				try: self.max_threads = int(argp[0])
-				except: print('Error specifing max threads')
 			elif arg in ['s', 'sqlurl']:
 				try:
 					self.sqlurl = argp[0]
