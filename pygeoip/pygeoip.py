@@ -89,7 +89,7 @@ def addr_to_num(ip):
         w, x, y, z = map(int, ip.split('.'))
         if w>255 or x>255 or y>255 or z>255:
             raise ValueError()
-    except ValueError, TypeError:
+    except (ValueError, TypeError):
         raise ValueError('%r is not an IPv4 address.' % (ip,))
 
     return (w << 24) | (x << 16) | (y << 8) | z
@@ -432,7 +432,7 @@ if __name__ == '__main__':
     db = Database(dbfile)
     t2 = time.time()
 
-    print db.info()
+    print(db.info())
 
     t3 = time.time()
 
@@ -448,12 +448,12 @@ if __name__ == '__main__':
 
     for test in tests:
         addr_info = db.lookup(test)
-        print addr_info
+        print(addr_info)
         if isinstance(addr_info, BigAddressInfo):
-            print "   ", dict((key, getattr(addr_info, key)) for key in dir(addr_info) if not key.startswith('_'))
+            print("   ", dict((key, getattr(addr_info, key)) for key in dir(addr_info) if not key.startswith('_')))
 
     t4 = time.time()
 
-    print "Open: %dms" % ((t2-t1) * 1000,)
-    print "Info: %dms" % ((t3-t2) * 1000,)
-    print "Lookup: %dms" % ((t4-t3) * 1000,)
+    print("Open: %dms" % ((t2-t1) * 1000,))
+    print( "Info: %dms" % ((t3-t2) * 1000,))
+    print( "Lookup: %dms" % ((t4-t3) * 1000,))

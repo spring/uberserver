@@ -1848,7 +1848,7 @@ class Protocol:
 
 		if battle.natType > 0:
 			if battle.host == client.session_id:
-				raise NameError, '%s is having an identity crisis' % (client.name)
+				raise NameError('%s is having an identity crisis' % (client.name))
 			if client.udpport:
 				self._root.usernames[host].Send('CLIENTIPPORT %s %s %s' % (username, client.ip_address, client.udpport))
 
@@ -3207,5 +3207,5 @@ if __name__ == '__main__':
 	f.write('\n'.join(make_docs()) + '\n')
 	f.close()
 
-	print 'Protocol documentation written to docs/protocol.txt'
+	print('Protocol documentation written to docs/protocol.txt')
 
