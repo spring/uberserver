@@ -6,10 +6,12 @@ python:
 #   - "3.3"
 #   - "3.4"
 install:
-   - pip install SQLAlchemy pycrypto twisted
+   - sudo apt-get install -y libgeoip-dev
+   - pip install SQLAlchemy pycrypto twisted geoip
 
 script:
    - protocol/Protocol.py
+   - ./ip2country
    - ./SQLUsers.py
    - ./server.py &
    - sleep 30 # wait for server to start up
