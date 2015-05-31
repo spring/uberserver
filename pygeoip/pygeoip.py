@@ -10,7 +10,7 @@ __author__ = 'David Wilson <dw@botanicus.net>'
 import os
 import struct
 
-from cStringIO import StringIO
+from io import BytesIO
 
 
 #
@@ -131,7 +131,7 @@ class ReadBuffer(object):
     buffer = None
 
     def __init__(self, source, size, seek_offset=None, seek_whence=os.SEEK_SET):
-        fp = StringIO(source)
+        fp = BytesIO(source)
         if seek_offset is not None:
             fp.seek(seek_offset, seek_whence)
         self.buffer = fp.read(size)
@@ -234,7 +234,7 @@ class Database(object):
         self.db_type = GEOIP_COUNTRY_EDITION
         self.record_length = STANDARD_RECORD_LENGTH
 
-        fp = StringIO(self.cache)
+        fp = BytesIO(self.cache)
         fp.seek(-3, os.SEEK_END)
 
         for i in range(STRUCTURE_INFO_MAX_SIZE):
@@ -280,7 +280,7 @@ class Database(object):
         @returns    English text string, or None if database is ancient.
         '''
 
-        fp = StringIO(self.cache)
+        fp = BytesIO(self.cache)
         fp.seek(-3, os.SEEK_END)
 
         hasStructureInfo = False
@@ -326,7 +326,7 @@ class Database(object):
         return x
 
     def _seek_record(self, ipnum):
-        fp = StringIO(self.cache)
+        fp = BytesIO(self.cache)
         offset = 0
 
         for depth in range(31, -1, -1):
