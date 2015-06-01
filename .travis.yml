@@ -6,8 +6,8 @@ python:
 #   - "3.3"
 #   - "3.4"
 install:
-   - sudo apt-get install -y libgeoip-dev
-   - pip install SQLAlchemy pycrypto twisted geoip
+   - sudo apt-get install -y python-geoip
+   - pip install SQLAlchemy pycrypto twisted
 
 script:
    - protocol/Protocol.py
