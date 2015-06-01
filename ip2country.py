@@ -1,17 +1,17 @@
 #!/usr/bin/python
 
-import GeoIP
 
 dbfile = "/usr/share/GeoIP/GeoIP.dat"
 
 def loaddb():
 	global geoip
 	try:
+		import GeoIP
 		geoip = GeoIP.open(dbfile, GeoIP.GEOIP_STANDARD)
 		return True
 	except Exception as e:
 		print("Couldn't load %s: %s" % (dbfile, str(e)))
-		print("Hint: apt-get install geoip-database")
+		print("Hint: apt-get install geoip-database python-geoip")
 		return False
 
 working = loaddb()
