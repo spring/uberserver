@@ -11,6 +11,7 @@ def loaddb():
 		return True
 	except Exception as e:
 		print("Couldn't load %s: %s" % (dbfile, str(e)))
+		print("Hint: apt-get install geoip-database")
 		return False
 
 working = loaddb()
