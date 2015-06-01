@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 import GeoIP
-import traceback
 
 dbfile = "/usr/share/GeoIP/GeoIP.dat"
 
@@ -9,15 +8,12 @@ def loaddb():
 	global geoip
 	try:
 		geoip = GeoIP.open(dbfile, GeoIP.GEOIP_STANDARD)
-		#geoip = GeoIP.Database(dbfile)
 		return True
 	except Exception as e:
 		print("Couldn't load %s: %s" % (dbfile, str(e)))
-		print(traceback.format_exc())
 		return False
 
 working = loaddb()
-
 
 def lookup(ip):
 	if not working: return '??'
@@ -26,8 +22,7 @@ def lookup(ip):
 	return addrinfo
 
 def reloaddb():
-	if not working: return
-	loaddb()
+	working = loaddb()
 
 
 if __name__ == '__main__':
