@@ -39,14 +39,14 @@ class Channel(AutoDict):
 		self.owner = owner.db_id
 
 	def addUser(self, client):
-		sessenid = client.sessionid
+		sessenid = client.session_id
 		if not username in self.users:
 			self.users.append(sessionid)
 			self.broadcast('JOINED %s %s' % (self.name, client.username))
 
 	def removeUser(self, client, reason=None):
 		chan = self.name
-		sessenid = client.sessionid
+		sessenid = client.session_id
 
 		if sessenid in self.users:
 			self.users.remove(sessenid)
