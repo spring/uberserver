@@ -9,7 +9,7 @@ class ChanServ:
 		self.channeldb = root.channeldb
 	
 	def onLogin(self):
-		self.client._protocol._calc_status(self.client, 0)
+		self._root.protocol._calc_status(self.client, 0)
 		for channel in self._root.channels.values():
 			self.Send('JOIN %s' % str(channel.name))
 	
@@ -234,13 +234,10 @@ class ChanServClient(Client):
 		self._root.usernames[self.username] = self
 		self._root.clients[session_id] = self
 		self._root.console_write('[%s] Successfully logged in static user <%s>'%(self.session_id, self.username))
-		
-	def reload(self, protocol):
+		self.reload()
+
+	def reload(self):
 		self.ChanServ = ChanServ(self, self._root)
-		dologin = protocol and not self._protocol
-		self._protocol = protocol
-		if dologin:
-			self.ChanServ.onLogin()
 
 	def Handle(self, data):
 		pass

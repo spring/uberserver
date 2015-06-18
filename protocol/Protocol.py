@@ -196,7 +196,6 @@ class Protocol:
 		self._root = root
 		self.userdb = root.getUserDB()
 		self.SayHooks = root.SayHooks
-		self.dir = dir(self)
 		self.stats = {}
 
 		## generates new keys if directory is empty, otherwise imports

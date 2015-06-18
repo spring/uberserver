@@ -8,6 +8,7 @@ import ChanServ
 import ip2country
 import datetime
 import Protocol
+from twisted.python.rebuild import rebuild
 
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -128,7 +129,7 @@ class DataHandler:
 		self.parseFiles()
 		self.protocol = Protocol.Protocol(self)
 		self.chanserv = ChanServ.ChanServClient(self, (self.online_ip, 0), self.session_id)
-		self.chanserv.reload(self.protocol)
+		self.chanserv.ChanServ.onLogin()
 
 		for name in channels:
 			self.chanserv.HandleProtocolCommand('JOIN %s' % name)
@@ -397,6 +398,7 @@ class DataHandler:
 
 	def _rebind_slow(self):
 		try:
+			self.protocol = Protocol.Protocol(self)
 			for channel in dict(self.channels): # hack, but I guess reloading is all a hack :P
 				chan = self.channels[channel].copy()
 				del chan['name'] # 'cause we're passing it ourselves
@@ -404,7 +406,7 @@ class DataHandler:
 			
 			self.userdb = UsersHandler(self, self.engine)
 			self.channeldb = ChannelsHandler(self, self.engine)
-			self.chanserv.reload(self.protocol)
+			self.chanserv.reload()
 		except:
 			self.error(traceback.format_exc())
 
@@ -415,20 +417,20 @@ class DataHandler:
 		self.admin_broadcast('Reloading...')
 		self.console_write('Reloading...')
 		self.parseFiles()
-		reload(sys.modules['SayHooks'])
-		reload(sys.modules['ChanServ'])
-		reload(sys.modules['BaseClient'])
-		reload(sys.modules['SQLUsers'])
-		reload(sys.modules['Client'])
-		reload(sys.modules['CryptoHandler'])
-		reload(sys.modules['protocol.AutoDict'])
-		reload(sys.modules['protocol.Channel'])
-		reload(sys.modules['protocol.Battle'])
-		reload(sys.modules['protocol.Protocol'])
-		reload(sys.modules['protocol'])
+		rebuild(sys.modules['SayHooks'])
+		rebuild(sys.modules['ChanServ'])
+		rebuild(sys.modules['BaseClient'])
+		rebuild(sys.modules['SQLUsers'])
+		rebuild(sys.modules['Client'])
+		rebuild(sys.modules['CryptoHandler'])
+		rebuild(sys.modules['protocol.AutoDict'])
+		rebuild(sys.modules['protocol.Channel'])
+		rebuild(sys.modules['protocol.Battle'])
+		rebuild(sys.modules['protocol.Protocol'])
+		rebuild(sys.modules['protocol'])
 		self.SayHooks = __import__('SayHooks')
 		ip2country.reloaddb()
-		thread.start_new_thread(self._rebind_slow, ()) # why should reloading block the thread? :)
+		self._rebind_slow()
 
 	def detectIp(self):
 		self.console_write('\nDetecting local IP:')

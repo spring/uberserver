@@ -38,7 +38,6 @@ class Client(BaseClient):
 		self.db_id = -1
 		
 		self.static = False
-		self._protocol = None
 		self.sendError = False
 		self.msg_id = ''
 		self.msg_sendbuffer = []
@@ -144,13 +143,6 @@ class Client(BaseClient):
 		cc = ip2country.lookup(ip)
 		if force or cc != '??':
 			self.country_code = cc
-
-	def Bind(self, protocol=None):
-		if protocol:
-			if not self._protocol:
-				protocol._new(self)
-			self._protocol = protocol
-
 
 	##
 	## handle data from client
