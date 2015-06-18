@@ -233,10 +233,9 @@ class Protocol:
 		if client.db_id in self._root.db_ids:
 			del self._root.db_ids[client.db_id]
 
-		for chan in client.channels:
+		for chan in client.channels.copy():
 			channel = self._root.channels[chan]
-			if user in channel.users:
-				self.in_LEAVE(client, chan, reason)
+			self.in_LEAVE(client, chan, reason)
 
 		if client.current_battle:
 			self.in_LEAVEBATTLE(client)
@@ -1137,7 +1136,7 @@ class Protocol:
 			user  = client.username
 			msg = self.SayHooks.hook_SAY(self, client, channel, msg)
 			if not msg or not msg.strip(): return
-			if user in channel.users:
+			if client.session_id in channel.users:
 				if channel.isMuted(client):
 					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 				else:
@@ -1482,7 +1481,7 @@ class Protocol:
 			self._root.channels[chan] = channel
 		else:
 			channel = self._root.channels[chan]
-		if user in channel.users:
+		if client.session_id in channel.users:
 			return
 		if not channel.isFounder(client):
 			if channel.key and not channel.key in (key, None, '*', ''):
@@ -1494,16 +1493,18 @@ class Protocol:
 			elif channel.autokick == 'allow' and client.db_id not in channel.allow:
 				client.Send('JOINFAILED %s You are not allowed' % chan)
 				return
-		if not chan in client.channels:
-			client.channels.add(chan)
+		assert(chan not in client.channels)
+		client.channels.add(chan)
 		client.Send('JOIN %s'%chan)
-		self._root.broadcast('JOINED %s %s' % (chan, user), chan)
-		channel.users.add(client.session_id)
+		channel.addUser(client)
+		assert(client.session_id in channel.users)
 		clientlist = ""
 		for session_id in channel.users:
 			if clientlist:
 				clientlist += " "
-			clientlist += self.clientFromSession(session_id).username
+			channeluser = self.clientFromSession(session_id)
+			assert(channeluser)
+			clientlist += channeluser.username
 		client.Send('CLIENTS %s %s'%(chan, clientlist))
 
 		topic = channel.topic
@@ -1554,11 +1555,13 @@ class Protocol:
 
 		@required.str channel: The target channel.
 		'''
-		if chan in self._root.channels:
-			channel = self._root.channels[chan]
-			channel.removeUser(client, reason)
-			if len(self._root.channels[chan].users) == 0:
-				del self._root.channels[chan]
+		if not chan in self._root.channels:
+			return
+		channel = self._root.channels[chan]
+		channel.removeUser(client, reason)
+		assert(not client.session_id in channel.users)
+		if len(self._root.channels[chan].users) == 0:
+			del self._root.channels[chan]
 
 	def in_OPENBATTLE(self, client, type, natType, password, port, maxplayers, hashcode, rank, maphash, sentence_args):
 		'''
@@ -1645,7 +1648,8 @@ class Protocol:
 
 		self._root.battles[battle_id] = battle
 		self.broadcast_AddBattle(battle)
-		client.Send('OPENBATTLE %s'%battle_id)
+		client.Send('OPENBATTLE %s' % battle_id)
+		client.Send('JOINBATTLE %s %s' % (battle_id, hashcode))
 		client.Send('REQUESTBATTLESTATUS')
 
 	def in_SAYBATTLE(self, client, msg):

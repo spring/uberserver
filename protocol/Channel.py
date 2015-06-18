@@ -10,7 +10,7 @@ class Channel(AutoDict):
 		self.id = id
 		self._root = root
 		self.name = name
-		self.users = users
+		self.users = users # list of session_ids
 		self.admins = admins
 		self.ban = ban
 		self.allow = allow
@@ -39,20 +39,21 @@ class Channel(AutoDict):
 		self.owner = owner.db_id
 
 	def addUser(self, client):
-		if not client.session_id in self.users:
+		if client.session_id in self.users:
 			return
-		self.users.append(client.session_id)
+		self.users.add(client.session_id)
 		self.broadcast('JOINED %s %s' % (self.name, client.username))
 
 	def removeUser(self, client, reason=None):
 		chan = self.name
 
-		if not client.sessen_id in self.users:
+		if self.name in client.channels:
+			client.channels.remove(chan)
+
+		if not client.session_id in self.users:
 			return
 		self.users.remove(client.session_id)
 
-		if self.name in client.channels:
-			client.channels.remove(chan)
 		if reason and len(reason) > 0:
 			self._root.broadcast('LEFT %s %s %s' % (chan, client.username, reason), chan)
 		else:

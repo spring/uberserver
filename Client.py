@@ -102,7 +102,6 @@ class Client(BaseClient):
 		self.buffer = ""
 		
 		self.ignored = {}
-		self.battles = set() # we keep a copy here to not send a invalid state-change
 		self.channels = set()
 
 		## AES cipher used for encrypted protocol communication
