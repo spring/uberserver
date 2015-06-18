@@ -56,7 +56,7 @@ class ChanServ:
 			self.Send(['SAYPRIVATE %s %s'%(user, s) for s in response.split('\n')])
 
 	def HandleCommand(self, chan, user, cmd, args=None):
-		client = self.client._protocol.clientFromUsername(user)
+		client = self._root.protocol.clientFromUsername(user)
 		cmd = cmd.lower()
 		if cmd == 'help':
 			return 'Hello, %s!\nI am an automated channel service bot from uberserver,\nfor the full list of commands, see http://springrts.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
