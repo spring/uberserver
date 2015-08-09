@@ -1,8 +1,8 @@
 # Requirements
 - python 2.7
 - sqlalchemy
-- ip2c
 - GeoIP
+- twisted
 
 # Installation
 ```
