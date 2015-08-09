@@ -434,20 +434,23 @@ class DataHandler:
 
 	def detectIp(self):
 		self.console_write('\nDetecting local IP:')
-		try: local_addr = socket.gethostbyname(socket.gethostname())
-		except: local_addr = '127.0.0.1'
+		try:
+			local_addr = socket.gethostbyname(socket.gethostname())
+		except:
+			local_addr = '127.0.0.1'
 		self.console_write(local_addr)
 
 		self.console_write('Detecting online IP:')
-		#try:
-		timeout = socket.getdefaulttimeout()
-		socket.setdefaulttimeout(5)
-		web_addr = urlopen('http://springrts.com/lobby/getip.php').read()
-		socket.setdefaulttimeout(timeout)
-		self.console_write(web_addr)
-		#except:
-		#	web_addr = local_addr
-		#	self.console_write('not online')
+
+		try:
+			timeout = socket.getdefaulttimeout()
+			socket.setdefaulttimeout(5)
+			web_addr = urlopen('http://springrts.com/lobby/getip.php').read()
+			socket.setdefaulttimeout(timeout)
+			self.console_write(web_addr)
+		except:
+			web_addr = local_addr
+			self.console_write('not online')
 		self.console_write()
 
 		self.local_ip = local_addr
