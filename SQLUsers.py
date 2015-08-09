@@ -752,16 +752,16 @@ class UsersHandler:
 		now = datetime.now()
 		#delete users:
 		# which didn't accept aggreement after one day
-		session.query(User).filter(User.register_date < now - timedelta(days=1)).filter(User.access == "agreement").delete()
+		session.query(User).filter(User.register_date < now - timedelta(days=1)).filter(User.access == "agreement").delete(synchronize_session=False)
 
 		# which have no ingame time, last login > 30 days and no bot
-		session.query(User).filter(User.ingame_time == 0).filter(User.last_login < now - timedelta(days=30)).filter(User.bot == 0).filter(User.access == "user").delete()
+		session.query(User).filter(User.ingame_time == 0).filter(User.last_login < now - timedelta(days=30)).filter(User.bot == 0).filter(User.access == "user").delete(synchronize_session=False)
 
 		# last login > 3 years
-		session.query(User).filter(User.last_login < now - timedelta(days=1095)).delete()
+		session.query(User).filter(User.last_login < now - timedelta(days=1095)).delete(synchronize_session=False)
 
 		# old messages > 2 weeks
-		session.query(ChannelHistory).filter(ChannelHistory.time < now - timedelta(days=14)).delete()
+		session.query(ChannelHistory).filter(ChannelHistory.time < now - timedelta(days=14)).delete(synchronize_session=False)
 
 		session.commit()
 		session.close()
