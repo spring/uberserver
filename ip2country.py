@@ -27,8 +27,9 @@ def reloaddb():
 
 
 if __name__ == '__main__':
-	print(lookup("37.187.59.77"))
-	print(lookup("77.64.139.108"))
-	print(lookup("78.46.100.157"))
-	print(lookup("8.8.8.8"))
-	print(lookup("0.0.0.0"))
+	assert(lookup("37.187.59.77")  == 'FR')
+	assert(lookup("77.64.139.108") == 'DE')
+	assert(lookup("78.46.100.157") == 'DE')
+	assert(lookup("8.8.8.8")       == 'US')
+	assert(lookup("0.0.0.0")       == '??')
+	print("Test ok!")
