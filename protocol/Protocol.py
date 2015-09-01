@@ -1471,7 +1471,7 @@ class Protocol:
 
 		# FIXME: unhardcode this
 		if client.bot and chan in ("newbies", "ba") and client.username != "ChanServ":
-			client.Send('JOINFAILED %s No bots allowed in #newbies!' %(chan))
+			client.Send('JOINFAILED %s No bots allowed in #%s!' %(chan, chan))
 			return
 
 		if not chan: return
