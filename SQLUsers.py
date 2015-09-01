@@ -1033,6 +1033,7 @@ if __name__ == '__main__':
 	# test save/load user
 	userdb.legacy_register_user(username, u"pass", "192.168.1.1", "DE")
 	client = userdb.clientFromUsername(username)
+	assert(isinstance(client.id, int))
 
 	# test save/load channel
 	channel = Channel(channelname)
