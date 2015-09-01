@@ -736,7 +736,7 @@ class Protocol:
 
 	def is_ignored(self, client, ignoredClient):
 		# verify that this is an online client (only those have an .ignored attr)
-		if self.clientFromID(client.db_id):
+		if hasattr(client, "ignored"):
 			return ignoredClient.db_id in client.ignored
 		else:
 			return self.userdb.is_ignored(client.db_id, ignoredClient.db_id)
@@ -1154,11 +1154,13 @@ class Protocol:
 
 		receiver = self.clientFromUsername(user)
 
-		if receiver:
-			client.Send('SAYPRIVATE %s %s' % (user, msg))
+		if not receiver:
+			self._root.console_write('[%s] ERROR: <%s>: user to pm is not online: %s' % (client.session_id, client.username, user))
+			return
 
-			if not self.is_ignored(receiver, client):
-				receiver.Send('SAIDPRIVATE %s %s' % (client.username, msg))
+		client.Send('SAYPRIVATE %s %s' % (user, msg))
+		if not self.is_ignored(receiver, client):
+			receiver.Send('SAIDPRIVATE %s %s' % (client.username, msg))
 
 	def in_SAYPRIVATEEX(self, client, user, msg):
 		'''
