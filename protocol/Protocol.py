@@ -2010,6 +2010,7 @@ class Protocol:
 			spectators += 1
 
 		oldstatus = self._calc_battlestatus(client)
+		oldcolor = client.teamcolor
 		client.battlestatus.update({'ready':ready, 'id':id1+id2+id3+id4, 'ally':ally1+ally2+ally3+ally4, 'mode':mode, 'sync':sync1+sync2, 'side':side1+side2+side3+side4})
 		client.teamcolor = myteamcolor
 
@@ -2021,7 +2022,7 @@ class Protocol:
 
 		newstatus = self._calc_battlestatus(client)
 		statuscmd = 'CLIENTBATTLESTATUS %s %s %s'%(client.username, newstatus, myteamcolor)
-		if oldstatus != newstatus:
+		if oldstatus != newstatus or client.teamcolor != oldcolor:
 			self._root.broadcast_battle(statuscmd, client.current_battle)
 		else:
 			client.Send(statuscmd) # in case we changed anything
