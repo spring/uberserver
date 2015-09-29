@@ -5,10 +5,9 @@ import inspect, time, re, threading
 
 import traceback, sys, os
 import socket
-from Channel import Channel
-from Battle import Battle
+import Channel
+import Battle
 
-sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
 
 import CryptoHandler
 
@@ -441,8 +440,8 @@ class Protocol:
 		# unless we want to do way more SQL lookups for channel info
 		try:
 			if not kwargs: raise KeyError
-			channel = Channel(self._root, chan, **kwargs)
-		except: channel = Channel(self._root, chan)
+			channel = Channel.Channel(self._root, chan, **kwargs)
+		except: channel = Channel.Channel(self._root, chan)
 		return channel
 
 	def _time_format(self, seconds):
@@ -1649,7 +1648,7 @@ class Protocol:
 
 		client.current_battle = battle_id
 
-		battle = Battle(
+		battle = Battle.Battle(
 						root=self._root, id=battle_id, type=type, natType=int(natType),
 						password=password, port=port, maxplayers=maxplayers, hashcode=hashcode,
 						rank=rank, maphash=maphash, map=map, title=title, modname=modname,
@@ -3216,6 +3215,7 @@ def make_docs():
 	return response
 
 if __name__ == '__main__':
+	sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
 	if not os.path.exists('docs'):
 		os.mkdir('docs')
 	f = open('docs/protocol.txt', 'w')

@@ -1,14 +1,11 @@
 import time, sys, os, socket
 
 import traceback
-from protocol.Channel import Channel
-from SQLUsers import UsersHandler, ChannelsHandler
-from CryptoHandler import UNICODE_ENCODING
+import SQLUsers
 import ChanServ
 import ip2country
 import datetime
 import Protocol
-from twisted.python.rebuild import rebuild
 
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -103,8 +100,8 @@ class DataHandler:
 		else:
 			self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.max_threads * 2, pool_recycle=300)
 
-		self.userdb = UsersHandler(self, self.engine)
-		self.channeldb = ChannelsHandler(self, self.engine)
+		self.userdb = SQLUsers.UsersHandler(self, self.engine)
+		self.channeldb = SQLUsers.ChannelsHandler(self, self.engine)
 
 		channels = self.channeldb.load_channels()
 
@@ -121,7 +118,7 @@ class DataHandler:
 				if client and client.id:
 					admins.append(client.id)
 
-			self.channels[name] = Channel(self, name, chanserv=bool(owner), id = channel['id'], owner=owner, admins=admins, key=channel['key'], antispam=channel['antispam'], topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time())}, store_history = channel['store_history'] )
+			self.channels[name] = Protocol.Channel.Channel(self, name, chanserv=bool(owner), id = channel['id'], owner=owner, admins=admins, key=channel['key'], antispam=channel['antispam'], topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time())}, store_history = channel['store_history'] )
 
 		#self.dispatcher.addClient(self.chanserv)
 
@@ -402,11 +399,13 @@ class DataHandler:
 			for channel in dict(self.channels): # hack, but I guess reloading is all a hack :P
 				chan = self.channels[channel].copy()
 				del chan['name'] # 'cause we're passing it ourselves
-				self.channels[channel] = sys.modules['protocol.Protocol'].Channel(self, channel, **chan)
+				self.channels[channel] = Protocol.Channel.Channel(self, channel, **chan)
 			
-			self.userdb = UsersHandler(self, self.engine)
-			self.channeldb = ChannelsHandler(self, self.engine)
+			self.userdb = SQLUsers.UsersHandler(self, self.engine)
+			self.channeldb = SQLUsers.ChannelsHandler(self, self.engine)
 			self.chanserv.reload()
+			for clientid, client in self.clients.iteritems():
+				client._root = self
 		except:
 			self.error(traceback.format_exc())
 
@@ -417,17 +416,21 @@ class DataHandler:
 		self.admin_broadcast('Reloading...')
 		self.console_write('Reloading...')
 		self.parseFiles()
-		rebuild(sys.modules['SayHooks'])
-		rebuild(sys.modules['ChanServ'])
-		rebuild(sys.modules['BaseClient'])
-		rebuild(sys.modules['SQLUsers'])
-		rebuild(sys.modules['Client'])
-		rebuild(sys.modules['CryptoHandler'])
-		rebuild(sys.modules['protocol.AutoDict'])
-		rebuild(sys.modules['protocol.Channel'])
-		rebuild(sys.modules['protocol.Battle'])
-		rebuild(sys.modules['protocol.Protocol'])
-		rebuild(sys.modules['protocol'])
+		toreload = [
+				"SayHooks",
+				"ChanServ",
+				"BaseClient",
+				"SQLUsers",
+				"Client",
+				"CryptoHandler",
+				"protocol.AutoDict",
+				"protocol.Channel",
+				"protocol.Battle",
+				"protocol.Protocol",
+				"protocol",
+			]	
+		for module in toreload:
+			reload(sys.modules[module])
 		self.SayHooks = __import__('SayHooks')
 		ip2country.reloaddb()
 		self._rebind_slow()

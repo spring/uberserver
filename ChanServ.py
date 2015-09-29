@@ -65,12 +65,12 @@ class ChanServ:
 			channel = self._root.channels[chan]
 			access = channel.getAccess(client)
 			if cmd == 'info':
-				founder = self.client._protocol.clientFromID(channel.owner, True)
+				founder = self._root.clientFromID(channel.owner, True)
 				if founder: founder = 'Founder is <%s>' % founder.username
 				else: founder = 'No founder is registered'
 				admins = []
 				for admin in channel.admins:
-					client = self.client._protocol.clientFromID(admin)
+					client = self._root.clientFromID(admin)
 					if client: admins.append(client.username)
 				users = channel.users
 				antispam = 'on' if channel.antispam else 'off'
@@ -99,7 +99,7 @@ class ChanServ:
 			elif cmd == 'changefounder':
 				if access in ['mod', 'founder']:
 					if not args: return '#%s: You must specify a new founder' % chan
-					target = self.client._protocol.clientFromUsername(args)
+					target = self._root.clientFromUsername(args)
 					if not target: return '#%s: cannot assign founder status to a user who does not exist'
 					channel.setFounder(client, target)
 					channel.channelMessage('%s Founder has been changed to <%s>' % (chan, args))
@@ -123,7 +123,7 @@ class ChanServ:
 			elif cmd == 'op':
 				if access in ['mod', 'founder']:
 					if not args: return '#%s: You must specify a user to op' % chan
-					target = self.client._protocol.clientFromUsername(args)
+					target = self._root.clientFromUsername(args)
 					if target and channel.isOp(target): return '#%s: <%s> was already an op' % (chan, args)
 					channel.opUser(client, target)
 				else:
@@ -131,7 +131,7 @@ class ChanServ:
 			elif cmd == 'deop':
 				if access in ['mod', 'founder']:
 					if not args: return '#%s: You must specify a user to deop' % chan
-					target = self.client._protocol.clientFromUsername(args)
+					target = self._root.clientFromUsername(args)
 					if target and not channel.isOp(target): return '#%s: <%s> was not an op' % (chan, args)
 					channel.deopUser(client, target)
 				else:
@@ -139,7 +139,7 @@ class ChanServ:
 			elif cmd == 'chanmsg':
 				if access in ['mod', 'founder', 'op']:
 					if not args: return '#%s: You must specify a channel message' % chan
-					target = self.client._protocol.clientFromUsername(args)
+					target = self._root.clientFromUsername(args)
 					if target and channel.isOp(target): args = 'issued by <%s>: %s' % (user, args)
 					channel.channelMessage(args)
 					return #return '#%s: insert chanmsg here'
@@ -172,7 +172,7 @@ class ChanServ:
 						reason = None
 						
 					if target in channel.users:
-						target = self.client._protocol.clientFromUsername(target)
+						target = self._root.clientFromUsername(target)
 						channel.kickUser(client, target, reason)
 						return '#%s: <%s> kicked' % (chan, target.username)
 					else: return '#%s: <%s> not in channel' % (chan, target)
@@ -194,7 +194,7 @@ class ChanServ:
 				if not chan in self._root.channels:
 					return '# Channel %s does not exist.' % (chan)
 				channel = self._root.channels[chan]
-				target = self.client._protocol.clientFromUsername(args)
+				target = self._root.clientFromUsername(args)
 				if target:
 					channel.setFounder(client, target)
 					self.channeldb.register(channel, target) # register channel in db
