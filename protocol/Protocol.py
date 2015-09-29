@@ -8,6 +8,7 @@ import socket
 import Channel
 import Battle
 
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
 
 import CryptoHandler
 
@@ -3216,7 +3217,6 @@ def make_docs():
 	return response
 
 if __name__ == '__main__':
-	sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
 	if not os.path.exists('docs'):
 		os.mkdir('docs')
 	f = open('docs/protocol.txt', 'w')
