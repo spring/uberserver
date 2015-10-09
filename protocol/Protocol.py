@@ -1844,10 +1844,10 @@ class Protocol:
 		battle_bots = battle.bots
 		startrects = battle.startrects
 		client.Send('JOINBATTLE %s %s' % (battle_id, battle.hashcode))
-		battle.users.append(client.session_id)
+		battle.users.add(client.session_id)
 		scripttags = []
-		for tag in battle.script_tags:
-			scripttags.append('%s=%s'%(tag, script_tags[tag]))
+		for tag, val in battle.script_tags.iteritems():
+			scripttags.append('%s=%s'%(tag, val))
 		client.Send('SETSCRIPTTAGS %s'%'\t'.join(scripttags))
 		if battle.disabled_units:
 			client.Send('DISABLEUNITS %s' % ' '.join(battle.disabled_units))
@@ -1873,7 +1873,7 @@ class Protocol:
 			if battle_client and battle_client.battlestatus['mode'] == '0':
 				specs += 1
 			battlestatus = self._calc_battlestatus(battle_client)
-			client.Send('CLIENTBATTLESTATUS %s %s %s' % (user, battlestatus, battle_client.teamcolor))
+			client.Send('CLIENTBATTLESTATUS %s %s %s' % (battle_client.username, battlestatus, battle_client.teamcolor))
 
 		for iter in battle_bots:
 			bot = battle_bots[iter]
