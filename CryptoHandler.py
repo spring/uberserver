@@ -1,5 +1,9 @@
 import os
 
+# Windows compatibility
+if not hasattr(os, "fchmod"):
+	setattr(os, "fchmod", lambda x, y: None)
+
 import base64
 
 from Crypto import Random
