@@ -186,7 +186,7 @@ def read_file(file_name, file_mode):
 def write_file(file_name, file_mode, file_data):
 	try:
 		f = open(file_name, file_mode)
-		os.fchmod(f.fileno(), 0o600)
+		os.chmod(file_name, 0o600) #os.fchmod doesn't work on windows, see #186
 		f.write("%s" % file_data)
 		f = f.close()
 	except IOError:
