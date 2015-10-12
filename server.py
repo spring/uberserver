@@ -74,6 +74,10 @@ _root.init()
 
 try:
 	reactor.listenTCP(_root.port, twistedserver.ChatFactory(_root))
+	print('Started lobby server!')
+	print('Connect the lobby client to')
+	print('  public:  %s:%d' %(_root.online_ip, _root.port))
+	print('  private: %s:%d' %(_root.local_ip, _root.port))
 	reactor.run()
 
 except KeyboardInterrupt:

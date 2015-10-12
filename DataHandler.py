@@ -435,15 +435,26 @@ class DataHandler:
 		ip2country.reloaddb()
 		self._rebind_slow()
 
+	def get_ip_address(self):
+		try:
+			s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+			s.connect(("springrts.com", 80))
+			return s.getsockname()[0]
+		except:
+			pass
+		try:
+			return socket.gethostbyname(socket.gethostname())
+		except:
+			pass
+		return '127.0.0.1'
+
 	def detectIp(self):
 		self.console_write('\nDetecting local IP:')
-		try:
-			local_addr = socket.gethostbyname(socket.gethostname())
-		except:
-			local_addr = '127.0.0.1'
+		local_addr = self.get_ip_address()
 		self.console_write(local_addr)
 
 		self.console_write('Detecting online IP:')
+
 
 		try:
 			timeout = socket.getdefaulttimeout()
