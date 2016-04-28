@@ -7,3 +7,5 @@ You've successfully connected to uberserver.
 Please report lobby server bugs to the bugtracker:
 https://github.com/spring/uberserver/issues
 
+Running this server costs some money, donations are welcome!
+https://springrts.com/wiki/Donations
