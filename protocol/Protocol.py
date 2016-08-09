@@ -1515,7 +1515,7 @@ class Protocol:
 			else:
 				topictime = int(topic['time'])*1000
 			try:
-				top = topic['text'].decode(UNICODE_ENCODING)
+				top = topic['text']
 			except:
 				top = "Invalid unicode-encoding (should be %s)" % UNICODE_ENCODING
 				self._root.console_write("%s for channel topic: %s" %(top, chan))
@@ -2110,7 +2110,7 @@ class Protocol:
 			topic = channel.topic
 			if topic:
 				try:
-					top = topic['text'].decode(UNICODE_ENCODING)
+					top = topic['text']
 				except:
 					top = "Invalid unicode-encoding (should be %s)" % UNICODE_ENCODING
 			client.Send('CHANNEL %s %d %s'% (channel.name, len(channel.users), top))
