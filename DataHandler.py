@@ -9,6 +9,7 @@ import Protocol
 
 import logging
 from logging.handlers import TimedRotatingFileHandler
+from twisted.internet import ssl
 
 separator = '-'*60
 
@@ -69,6 +70,7 @@ class DataHandler:
 		self.db_ids = {}
 		self.battles = {}
 		self.detectIp()
+		self.cert = None
 
 	def initlogger(self, filename):
 		# logging
@@ -265,6 +267,16 @@ class DataHandler:
 				try: self.use_message_authent_codes = (int(argp[0]) != 0)
 				except: pass
 
+	def loadCertificates(self):
+		certfile = "server.pem"
+		if not os.path.isfile(certfile):
+			import certificate
+			certificate.create_self_signed_cert(certfile)
+		os.chmod(certfile, 0o600)
+		f = open(certfile, "r")
+		self.cert = ssl.PrivateCertificate.loadPEM(f.read()).options()
+		f.close()
+
 	def parseFiles(self):
 		if os.path.isfile('motd.txt'):
 			motd = []
@@ -294,6 +306,7 @@ class DataHandler:
 		for line in ins:
 			self.agreement.append(line.rstrip('\r\n'))
 		ins.close()
+		self.loadCertificates()
 
 	def getUserDB(self):
 		return self.userdb
