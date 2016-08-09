@@ -36,6 +36,7 @@ restricted = {
 	'LISTCOMPFLAGS',
 
 	## encryption
+	'STARTTLS',
 	'GETPUBLICKEY',
 	'GETSIGNEDMSG',
 	'SETSHAREDKEY',
@@ -3157,6 +3158,11 @@ class Protocol:
 		for chan in subscriptions:
 			client.Send("LISTSUBSCRIPTION chanName=%s" % (chan))
 		client.Send("ENDLISTSUBSCRIPTION")
+
+	def in_STARTTLS(self, client):
+		self.out_OK(client, "STARTTLS")
+		client.flushBuffer()
+		client.StartTLS()
 
 	# Begin outgoing protocol section #
 	#

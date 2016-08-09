@@ -1,7 +1,8 @@
 from twisted.internet.protocol import Factory
-from twisted.internet import protocol
+from twisted.internet import protocol, ssl
 from twisted.protocols.policies import TimeoutMixin
 from protocol import Protocol
+from OpenSSL import SSL
 import DataHandler
 import Client
 
@@ -45,6 +46,13 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 
 	def Remove(self, reason='Quit'):
 		self.transport.loseConnection()
+
+	def StartTLS(self):
+		try:
+			self.transport.startTLS(self.root.cert)
+		except:
+			Remove("Error starting TLS")
+
 
 class ChatFactory(Factory):
 
