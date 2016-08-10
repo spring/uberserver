@@ -391,47 +391,6 @@ class DataHandler:
 			if 'admin' in client.accesslevels:
 				client.Send('SERVERMSG Admin broadcast: %s'%msg)
 
-	def _rebind_slow(self):
-		try:
-			self.protocol = Protocol.Protocol(self)
-			for channel in dict(self.channels): # hack, but I guess reloading is all a hack :P
-				chan = self.channels[channel].copy()
-				del chan['name'] # 'cause we're passing it ourselves
-				self.channels[channel] = Protocol.Channel.Channel(self, channel, **chan)
-			
-			self.userdb = SQLUsers.UsersHandler(self, self.engine)
-			self.channeldb = SQLUsers.ChannelsHandler(self, self.engine)
-			self.chanserv.reload()
-			for clientid, client in self.clients.iteritems():
-				client._root = self
-		except:
-			self.error(traceback.format_exc())
-
-		self.admin_broadcast('Done reloading.')
-		self.console_write('Done reloading.')
-
-	def reload(self):
-		self.admin_broadcast('Reloading...')
-		self.console_write('Reloading...')
-		self.parseFiles()
-		toreload = [
-				"SayHooks",
-				"ChanServ",
-				"BaseClient",
-				"SQLUsers",
-				"Client",
-				"protocol.AutoDict",
-				"protocol.Channel",
-				"protocol.Battle",
-				"protocol.Protocol",
-				"protocol",
-			]	
-		for module in toreload:
-			reload(sys.modules[module])
-		self.SayHooks = __import__('SayHooks')
-		ip2country.reloaddb()
-		self._rebind_slow()
-
 	def get_ip_address(self):
 		try:
 			s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

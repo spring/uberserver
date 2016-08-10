@@ -138,7 +138,6 @@ restricted = {
 	'ADMINBROADCAST',
 	'BROADCAST',
 	'BROADCASTEX',
-	'RELOAD',
 	'CLEANUP',
 	'SETLATESTSPRINGVERSION',
 	#########
@@ -2780,28 +2779,6 @@ class Protocol:
 				if userThatIgnored:
 					userThatIgnored.ignored.pop(user.db_id)
 					userThatIgnored.Send('UNIGNORE userName=%s' % (username))
-
-
-	def in_RELOAD(self, client):
-		'''
-		Reload core parts of the server code from source. This also reparses motd, update list, and trusted proxy file.
-		Do not use this for changes unless you are very confident in your ability to recover from a mistake.
-
-		Parts reloaded:
-		ChanServ.py
-		Protocol.py
-		SayHooks.py
-
-		User databases reloaded:
-		SQLUsers.py
-		LanUsers.py
-		'''
-		if not 'admin' in client.accesslevels:
-		    return
-		self._root.reload()
-		self._root.console_write("Stats of command usage:")
-		for k,v in self.stats.iteritems():
-			self._root.console_write("%s %d" % (k, v))
 
 	def in_CLEANUP(self, client):
 		nchan = 0
