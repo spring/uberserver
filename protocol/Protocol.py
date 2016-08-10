@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 # coding=utf-8
 
-import inspect, time, re, threading
+import inspect, time, re
 
-import traceback, sys, os
 import socket
 import Channel
 import Battle
