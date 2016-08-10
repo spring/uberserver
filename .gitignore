@@ -16,7 +16,7 @@ xmlrpc.log
 /bad_words.txt
 /docs/protocol.txt
 /protocol/docs/protocol.txt
-/server-rsa-keys/
+/server.pem
 /uberserver.pid
 /args.txt
 /proxies.txt
