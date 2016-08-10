@@ -420,7 +420,6 @@ class DataHandler:
 				"BaseClient",
 				"SQLUsers",
 				"Client",
-				"CryptoHandler",
 				"protocol.AutoDict",
 				"protocol.Channel",
 				"protocol.Battle",
