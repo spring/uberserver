@@ -8,19 +8,17 @@ import socket
 import Channel
 import Battle
 
-sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), ".."))
+from Crypto.Hash import MD5
+from Crypto.Hash import SHA256
 
-import CryptoHandler
+from base64 import b64decode as SAFE_DECODE_FUNC
 
-from CryptoHandler import MD5LEG_HASH_FUNC as LEGACY_HASH_FUNC
-from CryptoHandler import SHA256_HASH_FUNC as SECURE_HASH_FUNC
-
-from CryptoHandler import safe_decode as SAFE_DECODE_FUNC
-from CryptoHandler import UNICODE_ENCODING
+UNICODE_ENCODING = "utf-8"
+LEGACY_HASH_FUNC = MD5.new
+SECURE_HASH_FUNC = SHA256.new
 
 from base64 import b64encode as ENCODE_FUNC
 from base64 import b64decode as DECODE_FUNC
-
 
 
 # see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
@@ -194,12 +192,6 @@ class Protocol:
 		self.userdb = root.getUserDB()
 		self.SayHooks = root.SayHooks
 		self.stats = {}
-
-		## generates new keys if directory is empty, otherwise imports
-		self.rsa_cipher_obj = CryptoHandler.rsa_cipher(root.crypto_key_dir)
-		## no-op if keys are already present, otherwise just speeds up
-		## server restarts (clients should NEVER cache the public key!)
-		self.rsa_cipher_obj.export_keys(root.crypto_key_dir)
 
 	def force_secure_auths(self): return (self._root.force_secure_client_auths)
 	def force_secure_comms(self): return (self._root.force_secure_client_comms)
