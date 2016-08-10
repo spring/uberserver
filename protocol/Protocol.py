@@ -193,10 +193,6 @@ class Protocol:
 		self.SayHooks = root.SayHooks
 		self.stats = {}
 
-	def force_secure_auths(self): return (self._root.force_secure_client_auths)
-	def force_secure_comms(self): return (self._root.force_secure_client_comms)
-	def use_msg_auth_codes(self): return (self._root.use_message_authent_codes)
-
 	def _new(self, client):
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0'))
 		if self._root.redirect:
@@ -278,10 +274,9 @@ class Protocol:
 			## succeed
 			msg = msg.decode(UNICODE_ENCODING)
 		except:
-			if (not client.use_secure_session()):
-				out = "Invalid unicode-encoding received (should be %s), skipped message %s"
-				err = ":".join("{:02x}".format(ord(c)) for c in msg)
-				self.out_SERVERMSG(client, out % (UNICODE_ENCODING, err), True)
+			out = "Invalid unicode-encoding received (should be %s), skipped message %s"
+			err = ":".join("{:02x}".format(ord(c)) for c in msg)
+			self.out_SERVERMSG(client, out % (UNICODE_ENCODING, err), True)
 			return False
 
 			
@@ -307,12 +302,7 @@ class Protocol:
 				break
 
 		if (not allowed):
-			## do not leak information in secure context
-			if (not client.use_secure_session()):
-				if not command in restricted_list:
-					self.out_SERVERMSG(client, '%s failed. Command does not exist.' % command, True)
-				else:
-					self.out_SERVERMSG(client, '%s failed. Insufficient rights.' % command, True)
+			self.out_SERVERMSG(client, '%s failed. Insufficient rights.' % command, True)
 			return False
 
 		function = getattr(self, 'in_' + command)
@@ -541,42 +531,13 @@ class Protocol:
 		## assume (!) this is a valid legacy-hash checksum
 		return True, ""
 
-	## since new-style passwords are generously salted, we
-	## require only a few characters and do not check their
-	## entropy (strength)
-	def _validSecurePasswordSyntax(self, password):
-		assert(type(password) == unicode)
-
-		## strip off the base64-encoding and check for illegal chars
-		enc_password = password.encode(UNICODE_ENCODING)
-		dec_password = SAFE_DECODE_FUNC(enc_password)
-
-		if (dec_password == enc_password):
-			return False, "Invalid base64-encoding."
-		if (dec_password.count(" ") != 0):
-			return False, "Password contains one or more WS characters."
-		if (dec_password.count("\t") != 0):
-			return False, "Password contains one or more WS characters."
-		if (dec_password.count("\n") != 0):
-			return False, "Password contains one or more LF characters."
-		if (dec_password.count("\r") != 0):
-			return False, "Password contains one or more CR characters."
-		if (len(dec_password) < CryptoHandler.MIN_PASSWORD_LEN):
-			return False, ("Password too short: %d or more characters required." % CryptoHandler.MIN_PASSWORD_LEN)
-
-		return True, ""
-
-
 	def _validPasswordSyntax(self, client, password):
 		assert(type(password) == unicode)
 
 		if (not password):
 			return False, "Empty password."
 
-		if (client.use_secure_session()):
-			return (self._validSecurePasswordSyntax(password))
-		else:
-			return (self._validLegacyPasswordSyntax(password))
+		return (self._validLegacyPasswordSyntax(password))
 
 
 
@@ -738,28 +699,6 @@ class Protocol:
 		self.userdb.unignore_user(client.db_id, unignoreClient.db_id)
 		client.ignored.pop(unignoreClient.db_id)
 
-
-	def can_client_authenticate(self, client, username, in_login):
-		if ((not client.use_secure_session()) and (self.force_secure_auths() or self.force_secure_comms())):
-			if (in_login):
-				self.out_DENIED(client, username, "Unencrypted logins are not allowed.")
-			else:
-				client.Send("REGISTRATIONDENIED %s" % ("Unencrypted registrations are not allowed."))
-
-			return False
-
-		if (client.use_secure_session() and (not client.get_session_key_received_ack())):
-			if (in_login):
-				self.out_DENIED(client, username, "Encrypted logins without prior key-acknowledgement are not allowed.")
-			else:
-				client.Send("REGISTRATIONDENIED %s" % ("Encrypted registrations without prior key-acknowledgement are not allowed."))
-
-			return False
-
-		return True
-
-
-
 	# Begin incoming protocol section #
 	#
 	# any function definition beginning with in_ and ending with capital letters
@@ -818,9 +757,6 @@ class Protocol:
 		'''
 		assert(type(password) == unicode)
 
-		if (not self.can_client_authenticate(client, username, False)):
-			return
-
 		good, reason = self._validUsernameSyntax(username)
 
 		if (not good):
@@ -872,10 +808,6 @@ class Protocol:
 		et: When client joins a channel, sends NOCHANNELTOPIC if the channel has no topic.
 		'''
 		assert(type(password) == unicode)
-
-		if (not self.can_client_authenticate(client, username, True)):
-			return
-
 
 		good, reason = self._validUsernameSyntax(username)
 

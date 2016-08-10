@@ -41,7 +41,6 @@ class Client(BaseClient):
 		self.sendError = False
 		self.msg_id = ''
 		self.msg_sendbuffer = []
-		self.enc_sendbuffer = []
 		self.sendingmessage = ''
 
 		## time-stamps for encrypted data
@@ -103,26 +102,6 @@ class Client(BaseClient):
 		self.ignored = {}
 		self.channels = set()
 
-		## AES cipher used for encrypted protocol communication
-		## with this client; starts with a NULL session-key and
-		## becomes active when client sends SETSHAREDKEY
-		self.set_aes_cipher_obj(CryptoHandler.aes_cipher(""))
-		self.set_session_key("")
-
-		self.set_session_key_received_ack(False)
-
-
-	def set_aes_cipher_obj(self, obj): self.aes_cipher_obj = obj
-	def get_aes_cipher_obj(self): return self.aes_cipher_obj
-
-	def set_session_key_received_ack(self, b): self.session_key_received_ack = b
-	def get_session_key_received_ack(self): return self.session_key_received_ack
-
-	def set_session_key(self, key): self.aes_cipher_obj.set_key(key)
-	def get_session_key(self): return (self.aes_cipher_obj.get_key())
-
-	def use_secure_session(self): return (len(self.get_session_key()) != 0)
-	def use_msg_auth_codes(self): return (self._root.use_message_authent_codes)
 
 	def set_msg_id(self, msg):
 		self.msg_id = ""
@@ -230,46 +209,8 @@ class Client(BaseClient):
 			if (len(raw_data_blob) == 0):
 				continue
 
-			if (self.use_secure_session()):
-				dec_data_blob = decrypt_auth_message(self.aes_cipher_obj, raw_data_blob, self.use_msg_auth_codes())
-
-				## can only happen in case of an invalid MAC or missing timestamp
-				if (len(dec_data_blob) < 4):
-					continue
-
-				## handle an encrypted client command, using the AES session key
-				## previously exchanged between client and server by SETSHAREDKEY
-				## (this includes LOGIN and REGISTER, key can be set before login)
-				##
-				## this assumes (!) a client message to be of the form
-				##   ENCODE(ENCRYPT_AES("CMD ARG1 ARG2 ...", AES_KEY))
-				## where ENCODE is the standard base64 encoding scheme
-				##
-				## if this is not the case (e.g. if a command was sent UNENCRYPTED
-				## by client after session-key exchange) the decryption will yield
-				## garbage and command will be rejected
-				##
-				## NOTE:
-				##   blocks of encrypted data are always base64-encoded and will be
-				##   separated by newlines, but after decryption might contain more
-				##   embedded newlines themselves (e.g. if encryption was performed
-				##   over *batches* of plaintext commands)
-				##
-				##   client -->   C=ENCODE(ENCRYPT("CMD1 ARG11 ARG12 ...\nCMD2 ARG21 ...\n"))
-				##   server --> DECRYPT(DECODE(C))="CMD1 ARG11 ARG12 ...\nCMD2 ARG21 ...\n"
-				##
-				## ignore any replayed messages
-				if (not check_message_timestamp(dec_data_blob[0: 4])):
-					continue
-
-				split_commands = dec_data_blob[4: ].split(DATA_PARTIT_BYTE)
-				strip_commands = [(cmd.rstrip('\r')).lstrip(' ') for cmd in split_commands]
-			else:
-				if (raw_data_blob[0] == DATA_MARKER_BYTE):
-					continue
-
-				## strips leading spaces and trailing carriage returns
-				strip_commands = [(raw_data_blob.rstrip('\r')).lstrip(' ')]
+			## strips leading spaces and trailing carriage returns
+			strip_commands = [(raw_data_blob.rstrip('\r')).lstrip(' ')]
 
 			commands_buffer += strip_commands
 
@@ -293,48 +234,7 @@ class Client(BaseClient):
 		if (type(data) == unicode):
 			data = data.encode(UNICODE_ENCODING)
 
-		assert(type(data) == str)
-
-		def wrap_encrypt_sign_message(raw_msg):
-			raw_msg = int32_to_str(self.outgoing_msg_ctr) + raw_msg
-			enc_msg = encrypt_sign_message(self.aes_cipher_obj, raw_msg, self.use_msg_auth_codes())
-
-			self.outgoing_msg_ctr += 1
-			return enc_msg
-
-		buf = ""
-
-		if (self.use_secure_session()):
-			## buffer encrypted data until we get client ACK
-			## (the most recent message will be at the back)
-			##
-			## note: should not normally contain anything of
-			## value, server has little to send before LOGIN
-			self.enc_sendbuffer.append(data)
-
-			if (self.get_session_key_received_ack()):
-				self.enc_sendbuffer.reverse()
-
-				## encrypt everything in the queue
-				## message order in reversed queue is newest to
-				## oldest, but we pop() from the back so client
-				## receives in proper order
-				if (batch):
-					while (len(self.enc_sendbuffer) > 0):
-						buf += (self.enc_sendbuffer.pop() + DATA_PARTIT_BYTE)
-
-					## batch-encrypt into one blob (more efficient)
-					buf = wrap_encrypt_sign_message(buf)
-				else:
-					while (len(self.enc_sendbuffer) > 0):
-						buf += wrap_encrypt_sign_message(self.enc_sendbuffer.pop() + DATA_PARTIT_BYTE)
-
-		else:
-			buf = data + DATA_PARTIT_BYTE
-
-		if (len(buf) == 0):
-			return
-		self.transport.write(buf)
+		self.transport.write(data)
 
 	def Send(self, data, batch = True):
 		data = data.encode("utf-8")

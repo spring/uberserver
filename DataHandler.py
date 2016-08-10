@@ -39,11 +39,6 @@ class DataHandler:
 		self.server = 'TASServer'
 		self.server_version = 0.36
 		self.sighup = False
-		self.crypto_key_dir = "server-rsa-keys/"
-
-		self.force_secure_client_auths =  False ## if true, LOGIN and REGISTER must be encrypted
-		self.force_secure_client_comms =  False ## if true, ALL commands must be encrypted
-		self.use_message_authent_codes = False ## if true, all messages must include (H)MACs
 
 		self.chanserv = None
 		self.userdb = None
@@ -256,16 +251,6 @@ class DataHandler:
 				except:
 					print('Error opening trusted proxy file.')
 					self.trusted_proxyfile = None
-
-			elif arg == 'sec_auths':
-				try: self.force_secure_client_auths = (int(argp[0]) != 0)
-				except: pass
-			elif arg == 'sec_comms':
-				try: self.force_secure_client_comms = (int(argp[0]) != 0)
-				except: pass
-			elif arg == 'msg_hmacs':
-				try: self.use_message_authent_codes = (int(argp[0]) != 0)
-				except: pass
 
 	def loadCertificates(self):
 		certfile = "server.pem"
