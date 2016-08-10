@@ -13,7 +13,6 @@ from Crypto.Hash import SHA256
 
 from base64 import b64decode as SAFE_DECODE_FUNC
 
-UNICODE_ENCODING = "utf-8"
 LEGACY_HASH_FUNC = MD5.new
 SECURE_HASH_FUNC = SHA256.new
 
@@ -272,11 +271,11 @@ class Protocol:
 			## message should not contain non-ASCII bytes since protocol
 			## is specified as text-only, so decoding it *should* always
 			## succeed
-			msg = msg.decode(UNICODE_ENCODING)
+			msg = msg.decode("utf-8")
 		except:
 			out = "Invalid unicode-encoding received (should be %s), skipped message %s"
 			err = ":".join("{:02x}".format(ord(c)) for c in msg)
-			self.out_SERVERMSG(client, out % (UNICODE_ENCODING, err), True)
+			self.out_SERVERMSG(client, out % ("utf-8", err), True)
 			return False
 
 			
@@ -520,7 +519,7 @@ class Protocol:
 		## because both CHANGEACCOUNTPASS and TESTLOGIN might call us
 		assert(type(password) == unicode)
 
-		pwrd_hash_enc = password.encode(UNICODE_ENCODING)
+		pwrd_hash_enc = password.encode("utf-8")
 		pwrd_hash_raw = SAFE_DECODE_FUNC(pwrd_hash_enc)
 
 		if (pwrd_hash_enc == pwrd_hash_raw):
@@ -771,10 +770,7 @@ class Protocol:
 			return
 
 
-		if (client.use_secure_session()):
-			good, reason = self.userdb.secure_register_user(username, password, client.ip_address, client.country_code)
-		else:
-			good, reason = self.userdb.legacy_register_user(username, password, client.ip_address, client.country_code)
+		good, reason = self.userdb.legacy_register_user(username, password, client.ip_address, client.country_code)
 
 		if (good):
 			self._root.console_write('[%s] Successfully registered user <%s>.' % (client.session_id, username))
@@ -857,13 +853,7 @@ class Protocol:
 
 
 		try:
-			## no longer test if password is well-formed here
-			## (the DB checks are sufficient and it allows an
-			## old-style password to be converted seamlessly)
-			if (client.use_secure_session()):
-				good, user_or_error = self.userdb.secure_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
-			else:
-				good, user_or_error = self.userdb.legacy_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
+			good, user_or_error = self.userdb.legacy_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 		except Exception as e:
 			self._root.console_write('[%s] <%s> Error reading from DB in in_LOGIN: %s ' % (client.session_id, client.username, e.message))
 			## in this case DB return values are undefined
@@ -906,10 +896,6 @@ class Protocol:
 		client.register_date = user_or_error.register_date
 		client.last_login = user_or_error.last_login
 		client.cpu = cpu
-
-		## if not a secure authentication, the client should
-		## still only be using an old-style unsalted password
-		assert(client.use_secure_session() == (not client.has_legacy_password()))
 
 		client.local_ip = None
 		if local_ip.startswith('127.') or not validateIP(local_ip):
@@ -1438,7 +1424,7 @@ class Protocol:
 			try:
 				top = topic['text']
 			except:
-				top = "Invalid unicode-encoding (should be %s)" % UNICODE_ENCODING
+				top = "Invalid unicode-encoding (should be utf-8)"
 				self._root.console_write("%s for channel topic: %s" %(top, chan))
 			client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topictime, top))
 		elif client.compat['et']: # supports sendEmptyTopic
@@ -2033,7 +2019,7 @@ class Protocol:
 				try:
 					top = topic['text']
 				except:
-					top = "Invalid unicode-encoding (should be %s)" % UNICODE_ENCODING
+					top = "Invalid unicode-encoding (should be utf-8)"
 			client.Send('CHANNEL %s %d %s'% (channel.name, len(channel.users), top))
 		client.Send('ENDOFCHANNELS')
 

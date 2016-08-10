@@ -6,12 +6,13 @@ from datetime import datetime, timedelta
 from base64 import b64encode as ENCODE_FUNC
 from base64 import b64decode as DECODE_FUNC
 
-from CryptoHandler import MD5LEG_HASH_FUNC
-from CryptoHandler import SHA256_HASH_FUNC
-from CryptoHandler import GLOBAL_RAND_POOL
-from CryptoHandler import USR_DB_SALT_SIZE
-from CryptoHandler import PWRD_HASH_ROUNDS
-from CryptoHandler import UNICODE_ENCODING
+
+from Crypto.Hash import MD5
+from Crypto.Hash import SHA256
+from Crypto import Random
+
+PWRD_HASH_ROUNDS = 1024
+USR_DB_SALT_SIZE = 16
 
 from BaseClient import BaseClient
 
@@ -337,11 +338,11 @@ class UsersHandler:
 		## in a secure session, so password was only base64-encoded
 		## by client and we must apply B64ENCODE(MD5(B64DECODE(..)))
 		## to it first
-		legacy_pwrd = password.encode(UNICODE_ENCODING)
+		legacy_pwrd = password.encode("utf-8")
 		legacy_pwrd = DECODE_FUNC(legacy_pwrd)
-		legacy_pwrd = MD5LEG_HASH_FUNC(legacy_pwrd)
+		legacy_pwrd = MD5.new(legacy_pwrd)
 		legacy_pwrd = ENCODE_FUNC(legacy_pwrd.digest())
-		legacy_pwrd = legacy_pwrd.decode(UNICODE_ENCODING)
+		legacy_pwrd = legacy_pwrd.decode("utf-8")
 
 		## check if a legacy LOGIN would succeed with given password
 		if (not self.legacy_test_user_pwrd(db_user, legacy_pwrd)):
@@ -371,22 +372,22 @@ class UsersHandler:
 		return (user_inst.password == user_pwrd)
 
 	## test LOGIN input <user_pwrd> against DB User instance <user_inst>
-	def secure_test_user_pwrd(self, user_inst, user_pwrd, hash_func = SHA256_HASH_FUNC):
-		user_pwrd = DECODE_FUNC(user_pwrd.encode(UNICODE_ENCODING))
-		user_salt = DECODE_FUNC(user_inst.randsalt.encode(UNICODE_ENCODING))
+	def secure_test_user_pwrd(self, user_inst, user_pwrd, hash_func = SHA256.new):
+		user_pwrd = DECODE_FUNC(user_pwrd.encode("utf-8"))
+		user_salt = DECODE_FUNC(user_inst.randsalt.encode("utf-8"))
 		user_hash = hash_func(user_pwrd + user_salt)
 
 		for i in xrange(PWRD_HASH_ROUNDS):
 			user_hash = hash_func(user_hash.digest() + user_salt)
 
-		return (user_inst.password.encode(UNICODE_ENCODING) == ENCODE_FUNC(user_hash.digest()))
+		return (user_inst.password.encode("utf-8") == ENCODE_FUNC(user_hash.digest()))
 
 
 	## server converts all incoming decrypted messages (including those
 	## containing password strings) to unicode --> hash-functions do not
 	## like this, so we need to encode them again
 	## (values retrieved from DB will also be in unicode)
-	def gen_user_pwrd_hash_and_salt(self, user_pass, hash_func = SHA256_HASH_FUNC, rand_pool = GLOBAL_RAND_POOL):
+	def gen_user_pwrd_hash_and_salt(self, user_pass, hash_func = SHA256.new, rand_pool = Random.new()):
 		def gen_user_salt(rand_pool, num_salt_bytes = USR_DB_SALT_SIZE):
 			return (rand_pool.read(num_salt_bytes))
 
@@ -401,7 +402,7 @@ class UsersHandler:
 
 			return (user_hash.digest())
 
-		user_pass = DECODE_FUNC(user_pass.encode(UNICODE_ENCODING))
+		user_pass = DECODE_FUNC(user_pass.encode("utf-8"))
 		user_salt = gen_user_salt(rand_pool)
 		user_hash = gen_user_hash(user_pass, user_salt, hash_func)
 

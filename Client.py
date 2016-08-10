@@ -3,17 +3,6 @@ from collections import defaultdict
 
 from BaseClient import BaseClient
 
-import CryptoHandler
-
-from CryptoHandler import encrypt_sign_message
-from CryptoHandler import decrypt_auth_message
-from CryptoHandler import int32_to_str
-from CryptoHandler import str_to_int32
-
-from CryptoHandler import DATA_MARKER_BYTE
-from CryptoHandler import DATA_PARTIT_BYTE
-from CryptoHandler import UNICODE_ENCODING
-
 class Client(BaseClient):
 	'this object represents one server-side connected client'
 
@@ -168,7 +157,7 @@ class Client(BaseClient):
 		if (self.data.count('\n') == 0):
 			return
 
-		self.HandleProtocolCommands(self.data.split(DATA_PARTIT_BYTE), msg_limits)
+		self.HandleProtocolCommands(self.data.split("\n"), msg_limits)
 
 	def HandleProtocolCommand(self, cmd):
 		## probably caused by trailing newline ("abc\n".split("\n") == ["abc", ""])
@@ -232,9 +221,9 @@ class Client(BaseClient):
 		## unicode internally, but is otherwise fully ASCII
 		## and will never send raw binary data)
 		if (type(data) == unicode):
-			data = data.encode(UNICODE_ENCODING)
+			data = data.encode("utf-8")
 
-		self.transport.write(data)
+		self.transport.write(data + "\n")
 
 	def Send(self, data, batch = True):
 		data = data.encode("utf-8")

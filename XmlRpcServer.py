@@ -13,7 +13,6 @@ import logging
 from logging.handlers import TimedRotatingFileHandler
 
 from protocol import Protocol
-from CryptoHandler import MD5LEG_HASH_FUNC as LEGACY_HASH_FUNC
 from SQLUsers import User, Rename, Login
 from sqlalchemy import and_
 
