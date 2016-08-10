@@ -1,11 +1,6 @@
 
-from OpenSSL import crypto, SSL
-from socket import gethostname
+from OpenSSL import crypto
 import time
-from os.path import exists, join
-
-CERT_FILE = "server.crt"
-KEY_FILE = "server.key"
 
 def timestr():
 	return time.strftime("%Y%m%d%H%M%SZ", time.gmtime())
