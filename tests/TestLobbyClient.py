@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding=utf-8
 # This file is part of the uberserver (GPL v2 or later), see LICENSE
 
@@ -110,7 +110,7 @@ class LobbyClient:
 		if (len(buf) == 0):
 			return
 
-		self.host_socket.send(buf)
+		self.host_socket.send(buf.encode("utf-8"))
 
 	def Recv(self):
 		num_received_bytes = len(self.socket_data)
@@ -185,7 +185,7 @@ class LobbyClient:
 		try:
 			function(*(arguments))
 			return True
-		except Exception, e:
+		except Exception as e:
 			print("Error handling: \"%s\" %s" % (msg, e))
 			print(traceback.format_exc())
 			return False
@@ -329,7 +329,7 @@ class LobbyClient:
 		self.out_SAYPRIVATE(user,"You said: " + msg)
 
 	def in_SAYPRIVATE(self, msg):
-		print "SAY " +  msg
+		print("SAY " +  msg)
 
 
 	def Update(self):
@@ -340,7 +340,7 @@ class LobbyClient:
 		if ((self.iters % 10) == 0):
 			self.out_PING()
 
-		threading._sleep(0.05)
+		time.sleep(0.05)
 
 		## eat through received data
 		self.Recv()
@@ -356,14 +356,14 @@ class LobbyClient:
 def RunClients(num_clients, num_updates):
 	clients = [None] * num_clients
 
-	for i in xrange(num_clients):
+	for i in range(num_clients):
 		clients[i] = LobbyClient(HOST_SERVER, (CLIENT_NAME % i), (CLIENT_PWRD % i))
 
-	for j in xrange(num_updates):
-		for i in xrange(num_clients):
+	for j in range(num_updates):
+		for i in range(num_clients):
 			clients[i].Update()
 
-	for i in xrange(num_clients):
+	for i in range(num_clients):
 		clients[i].out_EXIT()
 
 

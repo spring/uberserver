@@ -14,11 +14,11 @@ install:
    - pip install pycrypto SQLAlchemy twisted pyOpenSSL
 
 script:
-   - protocol/Protocol.py
-   - ./ip2country.py
+   - python3 protocol/Protocol.py
+   - python3 ip2country.py
    - ./SQLUsers.py
    - ./server.py &
    - sleep 30 # wait for server to start up
-   - tests/TestLobbyClient.py
+   - python3 tests/TestLobbyClient.py
    - sleep 10 # give server some time to write log, etc
    - killall python
