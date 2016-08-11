@@ -391,6 +391,12 @@ class DataHandler:
 			if 'admin' in client.accesslevels:
 				client.Send('SERVERMSG Admin broadcast: %s'%msg)
 
+	def reload(self):
+		self.admin_broadcast('Reloading...')
+		self.console_write('Reloading...')
+		self.parseFiles()
+		ip2country.reloaddb()
+
 	def get_ip_address(self):
 		try:
 			s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)

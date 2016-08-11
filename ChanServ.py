@@ -233,6 +233,9 @@ class ChanServClient(Client):
 		self._root.usernames[self.username] = self
 		self._root.clients[session_id] = self
 		self._root.console_write('[%s] Successfully logged in static user <%s>'%(self.session_id, self.username))
+		self.reload()
+
+	def reload(self):
 		self.ChanServ = ChanServ(self, self._root)
 
 	def Handle(self, data):
