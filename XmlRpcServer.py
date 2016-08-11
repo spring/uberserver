@@ -1,4 +1,6 @@
-#
+#!/usr/bin/python
+# coding=utf-8
+# This file is part of the uberserver (GPL v2 or later), see LICENSE
 # xmlrpc class for auth of replays.springrts.com
 #
 # TODO:
@@ -10,11 +12,14 @@ from SimpleXMLRPCServer import SimpleXMLRPCServer
 from base64 import b64encode
 import os.path
 import logging
+import socket
 from logging.handlers import TimedRotatingFileHandler
 
 from protocol import Protocol
 from SQLUsers import User, Rename, Login
+import SQLUsers
 from sqlalchemy import and_
+import sqlalchemy
 
 # logging
 xmlrpc_logfile = os.path.join(os.path.dirname(__file__), "xmlrpc.log")
@@ -27,6 +32,10 @@ fh.setFormatter(formatter)
 fh.setLevel(logging.DEBUG)
 logger.addHandler(fh)
 
+sqlurl = 'sqlite:///server.db'
+xmlhost = "localhost"
+xmlport = 8300
+
 
 def _xmlrpclog(self, format, *args):
 	logger.debug("%s - %s" , self.client_address[0], format%args)
@@ -34,18 +43,28 @@ def _xmlrpclog(self, format, *args):
 # overwrite default logger, because it will otherwise spam main server log
 BaseHTTPServer.BaseHTTPRequestHandler.log_message = _xmlrpclog
 
+class fakeRoot():
+	userdb = None
+	SayHooks = None
+	def __init__(self, sqlurl):
+		engine = sqlalchemy.create_engine(sqlurl)
+		self.userdb = SQLUsers.UsersHandler(self, engine)
+	def getUserDB(self):
+		return self.userdb
+		
+
+proto = Protocol.Protocol(fakeRoot(sqlurl))
 
 class XmlRpcServer(object):
 	"""
 		XMLRPC service, exported functions are in class _RpcFuncs
 	"""
-	def __init__(self, root, host, port):
-		self._root = root
+	def __init__(self, host, port):
 		self.host = host
 		self.port = port
 		self._server = SimpleXMLRPCServer((self.host, self.port))
 		self._server.register_introspection_functions()
-		self._server.register_instance(_RpcFuncs(self._root))
+		self._server.register_instance(_RpcFuncs())
 
 	def start(self):
 		logger.info('Listening for XMLRPC clients on %s:%d', self.host, self.port)
@@ -59,9 +78,6 @@ class _RpcFuncs(object):
 	"""
 		All methods of this class will be exposed via XMLRPC.
 	"""
-	def __init__(self, root):
-		assert(root != None)
-		self._root = root
 
 	def get_account_info(self, username, password):
 		password_enc = unicode(b64encode(LEGACY_HASH_FUNC(password).digest()))
@@ -83,4 +99,12 @@ class _RpcFuncs(object):
 
 		session.close()
 		return result
+
+try:
+        xmlrpcserver = XmlRpcServer(xmlhost, xmlport)
+	xmlrpcserver.start()
+	logger.info('Listening for XMLRPC clients on %s:%d' % (xmlhost, xmlport))
+except socket.error:
+        logger.error('Error: Could not start XmlRpcServer.')
+
 

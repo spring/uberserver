@@ -16,7 +16,6 @@ sys.path.append(".")
 from DataHandler import DataHandler
 from Client import Client
 from NATServer import NATServer
-from XmlRpcServer import XmlRpcServer
 
 import ip2country # just to make sure it's downloaded
 import ChanServ
@@ -54,16 +53,6 @@ except socket.error:
 	print('Error: Could not start NAT server - hole punching will be unavailable.')
 
 _root.console_write('Using %i client handling thread(s).'%_root.max_threads)
-
-try:
-	xmlrpcserver = XmlRpcServer(_root, _root.xmlhost, _root.xmlport)
-	try:
-		thread.start_new_thread(xmlrpcserver.start,())
-	except NameError:
-		_thread.start_new_thread(xmlrpcserver.start,())
-	_root.console_write('Listening for XMLRPC clients on %s:%d' % (_root.xmlhost, _root.xmlport))
-except socket.error:
-	print('Error: Could not start XmlRpcServer.')
 
 _root.init()
 
