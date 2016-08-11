@@ -12,8 +12,8 @@ python:
     - "3.5"
 
 install:
-   - sudo apt-get install -y geoip-database python-geoip
-   - pip install pycrypto SQLAlchemy twisted pyOpenSSL
+   - sudo apt-get install -y geoip-database
+   - pip3 install pycrypto SQLAlchemy twisted pyOpenSSL GeoIP mysqlclient
 
 script:
    - python3 protocol/Protocol.py
