@@ -719,7 +719,7 @@ class Protocol:
 		port = int(port)
 		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		sock.sendto('Port testing...', (host, port))
-
+		sock.close()
 
 	def in_REGISTER(self, client, username, password):
 		'''
