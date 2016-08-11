@@ -903,18 +903,16 @@ class Protocol:
 				client.Send("AGREEMENT %s" %(line))
 			client.Send('AGREEMENTEND')
 			return
+		self._SendLoginInfo(client)
 
-		self._root.console_write('[%s] Successfully logged in user <%s> (access=%s).' % (client.session_id, user_or_error.username, client.access))
-
-
+	def _SendLoginInfo(self, client):
+		self._root.console_write('[%s] Successfully logged in user <%s> (access=%s).' % (client.session_id, client.username, client.access))
 		self._calc_status(client, 0)
-
 		ignoreList = self.userdb.get_ignored_user_ids(client.db_id)
 		client.ignored = {ignoredUserId:True for ignoredUserId in ignoreList}
 
 		client.buffersend = False
-
-		client.RealSend('ACCEPTED %s' % user_or_error.username)
+		client.RealSend('ACCEPTED %s' % client.username)
 
 		self._sendMotd(client, self._get_motd_string(client))
 		self._checkCompat(client)
@@ -950,8 +948,8 @@ class Protocol:
 		if client.access == 'agreement':
 			client.access = 'user'
 			self.userdb.save_user(client)
-			client.access = 'fresh'
 			self._calc_access_status(client)
+			self._SendLoginInfo(client)
 
 	def in_SAY(self, client, chan, params):
 		'''
