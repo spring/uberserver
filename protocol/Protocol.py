@@ -8,11 +8,7 @@ import Channel
 import Battle
 
 from Crypto.Hash import MD5
-from Crypto.Hash import SHA256
-
 import base64
-
-SECURE_HASH_FUNC = SHA256.new
 
 # see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
 # max. 8 ranks are possible (rank 0 isn't listed)
