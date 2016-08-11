@@ -10,14 +10,9 @@ import Battle
 from Crypto.Hash import MD5
 from Crypto.Hash import SHA256
 
-from base64 import b64decode as SAFE_DECODE_FUNC
+import base64
 
-LEGACY_HASH_FUNC = MD5.new
 SECURE_HASH_FUNC = SHA256.new
-
-from base64 import b64encode as ENCODE_FUNC
-from base64 import b64decode as DECODE_FUNC
-
 
 # see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
 # max. 8 ranks are possible (rank 0 isn't listed)
@@ -504,13 +499,10 @@ class Protocol:
 		## must be checked here too (not just in _validPasswordSyntax)
 		## because both CHANGEACCOUNTPASS and TESTLOGIN might call us
 		assert(type(password) == str)
-
-		pwrd_hash_enc = password.encode("utf-8")
-		pwrd_hash_raw = SAFE_DECODE_FUNC(pwrd_hash_enc)
-
-		if (pwrd_hash_enc == pwrd_hash_raw):
+		md5hash = base64.b64decode(password)
+		if (md5hash == password):
 			return False, "Invalid base64-encoding."
-		if (len(pwrd_hash_raw) != len(LEGACY_HASH_FUNC("").digest())):
+		if (len(md5hash) != 16):
 			return False, "Invalid MD5-checksum."
 
 		## assume (!) this is a valid legacy-hash checksum
@@ -613,11 +605,11 @@ class Protocol:
 		return client
 
 	def broadcast_AddBattle(self, battle):
-		for client in self._root.usernames.itervalues():
+		for cid, client in self._root.usernames.items():
 			client.Send(self.client_AddBattle(client, battle))
 
 	def broadcast_RemoveBattle(self, battle):
-		for client in self._root.usernames.itervalues():
+		for cid, client in self._root.usernames.items():
 			client.Send('BATTLECLOSED %s' % battle.id)
 
 	# the sourceClient is only sent for SAY*, and RING commands

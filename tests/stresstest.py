@@ -14,14 +14,11 @@ from Crypto.Hash import SHA256
 
 from base64 import b64decode as SAFE_DECODE_FUNC
 
-LEGACY_HASH_FUNC = MD5.new
 SECURE_HASH_FUNC = SHA256.new
 
-from base64 import b64encode as ENCODE_FUNC
-from base64 import b64decode as DECODE_FUNC
+import base64
 
-
-NUM_CLIENTS = 100
+NUM_CLIENTS = 1
 NUM_UPDATES = 10000000
 USE_THREADS = False
 CLIENT_NAME = "ubertest%02d"
@@ -44,6 +41,8 @@ class LobbyClient:
 
 		self.username = username
 		self.password = password
+		self.password = base64.b64encode(MD5.new(password.encode("utf-8")).digest()).decode("utf-8")
+		assert(type(self.password) == str)
 
 		self.OpenSocket(server_addr)
 		self.Init()
@@ -91,7 +90,7 @@ class LobbyClient:
 		## test-client never tries to send unicode strings, so
 		## we do not need to add encode(UNICODE_ENCODING) calls
 		##
-		## print("[Send][time=%d::iter=%d] data=\"%s\" sec_sess=%d key_acked=%d queue=%s batch=%d" % (time.time(), self.iters, data, self.use_secure_session(), self.client_acked_shared_key, self.data_send_queue, batch))
+		## print("[Send][time=%d::iter=%d] data=\"%s\" queue=%s batch=%d" % (time.time(), self.iters, data, self.data_send_queue, batch))
 		assert(type(data) == str)
 
 		if (len(data) == 0):
@@ -103,9 +102,11 @@ class LobbyClient:
 		num_received_bytes = len(self.socket_data)
 
 		try:
-			self.socket_data += self.host_socket.recv(4096)
-		except:
-			return
+			self.socket_data += self.host_socket.recv(4096).decode("utf-8")
+		except BlockingIOError as e:
+			if e.errno == 11: # Resource temporarily unavailable
+				return
+			raise(e)
 
 		if (len(self.socket_data) == num_received_bytes):
 			return
@@ -172,14 +173,13 @@ class LobbyClient:
 
 	def out_LOGIN(self):
 		#print("[LOGIN][time=%d::iter=%d] sec_sess=%d" % (time.time(), self.iters, self.use_secure_session()))
-		password = ENCODE_FUNC(LEGACY_HASH_FUNC(self.password.encode("utf-8")).digest())
-		self.Send("LOGIN %s %s 0 *\tstresstester client\t0\tsp cl p" % (self.username, password))
+		self.Send("LOGIN %s %s 0 *\tstresstester client\t0\tsp cl p" % (self.username, self.password))
 
 		self.requested_authentication = True
 
 	def out_REGISTER(self):
 		print("[REGISTER][time=%d::iter=%d]" % (time.time(), self.iters))
-		self.Send("REGISTER %s %s" % (self.username, ENCODE_FUNC(LEGACY_HASH_FUNC(self.password).digest())))
+		self.Send("REGISTER %s %s" % (self.username, self.password))
 		self.requested_registration = True
 
 	def out_CONFIRMAGREEMENT(self):
