@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding=utf-8
 # This file is part of the uberserver (GPL v2 or later), see LICENSE
 
@@ -97,7 +97,7 @@ class LobbyClient:
 		if (len(data) == 0):
 			return
 
-		self.host_socket.send(data + "\n")
+		self.host_socket.send(data.encode("utf-8") + b"\n")
 
 	def Recv(self):
 		num_received_bytes = len(self.socket_data)
@@ -164,7 +164,7 @@ class LobbyClient:
 		try:
 			function(*(arguments))
 			return True
-		except Exception, e:
+		except Exception as e:
 			print("Error handling: \"%s\" %s" % (msg, e))
 			print(traceback.format_exc())
 			return False
@@ -172,7 +172,7 @@ class LobbyClient:
 
 	def out_LOGIN(self):
 		#print("[LOGIN][time=%d::iter=%d] sec_sess=%d" % (time.time(), self.iters, self.use_secure_session()))
-		password = ENCODE_FUNC(LEGACY_HASH_FUNC(self.password).digest())
+		password = ENCODE_FUNC(LEGACY_HASH_FUNC(self.password.encode("utf-8")).digest())
 		self.Send("LOGIN %s %s 0 *\tstresstester client\t0\tsp cl p" % (self.username, password))
 
 		self.requested_authentication = True
@@ -266,12 +266,12 @@ class LobbyClient:
 	def in_BATTLEOPENED(self, msg):
 		battle = msg.split(" ")
 		battleid = int(battle[0])
-		print "BATTLEOPENED received %d %s" %(battleid, self.username)
+		print("BATTLEOPENED received %d %s" %(battleid, self.username))
 		if battleid in self.battles:
-			print "Inconsistence detected: BATTLEOPENED " + str(battleid)
-			print "Battles: " + str(self.battles)
-			print msg
-			print self.username
+			print("Inconsistence detected: BATTLEOPENED " + str(battleid))
+			print("Battles: " + str(self.battles))
+			print(msg)
+			print(self.username)
 			sys.exit(1)
 		self.battles[battleid] = battle[1:]
 	def in_UPDATEBATTLEINFO(self, msg):
@@ -292,13 +292,13 @@ class LobbyClient:
 		print(msg)
 	def in_BATTLECLOSED(self, msg):
 		battleid = int(msg)
-		print "BATTLECLOSED received %d %s" %(battleid, self.username)
+		print("BATTLECLOSED received %d %s" %(battleid, self.username))
 		try:
 			del self.battles[battleid]
 		except:
-			print "Inconsistence detected: BATTLECLOSED " + str(battleid)
-			print "Battles: " + str(self.battles)
-			print self.username
+			print("Inconsistence detected: BATTLECLOSED " + str(battleid))
+			print("Battles: " + str(self.battles))
+			print(self.username)
 			sys.exit(1)
 	def in_REMOVEUSER(self, msg):
 		print(msg)
@@ -332,12 +332,12 @@ class LobbyClient:
 		self.out_SAYPRIVATE(user,"You said: " + msg)
 
 	def in_SAYPRIVATE(self, msg):
-		print "SAY " +  msg
+		print("SAY " +  msg)
 	def in_OPENBATTLEFAILED(self, msg):
 		pass
 
 	def JoinBattle(self): # open or join a battle
-		print self.username + " is trying to create a battle..."
+		print(self.username + " is trying to create a battle...")
 		self.out_OPENBATTLE(0, 0, '*', 1234, 10, 0x1234, 0, 0x1234, "spring", "98.0", "DeltaSiegeDry", "Game!", "Balanced Annihilation V7.19")
 	def PlayInBattle(self): # start game or wait till game start
 		pass
@@ -390,15 +390,15 @@ class LobbyClient:
 def RunClients(num_clients, num_updates):
 	clients = [None] * num_clients
 
-	for i in xrange(num_clients):
+	for i in range(num_clients):
 		clients[i] = LobbyClient(HOST_SERVER, (CLIENT_NAME % i), (CLIENT_PWRD % i))
 
-	for j in xrange(num_updates):
-		for i in xrange(num_clients):
+	for j in range(num_updates):
+		for i in range(num_clients):
 			clients[i].Update()
 		threading._sleep(0.05)
 
-	for i in xrange(num_clients):
+	for i in range(num_clients):
 		clients[i].out_EXIT()
 
 
