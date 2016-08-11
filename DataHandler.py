@@ -193,16 +193,11 @@ class DataHandler:
 				mainarg = arg.lstrip('-').lower()
 
 				if mainarg in ['g', 'loadargs']:
-					try:
-						name = tempargv[0]
-						if name.startswith('-'): raise Exception
-						f = file(name, 'r')
-						lines = f.read().split('\n')
-						f.close()
-
-						tempargv += ' '.join(lines).split(' ')
-					except:
-						pass
+					name = tempargv[0]
+					f = open(name, 'r')
+					lines = f.read().split('\n')
+					f.close()
+					tempargv += ' '.join(lines).split(' ')
 
 				args[mainarg] = []
 			else:
