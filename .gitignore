@@ -17,6 +17,7 @@ xmlrpc.log
 /docs/protocol.txt
 /protocol/docs/protocol.txt
 /server.pem
+/server.key
 /uberserver.pid
 /args.txt
 /proxies.txt
