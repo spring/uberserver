@@ -17,7 +17,6 @@ from logging.handlers import TimedRotatingFileHandler
 
 from SQLUsers import User, Rename, Login
 import SQLUsers
-from sqlalchemy import and_
 import sqlalchemy
 
 from Crypto.Hash import MD5
@@ -63,23 +62,23 @@ class XmlRpcServer(object):
 
 
 def validateLogin(username, password):
-	password_enc = unicode(b64encode(LEGACY_HASH_FUNC(password).digest()))
 
-	user = userdb.clientFromUsername(username)
-	if not user:
+	session = userdb.sessionmaker()
+
+	db_user = session.query(User.id, User.username, User.ingame_time, User.email, User.password).filter(User.username == username).first()
+	if not db_user:
+		session.close()
 		logger.warning("User not found: %s" %(username))
 		return {"status": 1}
-	good = userdb.legacy_test_user_pwrd(user, password_enc)
-	logger.debug("reply: %s", good)
-	if not good:
+	if not db_user.password == unicode(b64encode(LEGACY_HASH_FUNC(password).digest())):
+		session.close()
 		logger.error("Invalid password: %s" %(username))
 		return {"status": 1}
-	session = userdb.sessionmaker() # FIXME: move to SQLUsers.py
-	db_user = session.query(User.id, User.username, User.ingame_time, User.email).filter(User.username == username).first()
+
 	renames = session.query(Rename.original).distinct(Rename.original).filter(Rename.user_id == db_user.id).all()
 	renames = [ r[0] for r in renames]
 
-	country = session.query(Login.country).filter(and_(Login.country != '??', Login.country != None, Login.country != '')).first()
+	country = session.query(Login.country).filter(sqlalchemy.and_(Login.country != '??', Login.country != None, Login.country != '')).first()
 	result = {"status": 0, "accountid": int(db_user.id), "username": str(db_user.username),
 			"ingame_time": int(db_user.ingame_time), "email": str(db_user.email),
 			"aliases": renames,
