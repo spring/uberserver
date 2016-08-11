@@ -21,6 +21,9 @@ import SQLUsers
 from sqlalchemy import and_
 import sqlalchemy
 
+from Crypto.Hash import MD5
+LEGACY_HASH_FUNC = MD5.new
+
 # logging
 xmlrpc_logfile = os.path.join(os.path.dirname(__file__), "xmlrpc.log")
 logger = logging.getLogger()
@@ -51,7 +54,8 @@ class fakeRoot():
 		self.userdb = SQLUsers.UsersHandler(self, engine)
 	def getUserDB(self):
 		return self.userdb
-		
+	def clientFromUsername(self, username):
+		return self.userdb.clientFromUsername(username)
 
 proto = Protocol.Protocol(fakeRoot(sqlurl))
 
@@ -81,7 +85,7 @@ class _RpcFuncs(object):
 
 	def get_account_info(self, username, password):
 		password_enc = unicode(b64encode(LEGACY_HASH_FUNC(password).digest()))
-		good = self._root.protocol._testlogin(unicode(username), password_enc) # FIXME: don't use Protocol.py
+		good = proto._testlogin(unicode(username), password_enc) # FIXME: don't use Protocol.py
 		logger.debug("reply: %s", good)
 		if not good:
 			return {"status": 1}
