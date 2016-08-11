@@ -64,7 +64,7 @@ class LobbyClient:
 			except socket.error as msg:
 				print("[OpenSocket] %s" % msg)
 				## print(traceback.format_exc())
-				threading._sleep(0.5)
+				time.sleep(0.5)
 
 	def Init(self):
 		self.prv_ping_time = time.time()
@@ -396,7 +396,7 @@ def RunClients(num_clients, num_updates):
 	for j in range(num_updates):
 		for i in range(num_clients):
 			clients[i].Update()
-		threading._sleep(0.05)
+		time.sleep(0.05)
 
 	for i in range(num_clients):
 		clients[i].out_EXIT()
