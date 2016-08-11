@@ -42,7 +42,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 			self.Send("SERVERMSG timeout: didn't login within 60 seconds")
 		else:
 			self.Send("SERVERMSG timeout: no data received within 60 seconds")
-	        self.transport.loseConnection()
+		self.transport.loseConnection()
 
 	def Remove(self, reason='Quit'):
 		self.transport.loseConnection()
@@ -56,10 +56,10 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 
 class ChatFactory(Factory):
 
-    def __init__(self, root):
-        self.root = root # maps user names to Chat instances
-	assert(self.root.userdb != None)
+	def __init__(self, root):
+		self.root = root # maps user names to Chat instances
+		assert(self.root.userdb != None)
 
-    def buildProtocol(self, addr):
-        return Chat(self.root)
+	def buildProtocol(self, addr):
+		return Chat(self.root)
 
