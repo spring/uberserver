@@ -124,7 +124,7 @@ class DataHandler:
 		self.chanserv.ChanServ.onLogin()
 
 		for name in channels:
-			self.chanserv.HandleProtocolCommand('JOIN %s' % name)
+			self.chanserv.HandleProtocolCommand("JOIN %s" %(name))
 
 	def shutdown(self):
 		self.running = False
@@ -336,7 +336,7 @@ class DataHandler:
 		self.logger.error(error)
 
 	def console_write(self, lines=''):
-		if type(lines) in(str, unicode):
+		if type(lines)  == str:
 			lines = lines.split('\n')
 		elif not type(lines) in (list, tuple, set):
 			try: lines = [lines.__repr__()]
@@ -347,7 +347,7 @@ class DataHandler:
 
 	# the sourceClient is only sent for SAY*, and RING commands
 	def multicast(self, clients, msg, ignore=(), sourceClient=None):
-		if type(ignore) in (str, unicode): ignore = [ignore]
+		if type(ignore) == str: ignore = [ignore]
 		static = []
 		for client in clients:
 			if client and not client.username in ignore and \
@@ -361,7 +361,7 @@ class DataHandler:
 	
 	# the sourceClient is only sent for SAY*, and RING commands
 	def broadcast(self, msg, chan=None, ignore=(), sourceClient=None):
-		if type(ignore) in (str, unicode): ignore = [ignore]
+		if type(ignore) == str: ignore = [ignore]
 		try:
 			if chan in self.channels:
 				channel = self.channels[chan]
@@ -399,7 +399,7 @@ class DataHandler:
 		try:
 			s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 			s.connect(("springrts.com", 80))
-			return s.getsockname()[0]
+			return s.getsockname()[0].decode("utf-8")
 		except:
 			pass
 		try:
@@ -419,7 +419,7 @@ class DataHandler:
 		try:
 			timeout = socket.getdefaulttimeout()
 			socket.setdefaulttimeout(5)
-			web_addr = urlopen('http://springrts.com/lobby/getip.php').read()
+			web_addr = urlopen('http://springrts.com/lobby/getip.php').read().decode("utf-8")
 			socket.setdefaulttimeout(timeout)
 			self.console_write(web_addr)
 		except:

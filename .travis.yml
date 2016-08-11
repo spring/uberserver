@@ -5,10 +5,12 @@ dist: trusty
 
 python:
 #   - "2.6"
-   - "2.7"
+#   - "2.7"
 #   - "3.2"
 #   - "3.3"
 #   - "3.4"
+    - "3.5"
+
 install:
    - sudo apt-get install -y geoip-database python-geoip
    - pip install pycrypto SQLAlchemy twisted pyOpenSSL
@@ -16,8 +18,8 @@ install:
 script:
    - python3 protocol/Protocol.py
    - python3 ip2country.py
-   - ./SQLUsers.py
-   - ./server.py &
+   - python3 ./SQLUsers.py
+   - python3 ./server.py &
    - sleep 30 # wait for server to start up
    - python3 tests/TestLobbyClient.py
    - sleep 10 # give server some time to write log, etc

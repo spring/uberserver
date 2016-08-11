@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding=utf-8
 
 import inspect, time, re
@@ -263,21 +263,8 @@ class Protocol:
 
 
 	def _handle(self, client, msg):
-		try:
-			## protocol operates on unicode strings internally; this is
-			## somewhat undesirable because it needs to be undone in the
-			## SETSHAREDKEY and GETSIGNEDMSG handlers
-			## message should not contain non-ASCII bytes since protocol
-			## is specified as text-only, so decoding it *should* always
-			## succeed
-			msg = msg.decode("utf-8")
-		except:
-			out = "Invalid unicode-encoding received (should be %s), skipped message %s"
-			err = ":".join("{:02x}".format(ord(c)) for c in msg)
-			self.out_SERVERMSG(client, out % ("utf-8", err), True)
-			return False
+		assert(type(msg) == str)
 
-			
 		# client.Send() prepends client.msg_id if the current thread
 		# is the same thread as the client's handler.
 		# this works because handling is done in order for each ClientHandler thread
@@ -472,7 +459,7 @@ class Protocol:
 
 		if (self._root.motd):
 			for line in self._root.motd:
-				for key, value in replace_vars.iteritems():
+				for key, value in replace_vars.items():
 					line = line.replace(key, value)
 
 				motd_string += line
@@ -516,7 +503,7 @@ class Protocol:
 
 		## must be checked here too (not just in _validPasswordSyntax)
 		## because both CHANGEACCOUNTPASS and TESTLOGIN might call us
-		assert(type(password) == unicode)
+		assert(type(password) == str)
 
 		pwrd_hash_enc = password.encode("utf-8")
 		pwrd_hash_raw = SAFE_DECODE_FUNC(pwrd_hash_enc)
@@ -530,7 +517,7 @@ class Protocol:
 		return True, ""
 
 	def _validPasswordSyntax(self, client, password):
-		assert(type(password) == unicode)
+		assert(type(password) == str)
 
 		if (not password):
 			return False, "Empty password."
@@ -641,13 +628,13 @@ class Protocol:
 				client.Send(data)
 
 	def broadcast_AddUser(self, client):
-		for name, receiver in self._root.usernames.iteritems():
+		for name, receiver in self._root.usernames.items():
 			if client.session_id == receiver.session_id: # don't send ADDUSER to self
 				continue
 			receiver.Send(self.client_AddUser(receiver, client))
 
 	def broadcast_RemoveUser(self, client):
-		for name, receiver in self._root.usernames.iteritems():
+		for name, receiver in self._root.usernames.items():
 			if not name == client.username:
 				self.client_RemoveUser(receiver, client)
 
@@ -753,7 +740,7 @@ class Protocol:
 		@required.str username: Username to register
 		@required.str password: Password to use (old-style: BASE64(MD5(PWRD)), new-style: BASE64(PWRD))
 		'''
-		assert(type(password) == unicode)
+		assert(type(password) == str)
 
 		good, reason = self._validUsernameSyntax(username)
 
@@ -802,7 +789,7 @@ class Protocol:
 		sp: If client is hosting a battle, sends them other clients' script passwords as an additional argument to JOINEDBATTLE.
 		et: When client joins a channel, sends NOCHANNELTOPIC if the channel has no topic.
 		'''
-		assert(type(password) == unicode)
+		assert(type(password) == str)
 
 		good, reason = self._validUsernameSyntax(username)
 
@@ -932,12 +919,15 @@ class Protocol:
 		self._sendMotd(client, self._get_motd_string(client))
 		self._checkCompat(client)
 
-		for addclient in self._root.usernames.itervalues():
+		for sessid, addclient in self._root.clients.items():
+			if not addclient.logged_in:
+				continue
 			client.RealSend(self.client_AddUser(client, addclient))
-			if addclient.status != 0:
-				client.RealSend('CLIENTSTATUS %s %d' % (addclient.username, addclient.status))
+			if addclient.status == 0:
+				continue
+			client.RealSend('CLIENTSTATUS %s %d' % (addclient.username, addclient.status))
 
-		for battle in self._root.battles.itervalues():
+		for battleid, battle in self._root.battles.items():
 			client.RealSend(self.client_AddBattle(client, battle))
 			ubattle = battle.copy()
 			client.RealSend('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % ubattle)
@@ -1752,7 +1742,7 @@ class Protocol:
 		client.Send('JOINBATTLE %s %s' % (battle_id, battle.hashcode))
 		battle.users.add(client.session_id)
 		scripttags = []
-		for tag, val in battle.script_tags.iteritems():
+		for tag, val in battle.script_tags.items():
 			scripttags.append('%s=%s'%(tag, val))
 		client.Send('SETSCRIPTTAGS %s'%'\t'.join(scripttags))
 		if battle.disabled_units:
@@ -2800,7 +2790,7 @@ class Protocol:
 		    return
 		self._root.reload()
 		self._root.console_write("Stats of command usage:")
-		for k,v in self.stats.iteritems():
+		for k,v in self.stats.items():
 			self._root.console_write("%s %d" % (k, v))
 
 	def in_CLEANUP(self, client):

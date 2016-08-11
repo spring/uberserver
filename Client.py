@@ -217,23 +217,16 @@ class Client(BaseClient):
 		if not data:
 			return
 
-		## this *must* always succeed (protocol operates on
-		## unicode internally, but is otherwise fully ASCII
-		## and will never send raw binary data)
-		if (type(data) == unicode):
-			data = data.encode("utf-8")
-
-		self.transport.write(data + "\n")
+		self.transport.write(data.encode("utf-8") + b"\n")
 
 	def Send(self, data, batch = True):
-		data = data.encode("utf-8")
 		if self.buffersend:
 			buffer += data
 		else:
 			self.RealSend(data, batch)
 
 	def flushBuffer(self):
-		self.transport.write(self.buffer)
+		self.transport.write(self.buffer.encode("utf-8"))
 		buffer = ""
 		self.buffersend = False
 

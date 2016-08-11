@@ -470,8 +470,8 @@ class UsersHandler:
 		return good, reason
 
 	def legacy_login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
-		assert(type(username) == unicode)
-		assert(type(password) == unicode)
+		assert(type(username) == str)
+		assert(type(password) == str)
 
 		session = self.sessionmaker()
 		## should only ever be one user with each name so we can just grab the first one :)
@@ -488,8 +488,8 @@ class UsersHandler:
 		return (self.common_login_user(dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
 
 	def secure_login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
-		assert(type(username) == unicode)
-		assert(type(password) == unicode)
+		assert(type(username) == str)
+		assert(type(password) == str)
 
 		session = self.sessionmaker()
 		db_user = session.query(User).filter(User.username == username).first()
@@ -537,8 +537,8 @@ class UsersHandler:
 
 
 	def common_register_user(self, session, username, password):
-		assert(type(username) == unicode)
-		assert(type(password) == unicode)
+		assert(type(username) == str)
+		assert(type(password) == str)
 
 		status, reason = self.check_user_name(username)
 
@@ -892,7 +892,7 @@ class UsersHandler:
 		msgs = [(history.time, user.username, history.msg) for history, user in reqs ]
 		session.close()
 		if len(msgs)>0:
-			assert(type(msgs[0][2]) == unicode)
+			assert(type(msgs[0][2]) == str)
 		return msgs
 
 	def add_channelhistory_subscription(self, channel_id, user_id):
@@ -1066,7 +1066,7 @@ if __name__ == '__main__':
 			assert(msgs[0][0] == now + timedelta(0, i))
 			assert(msgs[0][1] == client.username)
 			assert(msgs[0][2] == msg % i)
-			assert(type(msgs[0][2]) == unicode)
+			assert(type(msgs[0][2]) == str)
 	userdb.clean_users()
 	print("Tests went ok")
 

@@ -5,6 +5,7 @@ from protocol import Protocol
 from OpenSSL import SSL
 import DataHandler
 import Client
+import traceback
 
 class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 
@@ -23,7 +24,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 			Client.Client.__init__(self, self.root, peer, self.session_id)
 			self.root.protocol._new(self)
 		except Exception as e:
-			self.root.error("Error in adding client: %s %s" %(str(e), self.transport.getPeer().host))
+			self.root.error("Error in adding client: %s %s %s" %(str(e), self.transport.getPeer().host, str(traceback.format_exc())))
 
 	def connectionLost(self, reason):
 		self.root.protocol._remove(self, str(reason.value))
@@ -33,9 +34,9 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 		try:
 			if self.username:
 				self.resetTimeout()
-			self.Handle(data)
+			self.Handle(data.decode("utf-8"))
 		except Exception as e:
-			self.root.error("Error in handling data from client: %s, %s" % (str(e), data))
+			self.root.error("Error in handling data from client: %s, %s, %s" % (str(e), data, str(traceback.format_exc())))
 
 	def timeoutConnection(self):
 		if self.username:
