@@ -399,8 +399,11 @@ class DataHandler:
 		try:
 			s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 			s.connect(("springrts.com", 80))
-			return s.getsockname()[0].decode("utf-8")
-		except:
+			res = s.getsockname()[0]
+			s.close()
+			return res
+		except Exception as e:
+			self.logger.debug(e)
 			pass
 		try:
 			return socket.gethostbyname(socket.gethostname())
