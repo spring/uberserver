@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # coding=utf-8
 # This file is part of the uberserver (GPL v2 or later), see LICENSE
 # xmlrpc class for auth of replays.springrts.com
@@ -6,8 +6,7 @@
 # TODO:
 #  - move SQLAlchemy calls to SQLUsers.py
 
-import BaseHTTPServer
-from SimpleXMLRPCServer import SimpleXMLRPCServer
+from xmlrpc.server import SimpleXMLRPCServer
 from base64 import b64encode
 import os.path
 import logging
@@ -39,12 +38,6 @@ xmlport = 8300
 
 engine = sqlalchemy.create_engine(sqlurl)
 userdb = SQLUsers.UsersHandler(None, engine)
-
-def _xmlrpclog(self, format, *args):
-	logger.debug("%s - %s" , self.client_address[0], format%args)
-
-# overwrite default logger, because it will otherwise spam main server log
-BaseHTTPServer.BaseHTTPRequestHandler.log_message = _xmlrpclog
 
 class XmlRpcServer(object):
 	"""
