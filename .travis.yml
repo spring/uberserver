@@ -16,11 +16,11 @@ install:
    - pip3 install pycrypto SQLAlchemy twisted pyOpenSSL GeoIP mysqlclient
 
 script:
-   - python3 protocol/Protocol.py
-   - python3 ip2country.py
-   - python3 ./SQLUsers.py
-   - python3 ./server.py &
+   - protocol/Protocol.py
+   - ip2country.py
+   - SQLUsers.py
+   - ./server.py &
    - sleep 30 # wait for server to start up
-   - python3 tests/TestLobbyClient.py
+   - tests/TestLobbyClient.py
    - sleep 10 # give server some time to write log, etc
    - killall python
