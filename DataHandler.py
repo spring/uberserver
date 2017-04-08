@@ -251,9 +251,8 @@ class DataHandler:
 			import certificate
 			certificate.create_self_signed_cert(certfile)
 		os.chmod(certfile, 0o600)
-		f = open(certfile, "r")
-		self.cert = ssl.PrivateCertificate.loadPEM(f.read()).options()
-		f.close()
+		with open(certfile, 'r') as data:
+			self.cert = ssl.PrivateCertificate.loadPEM(data.read()).options()
 
 	def parseFiles(self):
 		if os.path.isfile('motd.txt'):
