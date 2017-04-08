@@ -90,7 +90,7 @@ class LobbyClient:
 		## test-client never tries to send unicode strings, so
 		## we do not need to add encode(UNICODE_ENCODING) calls
 		##
-		## print("[Send][time=%d::iter=%d] data=\"%s\" sec_sess=%d key_acked=%d queue=%s batch=%d" % (time.time(), self.iters, data, self.use_secure_session(), self.client_acked_shared_key, self.data_send_queue, batch))
+		## print("[Send][time=%d::iter=%d] data=\"%s\" key_acked=%d queue=%s batch=%d" % (time.time(), self.iters, data, self.client_acked_shared_key, self.data_send_queue, batch))
 		assert(type(data) == str)
 
 		def want_secure_command(data):
@@ -116,25 +116,18 @@ class LobbyClient:
 		num_received_bytes = len(self.socket_data)
 
 		try:
-			self.socket_data += self.host_socket.recv(4096)
-		except:
-			return
+			self.socket_data += self.host_socket.recv(4096).decode("utf-8")
+		except BlockingIOError as e:
+			if e.errno == 11: # Resource temporarily unavailable
+				return
+			raise(e)
 
 		if (len(self.socket_data) == num_received_bytes):
 			return
 
-		split_data = self.socket_data
+		split_data = self.socket_data.split("\n")
 		data_blobs = split_data[: len(split_data) - 1  ]
 		final_blob = split_data[  len(split_data) - 1: ][0]
-
-		def check_message_timestamp(msg):
-			ctr = str_to_int32(msg)
-
-			if (ctr <= self.incoming_msg_ctr):
-				return False
-
-			self.incoming_msg_ctr = ctr
-			return True
 
 		for raw_data_blob in data_blobs:
 			if (len(raw_data_blob) == 0):
@@ -192,27 +185,21 @@ class LobbyClient:
 
 
 	def out_LOGIN(self):
-		print("[LOGIN][time=%d::iter=%d] sec_sess=%d" % (time.time(), self.iters, self.use_secure_session()))
+		print("[LOGIN][time=%d::iter=%d]" % (time.time(), self.iters))
 
-		if (self.use_secure_session()):
-			self.Send("LOGIN %s %s" % (self.username, ENCODE_FUNC(self.password)))
-		else:
-			self.Send("LOGIN %s %s" % (self.username, ENCODE_FUNC(LEGACY_HASH_FUNC(self.password).digest())))
+		self.Send("LOGIN %s %s" % (self.username, ENCODE_FUNC(LEGACY_HASH_FUNC(self.password.encode("utf-8")).digest())))
 
 		self.requested_authentication = True
 
 	def out_REGISTER(self):
-		print("[REGISTER][time=%d::iter=%d] sec_sess=%d" % (time.time(), self.iters, self.use_secure_session()))
+		print("[REGISTER][time=%d::iter=%d]" % (time.time(), self.iters))
 
-		if (self.use_secure_session()):
-			self.Send("REGISTER %s %s" % (self.username, ENCODE_FUNC(self.password)))
-		else:
-			self.Send("REGISTER %s %s" % (self.username, ENCODE_FUNC(LEGACY_HASH_FUNC(self.password).digest())))
+		self.Send("REGISTER %s %s" % (self.username, ENCODE_FUNC(LEGACY_HASH_FUNC(self.password).digest())))
 
 		self.requested_registration = True
 
 	def out_CONFIRMAGREEMENT(self):
-		print("[CONFIRMAGREEMENT][time=%d::iter=%d] sec_sess=%d" % (time.time(), self.iters, self.use_secure_session()))
+		print("[CONFIRMAGREEMENT][time=%d::iter=%d]" % (time.time(), self.iters))
 		self.Send("CONFIRMAGREEMENT")
 
 
@@ -231,6 +218,7 @@ class LobbyClient:
 	def in_TASSERVER(self, protocolVersion, springVersion, udpPort, serverMode):
 		print("[TASSERVER][time=%d::iter=%d] proto=%s spring=%s udp=%s mode=%s" % (time.time(), self.iters, protocolVersion, springVersion, udpPort, serverMode))
 		self.server_info = (protocolVersion, springVersion, udpPort, serverMode)
+		self.out_LOGIN()
 
 	def in_SERVERMSG(self, msg):
 		print("[SERVERMSG][time=%d::iter=%d] %s" % (time.time(), self.iters, msg))
@@ -377,7 +365,7 @@ def RunClientThread(i, k):
 def RunClientThreads(num_clients, num_updates):
 	threads = [None] * num_clients
 
-	for i in xrange(num_clients):
+	for i in range(num_clients):
 		threads[i] = threading.Thread(target = RunClientThread, args = (i, num_updates, ))
 		threads[i].start()
 	for t in threads:
