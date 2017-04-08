@@ -5,7 +5,7 @@ from OpenSSL import crypto
 import time
 
 def timestr():
-	return time.strftime("%Y%m%d%H%M%SZ", time.gmtime())
+	return time.strftime("%Y%m%d%H%M%SZ", time.gmtime()).encode("UTF-8")
 
 def create_self_signed_cert(filename):
 	# creates a serlf-signed certificate
@@ -34,9 +34,9 @@ def create_self_signed_cert(filename):
 	cert.set_pubkey(k)
 	cert.sign(k, 'sha1')
 
-	f = open(filename, "wt")
-	f.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert))
-	f.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, k))
-	f.close()
+	with open(filename, 'wt') as certfile:
+		certfile.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert).decode("UTF-8"))
+		certfile.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, k).decode("UTF-8"))
+
 
 #create_self_signed_cert("server.key")
