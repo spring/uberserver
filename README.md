@@ -1,5 +1,5 @@
 # Requirements
-- python 2.7
+- python 3
 - sqlalchemy
 - GeoIP
 - twisted
@@ -9,7 +9,7 @@
 # git clone git@github.com:spring/uberserver.git
 # virtualenv ~/virtenvs/uberserver
 # source ~/virtenvs/uberserver/bin/activate
-# pip install SQLAlchemy pycrypto twisted GeoIP
+# pip install SQLAlchemy pycrypto twisted pyOpenSSL GeoIP mysqlclient
 ```
 
 Without further configuration this will create a SQLite database (server.db).
