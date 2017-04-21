@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 # coding=utf-8
 
-import inspect, time, re
+import inspect, time, re, sys
 
 import socket
 import Channel
 import Battle
+import importlib
 
 from Crypto.Hash import MD5
 import base64
@@ -2775,6 +2776,14 @@ class Protocol:
 		if not 'admin' in client.accesslevels:
 		    return
 		self._root.reload()
+		try:
+			proto = importlib.reload(sys.modules['Protocol'])
+			self = proto.Protocol(self._root)
+			self._root.protocol = self
+		except Exception as e:
+			print("reload failed:")
+			print(e)
+
 		self._root.console_write("Stats of command usage:")
 		for k,v in self.stats.items():
 			self._root.console_write("%s %d" % (k, v))
