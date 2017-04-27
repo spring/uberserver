@@ -1960,12 +1960,18 @@ class Protocol:
 		try:
 			status = int32(_status)
 		except:
-			self.out_SERVERMSG(client, 'MYSTATUS failed - invalid status %s'%(_status), True)
+			self.out_FAILED(client, 'MYSTATUS', 'invalid status %s'%(_status), True)
 			return
 		was_ingame = client.is_ingame
 		self._calc_status(client, status)
 		if client.is_ingame and not was_ingame:
 			battle_id = client.current_battle
+			if not battle_id:
+				self.out_FAILED(client, 'MYSTATUS', 'ingame but no battleid set', True)
+				return
+			if not battle_id in self._root.battles:
+				self.out_FAILED(client, 'MYSTATUS', 'ingame & non-existent battleid', True)
+				return
 			battle = self._root.battles[battle_id]
 
 			if len(battle.users) > 1:
