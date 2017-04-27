@@ -221,13 +221,13 @@ class Client(BaseClient):
 
 	def Send(self, data, batch = True):
 		if self.buffersend:
-			buffer += data
+			self.buffer += data
 		else:
 			self.RealSend(data, batch)
 
 	def flushBuffer(self):
 		self.transport.write(self.buffer.encode("utf-8"))
-		buffer = ""
+		self.buffer = ""
 		self.buffersend = False
 
 	def isAdmin(self):
