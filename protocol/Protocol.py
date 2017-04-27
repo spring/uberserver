@@ -1702,6 +1702,7 @@ class Protocol:
 			return
 		battle = self._root.battles[battle_id]
 		if client.session_id in battle.users: # user is already in battle
+			self.out_FAILED(client, 'JOINBATTLE', 'client is already in battle', True)
 			return
 
 		host = self.clientFromSession(battle.host)
@@ -1768,7 +1769,6 @@ class Protocol:
 		client.teamcolor = '0'
 		client.current_battle = battle_id
 		client.Send('REQUESTBATTLESTATUS')
-		return
 
 	def in_SETSCRIPTTAGS(self, client, scripttags):
 		'''
