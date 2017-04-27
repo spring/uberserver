@@ -385,8 +385,6 @@ class DataHandler:
 				client.Send('SERVERMSG Admin broadcast: %s'%msg)
 
 	def reload(self):
-		self.admin_broadcast('Reloading...')
-		self.console_write('Reloading...')
 		self.parseFiles()
 		ip2country.reloaddb()
 

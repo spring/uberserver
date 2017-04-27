@@ -2788,18 +2788,20 @@ class Protocol:
 		'''
 		if not 'admin' in client.accesslevels:
 		    return
+		self._root.admin_broadcast('Reloading initiated by %s' %(client.username))
 		self._root.reload()
 		try:
 			proto = importlib.reload(sys.modules['Protocol'])
 			self = proto.Protocol(self._root)
 			self._root.protocol = self
 		except Exception as e:
-			print("reload failed:")
-			print(e)
+			self._root.error("reload failed:")
+			self._root.error(e)
 
 		self._root.info("Stats of command usage:")
 		for k in self.stats:
 			self._root.info("%s" % (str(k)))
+		self._root.admin_broadcast('done')
 
 	def in_CLEANUP(self, client):
 		nchan = 0
