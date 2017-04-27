@@ -921,7 +921,7 @@ class Protocol:
 			for session_id in battle.users:
 				battleclient = self.clientFromSession(session_id)
 				if not battleclient.session_id == battle.host:
-					client.RealSend('JOINEDBATTLE %s %s' % (battle.id, battleclient.name))
+					client.RealSend('JOINEDBATTLE %s %s' % (battle.id, battleclient.username))
 
 		if client.status != 0:
 			self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status)) # broadcast current client status
