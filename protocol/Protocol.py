@@ -1820,15 +1820,18 @@ class Protocol:
 
 		username = client.username
 		battle_id = client.current_battle
+		client.current_battle = None
+		client.hostport = None
 		if not battle_id:
 			self.out_FAILED(client, "LEAVEBATTLE", "not in battle")
+			return
+		if not battle_id in self._root.battles:
+			self.out_FAILED(client, "LEAVEBATTLE", "couldn't find battle")
 			return
 		battle = self._root.battles[battle_id]
 		if battle.host == client.session_id:
 			self.broadcast_RemoveBattle(battle)
-			client.hostport = None
 			del self._root.battles[battle_id]
-			client.current_battle = None
 			return
 		battle.users.remove(client.session_id)
 		if username in battle.authed_users:
@@ -1840,7 +1843,6 @@ class Protocol:
 				del battle.bots[bot]
 				self._root.broadcast_battle('REMOVEBOT %s %s' % (battle_id, bot), battle_id)
 		self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, client.username))
-		client.current_battle = None
 
 		oldspecs = battle.spectators
 
@@ -1864,32 +1866,31 @@ class Protocol:
 		try:
 			battlestatus = int32(_battlestatus)
 		except:
-			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid status: %s.' % (_battlestatus), True)
+			self.out_FAILED(client, 'MYBATTLESTATUS','invalid status: %s.' % (_battlestatus), True)
 			return
 
 		if battlestatus < 0:
-			battlestatus = battlestatus + 2147483648
-			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid status is below 0: %s. Please update your lobby!' % (_battlestatus), True)
+			self.out_FAILED(client, 'MYBATTLESTATUS', 'invalid status is below 0: %s. Please update your lobby!' % (_battlestatus), True)
+			return
 
 		try:
 			myteamcolor = int32(_myteamcolor)
 		except:
-			self.out_SERVERMSG(client, 'MYBATTLESTATUS failed - invalid teamcolor: %s.' % (myteamcolor), True)
+			self.out_FAILED(client, 'MYBATTLESTATUS', 'invalid teamcolor: %s.' % (myteamcolor), True)
 			return
 
 		battle_id = client.current_battle
 		if not battle_id:
-			self.out_FAILED(client, "MYBATTLESTATUS", "not inside a battle")
+			self.out_FAILED(client, "MYBATTLESTATUS", "not inside a battle", True)
 			return
 		battle = self._root.battles[battle_id]
 		spectating = (client.battlestatus['mode'] == '0')
 
 		clients = (self.clientFromSession(name) for name in battle.users)
+		self.out_FAILED(client, "MYBATTLESTATUS", str(clients))
 		spectators = len([user for user in clients if user and (user.battlestatus['mode'] == '0')])
 
 		u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4, id1, id2, id3, id4, ready, u = self._dec2bin(battlestatus, 32)[-32:]
-		# support more allies and ids.
-		#u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4,ally5, ally6, ally7, ally8, id1, id2, id3, id4,id5, id6, id7, id8, ready, u = self._dec2bin(battlestatus, 40)[-40:]
 
 		if spectating:
 			if len(battle.users) - spectators >= int(battle.maxplayers):
@@ -1912,10 +1913,10 @@ class Protocol:
 
 		newstatus = self._calc_battlestatus(client)
 		statuscmd = 'CLIENTBATTLESTATUS %s %s %s'%(client.username, newstatus, myteamcolor)
-		if oldstatus != newstatus or client.teamcolor != oldcolor:
-			self._root.broadcast_battle(statuscmd, client.current_battle)
-		else:
-			client.Send(statuscmd) # in case we changed anything
+		if oldstatus == newstatus and client.teamcolor == oldcolor: #nothing changed, just send back to client
+			client.Send(statuscmd)
+			return
+		self._root.broadcast_battle(statuscmd, battle_id)
 
 	def in_UPDATEBATTLEINFO(self, client, SpectatorCount, locked, maphash, mapname):
 		'''
@@ -1979,7 +1980,6 @@ class Protocol:
 			if ingame_time >= 1:
 				client.ingame_time += int(ingame_time)
 				self.userdb.save_user(client)
-		if not client.username in self._root.usernames: return
 		self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status))
 
 	def in_CHANNELS(self, client):
