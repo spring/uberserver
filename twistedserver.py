@@ -36,7 +36,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 				self.resetTimeout()
 			self.Handle(data.decode("utf-8"))
 		except Exception as e:
-			self.root.error("Error in handling data from client: %s, %s, %s" % (str(e), data, str(traceback.format_exc())))
+			self.root.error("Error in handling data from client: %s %s, %s, %s" % (self.username, str(e), data, str(traceback.format_exc())))
 
 	def timeoutConnection(self):
 		if self.username:

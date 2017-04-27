@@ -1820,6 +1820,9 @@ class Protocol:
 
 		username = client.username
 		battle_id = client.current_battle
+		if not battle_id:
+			self.out_FAILED(client, "LEAVEBATTLE", "not in battle")
+			return
 		battle = self._root.battles[battle_id]
 		if battle.host == client.session_id:
 			self.broadcast_RemoveBattle(battle)
@@ -1831,7 +1834,7 @@ class Protocol:
 		if username in battle.authed_users:
 			battle.authed_users.remove(username)
 
-		for bot in client.battle_bots:
+		for bot in list(client.battle_bots):
 			del client.battle_bots[bot]
 			if bot in battle.bots:
 				del battle.bots[bot]
@@ -1875,6 +1878,9 @@ class Protocol:
 			return
 
 		battle_id = client.current_battle
+		if not battle_id:
+			self.out_FAILED(client, "MYBATTLESTATUS", "not inside a battle")
+			return
 		battle = self._root.battles[battle_id]
 		spectating = (client.battlestatus['mode'] == '0')
 
