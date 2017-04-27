@@ -329,6 +329,9 @@ class DataHandler:
 		self.console_write('%s\n%s\n%s'%(separator,error,separator))
 		self.logger.error(error)
 
+	def info(self, msg):
+		self.console_write(msg)
+
 	def console_write(self, lines=''):
 		if type(lines)  == str:
 			lines = lines.split('\n')

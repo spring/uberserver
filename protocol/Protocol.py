@@ -194,11 +194,11 @@ class Protocol:
 			# this will make the server not accepting any commands
 			# the client will be disconnected with "Connection timed out, didn't login"
 			client.removing = True
-		self._root.console_write('[%s] Client connected from %s:%s' % (client.session_id, client.ip_address, client.port))
+		self._root.info('[%s] Client connected from %s:%s' % (client.session_id, client.ip_address, client.port))
 
 	def _remove(self, client, reason='Quit'):
 		if client.static: return # static clients don't disconnect
-		self._root.console_write('[%s] disconnected from %s: %s'%(client.session_id, client.ip_address, reason))
+		self._root.info('[%s] disconnected from %s: %s'%(client.session_id, client.ip_address, reason))
 		if not client.username in self._root.usernames: # client didn't full login
 			return
 
@@ -218,7 +218,7 @@ class Protocol:
 		try:
 			self.userdb.end_session(client.db_id)
 		except Exception as e:
-			self._root.console_write('[%s] <%s> Error writing to db in _remove: %s '%(client.session_id, client.username, e.message))
+			self._root.info('[%s] <%s> Error writing to db in _remove: %s '%(client.session_id, client.username, e.message))
 
 
 
@@ -285,9 +285,10 @@ class Protocol:
 		function = getattr(self, 'in_' + command)
 
 		# update statistics
-		if (not (command in self.stats)):
-			self.stats[command] = 0
-		self.stats[command] += 1
+		if not command in self.stats:
+			self.stats[command] = 1
+		else:
+			self.stats[command] += 1
 
 
 		ret_status, fun_args = self.get_function_args(client, command, function, numspaces, args)
@@ -484,7 +485,7 @@ class Protocol:
 			client.RealSend("MOTD see htpp://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
 			missing_flags += ' p'
 		if len(missing_flags) > 0:
-			self._root.console_write('[%s] <%s> client "%s" missing compat flags:%s'%(client.session_id, client.username, client.lobby_id, missing_flags))
+			self._root.info('[%s] <%s> client "%s" missing compat flags:%s'%(client.session_id, client.username, client.lobby_id, missing_flags))
 
 
 
@@ -748,14 +749,14 @@ class Protocol:
 		good, reason = self.userdb.legacy_register_user(username, password, client.ip_address, client.country_code)
 
 		if (good):
-			self._root.console_write('[%s] Successfully registered user <%s>.' % (client.session_id, username))
+			self._root.info('[%s] Successfully registered user <%s>.' % (client.session_id, username))
 
 			client.Send('REGISTRATIONACCEPTED')
 
 			newClient = self.clientFromUsername(username, True)
 			newClient.access = 'agreement'
 		else:
-			self._root.console_write('[%s] Registration failed for user <%s>.' % (client.session_id, username))
+			self._root.info('[%s] Registration failed for user <%s>.' % (client.session_id, username))
 			client.Send('REGISTRATIONDENIED %s' % reason)
 
 
@@ -830,7 +831,7 @@ class Protocol:
 		try:
 			good, user_or_error = self.userdb.legacy_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 		except Exception as e:
-			self._root.console_write('[%s] <%s> Error reading from DB in in_LOGIN: %s ' % (client.session_id, client.username, e.message))
+			self._root.info('[%s] <%s> Error reading from DB in in_LOGIN: %s ' % (client.session_id, client.username, e.message))
 			## in this case DB return values are undefined
 			good = False
 			reason = "DB error"
@@ -887,7 +888,7 @@ class Protocol:
 
 		if (client.access == 'agreement'):
 			client.buffersend = False
-			self._root.console_write('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
+			self._root.info('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
 			for line in self._root.agreement:
 				client.Send("AGREEMENT %s" %(line))
 			client.Send('AGREEMENTEND')
@@ -895,7 +896,7 @@ class Protocol:
 		self._SendLoginInfo(client)
 
 	def _SendLoginInfo(self, client):
-		self._root.console_write('[%s] Successfully logged in user <%s> (access=%s).' % (client.session_id, client.username, client.access))
+		self._root.info('[%s] Successfully logged in user <%s> (access=%s).' % (client.session_id, client.username, client.access))
 		self._calc_status(client, 0)
 		ignoreList = self.userdb.get_ignored_user_ids(client.db_id)
 		client.ignored = {ignoredUserId:True for ignoredUserId in ignoreList}
@@ -992,7 +993,7 @@ class Protocol:
 		for session_id in channel.users:
 			user = self.clientFromSession(session_id)
 			if not user:
-				self._root.console_write('[%s] ERROR: <%s>: %s %s user not in channel: %s' % (client.session_id, client.username, chan, params, username))
+				self._root.info('[%s] ERROR: <%s>: %s %s user not in channel: %s' % (client.session_id, client.username, chan, params, username))
 				continue
 			if user.compat['o']:
 				user.Send(newout)
@@ -1038,7 +1039,7 @@ class Protocol:
 		receiver = self.clientFromUsername(user)
 
 		if not receiver:
-			self._root.console_write('[%s] ERROR: <%s>: user to pm is not online: %s' % (client.session_id, client.username, user))
+			self._root.info('[%s] ERROR: <%s>: user to pm is not online: %s' % (client.session_id, client.username, user))
 			return
 
 		client.Send('SAYPRIVATE %s %s' % (user, msg))
@@ -1401,7 +1402,7 @@ class Protocol:
 				top = topic['text']
 			except:
 				top = "Invalid unicode-encoding (should be utf-8)"
-				self._root.console_write("%s for channel topic: %s" %(top, chan))
+				self._root.info("%s for channel topic: %s" %(top, chan))
 			client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topictime, top))
 		elif client.compat['et']: # supports sendEmptyTopic
 			client.Send('NOCHANNELTOPIC %s' % chan)
@@ -2578,7 +2579,7 @@ class Protocol:
 		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		## THIS IS NOT AN ACTION ADMINS SHOULD BE ABLE TO TAKE
 		## !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-		self._root.console_write('<%s> changed password of <%s>.' % (client.username, username))
+		self._root.info('<%s> changed password of <%s>.' % (client.username, username))
 		self.userdb.legacy_update_user_pwrd(targetUser, newpass)
 		self.out_SERVERMSG(client, 'Password for <%s> successfully changed to %s' % (username, newpass))
 
@@ -2796,9 +2797,9 @@ class Protocol:
 			print("reload failed:")
 			print(e)
 
-		self._root.console_write("Stats of command usage:")
-		for k,v in self.stats.items():
-			self._root.console_write("%s %d" % (k, v))
+		self._root.info("Stats of command usage:")
+		for k in self.stats:
+			self._root.info("%s" % (str(k)))
 
 	def in_CLEANUP(self, client):
 		nchan = 0
@@ -2808,12 +2809,12 @@ class Protocol:
 		tmpbattle = self._root.battles.copy()
 		for battle in tmpbattle:
 			for sessionid in self._root.battles[battle].users:
-				if not sessionid in self._root.users:
-					self._root.console_write("deleting user in battle %s" % user)
+				if not sessionid in self._root.clients:
+					self._root.info("deleting user in battle %s" % user)
 					self._root.battles[battle].users.remove(user)
 					nuser = nuser + 1
 			if not self._root.battles[battle].host in self._root.clients:
-				self._root.console_write("deleting battle %s" % battle)
+				self._root.info("deleting battle %s" % battle)
 				del self._root.battles[battle]
 				nbattle = nbattle + 1
 				continue
@@ -2823,11 +2824,11 @@ class Protocol:
 		for channel in tmpchannels:
 			for session_id in self._root.channels[channel].users:
 				if not session_id in self._root.clients:
-					self._root.console_write("deleting user %s from channel %s" %(session_id , channel))
+					self._root.info("deleting user %s from channel %s" %(session_id , channel))
 					self._root.channels[channel].users.remove(session_id)
 			if len(self._root.channels[channel].users) == 0:
 				del self._root.channels[channel]
-				self._root.console_write("deleting empty channel %s" % channel)
+				self._root.info("deleting empty channel %s" % channel)
 				nchan = nchan + 1
 
 		self.userdb.clean_users()
@@ -2932,14 +2933,14 @@ class Protocol:
 			client.failed_logins = client.failed_logins + 1
 
 		client.Send("DENIED %s" %(reason))
-		self._root.console_write('[%s] Failed to log in user <%s>: %s.'%(client.session_id, username, reason))
+		self._root.info('[%s] Failed to log in user <%s>: %s.'%(client.session_id, username, reason))
 
 	def out_OPENBATTLEFAILED(self, client, reason):
 		'''
 			response to OPENBATTLE
 		'''
 		client.Send('OPENBATTLEFAILED %s' % (reason))
-		self._root.console_write('[%s] <%s> OPENBATTLEFAILED: %s' % (client.session_id, client.username, reason))
+		self._root.info('[%s] <%s> OPENBATTLEFAILED: %s' % (client.session_id, client.username, reason))
 
 	def out_SERVERMSG(self, client, message, log = False):
 		'''
@@ -2947,7 +2948,7 @@ class Protocol:
 		'''
 		client.Send('SERVERMSG %s' %(message))
 		if log:
-			self._root.console_write('[%s] <%s>: %s' % (client.session_id, client.username, message))
+			self._root.info('[%s] <%s>: %s' % (client.session_id, client.username, message))
 
 	def out_FAILED(self, client, cmd, message, log = False):
 		'''
@@ -2955,7 +2956,7 @@ class Protocol:
 		'''
 		client.Send('FAILED ' + self._dictToTags({'msg':message, 'cmd':cmd}))
 		if log:
-			self._root.console_write('[%s] <%s>: %s %s' % (client.session_id, client.username, cmd, message))
+			self._root.info('[%s] <%s>: %s %s' % (client.session_id, client.username, cmd, message))
 
 	def out_OK(self, client, cmd):
 		client.Send('OK ' + self._dictToTags({'cmd': cmd}))
