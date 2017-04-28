@@ -2804,6 +2804,7 @@ class Protocol:
 		self._root.admin_broadcast('done')
 
 	def in_CLEANUP(self, client):
+		self._root.admin_broadcast('Cleanup initiated by %s (deleting old users, zombie channels / users)...' %(client.username))
 		nchan = 0
 		nbattle = 0
 		nuser = 0
@@ -2835,7 +2836,7 @@ class Protocol:
 
 		self.userdb.clean_users()
 
-		self.out_SERVERMSG(client, "deleted channels: %d battles: %d users: %d" %(nchan, nbattle, nuser))
+		self._root.admin_broadcast("deleted channels: %d battles: %d users: %d" %(nchan, nbattle, nuser))
 
 	def in_CHANGEEMAIL(self, client, newmail = None, username = None):
 		'''
