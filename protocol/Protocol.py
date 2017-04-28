@@ -1845,8 +1845,6 @@ class Protocol:
 			del self._root.battles[battle_id]
 			return
 		battle.users.remove(client.session_id)
-		if client.session_id in battle.authed_users:
-			battle.authed_users.remove(client.session_id)
 
 		for bot in list(client.battle_bots):
 			del client.battle_bots[bot]

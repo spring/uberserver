@@ -5,7 +5,7 @@ class Battle(AutoDict):
 						hashcode, rank, maphash, map, title, modname,
 						passworded, host, users, spectators=0,
 						startrects={}, disabled_units=[], pending_users=set(),
-						authed_users=set(), bots={}, script_tags={},
+						bots={}, script_tags={},
 						replay_script={}, replay=False,
 						sending_replay_script=False, locked=False,
 						engine=None, version=None):
@@ -30,7 +30,6 @@ class Battle(AutoDict):
 		self.disabled_units = disabled_units
 
 		self.pending_users = pending_users
-		self.authed_users = authed_users
 
 		self.engine = (engine or 'spring').lower()
 		self.version = version or root.latestspringversion
