@@ -1888,7 +1888,6 @@ class Protocol:
 		spectating = (client.battlestatus['mode'] == '0')
 
 		clients = (self.clientFromSession(name) for name in battle.users)
-		self.out_FAILED(client, "MYBATTLESTATUS", str(clients))
 		spectators = len([user for user in clients if user and (user.battlestatus['mode'] == '0')])
 
 		u, u, u, u, side1, side2, side3, side4, sync1, sync2, u, u, u, u, handicap1, handicap2, handicap3, handicap4, handicap5, handicap6, handicap7, mode, ally1, ally2, ally3, ally4, id1, id2, id3, id4, ready, u = self._dec2bin(battlestatus, 32)[-32:]
