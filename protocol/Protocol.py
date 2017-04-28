@@ -1712,7 +1712,7 @@ class Protocol:
 		if not user.session_id in battle.pending_users:
 			self.out_FAILED(client, 'JOINBATTLEACCEPT', "client isn't in pending users %s %s" %(client.username, username), True)
 			return
-		battle.pending_users.remove(client.session_id)
+		battle.pending_users.remove(user.session_id)
 		self._joinBattle(user, battle)
 
 	def in_JOINBATTLEDENY(self, client, username, reason=None):
