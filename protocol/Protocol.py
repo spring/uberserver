@@ -1650,15 +1650,20 @@ class Protocol:
 		@required.str username: The user to allow into your battle.
 		'''
 		battle_id = client.current_battle
-		user = self.clientFromUsername(client.session_id)
+		user = self.clientFromUsername(username)
 		if not user:
+			self.out_FAILED(client, 'JOINBATTLEACCEPT', "Couldn't find user %s" %(username), True)
 			return
 		battle = self._root.battles[battle_id]
-		if not client.session_id == battle.host: return
-		if username in battle.pending_users:
-			battle.pending_users.remove(client.session_id)
-			battle.authed_users.add(client.session_id)
-			self.in_JOINBATTLE(user, battle_id)
+		if not client.session_id == battle.host:
+			self.out_FAILED(client, 'JOINBATTLEACCEPT', "client isn't the specified host %s vs %s" %(client.session_id, battle.host), True)
+			return
+		if not user.session_id in battle.pending_users:
+			self.out_FAILED(client, 'JOINBATTLEACCEPT', "client isn't in pending users %s %s" %(client.username, username), True)
+			return
+		battle.pending_users.remove(client.session_id)
+		battle.authed_users.add(client.session_id)
+		self.in_JOINBATTLE(user, battle_id)
 
 	def in_JOINBATTLEDENY(self, client, username, reason=None):
 		'''
@@ -1673,8 +1678,8 @@ class Protocol:
 			return
 		battle = self._root.battles[battle_id]
 		if not client.username == battle.host: return
-		if username in battle.pending_users:
-			battle.pending_users.remove(username)
+		if user.session_id in battle.pending_users:
+			battle.pending_users.remove(user.session_id)
 			user.Send('JOINBATTLEFAILED %s%s' % ('Denied by host', (' ('+reason+')' if reason else '')))
 
 	def in_JOINBATTLE(self, client, battle_id, password=None, scriptPassword=None):
@@ -1708,7 +1713,7 @@ class Protocol:
 
 		host = self.clientFromSession(battle.host)
 		if battle.passworded == 1 and not battle.password == password:
-			if not (host.compat['b'] and username in battle.authed_users): # supports battleAuth
+			if not (host.compat['b'] and client.session_id in battle.authed_users): # supports battleAuth
 				client.Send('JOINBATTLEFAILED Incorrect password.')
 				return
 		if battle.locked:
@@ -1717,8 +1722,8 @@ class Protocol:
 		if username in host.battle_bans: # TODO: make this depend on db_id instead
 			client.Send('JOINBATTLEFAILED <%s> has banned you from their battles.' % host.username)
 			return
-		if host.compat['b'] and not username in battle.authed_users: # supports battleAuth
-			battle.pending_users.add(username)
+		if host.compat['b'] and not client.session_id in battle.authed_users: # supports battleAuth
+			battle.pending_users.add(client.session_id)
 			if client.ip_address in self._root.trusted_proxies:
 				client_ip = client.local_ip
 			else:
@@ -1835,8 +1840,8 @@ class Protocol:
 			del self._root.battles[battle_id]
 			return
 		battle.users.remove(client.session_id)
-		if username in battle.authed_users:
-			battle.authed_users.remove(username)
+		if client.session_id in battle.authed_users:
+			battle.authed_users.remove(client.session_id)
 
 		for bot in list(client.battle_bots):
 			del client.battle_bots[bot]
