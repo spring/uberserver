@@ -1642,14 +1642,14 @@ class Protocol:
 
 		user.Send('FORCEJOINBATTLE %s' % (target_battle))
 
-	def _joinBattle(client, user, battle):
+	def _joinBattle(self, client, battle):
 		'''
 		Makes a client join a battle / updates changes / sends to all clients
 		'''
 		battle_users = battle.users
 		battle_bots = battle.bots
 		startrects = battle.startrects
-		client.Send('JOINBATTLE %s %s' % (battle_id, battle.hashcode))
+		client.Send('JOINBATTLE %s %s' % (battle.id, battle.hashcode))
 		battle.users.add(client.session_id)
 		scripttags = []
 		for tag, val in battle.script_tags.items():
@@ -1657,15 +1657,16 @@ class Protocol:
 		client.Send('SETSCRIPTTAGS %s'%'\t'.join(scripttags))
 		if battle.disabled_units:
 			client.Send('DISABLEUNITS %s' % ' '.join(battle.disabled_units))
-		self._root.broadcast('JOINEDBATTLE %s %s' % (battle_id, username), ignore=(battle.host, username))
+		self._root.broadcast('JOINEDBATTLE %s %s' % (battle.id, client.username), ignore=(battle.host, client.username))
 
 		scriptPassword = client.scriptPassword
+		host = self.clientFromSession(battle.host)
 		if host.compat['sp'] and scriptPassword: # supports scriptPassword
-			host.Send('JOINEDBATTLE %s %s %s' % (battle_id, username, scriptPassword))
-			client.Send('JOINEDBATTLE %s %s %s' % (battle_id, username, scriptPassword))
+			host.Send('JOINEDBATTLE %s %s %s' % (battle.id, client.username, scriptPassword))
+			client.Send('JOINEDBATTLE %s %s %s' % (battle.id, client.username, scriptPassword))
 		else:
-			host.Send('JOINEDBATTLE %s %s' % (battle_id, username))
-			client.Send('JOINEDBATTLE %s %s' % (battle_id, username))
+			host.Send('JOINEDBATTLE %s %s' % (battle.id, client.username))
+			client.Send('JOINEDBATTLE %s %s' % (battle.id, client.username))
 
 		if battle.natType > 0:
 			if battle.host == client.session_id:
@@ -1689,7 +1690,7 @@ class Protocol:
 			client.Send('ADDSTARTRECT %s' % (allyno)+' %(left)s %(top)s %(right)s %(bottom)s' % (rect))
 		client.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
 		client.teamcolor = '0'
-		client.current_battle = battle_id
+		client.current_battle = battle.id
 		client.Send('REQUESTBATTLESTATUS')
 
 	def in_JOINBATTLEACCEPT(self, client, username):
@@ -1778,7 +1779,7 @@ class Protocol:
 				client_ip = client.ip_address
 			host.Send('JOINBATTLEREQUEST %s %s' % (username, client_ip))
 			return
-		self._joinBattle(client, user, battle)
+		self._joinBattle(client, battle)
 
 	def in_SETSCRIPTTAGS(self, client, scripttags):
 		'''
