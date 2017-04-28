@@ -1595,7 +1595,7 @@ class Protocol:
 		@required.str message: The action to send.
 		'''
 		battle_id = client.current_battle
-		if not user:
+		if not username:
 			return
 		battle = self._root.battles[battle_id]
 		if client.session_id == battle.host and username in battle.users:
@@ -1880,7 +1880,7 @@ class Protocol:
 
 		if battlestatus < 0:
 			self.out_FAILED(client, 'MYBATTLESTATUS', 'invalid status is below 0: %s. Please update your lobby!' % (_battlestatus), True)
-			return
+			battlestatus = battlestatus + 2147483648
 
 		try:
 			myteamcolor = int32(_myteamcolor)
