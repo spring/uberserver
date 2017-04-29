@@ -1920,7 +1920,7 @@ class Protocol:
 		battle.spectators = spectators
 
 		if oldspecs != spectators:
-			self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' % battle.id, battle.spectators, battle.locked, battle.maphash, battle.map))
+			self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' % battle.id, battle.spectators, battle.locked, battle.maphash, battle.map)
 
 		newstatus = self._calc_battlestatus(client)
 		statuscmd = 'CLIENTBATTLESTATUS %s %s %s'%(client.username, newstatus, myteamcolor)
