@@ -1771,8 +1771,11 @@ class Protocol:
 		if username in host.battle_bans: # TODO: make this depend on db_id instead
 			client.Send('JOINBATTLEFAILED <%s> has banned you from their battles.' % host.username)
 			return
-		if host.compat['b'] and not client.session_id in battle.pending_users: # supports battleAuth
-			battle.pending_users.add(client.session_id)
+		if host.compat['b']: # supports battleAuth
+			if client.session_id in battle.pending_users:
+				self.out_FAILED(client, "JOINBATTLE", "waiting for JOINBATTLEACCEPT/DENIED from host", True)
+			else:
+				battle.pending_users.add(client.session_id)
 			if client.ip_address in self._root.trusted_proxies:
 				client_ip = client.local_ip
 			else:
