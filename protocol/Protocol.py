@@ -1920,7 +1920,7 @@ class Protocol:
 		battle.spectators = spectators
 
 		if oldspecs != spectators:
-			self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' % battle.id, battle.spectators, battle.locked, battle.maphash, battle.map)
+			self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' % (battle.id, battle.spectators, battle.locked, battle.maphash, battle.map))
 
 		newstatus = self._calc_battlestatus(client)
 		statuscmd = 'CLIENTBATTLESTATUS %s %s %s'%(client.username, newstatus, myteamcolor)
@@ -2282,7 +2282,7 @@ class Protocol:
 			battle.spectators += 1
 			client.battlestatus['mode'] = '0'
 			self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), client.current_battle)
-			self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' % battle.id, battle.spectators, battle.locked, battle.maphash, battle.map)
+			self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' %(battle.id, battle.spectators, battle.locked, battle.maphash, battle.map))
 
 	def in_ADDBOT(self, client, name, battlestatus, teamcolor, AIDLL):
 		'''
