@@ -641,7 +641,6 @@ class Protocol:
 
 	def client_AddBattle(self, client, battle):
 		'sends the protocol for adding a battle'
-		ubattle = battle.copy()
 
 		host = self._root.clients[battle.host]
 		if host.ip_address == client.ip_address: # translates the ip to always be compatible with the client
@@ -649,15 +648,17 @@ class Protocol:
 		else:
 			translated_ip = host.ip_address
 
-		ubattle.update({'ip':translated_ip})
-		ubattle['host'] = host.username # session_id -> username
+		battle.ip = translated_ip
+		battle.host = host.session_id # session_id -> username
 		if client.compat['cl']: #supports cleanupBattles
-			return 'BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(engine)s\t%(version)s\t%(map)s\t%(title)s\t%(modname)s' % ubattle
+			return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s\t%s\t%s' %(battle.id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded, battle.rank, battle.maphash, battle.engine, battle.version, battle.map, battle.title, battle.modname)
 
 		# give client without version support a hint, that this battle is incompatible to his version
 		if not (battle.engine == 'spring' and (battle.version == self._root.latestspringversion or battle.version == self._root.latestspringversion + '.0')):
-			ubattle['title'] = 'Incompatible (%(engine)s %(version)s) %(title)s' % ubattle
-		return 'BATTLEOPENED %(id)s %(type)s %(natType)s %(host)s %(ip)s %(port)s %(maxplayers)s %(passworded)s %(rank)s %(maphash)s %(map)s\t%(title)s\t%(modname)s' % ubattle
+			title =  'Incompatible (%s %s) %s' %(battle.engine, battle.version, battle.title)
+		else:
+			title = battle.title
+		return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' % (battle.id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded, battle.rank, battle.maphash, battle.map, title, battle.modname)
 
 	def is_ignored(self, client, ignoredClient):
 		# verify that this is an online client (only those have an .ignored attr)
@@ -917,8 +918,7 @@ class Protocol:
 
 		for battleid, battle in self._root.battles.items():
 			client.RealSend(self.client_AddBattle(client, battle))
-			ubattle = battle.copy()
-			client.RealSend('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % ubattle)
+			client.RealSend('UPDATEBATTLEINFO %s %i %i %s %s' % (battle.id, battle.spectators, battle.locked, battle.maphash, battle.map))
 			for session_id in battle.users:
 				battleclient = self.clientFromSession(session_id)
 				if not battleclient.session_id == battle.host:
@@ -1866,7 +1866,7 @@ class Protocol:
 
 		battle.spectators = specs
 		if oldspecs != specs:
-			self._root.broadcast('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % battle.copy())
+			self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' % battle.id, battle.spectators, battle.locked, battle.maphash, battle.map)
 
 	def in_MYBATTLESTATUS(self, client, _battlestatus, _myteamcolor):
 		'''
@@ -1920,7 +1920,7 @@ class Protocol:
 		battle.spectators = spectators
 
 		if oldspecs != spectators:
-			self._root.broadcast('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % battle.copy())
+			self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' % battle.id, battle.spectators, battle.locked, battle.maphash, battle.map))
 
 		newstatus = self._calc_battlestatus(client)
 		statuscmd = 'CLIENTBATTLESTATUS %s %s %s'%(client.username, newstatus, myteamcolor)
@@ -1953,12 +1953,11 @@ class Protocol:
 				self.out_SERVERMSG(client, "UPDATEBATTLEINFO failed - invalid mapname send: %s" %(str(mapname)), True)
 				return
 
-			old = battle.copy()
-			updated = {'id':battle_id, 'locked':int(locked), 'maphash':maphash, 'map':mapname}
-			battle.update(**updated)
-
-			oldstr = 'UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % old
-			newstr = 'UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % battle.copy()
+			oldstr = 'UPDATEBATTLEINFO %s %i %i %s %s' % (battle.id, battle.spectators, battle.locked, battle.maphash, battle.map)
+			battle.locked = int(locked)
+			battle.maphash = maphash
+			battle.map = mapname
+			newstr = 'UPDATEBATTLEINFO %s %i %i %s %s' % (battle.id, battle.spectators, battle.locked, battle.maphash, battle.map)
 			if oldstr != newstr:
 				self._root.broadcast(newstr)
 
@@ -2283,7 +2282,7 @@ class Protocol:
 			battle.spectators += 1
 			client.battlestatus['mode'] = '0'
 			self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), client.current_battle)
-			self._root.broadcast('UPDATEBATTLEINFO %(id)s %(spectators)i %(locked)i %(maphash)s %(map)s' % battle.copy())
+			self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' % battle.id, battle.spectators, battle.locked, battle.maphash, battle.map)
 
 	def in_ADDBOT(self, client, name, battlestatus, teamcolor, AIDLL):
 		'''

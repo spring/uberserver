@@ -1,6 +1,5 @@
-from AutoDict import AutoDict
 
-class Battle(AutoDict):
+class Battle():
 	def __init__(self, root, id, type, natType, password, port, maxplayers,
 						hashcode, rank, maphash, map, title, modname,
 						passworded, host, users, spectators=0,
@@ -41,5 +40,4 @@ class Battle(AutoDict):
 		self.sending_replay_script = sending_replay_script
 		self.locked = locked
 		self.spectators = 0
-		self.__AutoDictInit__()
 

@@ -1,7 +1,6 @@
-from AutoDict import AutoDict
 import time
 
-class Channel(AutoDict):
+class Channel():
 	def __init__(self, root, name, id = 0, users=set(), admins=[],
 						ban={}, allow=[], autokick='ban', chanserv=False,
 						owner='', mutelist={}, antispam=False,
@@ -24,7 +23,6 @@ class Channel(AutoDict):
 		self.topic = topic
 		self.key = key
 		self.store_history = store_history
-		self.__AutoDictInit__()
 
 		if self._root and chanserv and self._root.chanserv and not name in self._root.channels:
 			self._root.chanserv.Send('JOIN %s' % self.name)

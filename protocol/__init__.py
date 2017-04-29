@@ -1,1 +1,1 @@
-import AutoDict, Battle, Channel, Protocol
+import Battle, Channel, Protocol
