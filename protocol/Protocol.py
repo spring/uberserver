@@ -1515,13 +1515,13 @@ class Protocol:
 			passworded = 1
 
 		try:
-			int(battle_id)
-			int(type)
-			int(natType)
-			int(passworded)
+			battle_id = int(battle_id)
+			type = int(type)
+			natType = int(natType)
+			passworded = int(passworded)
 			port = int(port)
-			int32(maphash)
-			int32(hashcode)
+			maphash = int32(maphash)
+			hashcode = int32(hashcode)
 		except Exception as e:
 			self.out_OPENBATTLEFAILED(client, 'Invalid argument type, send this to your lobby dev: id=%s type=%s natType=%s passworded=%s port=%s maphash=%s gamehash=%s - %s' %
 						(battle_id, type, natType, passworded, port, maphash, hashcode, str(e).replace("\n", "")))
@@ -1529,6 +1529,10 @@ class Protocol:
 
 		if port < 1 or port > 65535:
 			self.out_OPENBATTLEFAILED(client, 'Port is out of range: 1-65535: %d' % port)
+			return
+
+		if hashcode == 0:
+			self.out_FAILED(client, 'OPENBATTLE', 'Invalid game hash 0', True)
 			return
 
 		client.current_battle = battle_id
