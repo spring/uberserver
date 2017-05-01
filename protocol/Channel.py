@@ -85,7 +85,7 @@ class Channel():
 				return 'muted forever'
 			else:
 				 # TODO: move format_time, bin2dec, etc to a utilities class or module
-				return 'muted for the next %s.' % (client._protocol._time_until(m['expires']))
+				return 'muted for the next %s.' % (self._root.protocol._time_until(m['expires']))
 		else:
 			return 'not muted'
 
