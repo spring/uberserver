@@ -2805,6 +2805,7 @@ class Protocol:
 		self._root.reload()
 		try:
 			proto = importlib.reload(sys.modules['Protocol'])
+			proto = importlib.reload(sys.modules['Channel'])
 			self = proto.Protocol(self._root)
 			self._root.protocol = self
 		except Exception as e:
