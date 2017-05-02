@@ -212,18 +212,18 @@ class Client(BaseClient):
 	##
 	## send data to client
 	##
-	def RealSend(self, data, batch = True):
+	def RealSend(self, data):
 		## don't append new data to buffer when client gets removed
 		if not data:
 			return
 
 		self.transport.write(data.encode("utf-8") + b"\n")
 
-	def Send(self, data, batch = True):
+	def Send(self, data):
 		if self.buffersend:
-			self.buffer += data
+			self.buffer += data + b"\n"
 		else:
-			self.RealSend(data, batch)
+			self.RealSend(data)
 
 	def flushBuffer(self):
 		self.transport.write(self.buffer.encode("utf-8"))
