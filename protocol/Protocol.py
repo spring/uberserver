@@ -1677,7 +1677,7 @@ class Protocol:
 
 		for iter in battle_bots:
 			bot = battle_bots[iter]
-			client.Send('ADDBOT %s %s' % (battle_id, iter)+' %(owner)s %(battlestatus)s %(teamcolor)s %(AIDLL)s' % (bot))
+			client.Send('ADDBOT %s %s' % (battle.id, iter)+' %(owner)s %(battlestatus)s %(teamcolor)s %(AIDLL)s' % (bot))
 		for allyno in startrects:
 			rect = startrects[allyno]
 			client.Send('ADDSTARTRECT %s' % (allyno)+' %(left)s %(top)s %(right)s %(bottom)s' % (rect))
