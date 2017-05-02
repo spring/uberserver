@@ -1995,22 +1995,14 @@ class Protocol:
 		'''
 		Return a listing of all channels on the server.
 		'''
-		channels = []
-		for channel in self._root.channels.values():
+
+		for name, channel in self._root.channels.items():
 			if channel.owner and not channel.key:
-				channels.append(channel)
-
-		if not channels:
-			self.out_SERVERMSG(client, 'No channels are currently visible (they must be registered and unlocked).')
-			return
-
-		for channel in channels:
-			topic = channel.topic
-			if topic:
-				try:
-					top = topic['text']
-				except:
-					top = "Invalid unicode-encoding (should be utf-8)"
+				continue
+			try:
+				top = channel.topic['text']
+			except:
+				top = "Invalid unicode-encoding (should be utf-8)"
 			client.Send('CHANNEL %s %d %s'% (channel.name, len(channel.users), top))
 		client.Send('ENDOFCHANNELS')
 
