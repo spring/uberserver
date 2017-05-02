@@ -392,16 +392,6 @@ class Protocol:
 								battlestatus['id'], battlestatus['ready']))
 		return status
 
-	def _new_channel(self, chan, **kwargs):
-		# any updates to channels from the SQL database from a web interface
-		# would possibly need to call a RELOAD-type function
-		# unless we want to do way more SQL lookups for channel info
-		try:
-			if not kwargs: raise KeyError
-			channel = Channel.Channel(self._root, chan, **kwargs)
-		except: channel = Channel.Channel(self._root, chan)
-		return channel
-
 	def _time_format(self, seconds):
 		'given a duration in seconds, returns a human-readable relative time'
 		minutesleft = float(seconds) / 60
@@ -1362,8 +1352,7 @@ class Protocol:
 
 		if not chan: return
 		if not chan in self._root.channels:
-			channel = self._new_channel(chan)
-			self._root.channels[chan] = channel
+			self._root.channels[chan] = Channel.Channel(self._root, chan)
 		else:
 			channel = self._root.channels[chan]
 		if client.session_id in channel.users:

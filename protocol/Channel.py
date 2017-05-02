@@ -5,7 +5,7 @@ class Channel():
 						ban={}, allow=[], autokick='ban', chanserv=False,
 						owner='', mutelist={}, antispam=False,
 						censor=False, antishock=False, topic=None,
-						key=None, store_history=False, **kwargs):
+						key=None, store_history=False):
 		self.id = id
 		self._root = root
 		self.name = name
