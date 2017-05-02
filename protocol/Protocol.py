@@ -2985,6 +2985,19 @@ def make_docs():
 			response.append('%s - %s' % (cmd, docstr))
 	return response
 
+def selftest():
+	class DummyRoot():
+		def SayHooks(self):
+			pass
+		def getUserDB(self):
+			pass
+	p = Protocol(DummyRoot())
+	assert(p._validUsernameSyntax("abcde")[0])
+	assert(not p._validUsernameSyntax("abcde ")[0])
+	assert(p._validChannelSyntax("abcde")[0])
+	assert(not p._validChannelSyntax("#abcde")[0])
+	assert(not p._validChannelSyntax("ab cde")[0])
+
 if __name__ == '__main__':
 	import os
 	if not os.path.exists('docs'):
@@ -2995,3 +3008,4 @@ if __name__ == '__main__':
 
 	print('Protocol documentation written to docs/protocol.txt')
 
+	selftest()
