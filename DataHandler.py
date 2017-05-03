@@ -113,8 +113,16 @@ class DataHandler:
 				if client and client.id:
 					admins.append(client.id)
 			assert(name not in self.channels)
-			self.channels[name] = Channel.Channel(self, name, chanserv=bool(owner), id = channel['id'], owner=owner, admins=admins, key=channel['key'], antispam=channel['antispam'], topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time())}, store_history = channel['store_history'] )
-			self.channels[name].users = set() #WTF, why is this needed? without all userlist in all channels are the same!
+			newchan = Channel.Channel(self, name)
+			newchan.chanserv=bool(owner)
+			newchan.id = channel['id']
+			newchan.owner=owner
+			newchan.admins=admins
+			newchan.key=channel['key']
+			newchan.antispam=channel['antispam']
+			newchan.topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time())}
+			newchan.store_history = channel['store_history']
+			self.channels[name] = newchan
 
 		self.parseFiles()
 		self.protocol = Protocol.Protocol(self)

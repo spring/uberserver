@@ -2,12 +2,7 @@
 class Battle():
 	def __init__(self, root, id, type, natType, password, port, maxplayers,
 						hashcode, rank, maphash, map, title, modname,
-						passworded, host, users, spectators=0,
-						startrects={}, disabled_units=[], pending_users=set(),
-						bots={}, script_tags={},
-						replay_script={}, replay=False,
-						sending_replay_script=False, locked=False,
-						engine=None, version=None):
+						passworded, host, users):
 		self._root = root
 		self.id = id
 		self.type = type
@@ -15,7 +10,7 @@ class Battle():
 		self.password = password
 		self.port = port
 		self.maxplayers = maxplayers
-		self.spectators = spectators
+		self.spectators = 0
 		self.hashcode = hashcode
 		self.rank = rank
 		self.maphash = maphash
@@ -25,19 +20,19 @@ class Battle():
 		self.passworded = passworded
 		self.users = users # list with all session_ids of joined users
 		self.host = host # client.session_id
-		self.startrects = startrects
-		self.disabled_units = disabled_units
+		self.startrects = {}
+		self.disabled_units = []
 
-		self.pending_users = pending_users
+		self.pending_users = set()
 
-		self.engine = (engine or 'spring').lower()
-		self.version = version or root.latestspringversion
+		self.engine = 'spring'
+		self.version = root.latestspringversion
 
-		self.bots = bots
-		self.script_tags = script_tags
-		self.replay_script = replay_script
-		self.replay = replay
-		self.sending_replay_script = sending_replay_script
-		self.locked = locked
+		self.bots = {}
+		self.script_tags = {}
+		self.replay_script = {}
+		self.replay = False
+		self.sending_replay_script = False
+		self.locked = False
 		self.spectators = 0
 

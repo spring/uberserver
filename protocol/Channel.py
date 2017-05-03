@@ -1,28 +1,24 @@
 import time
 
 class Channel():
-	def __init__(self, root, name, id = 0, users=set(), admins={},
-						ban={}, allow=[], autokick='ban', chanserv=False,
-						owner='', mutelist={}, antispam=False,
-						censor=False, antishock=False, topic=None,
-						key=None, store_history=False):
-		self.id = id
+	def __init__(self, root, name):
+		self.id = 0
 		self._root = root
 		self.name = name
-		self.users = users # list of session_ids
-		self.admins = admins
-		self.ban = ban
-		self.allow = allow
-		self.autokick = autokick
-		self.chanserv = chanserv
-		self.owner = owner
-		self.mutelist = mutelist
-		self.antispam = antispam
-		self.censor = censor
-		self.antishock = antishock
-		self.topic = topic
-		self.key = key
-		self.store_history = store_history
+		self.users = set() # list of session_ids
+		self.admins = {}
+		self.ban = {}
+		self.allow = []
+		self.autokick = 'ban'
+		self.chanserv = False
+		self.owner = ''
+		self.mutelist = {}
+		self.antispam = False
+		self.censor = False
+		self.antishock = False
+		self.topic = None
+		self.key = None
+		self.store_history = False
 
 	def broadcast(self, message):
 		self._root.broadcast(message, self.name)
