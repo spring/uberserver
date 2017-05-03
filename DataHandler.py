@@ -118,7 +118,10 @@ class DataHandler:
 			newchan.id = channel['id']
 			newchan.owner=owner
 			newchan.admins=admins
-			newchan.key=channel['key']
+			if channel['key'] in ('', None, '*'):
+				newchan.key=None
+			else:
+				newchan.key=channel['key']
 			newchan.antispam=channel['antispam']
 			newchan.topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time())}
 			newchan.store_history = channel['store_history']

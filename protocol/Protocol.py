@@ -2009,7 +2009,7 @@ class Protocol:
 		'''
 
 		for name, channel in self._root.channels.items():
-			if channel.owner and not channel.key:
+			if channel.key:
 				continue
 			try:
 				top = channel.topic['text']
