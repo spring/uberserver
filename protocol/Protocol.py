@@ -196,18 +196,15 @@ class Protocol:
 			client.removing = True
 		self._root.info('[%s] Client connected from %s:%s' % (client.session_id, client.ip_address, client.port))
 
-	def _remove(self, client, reason='Quit'):
-		if client.static: return # static clients don't disconnect
-		self._root.info('[%s] disconnected from %s: %s'%(client.session_id, client.ip_address, reason))
-		if not client.username in self._root.usernames: # client didn't full login
-			return
-
+	def _logoutUser(self, client, reason):
+		# remove all references from client
 		user = client.username
-		del self._root.usernames[user]
+		if user in self._root.usernames:
+			del self._root.usernames[user]
 		if client.db_id in self._root.db_ids:
 			del self._root.db_ids[client.db_id]
 
-		for chan in client.channels.copy():
+		for chan in list(client.channels):
 			channel = self._root.channels[chan]
 			self.in_LEAVE(client, chan, reason)
 
@@ -215,11 +212,17 @@ class Protocol:
 			self.in_LEAVEBATTLE(client)
 
 		self.broadcast_RemoveUser(client)
-		try:
-			self.userdb.end_session(client.db_id)
-		except Exception as e:
-			self._root.info('[%s] <%s> Error writing to db in _remove: %s '%(client.session_id, client.username, e.message))
 
+	def _remove(self, client, reason='Quit'):
+		if client.static: return # static clients don't disconnect
+
+		if not client.logged_in:
+			self._root.info('[%s] disconnected from %s: %s'%(client.session_id, client.ip_address, reason))
+			return
+
+		self._root.info('[%s] <%s> disconnected from %s: %s'%(client.session_id, client.username, client.ip_address, reason))
+		self._logoutUser(client, reason)
+		self.userdb.end_session(client.db_id)
 
 
 	def get_function_args(self, client, command, function, numspaces, args):
@@ -611,10 +614,15 @@ class Protocol:
 		for name, receiver in self._root.usernames.items():
 			if client.session_id == receiver.session_id: # don't send ADDUSER to self
 				continue
+			if client.username == receiver.username:
+				client.out_FAILED(client, "Something weird happened!", True)
+				continue
 			receiver.Send(self.client_AddUser(receiver, client))
 
 	def broadcast_RemoveUser(self, client):
 		for name, receiver in self._root.usernames.items():
+			if client.static:
+				continue
 			if not name == client.username:
 				self.client_RemoveUser(receiver, client)
 
@@ -627,6 +635,7 @@ class Protocol:
 
 	def client_RemoveUser(self, client, user):
 		'sends the protocol for removing a user'
+		assert(len(user.username) > 0)
 		client.Send('REMOVEUSER %s' % user.username)
 
 	def client_AddBattle(self, client, battle):
@@ -845,7 +854,6 @@ class Protocol:
 		if (username in self._root.usernames):
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
-		client.isloggingin = True
 		client.buffersend = True # enqeue all sends to client made from other threads until server state is send
 		#assert(not client.db_id in self._root.db_ids)
 		self._root.db_ids[client.db_id] = client
@@ -887,12 +895,11 @@ class Protocol:
 		self._SendLoginInfo(client)
 
 	def _SendLoginInfo(self, client):
-		self._root.info('[%s] Successfully logged in user <%s> (access=%s).' % (client.session_id, client.username, client.access))
+		self._root.info('[%s] <%s> logged in (access=%s).' % (client.session_id, client.username, client.access))
 		self._calc_status(client, 0)
 		ignoreList = self.userdb.get_ignored_user_ids(client.db_id)
 		client.ignored = {ignoredUserId:True for ignoredUserId in ignoreList}
 
-		client.buffersend = False
 		client.RealSend('ACCEPTED %s' % client.username)
 
 		self._sendMotd(client, self._get_motd_string(client))
@@ -917,7 +924,7 @@ class Protocol:
 		if client.status != 0:
 			self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status)) # broadcast current client status
 
-		client.Send('LOGININFOEND')
+		client.RealSend('LOGININFOEND')
 		client.flushBuffer()
 		self._informErrors(client)
 		self.broadcast_AddUser(client) # send ADDUSER to all clients except self
@@ -946,6 +953,7 @@ class Protocol:
 		channel = self._root.channels[chan]
 
 		if not client.session_id in channel.users:
+			self.out_FAILED(client, "SAY", "Can't cry into channel", True)
 			return
 
 		action = False
@@ -1337,25 +1345,29 @@ class Protocol:
 		@required.str channel: The target channel.
 		@optional.str password: The password to use for joining if channel is locked.
 		'''
+		chan = chan.lstrip('#')
 		ok, reason = self._validChannelSyntax(chan)
 		if not ok:
 			client.Send('JOINFAILED %s' % reason)
 			return
 
 		user = client.username
-		chan = chan.lstrip('#')
 
 		# FIXME: unhardcode this
 		if client.bot and chan in ("newbies", "ba") and client.username != "ChanServ":
-			client.Send('JOINFAILED %s No bots allowed in #%s!' %(chan, chan))
+			#client.Send('JOINFAILED %s No bots allowed in #%s!' %(chan, chan))
 			return
 
-		if not chan: return
+		if not chan:
+			self.out_FAILED(client, "JOIN", 'Invalid channel: %s' %(chan), True)
+			return
 		if not chan in self._root.channels:
-			self._root.channels[chan] = Channel.Channel(self._root, chan)
+			channel = Channel.Channel(self._root, chan)
+			self._root.channels[chan] = channel
 		else:
 			channel = self._root.channels[chan]
 		if client.session_id in channel.users:
+			self.out_FAILED(client, "JOIN", 'Already in channel %s %s' %(chan, channel.users), True)
 			return
 		if not channel.isFounder(client):
 			if channel.key and not channel.key in (key, None, '*', ''):
@@ -2280,12 +2292,17 @@ class Protocol:
 		@required.str AIDLL: The name of the DLL loading the bot.
 		'''
 		battle_id = client.current_battle
-		if battle_id in self._root.battles:
-			battle = self._root.battles[battle_id]
-			if not name in battle.bots:
-				client.battle_bots[name] = battle_id
-				battle.bots[name] = {'owner':client.username, 'battlestatus':battlestatus, 'teamcolor':teamcolor, 'AIDLL':AIDLL}
-				self._root.broadcast_battle('ADDBOT %s %s %s %s %s %s'%(battle_id, name, client.username, battlestatus, teamcolor, AIDLL), battle_id)
+		if not battle_id in self._root.battles:
+			self.out_FAILED(client, "ADDBOT", "Couldn't find battle: %s" %(battle_id), True)
+			return
+
+		battle = self._root.battles[battle_id]
+		if name in battle.bots:
+			self.out_FAILED(client, "ADDBOT", "Bot already exists!", True)
+			return
+		client.battle_bots[name] = battle_id
+		battle.bots[name] = {'owner':client.username, 'battlestatus':battlestatus, 'teamcolor':teamcolor, 'AIDLL':AIDLL}
+		self._root.broadcast_battle('ADDBOT %s %s %s %s %s %s'%(battle_id, name, client.username, battlestatus, teamcolor, AIDLL), battle_id)
 
 	def in_UPDATEBOT(self, client, name, battlestatus, teamcolor):
 		'''
@@ -2786,7 +2803,7 @@ class Protocol:
 		self._root.reload()
 		try:
 			proto = importlib.reload(sys.modules['Protocol'])
-			proto = importlib.reload(sys.modules['Channel'])
+			chan = importlib.reload(sys.modules['Channel'])
 			self = proto.Protocol(self._root)
 			self._root.protocol = self
 		except Exception as e:

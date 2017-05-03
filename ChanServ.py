@@ -7,11 +7,6 @@ class ChanServ:
 		self._root = root
 		self.channeldb = root.channeldb
 	
-	def onLogin(self):
-		self._root.protocol._calc_status(self.client, 0)
-		for channel in self._root.channels.values():
-			self.Send('JOIN %s' % str(channel.name))
-	
 	def Handle(self, msg):
 		try:
 			if not msg.count(' '):
@@ -232,7 +227,7 @@ class ChanServClient(Client):
 		self.lobby_id = 'ChanServ'
 		self._root.usernames[self.username] = self
 		self._root.clients[session_id] = self
-		self._root.console_write('[%s] Successfully logged in static user <%s>'%(self.session_id, self.username))
+		self._root.console_write('[%s] <%s> logged in (access=ChanServ)'%(self.session_id, self.username))
 		self.reload()
 
 	def reload(self):

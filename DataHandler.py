@@ -5,7 +5,7 @@ import SQLUsers
 import ChanServ
 import ip2country
 import datetime
-import Protocol
+from protocol import Protocol, Channel
 
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -104,7 +104,7 @@ class DataHandler:
 			channel = channels[name]
 
 			owner = None
-			admins = []
+			admins = set()
 			client = self.userdb.clientFromUsername(channel['owner'])
 			if client and client.id: owner = client.id
 
@@ -112,16 +112,13 @@ class DataHandler:
 				client = userdb.clientFromUsername(user)
 				if client and client.id:
 					admins.append(client.id)
-
-			self.channels[name] = Protocol.Channel.Channel(self, name, chanserv=bool(owner), id = channel['id'], owner=owner, admins=admins, key=channel['key'], antispam=channel['antispam'], topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time())}, store_history = channel['store_history'] )
-
-		#self.dispatcher.addClient(self.chanserv)
-
+			assert(name not in self.channels)
+			self.channels[name] = Channel.Channel(self, name, chanserv=bool(owner), id = channel['id'], owner=owner, admins=admins, key=channel['key'], antispam=channel['antispam'], topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time())}, store_history = channel['store_history'] )
+			self.channels[name].users = set() #WTF, why is this needed? without all userlist in all channels are the same!
 
 		self.parseFiles()
 		self.protocol = Protocol.Protocol(self)
 		self.chanserv = ChanServ.ChanServClient(self, (self.online_ip, 0), self.session_id)
-		self.chanserv.ChanServ.onLogin()
 
 		for name in channels:
 			self.chanserv.HandleProtocolCommand("JOIN %s" %(name))

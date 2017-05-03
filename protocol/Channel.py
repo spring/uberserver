@@ -1,7 +1,7 @@
 import time
 
 class Channel():
-	def __init__(self, root, name, id = 0, users=set(), admins=[],
+	def __init__(self, root, name, id = 0, users=set(), admins={},
 						ban={}, allow=[], autokick='ban', chanserv=False,
 						owner='', mutelist={}, antispam=False,
 						censor=False, antishock=False, topic=None,
@@ -23,9 +23,6 @@ class Channel():
 		self.topic = topic
 		self.key = key
 		self.store_history = store_history
-
-		if self._root and chanserv and self._root.chanserv and not name in self._root.channels:
-			self._root.chanserv.Send('JOIN %s' % self.name)
 
 	def broadcast(self, message):
 		self._root.broadcast(message, self.name)

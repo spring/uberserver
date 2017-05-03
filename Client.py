@@ -70,7 +70,6 @@ class Client(BaseClient):
 		}
 		self.msg_length_history = {}
 		self.lastsaid = {}
-		self.current_channel = ''
 		
 		self.debug = False
 		self.data = ''
@@ -221,7 +220,7 @@ class Client(BaseClient):
 
 	def Send(self, data):
 		if self.buffersend:
-			self.buffer += data + b"\n"
+			self.buffer += data + "\n"
 		else:
 			self.RealSend(data)
 
