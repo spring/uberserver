@@ -191,6 +191,12 @@ class LobbyClient:
 		#print("[PING][time=%d::iters=%d]" % (time.time(), self.iters))
 
 		self.Send("PING")
+	def out_JOIN(self, chan):
+		self.Send("JOIN " + chan)
+	def out_LEAVE(self, chan):
+		self.Send("LEAVE " + chan)
+	def out_SAY(self, chan, msg):
+		self.Send("SAY %s %s" %(chan, msg))
 
 	def out_EXIT(self):
 		self.host_socket.close()
@@ -222,7 +228,7 @@ class LobbyClient:
 
 	def in_AGREEMENTEND(self):
 		print("[AGREEMENDEND][time=%d::iter=%d]" % (time.time(), self.iters))
-		assert(self.accepted_registration)
+		#assert(self.accepted_registration)
 		assert(not self.accepted_authentication)
 
 		self.out_CONFIRMAGREEMENT()
@@ -266,7 +272,7 @@ class LobbyClient:
 	def in_BATTLEOPENED(self, msg):
 		battle = msg.split(" ")
 		battleid = int(battle[0])
-		print("BATTLEOPENED received %d %s" %(battleid, self.username))
+		#print("BATTLEOPENED received %d %s" %(battleid, self.username))
 		if battleid in self.battles:
 			print("Inconsistence detected: BATTLEOPENED " + str(battleid))
 			print("Battles: " + str(self.battles))
@@ -292,7 +298,7 @@ class LobbyClient:
 		print(msg)
 	def in_BATTLECLOSED(self, msg):
 		battleid = int(msg)
-		print("BATTLECLOSED received %d %s" %(battleid, self.username))
+		#print("BATTLECLOSED received %d %s" %(battleid, self.username))
 		try:
 			del self.battles[battleid]
 		except:
@@ -326,7 +332,8 @@ class LobbyClient:
 		print(msg)
 	def in_LEFT(self, msg):
 		print(msg)
-
+	def in_SAID(self, msg):
+		print(msg)
 	def in_SAIDPRIVATE(self, msg):
 		user, msg = msg.split(" ")
 		self.out_SAYPRIVATE(user,"You said: " + msg)
@@ -335,19 +342,25 @@ class LobbyClient:
 		print("SAY " +  msg)
 	def in_OPENBATTLEFAILED(self, msg):
 		pass
+	def in_CLIENTBATTLESTATUS(self, msg):
+		print("CLIENTBATTLESTATUS " +msg)
+	def in_FAILED(self, msg):
+		print("FAILED " + msg)
 
 	def JoinBattle(self): # open or join a battle
-		print(self.username + " is trying to create a battle...")
-		self.out_OPENBATTLE(0, 0, '*', 1234, 10, 0x1234, 0, 0x1234, "spring", "98.0", "DeltaSiegeDry", "Game!", "Balanced Annihilation V7.19")
+		#print(self.username + " is trying to create a battle...")
+		self.out_OPENBATTLE(0, 0, '*', 1234, 10, 0x1234, 0, 0x1234, "spring", "103.0", "DeltaSiegeDry", "Game %d" %(self.iters), "Balanced Annihilation V9.54")
 	def PlayInBattle(self): # start game or wait till game start
 		pass
 	def LeaveBattle(self): # leave battle
 		pass
 	def JoinChannel(self): # join channel
-		pass
+		self.out_JOIN("sy")
 	def LeaveChannel(self): # leave channel
-		pass
+		self.out_LEAVE("sy")
 
+	def Say(self):
+		self.out_SAY("sy", "Hello World no. %d" %(self.iters))
 	def Update(self):
 		assert(self.host_socket != None)
 
@@ -358,20 +371,23 @@ class LobbyClient:
 
 
 		if (self.iters > self.nextstep):
-			self.nextstep = random.randint(0, 200)
+			self.nextstep = self.iters + random.randint(0, 800)
+			self.state += 1
 			
-			self.state = random.randint(0, (self.iters % 10000) % 5)
-			if self.state == 0: # join or create battle
+			if self.state == 1:
 				self.JoinBattle()
-			elif self.state == 1: # host battle / wait for game start
-				self.nextstep = random.randint(0, 10000)
+			elif self.state == 2:
 				self.PlayInBattle()
-			elif self.state == 2: # leave battle
+			elif self.state == 3:
 				self.LeaveBattle()
-			elif self.state == 3: # join channel
+			elif self.state == 4:
 				self.JoinChannel()
-			elif self.state == 4: # leave channel
+			elif self.state == 5:
+				self.Say()
+			elif self.state == 6:
 				self.LeaveChannel()
+			else:
+				self.state = 0
 			#elif self.state == 5: # exit
 			#	self.running = False
 
@@ -413,7 +429,7 @@ def RunClientThread(i, k):
 def RunClientThreads(num_clients, num_updates):
 	threads = [None] * num_clients
 
-	for i in xrange(num_clients):
+	for i in range(num_clients):
 		threads[i] = threading.Thread(target = RunClientThread, args = (i, num_updates, ))
 		threads[i].start()
 	for t in threads:
