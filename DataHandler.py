@@ -314,7 +314,7 @@ class DataHandler:
 					lastmute = now
 					self.mute_timeout_step(now)
 			except:
-				self.error(traceback.format_exc())
+				logging.error(traceback.format_exc())
 			time.sleep(max(0.1, 1 - (now - self.start_time)))
 
 	def mute_timeout_step(self, now):
@@ -331,24 +331,7 @@ class DataHandler:
 						if client:
 							channel.channelMessage('<%s> has been unmuted (mute expired).' % client.username)
 		except:
-			self.error(traceback.format_exc())
-
-	def error(self, error):
-		self.console_write('%s\n%s\n%s'%(separator,error,separator))
-		self.logger.error(error)
-
-	def info(self, msg):
-		self.console_write(msg)
-
-	def console_write(self, lines=''):
-		if type(lines)  == str:
-			lines = lines.split('\n')
-		elif not type(lines) in (list, tuple, set):
-			try: lines = [lines.__repr__()]
-			except: lines = ['Failed to print lines of type %s'%type(lines)]
-		for line in lines:
-			print(line)
-			self.logger.info(line)
+			logging.error(traceback.format_exc())
 
 	# the sourceClient is only sent for SAY*, and RING commands
 	def multicast(self, clients, msg, ignore=(), sourceClient=None):
@@ -375,7 +358,8 @@ class DataHandler:
 			else:
 				clients = [self.clientFromUsername(user) for user in self.usernames]
 				self.multicast(clients, msg, ignore, sourceClient)
-		except: self.error(traceback.format_exc())
+		except:
+			logging.error(traceback.format_exc())
 
 	# the sourceClient is only sent for SAY*, and RING commands
 	def broadcast_battle(self, msg, battle_id, ignore=[], sourceClient=None):
@@ -413,11 +397,11 @@ class DataHandler:
 		return '127.0.0.1'
 
 	def detectIp(self):
-		self.console_write('\nDetecting local IP:')
+		logging.info('\nDetecting local IP:')
 		local_addr = self.get_ip_address()
-		self.console_write(local_addr)
+		logging.info(local_addr)
 
-		self.console_write('Detecting online IP:')
+		logging.info('Detecting online IP:')
 
 
 		try:
@@ -425,11 +409,10 @@ class DataHandler:
 			socket.setdefaulttimeout(5)
 			web_addr = urlopen('http://springrts.com/lobby/getip.php').read().decode("utf-8")
 			socket.setdefaulttimeout(timeout)
-			self.console_write(web_addr)
+			logging.info(web_addr)
 		except:
 			web_addr = local_addr
-			self.console_write('not online')
-		self.console_write()
+			logging.info('not online')
 
 		self.local_ip = local_addr
 		self.online_ip = web_addr

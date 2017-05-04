@@ -1,4 +1,4 @@
-import time, traceback
+import time, traceback, logging
 from Client import Client
 
 class ChanServ:
@@ -19,7 +19,7 @@ class ChanServ:
 				user, msg = args.split(' ', 1)
 				self.HandleMessage(None, user, msg)
 		except:
-			self._root.error(traceback.format_exc())
+			logging.error(traceback.format_exc())
 	
 	def HandleMessage(self, chan, user, msg):
 		if len(msg) <= 0:
@@ -227,7 +227,7 @@ class ChanServClient(Client):
 		self.lobby_id = 'ChanServ'
 		self._root.usernames[self.username] = self
 		self._root.clients[session_id] = self
-		self._root.console_write('[%s] <%s> logged in (access=ChanServ)'%(self.session_id, self.username))
+		logging.info('[%s] <%s> logged in (access=ChanServ)'%(self.session_id, self.username))
 		self.reload()
 
 	def reload(self):

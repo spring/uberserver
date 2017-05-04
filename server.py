@@ -7,7 +7,7 @@ except:
 	# thread was renamed to _thread in python 3
 	import _thread
 
-import traceback, signal, socket, sys
+import traceback, signal, socket, sys, logging
 from twisted.internet import reactor
 
 sys.path.append("protocol")
@@ -28,7 +28,7 @@ try:
 	signal.SIGHUP
 	
 	def sighup(sig, frame):
-		_root.console_write('Received SIGHUP.')
+		logging.info('Received SIGHUP.')
 		if _root.sighup:
 			_root.reload()
 
@@ -36,8 +36,7 @@ try:
 except AttributeError:
 	pass
 
-_root.console_write('-'*40)
-_root.console_write('Starting uberserver...\n')
+logging.info('Starting uberserver...')
 
 natport = _root.natport
 backlog = 100
@@ -52,7 +51,7 @@ try:
 except socket.error:
 	print('Error: Could not start NAT server - hole punching will be unavailable.')
 
-_root.console_write('Using %i client handling thread(s).'%_root.max_threads)
+logging.info('Using %i client handling thread(s).'%_root.max_threads)
 
 _root.init()
 
@@ -65,11 +64,11 @@ try:
 	reactor.run()
 
 except KeyboardInterrupt:
-	_root.console_write()
-	_root.console_write('Server killed by keyboard interrupt.')
+	logging.info()
+	logging.info('Server killed by keyboard interrupt.')
 except:
 	_root.error(traceback.format_exc())
-	_root.console_write('Deep error, exiting...')
+	logging.info('Deep error, exiting...')
 
 _root.shutdown()
 
