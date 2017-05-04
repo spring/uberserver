@@ -2973,7 +2973,7 @@ class Protocol:
 		'''
 		client.Send('FAILED ' + self._dictToTags({'msg':message, 'cmd':cmd}))
 		if log:
-			logging.info('[%s] <%s>: %s %s' % (client.session_id, client.username, cmd, message))
+			logging.warn('[%s] <%s>: %s %s' % (client.session_id, client.username, cmd, message))
 
 	def out_OK(self, client, cmd):
 		client.Send('OK ' + self._dictToTags({'cmd': cmd}))
