@@ -921,13 +921,12 @@ class Protocol:
 				if not battleclient.session_id == battle.host:
 					client.RealSend('JOINEDBATTLE %s %s' % (battle.id, battleclient.username))
 
-		if client.status != 0:
-			self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status)) # broadcast current client status
-
 		client.RealSend('LOGININFOEND')
 		client.flushBuffer()
 		self._informErrors(client)
 		self.broadcast_AddUser(client) # send ADDUSER to all clients except self
+		if client.status != 0:
+			self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status)) # broadcast current client status
 
 
 	def in_CONFIRMAGREEMENT(self, client):
