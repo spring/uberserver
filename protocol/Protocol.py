@@ -1408,6 +1408,8 @@ class Protocol:
 		elif client.compat['et']: # supports sendEmptyTopic
 			client.Send('NOCHANNELTOPIC %s' % chan)
 
+		if not channel.store_history:
+			return
 		msgs = self.userdb.get_channel_messages(client.db_id, channel.id, client.last_login)
 		if client.compat['o']:
 			for msg in msgs:
