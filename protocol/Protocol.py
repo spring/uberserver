@@ -1525,6 +1525,7 @@ class Protocol:
 			port = int(port)
 			maphash = int32(maphash)
 			hashcode = int32(hashcode)
+			maxplayers = int32(maxplayers)
 		except Exception as e:
 			self.out_OPENBATTLEFAILED(client, 'Invalid argument type, send this to your lobby dev: id=%s type=%s natType=%s passworded=%s port=%s maphash=%s gamehash=%s - %s' %
 						(battle_id, type, natType, passworded, port, maphash, hashcode, str(e).replace("\n", "")))
@@ -1537,6 +1538,9 @@ class Protocol:
 		if hashcode == 0:
 			self.out_FAILED(client, 'OPENBATTLE', 'Invalid game hash 0', True)
 			return
+		if maxplayers > 10 and not client.bot:
+			maxplayers = 10
+			self.out_SERVERMSG(client, "Without botflag its not allowed to host battles with > 10 players. Your battle was restricted to 10 players")
 
 		client.current_battle = battle_id
 
