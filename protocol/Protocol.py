@@ -2359,15 +2359,15 @@ class Protocol:
 
 		if not username:
 			ingame_time = int(client.ingame_time)
-			self.out_FAILED(client,'GETINGAMETIME', 'Your ingame time is %d minutes (%d hours).'%(ingame_time, ingame_time / 60))
+			self.out_SERVERMSG(client,'Your ingame time is %d minutes (%d hours).'%(ingame_time, ingame_time / 60))
 			return
 
 		if not client.bot and not 'mod' in client.accesslevels:
-			self.out_SERVERMSG(client,'GETINGAMETIME', 'access denied')
+			self.out_FAILED(client,'GETINGAMETIME', 'access denied')
 			return
 
 		if not username in self._root.usernames:
-			self.out_SERVERMSG(client,'GETINGAMETIME', 'user not found / offline')
+			self.out_FAILED(client,'GETINGAMETIME', 'user not found / offline')
 			return
 
 		ingame_time = int(self._root.usernames[username].ingame_time)
