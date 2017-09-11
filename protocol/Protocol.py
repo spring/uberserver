@@ -2356,21 +2356,22 @@ class Protocol:
 
 		@optional.str username: The target user. Defaults to yourself.
 		'''
-		if username and ('mod' in client.accesslevels or client.bot):
-			if username in self._root.usernames: # maybe abstract in the datahandler to automatically query SQL for users not logged in.
-				ingame_time = int(self._root.usernames[username].ingame_time)
-				self.out_SERVERMSG(client, '<%s> has an ingame time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
-			else:
-				good, data = self.userdb.get_ingame_time(username)
-				if good:
-					ingame_time = int(data)
-					self.out_SERVERMSG(client, '<%s> has an ingame time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
-				else: self.out_SERVERMSG(client, 'Database returned error when retrieving ingame time for <%s> (%s)' % (username, data))
-		elif not username:
+
+		if not username:
 			ingame_time = int(client.ingame_time)
-			self.out_SERVERMSG(client, 'Your ingame time is %d minutes (%d hours).'%(ingame_time, ingame_time / 60))
-		else:
-			self.out_SERVERMSG(client, 'You can\'t get the ingame time of other users.')
+			self.out_FAILED(client,'GETINGAMETIME', 'Your ingame time is %d minutes (%d hours).'%(ingame_time, ingame_time / 60))
+			return
+
+		if not client.bot and not 'mod' in client.accesslevels:
+			self.out_SERVERMSG(client,'GETINGAMETIME', 'access denied')
+			return
+
+		if not username in self._root.usernames:
+			self.out_SERVERMSG(client,'GETINGAMETIME', 'user not found / offline')
+			return
+
+		ingame_time = int(self._root.usernames[username].ingame_time)
+		self.out_SERVERMSG(client, '<%s> has an ingame time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
 
 	def in_GETLASTLOGINTIME(self, client, username):
 		'''
@@ -2393,19 +2394,21 @@ class Protocol:
 
 		@optional.str username: The target user. Defaults to yourself.
 		'''
-		if username and ('mod' in client.accesslevels or client.bot):
-			if username in self._root.usernames:
-				reason = self._root.usernames[username].register_date
-				good = True
-			else: good, reason = self.userdb.get_registration_date(username)
-		else:
-			good = True
-			username = client.username
-			reason = client.register_date
-		if good and reason:
-			self.out_SERVERMSG(client, '<%s> registered on %s.' % (username, reason.isoformat()))
+
+		if not username:
+			self.out_SERVERMSG(client, '<%s> registered on %s.' % (username, client.register_date.isoformat()))
 			return
-		self.out_SERVERMSG(client, "Couldn't retrieve registration date for <%s> (%s)" % (username, reason))
+
+		if not client.bot and not 'mod' in client.accesslevels:
+			self.out_FAILED(client, "GETREGISTRATIONDATE", "permission denied")
+			return
+
+		if not username in self._root.usernames:
+			self.out_FAILED(client, "GETREGISTRATIONDATE", "user not found / offline")
+			return
+
+		regdate = self._root.usernames[username].register_date
+		self.out_SERVERMSG(client, '<%s> registered on %s.' % (username, regdate.isoformat()))
 
 	def in_GETUSERID(self, client, username):
 		user = self.clientFromUsername(username, True)
