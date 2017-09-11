@@ -2356,7 +2356,7 @@ class Protocol:
 
 		@optional.str username: The target user. Defaults to yourself.
 		'''
-		if username and 'mod' in client.accesslevels:
+		if username and ('mod' in client.accesslevels or client.bot):
 			if username in self._root.usernames: # maybe abstract in the datahandler to automatically query SQL for users not logged in.
 				ingame_time = int(self._root.usernames[username].ingame_time)
 				self.out_SERVERMSG(client, '<%s> has an ingame time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
@@ -2393,7 +2393,7 @@ class Protocol:
 
 		@optional.str username: The target user. Defaults to yourself.
 		'''
-		if username and 'mod' in client.accesslevels:
+		if username and ('mod' in client.accesslevels or client.bot):
 			if username in self._root.usernames:
 				reason = self._root.usernames[username].register_date
 				good = True
