@@ -23,6 +23,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 			clientcount = len(self.root.clients)
 			if clientcount >= maxclients:
 				logging.error("to many connections: %d > %d" %(clientcount, maxclients))
+				self.transport.write(b"DENIED to many connections, sorry!\n")
 				self.transport.loseConnection()
 				return
 
