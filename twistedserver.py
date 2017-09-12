@@ -7,6 +7,10 @@ import DataHandler
 import Client
 import traceback
 import logging
+import resource
+
+maxhandles, _ = resource.getrlimit(resource.RLIMIT_NOFILE)
+maxclients = int(maxhandles / 2)
 
 class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 
@@ -16,6 +20,12 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 
 	def connectionMade(self):
 		try:
+			clientcount = len(self.root.clients)
+			if clientcount >= maxclients:
+				logging.error("to many connections: %d > %d" %(clientcount, maxclients))
+				self.transport.loseConnection()
+				return
+
 			self.root.session_id += 1
 			self.session_id = self.root.session_id
 			assert(self.session_id not in self.root.clients)
@@ -28,6 +38,8 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 			logging.error("Error in adding client: %s %s %s" %(str(e), self.transport.getPeer().host, str(traceback.format_exc())))
 
 	def connectionLost(self, reason):
+		if not hasattr(self, 'session_id'): #not probably connected
+			return
 		self.root.protocol._remove(self, str(reason.value))
 		del self.root.clients[self.session_id]
 
