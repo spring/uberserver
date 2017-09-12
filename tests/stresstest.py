@@ -274,7 +274,7 @@ class LobbyClient:
 		battleid = int(battle[0])
 		#print("BATTLEOPENED received %d %s" %(battleid, self.username))
 		if battleid in self.battles:
-			print("Inconsistence detected: BATTLEOPENED " + str(battleid))
+			print("Inconsistence detected: BATTLEOPENED %d" %(battleid))
 			print("Battles: " + str(self.battles))
 			print(msg)
 			print(self.username)
@@ -295,7 +295,7 @@ class LobbyClient:
 		## do stuff here (e.g. "JOIN channel")
 		pass
 	def in_CHANNELTOPIC(self, msg):
-		print(msg)
+		print("CHANNELTOPIC %s"%msg)
 	def in_BATTLECLOSED(self, msg):
 		battleid = int(msg)
 		#print("BATTLECLOSED received %d %s" %(battleid, self.username))
@@ -307,9 +307,9 @@ class LobbyClient:
 			print(self.username)
 			sys.exit(1)
 	def in_REMOVEUSER(self, msg):
-		print(msg)
+		print("REMOVEUSER %s" % msg)
 	def in_LEFTBATTLE(self, msg):
-		print(msg)
+		print("LEFTBATTLE %s" % msg)
 
 	def in_PONG(self):
 		diff = time.time() - self.prv_ping_time
@@ -325,21 +325,21 @@ class LobbyClient:
 		self.prv_ping_time = time.time()
 
 	def in_JOIN(self, msg):
-		print(msg)
+		print("JOIN %s" % msg)
 	def in_CLIENTS(self, msg):
-		print(msg)
+		print("CLIENTS %s"% msg)
 	def in_JOINED(self, msg):
-		print(msg)
+		print("JOINED %s"% msg)
 	def in_LEFT(self, msg):
-		print(msg)
+		print("LEFT %s" % msg)
 	def in_SAID(self, msg):
-		print(msg)
+		print("SAID %s" %msg)
 	def in_SAIDPRIVATE(self, msg):
 		user, msg = msg.split(" ")
 		self.out_SAYPRIVATE(user,"You said: " + msg)
 
 	def in_SAYPRIVATE(self, msg):
-		print("SAY " +  msg)
+		print("SAYPRIVATE " +  msg)
 	def in_OPENBATTLEFAILED(self, msg):
 		pass
 	def in_CLIENTBATTLESTATUS(self, msg):
