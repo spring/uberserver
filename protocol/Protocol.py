@@ -2989,7 +2989,7 @@ def check_protocol_commands():
 	for func in dir(Protocol):
 		if func[:3] == 'in_' and func[3:] not in restricted_list:
 			print("unused function %s"%(func))
-
+			return False
 	return True
 assert(check_protocol_commands())
 
