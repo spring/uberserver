@@ -839,13 +839,7 @@ class Protocol:
 			lobby_id = sentence_args
 
 
-		try:
-			good, user_or_error = self.userdb.legacy_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
-		except Exception as e:
-			logging.info('[%s] <%s> Error reading from DB in in_LOGIN: %s ' % (client.session_id, client.username, e.message))
-			## in this case DB return values are undefined
-			good = False
-			reason = "DB error"
+		good, user_or_error = self.userdb.legacy_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 
 		if (not good):
 			if (type(user_or_error) == str):
