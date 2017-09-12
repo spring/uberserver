@@ -551,7 +551,7 @@ class Protocol:
 			res += key + "=" + dictionary[key]
 		return res
 
-	def _canForceBattle(self, client, username = None):
+	def _canForceBattle(self, client):
 		' returns true when client can force sth. to a battle / username in current battle (=client is host & username is in battle)'
 		battle_id = client.current_battle
 		if not battle_id in self._root.battles:
@@ -559,11 +559,18 @@ class Protocol:
 		battle = self._root.battles[battle_id]
 		if not client.session_id == battle.host:
 			return False
-		if username == None:
-			return True
-		if client.session_id in battle.users:
-			return True
-		return False
+		return True
+
+	def _canForceBattleUser(self, client, username):
+		if not self._canForceBattle(client):
+			return False
+		user=self.clientFromUsername(username)
+		if not user:
+			return False
+		if not user.session_id in battle.users:
+			return False
+		return True
+
 
 	def _informErrors(self, client):
 		if client.lobby_id in ("SpringLobby 0.188 (win x32)", "SpringLobby 0.200 (win x32)"):
@@ -1624,18 +1631,17 @@ class Protocol:
 		@optional.str password: The battle's password, if required.
 		'''
 
-		if not username in self._root.usernames:
+		user = self._canForceBattleUser(client, username)
+		if not user:
 			client.Send("FORCEJOINBATTLEFAILED user %s not found!" %(username))
 			return
 
-		user = self.clientFromUsername(username)
 		battle_id = user.current_battle
 
-		if not 'mod' in client.accesslevels and not self._canForceBattle(client, username):
+		if not 'mod' in client.accesslevels:
 			client.Send('FORCEJOINBATTLEFAILED You are not allowed to force this user into battle.')
 			return
 
-		user = self._root.usernames[username]
 		if not user.compat['m']:
 			client.Send('FORCEJOINBATTLEFAILED This user does not subscribe to matchmaking.')
 			return
@@ -2167,7 +2173,7 @@ class Protocol:
 
 		@required.str units: A string-separated list of unit names to enable.
 		'''
-		if not self._canForceBattle(client, username):
+		if not self._canForceBattle(client):
 			return
 		units = units.split(' ')
 		enabled_units = []
@@ -2199,15 +2205,15 @@ class Protocol:
 		@required.str username: The player to handicap.
 		@required.int handicap: The percentage of handicap to give (1-100).
 		'''
-		if not self._canForceBattle(client, username):
+		user = self._canForceBattleUser(client, username)
+		if not user:
 			return
 
 		if not value.isdigit() or not int(value) in range(0, 101):
 			return
 
-		client = self._root.usernames[username]
-		client.battlestatus['handicap'] = self._dec2bin(value, 7)
-		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), client.current_battle)
+		user.battlestatus['handicap'] = self._dec2bin(value, 7)
+		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(user), user.teamcolor), user.current_battle)
 
 	def in_KICKFROMBATTLE(self, client, username):
 		'''
@@ -2216,16 +2222,12 @@ class Protocol:
 
 		@required.str username: The player to kick.
 		'''
-		if not self._canForceBattle(client, username):
+		user = self._canForceBattleUser(client, username)
+		if not user:
 			return
-		kickuser = self._root.usernames[username]
-		kickuser.Send('FORCEQUITBATTLE')
-		battle = self._root.battles[client.current_battle]
-		if client.session_id == battle.host:
-			self.broadcast_RemoveBattle(battle)
-			del self._root.battles[client.current_battle]
-		else:
-			self.in_LEAVEBATTLE(kickuser)
+
+		user.Send('FORCEQUITBATTLE %s' %(client.username))
+		self.in_LEAVEBATTLE(user)
 
 
 	def in_FORCETEAMNO(self, client, username, teamno):
@@ -2236,11 +2238,11 @@ class Protocol:
 		@required.str username: The target player.
 		@required.int teamno: The team to assign them.
 		'''
-		if not self._canForceBattle(client, username):
+		user = self._canForceBattleUser(client, username)
+		if not user:
 			return
-		client = self._root.usernames[username]
-		client.battlestatus['id'] = self._dec2bin(teamno, 4)
-		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), client.current_battle)
+		user.battlestatus['id'] = self._dec2bin(teamno, 4)
+		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(user), user.teamcolor), user.current_battle)
 
 	def in_FORCEALLYNO(self, client, username, allyno):
 		'''
@@ -2250,11 +2252,11 @@ class Protocol:
 		@required.str username: The target player.
 		@required.int teamno: The ally team to assign them.
 		'''
-		if not self._canForceBattle(client, username):
+		user = self._canForceBattleUser(client, username)
+		if not user:
 			return
-		client = self._root.usernames[username]
-		client.battlestatus['ally'] = self._dec2bin(allyno, 4)
-		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), client.current_battle)
+		user.battlestatus['ally'] = self._dec2bin(allyno, 4)
+		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(user), user.teamcolor), user.current_battle)
 
 	def in_FORCETEAMCOLOR(self, client, username, teamcolor):
 		'''
@@ -2264,11 +2266,13 @@ class Protocol:
 		@required.str username: The target player.
 		@required.sint teamcolor: The color to assign, represented with hex 0xBBGGRR as a signed integer.
 		'''
-		if not self._canForceBattle(client, username):
+
+		user = self._canForceBattleUser(client, username)
+		if not user:
 			return
-		client = self._root.usernames[username]
-		client.teamcolor = teamcolor
-		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), client.current_battle)
+
+		user.teamcolor = teamcolor
+		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(user), user.teamcolor), user.current_battle)
 
 	def in_FORCESPECTATORMODE(self, client, username):
 		'''
@@ -2277,16 +2281,19 @@ class Protocol:
 
 		@required.str username: The target player.
 		'''
-		if not self._canForceBattle(client, username):
+
+		user = self._canForceBattleUser(client, username)
+		if not user:
 			return
 
-		client = self._root.usernames[username]
-		if client.battlestatus['mode'] == '1':
-			battle = self._root.battles[client.current_battle]
-			battle.spectators += 1
-			client.battlestatus['mode'] = '0'
-			self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(client), client.teamcolor), client.current_battle)
-			self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' %(battle.id, battle.spectators, battle.locked, battle.maphash, battle.map))
+		if not user.battlestatus['mode'] == '1':
+			return
+
+		battle = self._root.battles[user.current_battle]
+		battle.spectators += 1
+		user.battlestatus['mode'] = '0'
+		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(user), user.teamcolor), user.current_battle)
+		self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' %(battle.id, battle.spectators, battle.locked, battle.maphash, battle.map))
 
 	def in_ADDBOT(self, client, name, battlestatus, teamcolor, AIDLL):
 		'''
