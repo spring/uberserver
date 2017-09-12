@@ -2448,12 +2448,6 @@ class Protocol:
 					lastlogin = "Unknown"
 				self.out_SERVERMSG(client, '<%s> was recently bound to %s at %s' % (entry.username, address, lastlogin))
 
-	def in_GETLASTIP(self, client, username):
-		'''
-		An alias for GETIP.
-		'''
-		return self.in_GETIP(client, username)
-
 	def in_GETIP(self, client, username):
 		'''
 		Get the current or last IP address for target user.
@@ -2991,6 +2985,11 @@ def check_protocol_commands():
 		if 'in_' + command not in dir(Protocol):
 			print("command not implemented: %s" % command)
 			return False
+
+	for func in dir(Protocol):
+		if func[:3] == 'in_' and func[3:] not in restricted_list:
+			print("unused function %s"%(func))
+
 	return True
 assert(check_protocol_commands())
 
