@@ -315,18 +315,15 @@ class UsersHandler:
 		self._root = root
 		metadata.create_all(engine)
 		self.sessionmaker = sessionmaker(bind=engine, autoflush=True)
+		self.session = self.sessionmaker()
 	
 	def clientFromID(self, db_id):
-		session = self.sessionmaker()
-		entry = session.query(User).filter(User.id==db_id).first()
-		session.close()
+		entry = self.session.query(User).filter(User.id==db_id).first()
 		if not entry: return None
 		return OfflineClient(entry)
 	
 	def clientFromUsername(self, username):
-		session = self.sessionmaker()
-		entry = session.query(User).filter(User.username==username).first()
-		session.close()
+		entry = self.session.query(User).filter(User.username==username).first()
 		if not entry: return None
 		return OfflineClient(entry)
 
@@ -412,14 +409,11 @@ class UsersHandler:
 
 	
 	def check_ban(self, user, ip, userid, now):
-		session = self.sessionmaker()
 		## FIXME: "Error reading from DB in in_LOGIN: <lambda>() takes exactly 2 arguments (3 given)"?
-		userban = session.query(BanUser).filter(BanUser.user_id == userid, now <= BanUser.end_time).first()
+		userban = self.session.query(BanUser).filter(BanUser.user_id == userid, now <= BanUser.end_time).first()
 
 		if (not userban):
-			ipban = session.query(BanIP).filter(BanIP.ip == ip, now <= BanIP.end_time).first()
-
-		session.close()
+			ipban = self.session.query(BanIP).filter(BanIP.ip == ip, now <= BanIP.end_time).first()
 
 		if userban: return True, userban
 		if ipban: return True, ipban
@@ -428,7 +422,6 @@ class UsersHandler:
 
 	def common_login_user(self, dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		if self._root.censor and not self._root.SayHooks._nasty_word_censor(username):
-			session.close()
 			return False, 'Name failed to pass profanity filter.'
 
 		now = datetime.now()
@@ -465,7 +458,6 @@ class UsersHandler:
 
 		dbuser.last_login = now # store current time to db but keep last_login in in user_copy
 		session.commit()
-		session.close()
 
 		return good, reason
 
@@ -473,29 +465,24 @@ class UsersHandler:
 		assert(type(username) == str)
 		assert(type(password) == str)
 
-		session = self.sessionmaker()
 		## should only ever be one user with each name so we can just grab the first one :)
 		## password here is unicode(BASE64(MD5(...))), matches the register_user DB encoding
-		dbuser = session.query(User).filter(User.username == username).first()
+		dbuser = self.session.query(User).filter(User.username == username).first()
 
 		if (not dbuser):
-			session.close()
 			return False, 'Invalid username or password'
 		if (not self.legacy_test_user_pwrd(dbuser, password)):
-			session.close()
 			return False, 'Invalid password'
 
-		return (self.common_login_user(dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
+		return (self.common_login_user(dbuser, self.session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
 
 	def secure_login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		assert(type(username) == str)
 		assert(type(password) == str)
 
-		session = self.sessionmaker()
-		db_user = session.query(User).filter(User.username == username).first()
+		db_user = self.session.query(User).filter(User.username == username).first()
 
 		if (not db_user):
-			session.close()
 			return False, 'Invalid username'
 
 		## check for the special case of a user first using secure login
@@ -505,26 +492,22 @@ class UsersHandler:
 		## new temporary random string, which is more secure but also more
 		## inconvenient (or require users to create new accounts)
 		if (db_user.has_legacy_password() and (not self.convert_legacy_user_pwrd(session, db_user, password))):
-			session.close()
 			return False, "Invalid password (conversion failed)."
 
 		## combine user-supplied password with DB salt
 		if (not self.secure_test_user_pwrd(db_user, password)):
-			session.close()
 			return False, 'Invalid password'
 
 		## closes session
-		return (self.common_login_user(db_user, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
+		return (self.common_login_user(db_user, self.session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
 
 
 	def end_session(self, db_id):
-		session = self.sessionmaker()
-		entry = session.query(User).filter(User.id==db_id).first()
+		entry = self.session.query(User).filter(User.id==db_id).first()
 		if entry and not entry.logins[-1].end:
 			entry.logins[-1].end = datetime.now()
 			entry.last_login = datetime.now() # in real its last online / last seen
-			session.commit()
-		session.close()
+			self.session.commit()
 
 
 
@@ -545,7 +528,7 @@ class UsersHandler:
 		if (not status):
 			return False, reason
 
-		dbuser = session.query(User).filter(User.username == username).first()
+		dbuser = self.session.query(User).filter(User.username == username).first()
 
 		if (dbuser):
 			return False, 'Username already exists.'
@@ -554,8 +537,7 @@ class UsersHandler:
 
 	# TODO: improve, e.g. also check if ip address is banned when registering account
 	def legacy_register_user(self, username, password, ip, country):
-		session = self.sessionmaker()
-		status, reason = self.common_register_user(session, username, password)
+		status, reason = self.common_register_user(self.session, username, password)
 
 		if (not status):
 			return False, reason
@@ -563,14 +545,12 @@ class UsersHandler:
 		## note: password here is BASE64(MD5(...)) and already in unicode
 		entry = User(username, password, "", ip)
 
-		session.add(entry)
-		session.commit()
-		session.close()
+		self.session.add(entry)
+		self.session.commit()
 		return True, 'Account registered successfully.'
 
 	def secure_register_user(self, username, password, ip, country):
-		session = self.sessionmaker()
-		status, reason = self.common_register_user(session, username, password)
+		status, reason = self.common_register_user(self.session, username, password)
 
 		if (not status):
 			return False, reason
@@ -582,88 +562,72 @@ class UsersHandler:
 
 		session.add(entry)
 		session.commit()
-		session.close()
 		return True, 'Account registered successfully.'
 
 
 	def ban_user(self, owner, username, duration, reason):
-		session = self.sessionmaker()
-		entry = session.query(User).filter(User.username==username).first()
+		entry = self.session.query(User).filter(User.username==username).first()
 		if not entry:
-			session.close()
 			return "Couldn't ban %s, user doesn't exist" % (username)
 		end_time = datetime.now() + timedelta(duration)
 		ban = BanUser(entry.id, owner.db_id, reason, end_time)
-		session.add(ban)
-		session.commit()
-		session.close()
+		self.session.add(ban)
+		self.session.commit()
 		return 'Successfully banned %s for %s days.' % (username, duration)
 	
 	def unban_user(self, username):
-		session = self.sessionmaker()
 		client = self.clientFromUsername(username)
 		if not client:
 			return "User %s doesn't exist" % username
-		results = session.query(BanUser).filter(BanUser.user_id==client.id)
+		results = self.session.query(BanUser).filter(BanUser.user_id==client.id)
 		if results:
 			for result in results:
 				session.delete(result)
 			session.commit()
-			session.close()
 			return 'Successfully unbanned %s.' % username
 		else:
-			session.close()
 			return 'No matching bans for %s.' % username
 
 	def ban_ip(self, owner, ip, duration, reason):
 		# TODO: add owner field to the database for bans
-		session = self.sessionmaker()
 		end_time = datetime.now() + timedelta(duration)
 		ban = BanIP(ip, owner.db_id, reason, end_time)
-		session.add(ban)
-		session.commit()
-		session.close()
+		self.session.add(ban)
+		self.session.commit()
 		return 'Successfully banned %s for %s days.' % (ip, duration)
 
 	def unban_ip(self, ip):
-		session = self.sessionmaker()
-		results = session.query(BanIP).filter(BanIP.ip==ip)
+		results = self.session.query(BanIP).filter(BanIP.ip==ip)
 		if results:
 			for result in results:
 				session.delete(result)
 			session.commit()
-			session.close()
 			return 'Successfully unbanned %s.' % ip
 		else:
-			session.close()
 			return 'No matching bans for %s.' % ip
 	
 	def banlist(self):
-		session = self.sessionmaker()
 		banlist = []
-		for ban in session.query(BanIP):
+		for ban in self.session.query(BanIP):
 			banlist.append('ip: %s end: %s reason: %s' % (ban.ip, ban.end_time, ban.reason))
-		for ban in session.query(BanUser):
+		for ban in self.session.query(BanUser):
 			banlist.append('userid: %s end: %s reason: %s' % (ban.user_id, ban.end_time, ban.reason))
-		session.close()
 		return banlist
 
 	def rename_user(self, user, newname):
 		if len(newname)>20: return False, 'Username too long'
-		session = self.sessionmaker()
 		if self._root.censor:
 			if not self._root.SayHooks._nasty_word_censor(user):
 				return False, 'New username failed to pass profanity filter.'
 		if not newname == user:
-			results = session.query(User).filter(User.username==newname).first()
+			results = self.session.query(User).filter(User.username==newname).first()
 			if results:
 				return False, 'Username already exists.'
-		entry = session.query(User).filter(User.username==user).first()
+		entry = self.session.query(User).filter(User.username==user).first()
 		if not entry: return False, 'You don\'t seem to exist anymore. Contact an admin or moderator.'
 		entry.renames.append(Rename(user, newname))
 		entry.username = newname
-		session.commit()
-		session.close()
+		self.session.commit()
 		# need to iterate through channels and rename junk there...
 		# it might actually be a lot easier to use userids in the server... # later.
 		return True, 'Account renamed successfully.'
@@ -671,8 +635,7 @@ class UsersHandler:
 	def save_user(self, obj):
 		## assert(isinstance(obj, User) or isinstance(obj, Client))
 
-		session = self.sessionmaker()
-		entry = session.query(User).filter(User.username==obj.username).first()
+		entry = self.session.query(User).filter(User.username==obj.username).first()
 
 		if (entry != None):
 			## caller might have changed these!
@@ -684,213 +647,161 @@ class UsersHandler:
 			entry.last_id = obj.last_id
 			entry.email = obj.email
 
-		session.commit()
-		session.close()
+		self.session.commit()
 	
 	def confirm_agreement(self, client):
-		session = self.sessionmaker()
-		entry = session.query(User).filter(User.username==client.username).first()
+		entry = self.session.query(User).filter(User.username==client.username).first()
 		if entry: entry.access = 'user'
-		session.commit()
-		session.close()
+		self.session.commit()
 	
 	def get_lastlogin(self, username):
-		session = self.sessionmaker()
-		entry = session.query(User).filter(User.username==username).first()
-		session.close()
+		entry = self.session.query(User).filter(User.username==username).first()
 		if entry: return True, entry.last_login
 		else: return False, 'User not found.'
 	
 	def get_registration_date(self, username):
-		session = self.sessionmaker()
-		entry = session.query(User).filter(User.username==username).first()
-		session.close()
+		entry = self.session.query(User).filter(User.username==username).first()
 		if entry and entry.register_date: return True, entry.register_date
 		else: return False, 'user or date not found in database'
 	
 	def get_ingame_time(self, username):
-		session = self.sessionmaker()
-		entry = session.query(User).filter(User.username==username).first()
-		session.close()
+		entry = self.session.query(User).filter(User.username==username).first()
 		if entry: return True, entry.ingame_time
 		else: return False, 'user not found in database'
 	
 	def get_account_access(self, username):
-		session = self.sessionmaker()
-		entry = session.query(User).filter(User.username==username).first()
-		session.close()
+		entry = selfsession.query(User).filter(User.username==username).first()
 		if entry:
 			return True, entry.access
 		else: return False, 'user not found in database'
 	
 	def find_ip(self, ip):
-		session = self.sessionmaker()
-		results = session.query(User).filter(User.last_ip==ip)
-		session.close()
+		results = self.session.query(User).filter(User.last_ip==ip)
 		return results
 		
 	def get_ip(self, username):
-		session = self.sessionmaker()
-		entry = session.query(User).filter(User.username==username).first()
-		session.close()
+		entry = self.session.query(User).filter(User.username==username).first()
 		if not entry:
 			return None
 		return entry.last_ip
 
 	def remove_user(self, user):
-		session = self.sessionmaker()
-		entry = session.query(User).filter(User.username==user).first()
+		entry = self.session.query(User).filter(User.username==user).first()
 		if not entry:
 			return False, 'User not found.'
-		session.delete(entry)
-		session.commit()
-		session.close()
+		self.session.delete(entry)
+		self.session.commit()
 		return True, 'Success.'
 
 	def clean_users(self):
 		''' delete old user accounts (very likely unused) '''
-		session = self.sessionmaker()
 		now = datetime.now()
 		#delete users:
 		# which didn't accept aggreement after one day
-		session.query(User).filter(User.register_date < now - timedelta(days=1)).filter(User.access == "agreement").delete(synchronize_session=False)
+		self.session.query(User).filter(User.register_date < now - timedelta(days=1)).filter(User.access == "agreement").delete(synchronize_session=False)
 
 		# which have no ingame time, last login > 30 days and no bot
-		session.query(User).filter(User.ingame_time == 0).filter(User.last_login < now - timedelta(days=30)).filter(User.bot == 0).filter(User.access == "user").delete(synchronize_session=False)
+		self.session.query(User).filter(User.ingame_time == 0).filter(User.last_login < now - timedelta(days=30)).filter(User.bot == 0).filter(User.access == "user").delete(synchronize_session=False)
 
 		# last login > 3 years
-		session.query(User).filter(User.last_login < now - timedelta(days=1095)).delete(synchronize_session=False)
+		self.session.query(User).filter(User.last_login < now - timedelta(days=1095)).delete(synchronize_session=False)
 
 		# old messages > 2 weeks
-		session.query(ChannelHistory).filter(ChannelHistory.time < now - timedelta(days=14)).delete(synchronize_session=False)
+		self.session.query(ChannelHistory).filter(ChannelHistory.time < now - timedelta(days=14)).delete(synchronize_session=False)
 
 		session.commit()
-		session.close()
 
 	def ignore_user(self, user_id, ignore_user_id, reason=None):
-		session = self.sessionmaker()
 		entry = Ignore(user_id, ignore_user_id, reason)
-		session.add(entry)
-		session.commit()
-		session.close()
+		self.session.add(entry)
+		self.session.commit()
 
 	def unignore_user(self, user_id, unignore_user_id):
-		session = self.sessionmaker()
-		entry = session.query(Ignore).filter(Ignore.user_id == user_id).filter(Ignore.ignored_user_id == unignore_user_id).one()
-		session.delete(entry)
-		session.commit()
-		session.close()
+		entry = self.session.query(Ignore).filter(Ignore.user_id == user_id).filter(Ignore.ignored_user_id == unignore_user_id).one()
+		self.session.delete(entry)
+		self.session.commit()
 
 	# returns id-s of users who had their ignore removed
 	def globally_unignore_user(self, unignore_user_id):
-		session = self.sessionmaker()
-		q = session.query(Ignore).filter(Ignore.ignored_user_id == unignore_user_id)
+		q = self.session.query(Ignore).filter(Ignore.ignored_user_id == unignore_user_id)
 		userids = [ignore.user_id for ignore in q.all()]
 		# could be done in one query + hook, fix if bored
-		session.query(Ignore).filter(Ignore.ignored_user_id == unignore_user_id).delete()
-		session.commit()
-		session.close()
+		self.session.query(Ignore).filter(Ignore.ignored_user_id == unignore_user_id).delete()
+		self.session.commit()
 		return userids
 
 	def is_ignored(self, user_id, ignore_user_id):
-		session = self.sessionmaker()
-		exists = session.query(Ignore).filter(Ignore.user_id == user_id).filter(Ignore.ignored_user_id == ignore_user_id).count() > 0
-		session.close()
+		exists = self.session.query(Ignore).filter(Ignore.user_id == user_id).filter(Ignore.ignored_user_id == ignore_user_id).count() > 0
 		return exists
 
 	def get_ignore_list(self, user_id):
-		session = self.sessionmaker()
-		users = session.query(Ignore).filter(Ignore.user_id == user_id).all()
+		users = self.session.query(Ignore).filter(Ignore.user_id == user_id).all()
 		users = [(user.ignored_user_id, user.reason) for user in users]
-		session.close()
 		return users
 
 	def get_ignored_user_ids(self, user_id):
-		session = self.sessionmaker()
-		user_ids = session.query(Ignore.ignored_user_id).filter(Ignore.user_id == user_id).all()
+		user_ids = self.session.query(Ignore.ignored_user_id).filter(Ignore.user_id == user_id).all()
 		user_ids = [user_id for user_id, in user_ids]
-		session.close()
 		return user_ids
 
 	def friend_users(self, user_id, friend_user_id):
-		session = self.sessionmaker()
 		entry = Friend(user_id, friend_user_id)
-		session.add(entry)
-		session.commit()
-		session.close()
+		self.session.add(entry)
+		self.session.commit()
 
 	def unfriend_users(self, first_user_id, second_user_id):
-		session = self.sessionmaker()
-		session.query(Friend).filter(Friend.first_user_id == first_user_id).filter(Friend.second_user_id == second_user_id).delete()
-		session.query(Friend).filter(Friend.second_user_id == first_user_id).filter(Friend.first_user_id == second_user_id).delete()
-		session.commit()
-		session.close()
+		self.session.query(Friend).filter(Friend.first_user_id == first_user_id).filter(Friend.second_user_id == second_user_id).delete()
+		self.session.query(Friend).filter(Friend.second_user_id == first_user_id).filter(Friend.first_user_id == second_user_id).delete()
+		self.session.commit()
 
 	def are_friends(self, first_user_id, second_user_id):
-		session = self.sessionmaker()
-		q1 = session.query(Friend).filter(Friend.first_user_id == first_user_id)
-		q2 = session.query(Friend).filter(Friend.second_user_id == second_user_id)
+		q1 = self.session.query(Friend).filter(Friend.first_user_id == first_user_id)
+		q2 = self.session.query(Friend).filter(Friend.second_user_id == second_user_id)
 		exists = q1.union(q2).count() > 0
-		session.close()
 		return exists
 
 	def get_friend_user_ids(self, user_id):
-		session = self.sessionmaker()
-		q1 = session.query(Friend.second_user_id).filter(Friend.first_user_id == user_id)
-		q2 = session.query(Friend.first_user_id).filter(Friend.second_user_id == user_id)
+		q1 = self.session.query(Friend.second_user_id).filter(Friend.first_user_id == user_id)
+		q2 = self.session.query(Friend.first_user_id).filter(Friend.second_user_id == user_id)
 		user_ids = q1.union(q2).all()
 		user_ids = [user_id for user_id, in user_ids]
-		session.close()
 		return user_ids
 
 	def has_friend_request(self, user_id, friend_user_id):
-		session = self.sessionmaker()
-		request = session.query(FriendRequest).filter(FriendRequest.user_id == user_id).filter(FriendRequest.friend_user_id == friend_user_id)
+		request = self.session.query(FriendRequest).filter(FriendRequest.user_id == user_id).filter(FriendRequest.friend_user_id == friend_user_id)
 		exists = request.count() > 0
-		session.close()
 		return exists
 
 	def add_friend_request(self, user_id, friend_user_id, msg=None):
-		session = self.sessionmaker()
 		entry = FriendRequest(user_id, friend_user_id, msg)
-		session.add(entry)
-		session.commit()
-		session.close()
+		self.session.add(entry)
+		self.session.commit()
 
 	def remove_friend_request(self, user_id, friend_user_id):
-		session = self.sessionmaker()
-		session.query(FriendRequest).filter(FriendRequest.user_id == user_id).filter(FriendRequest.friend_user_id == friend_user_id).delete()
-		session.commit()
-		session.close()
+		self.session.query(FriendRequest).filter(FriendRequest.user_id == user_id).filter(FriendRequest.friend_user_id == friend_user_id).delete()
+		self.session.commit()
 
 	# this returns all friend requests sent _to_ user_id
 	def get_friend_request_list(self, user_id):
-		session = self.sessionmaker()
-		reqs = session.query(FriendRequest).filter(FriendRequest.friend_user_id == user_id).all()
+		reqs = self.session.query(FriendRequest).filter(FriendRequest.friend_user_id == user_id).all()
 		users = [(req.user_id, req.msg) for req in reqs]
-		session.close()
 		return users
 
 	def add_channel_message(self, channel_id, user_id, msg, date = None):
 		if date is None:
 			date = datetime.now()
-		session = self.sessionmaker()
 		entry = ChannelHistory(channel_id, user_id, msg, date)
-		session.add(entry)
-		session.commit()
-		session.close()
+		self.session.add(entry)
+		self.session.commit()
 
 	#returns a list of channel messages since starttime for the specific userid when he is subscribed to the channel
 	# [[date, user, msg], [date, user, msg], ...]
 	def get_channel_messages(self, user_id, channel_id, starttime):
-		session = self.sessionmaker()
-		entry = session.query(ChannelHistorySubscription).filter(ChannelHistorySubscription.channel_id == channel_id).filter(ChannelHistorySubscription.user_id == user_id).first()
+		entry = self.session.query(ChannelHistorySubscription).filter(ChannelHistorySubscription.channel_id == channel_id).filter(ChannelHistorySubscription.user_id == user_id).first()
 		if not entry:
-			session.close()
 			return []
-		reqs = session.query(ChannelHistory, User).filter(ChannelHistory.channel_id == channel_id).filter(ChannelHistory.time >= starttime).filter(ChannelHistory.user_id == User.id).all()
+		reqs = self.session.query(ChannelHistory, User).filter(ChannelHistory.channel_id == channel_id).filter(ChannelHistory.time >= starttime).filter(ChannelHistory.user_id == User.id).all()
 		msgs = [(history.time, user.username, history.msg) for history, user in reqs ]
-		session.close()
 		if len(msgs)>0:
 			assert(type(msgs[0][2]) == str)
 		return msgs
@@ -899,13 +810,10 @@ class UsersHandler:
 		assert(channel_id > 0)
 		assert(user_id > 0)
 		try:
-			session = self.sessionmaker()
 			entry = ChannelHistorySubscription(channel_id, user_id)
-			session.add(entry)
-			session.commit()
-			session.close()
+			self.session.add(entry)
+			self.session.commit()
 		except IntegrityError:
-			session.close()
 			return False, "Already subscribed"
 		except Exception as e:
 			return False, str(e)
@@ -913,19 +821,15 @@ class UsersHandler:
 
 	def remove_channelhistory_subscription(self, channel_id, user_id):
 		try:
-			session = self.sessionmaker()
-			session.query(ChannelHistorySubscription).filter(ChannelHistorySubscription.channel_id == channel_id).filter(ChannelHistorySubscription.user_id == user_id).delete()
-			session.commit()
-			session.close()
+			self.session.query(ChannelHistorySubscription).filter(ChannelHistorySubscription.channel_id == channel_id).filter(ChannelHistorySubscription.user_id == user_id).delete()
+			self.session.commit()
 		except Exception as e:
 			return False, str(e)
 		return True, ""
 
 	def get_channel_subscriptions(self, user_id):
-		session = self.sessionmaker()
-		reqs = session.query(ChannelHistorySubscription, Channel).filter(ChannelHistorySubscription.user_id == user_id).filter(ChannelHistorySubscription.channel_id == Channel.id) .all()
+		reqs = self.session.query(ChannelHistorySubscription, Channel).filter(ChannelHistorySubscription.user_id == user_id).filter(ChannelHistorySubscription.channel_id == Channel.id) .all()
 		channels = [(channel.name) for sub, channel in reqs]
-		session.close()
 		return channels
 
 class ChannelsHandler:
@@ -933,16 +837,14 @@ class ChannelsHandler:
 		self._root = root
 		metadata.create_all(engine)
 		self.sessionmaker = sessionmaker(bind=engine, autoflush=True)
+		self.session = self.sessionmaker()
 
 	def load_channel(self, name):
-		session = self.sessionmaker()
-		entry = session.query(Channel).filter(Channel.name == name).first()
-		session.close()
+		entry = self.session.query(Channel).filter(Channel.name == name).first()
 		return entry
 
 	def load_channels(self):
-		session = self.sessionmaker()
-		response = session.query(Channel)
+		response = self.session.query(Channel)
 		channels = {}
 		for chan in response:
 			channels[chan.name] = {
@@ -955,38 +857,30 @@ class ChannelsHandler:
 					'chanserv': True,
 					'store_history': chan.store_history,
 				}
-		session.close()
 		return channels
 
 	def setTopic(self, user, chan, topic):
-		session = self.sessionmaker()
-		entry = session.query(Channel).filter(Channel.name == chan.name).first()
+		entry = self.session.query(Channel).filter(Channel.name == chan.name).first()
 		if entry:
 			entry.topic = topic
 			entry.topic_time = datetime.now()
 			entry.topic_owner = user
-			session.commit()
-		session.close()
+			self.session.commit()
 
 	def setKey(self, chan, key):
-		session = self.sessionmaker()
-		entry = session.query(Channel).filter(Channel.name == chan.name).first()
+		entry = self.session.query(Channel).filter(Channel.name == chan.name).first()
 		if entry:
 			entry.key = key
-			session.commit()
-		session.close()
+			self.session.commit()
 
 	def setHistory(self, chan):
-		session = self.sessionmaker()
-		entry = session.query(Channel).filter(Channel.name == chan.name).first()
+		entry = self.session.query(Channel).filter(Channel.name == chan.name).first()
 		if entry:
 			entry.store_history = chan.store_history
-			session.commit()
-		session.close()
+			self.session.commit()
 
 	def register(self, channel, target):
-		session = self.sessionmaker()
-		entry = session.query(Channel).filter(Channel.name == channel.name).first()
+		entry = self.session.query(Channel).filter(Channel.name == channel.name).first()
 		if not entry:
 			entry = Channel(channel.name)
 			if channel.topic:
@@ -996,17 +890,14 @@ class ChannelsHandler:
 			else:
 				entry.topic_time = datetime.now()
 			entry.owner = target.username
-			session.add(entry)
-			session.commit()
-			entry = session.query(Channel).filter(Channel.name == channel.name).first() # set db id to runtime object
+			self.session.add(entry)
+			self.session.commit()
+			entry = self.session.query(Channel).filter(Channel.name == channel.name).first() # set db id to runtime object
 			channel.id = entry.id
-		session.close()
 
 	def unRegister(self, client, channel):
-		session = self.sessionmaker()
-		entry = session.query(Channel).filter(Channel.name == channel.name).delete()
-		session.commit()
-		session.close()
+		entry = self.session.query(Channel).filter(Channel.name == channel.name).delete()
+		self.session.commit()
 
 if __name__ == '__main__':
 	class root():
