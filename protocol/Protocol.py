@@ -559,17 +559,19 @@ class Protocol:
 		battle = self._root.battles[battle_id]
 		if not client.session_id == battle.host:
 			return False
-		return True
+		return battle
 
 	def _canForceBattleUser(self, client, username):
-		if not self._canForceBattle(client):
+		'returns the user when client is allowed to force a command on it, false if not'
+		battle = self._canForceBattle(client)
+		if not battle:
 			return False
 		user=self.clientFromUsername(username)
 		if not user:
 			return False
 		if not user.session_id in battle.users:
 			return False
-		return True
+		return user
 
 
 	def _informErrors(self, client):
@@ -1809,7 +1811,8 @@ class Protocol:
 		@required.str scriptTags: A tab-separated list of key=value pairs.
 		'''
 
-		if not self._canForceBattle(client):
+		battle = self._canForceBattle(client)
+		if not battle:
 			self.out_FAILED(client, "SETSCRIPTTAGS", "You are not allowed to change settings as client in a game!", True)
 			return
 
@@ -1819,7 +1822,7 @@ class Protocol:
 			scripttags.append('%s=%s'%(tag.lower(), setscripttags[tag]))
 		if not scripttags:
 			return
-		self._root.battles[client.current_battle].script_tags.update(setscripttags)
+		battle.script_tags.update(setscripttags)
 		self._root.broadcast_battle('SETSCRIPTTAGS %s'%'\t'.join(scripttags), client.current_battle)
 
 	def in_REMOVESCRIPTTAGS(self, client, tags):
@@ -1828,10 +1831,10 @@ class Protocol:
 
 		@required.str tags: A space-separated list of tags.
 		'''
-		if not self._canForceBattle(client):
+		battle = self._canForceBattle(client)
+		if not battle:
 			return
 
-		battle = self._root.battles[client.current_battle]
 		rem = set()
 		for tag in set(tags.split(' ')):
 			try:
@@ -2111,9 +2114,9 @@ class Protocol:
 		@required.float right: The right side of the rectangle.
 		@required.float bottom: The bottom side of the rectangle.
 		'''
-		if not self._canForceBattle(client):
+		battle = self._canForceBattle(client)
+		if not battle:
 			return
-		battle = self._root.battles[client.current_battle]
 		try:
 			allyno = int32(allyno)
 			rect = {
@@ -2135,10 +2138,10 @@ class Protocol:
 
 		@required.int allyno: The ally number for the rectangle.
 		'''
-		if not self._canForceBattle(client):
+		battle = self._canForceBattle(client)
+		if not battle:
 			return
 		allyno = int32(allyno)
-		battle = self._root.battles[client.current_battle]
 		try:
 			del battle.startrects[allyno]
 		except:
@@ -2153,11 +2156,11 @@ class Protocol:
 
 		@required.str units: A string-separated list of unit names to disable.
 		'''
-		if not self._canForceBattle(client):
+		battle = self._canForceBattle(client)
+		if not battle:
 			return
 		units = units.split(' ')
 		disabled_units = []
-		battle = self._root.battles[client.current_battle]
 		for unit in units:
 			if not unit in battle.disabled_units:
 				battle.disabled_units.append(unit)
@@ -2173,11 +2176,11 @@ class Protocol:
 
 		@required.str units: A string-separated list of unit names to enable.
 		'''
-		if not self._canForceBattle(client):
+		battle = self._canForceBattle(client)
+		if not battle:
 			return
 		units = units.split(' ')
 		enabled_units = []
-		battle = self._root.battles[client.current_battle]
 		for unit in units:
 			if unit in battle.disabled_units:
 				battle.disabled_units.remove(unit)
@@ -2191,9 +2194,9 @@ class Protocol:
 		Enable all units.
 		[host]
 		'''
-		if not self._canForceBattle(client):
+		battle = self._canForceBattle(client)
+		if not battle:
 			return
-		battle = self._root.battles[client.current_battle]
 		battle.disabled_units = []
 		self._root.broadcast_battle('ENABLEALLUNITS', client.current_battle, client.username)
 
