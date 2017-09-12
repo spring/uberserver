@@ -326,23 +326,24 @@ class Protocol:
 		return b
 
 	def _udp_packet(self, username, ip, udpport):
-		if username in self._root.usernames:
-			client = self._root.usernames[username]
-			if ip == client.local_ip or ip == client.ip_address:
-				client.Send('UDPSOURCEPORT %i'%udpport)
-				battle_id = client.current_battle
-				if not battle_id in self._root.battles: return
-				battle = self._root.battles[battle_id]
-				if battle:
-					client.udpport = udpport
-					client.hostport = udpport
-					host = battle.host
-					if not host == client.session_id:
-						self._root.usernames[host].SendBattle(battle, 'CLIENTIPPORT %s %s %s'%(username, ip, udpport))
-				else:
-					client.udpport = udpport
+		client = self.clientFromUsername(username)
+		if not client:
+			return
+		if ip == client.local_ip or ip == client.ip_address:
+			client.Send('UDPSOURCEPORT %i'%udpport)
+			battle_id = client.current_battle
+			if not battle_id in self._root.battles: return
+			battle = self._root.battles[battle_id]
+			if battle:
+				client.udpport = udpport
+				client.hostport = udpport
+				host = battle.host
+				if not host == client.session_id:
+					self._root.usernames[host].SendBattle(battle, 'CLIENTIPPORT %s %s %s'%(username, ip, udpport))
 			else:
-				self._root.admin_broadcast('NAT spoof from %s pretending to be <%s>'%(ip,username))
+				client.udpport = udpport
+		else:
+			self._root.admin_broadcast('NAT spoof from %s pretending to be <%s>'%(ip,username))
 
 	def _calc_access_status(self, client):
 		self._calc_access(client)
@@ -642,7 +643,7 @@ class Protocol:
 	def client_AddBattle(self, client, battle):
 		'sends the protocol for adding a battle'
 
-		host = self._root.clients[battle.host]
+		host = self.clientFromSession(battle.host)
 		if host.ip_address == client.ip_address: # translates the ip to always be compatible with the client
 			translated_ip = host.local_ip
 		else:
