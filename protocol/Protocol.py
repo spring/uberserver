@@ -1740,6 +1740,7 @@ class Protocol:
 		user = self.clientFromUsername(username)
 		if not user:
 			return
+		battle_id = client.current_battle
 		battle = self._root.battles[battle_id]
 		if not client.username == battle.host: return
 		if user.session_id in battle.pending_users:
@@ -1881,7 +1882,7 @@ class Protocol:
 
 		battle.spectators = specs
 		if oldspecs != specs:
-			self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' % battle.id, battle.spectators, battle.locked, battle.maphash, battle.map)
+			self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' % (battle.id, battle.spectators, battle.locked, battle.maphash, battle.map))
 
 	def in_MYBATTLESTATUS(self, client, _battlestatus, _myteamcolor):
 		'''
