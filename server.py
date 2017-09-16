@@ -67,7 +67,7 @@ except KeyboardInterrupt:
 	logging.info()
 	logging.info('Server killed by keyboard interrupt.')
 except:
-	_root.error(traceback.format_exc())
+	logging.error(traceback.format_exc())
 	logging.info('Deep error, exiting...')
 
 _root.shutdown()
