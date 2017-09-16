@@ -582,8 +582,8 @@ class UsersHandler:
 		results = self.session.query(BanUser).filter(BanUser.user_id==client.id)
 		if results:
 			for result in results:
-				session.delete(result)
-			session.commit()
+				self.session.delete(result)
+			self.session.commit()
 			return 'Successfully unbanned %s.' % username
 		else:
 			return 'No matching bans for %s.' % username
@@ -600,8 +600,8 @@ class UsersHandler:
 		results = self.session.query(BanIP).filter(BanIP.ip==ip)
 		if results:
 			for result in results:
-				session.delete(result)
-			session.commit()
+				self.session.delete(result)
+			self.session.commit()
 			return 'Successfully unbanned %s.' % ip
 		else:
 			return 'No matching bans for %s.' % ip
