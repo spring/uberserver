@@ -1671,7 +1671,7 @@ class Protocol:
 		client.Send('SETSCRIPTTAGS %s'%'\t'.join(scripttags))
 		if battle.disabled_units:
 			client.Send('DISABLEUNITS %s' % ' '.join(battle.disabled_units))
-		self._root.broadcast('JOINEDBATTLE %s %s' % (battle.id, client.username), ignore=(battle.host, client.username))
+		self._root.broadcast('JOINEDBATTLE %s %s' % (battle.id, client.username), ignore=set([battle.host, client.session_id]))
 
 		scriptPassword = client.scriptPassword
 		host = self.clientFromSession(battle.host)
@@ -2193,7 +2193,7 @@ class Protocol:
 		if not battle:
 			return
 		battle.disabled_units = []
-		self._root.broadcast_battle('ENABLEALLUNITS', client.current_battle, client.username)
+		self._root.broadcast_battle('ENABLEALLUNITS', client.current_battle)
 
 	def in_HANDICAP(self, client, username, value):
 		'''
@@ -2980,7 +2980,7 @@ class Protocol:
 		'''
 		client.Send('FAILED ' + self._dictToTags({'msg':message, 'cmd':cmd}))
 		if log:
-			logging.warn('[%s] <%s>: %s %s' % (client.session_id, client.username, cmd, message))
+			logging.warning('[%s] <%s>: %s %s' % (client.session_id, client.username, cmd, message))
 
 	def out_OK(self, client, cmd):
 		client.Send('OK ' + self._dictToTags({'cmd': cmd}))

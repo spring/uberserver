@@ -334,39 +334,48 @@ class DataHandler:
 			logging.error(traceback.format_exc())
 
 	# the sourceClient is only sent for SAY*, and RING commands
-	def multicast(self, clients, msg, ignore=(), sourceClient=None):
-		if type(ignore) == str: ignore = [ignore]
+	def multicast(self, session_ids, msg, ignore=(), sourceClient=None):
+		assert(type(ignore) == set)
 		static = []
-		for client in clients:
-			if client and not client.username in ignore and \
-			    (sourceClient == None or not sourceClient.db_id in client.ignored):
-				if client.static: static.append(client)
-				else: client.Send(msg)
+		for session_id in session_ids:
+			assert(type(session_id) == int)
+			client = self.clientFromSession(session_id)
+
+			if client.session_id in ignore:
+				continue
+
+			if sourceClient and sourceClient.db_id in client.ignored:
+				continue
+
+			if client.static:
+				static.append(client)
+			else:
+				client.Send(msg)
 		
 		# this is so static clients don't respond before other people even receive the message
 		for client in static:
 			client.Send(msg)
 	
 	# the sourceClient is only sent for SAY*, and RING commands
-	def broadcast(self, msg, chan=None, ignore=(), sourceClient=None):
+	def broadcast(self, msg, chan=None, ignore=set(), sourceClient=None):
+		assert(type(ignore) == set)
 		try:
-			if chan in self.channels:
-				channel = self.channels[chan]
-				if len(channel.users) > 0:
-					clients = [self.clientFromSession(user) for user in channel.users]
-					self.multicast(clients, msg, ignore, sourceClient)
-			else:
-				clients = [self.clientFromUsername(user) for user in self.usernames]
-				self.multicast(clients, msg, ignore, sourceClient)
+			if not chan in self.channels:
+				self.multicast(self.clients, msg, ignore, sourceClient)
+				return
+			channel = self.channels[chan]
+			self.multicast(channel.users, msg, ignore, sourceClient)
 		except:
 			logging.error(traceback.format_exc())
 
 	# the sourceClient is only sent for SAY*, and RING commands
-	def broadcast_battle(self, msg, battle_id, ignore=[], sourceClient=None):
-		if battle_id in self.battles:
-			battle = self.battles[battle_id]
-			clients = [self.clientFromSession(user) for user in battle.users]
-			self.multicast(clients, msg, ignore, sourceClient)
+	def broadcast_battle(self, msg, battle_id, ignore=set(), sourceClient=None):
+		assert(type(ignore) == set)
+		assert(type(battle_id) == int)
+		if not battle_id in self.battles:
+			return
+		battle = self.battles[battle_id]
+		self.multicast(battle.users, msg, ignore, sourceClient)
 
 	def admin_broadcast(self, msg):
 		for user in self.usernames:
