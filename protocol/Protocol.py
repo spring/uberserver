@@ -1915,6 +1915,11 @@ class Protocol:
 		if not battle_id:
 			self.out_FAILED(client, "MYBATTLESTATUS", "not inside a battle", True)
 			return
+
+		if not battle_id in self._root.battles:
+			self.out_FAILED(client, "MYBATTLESTATUS", "battle %s doesn't exist" %(str(battle_id)), True)
+			return
+
 		battle = self._root.battles[battle_id]
 		spectating = (client.battlestatus['mode'] == '0')
 
