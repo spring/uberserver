@@ -1025,7 +1025,7 @@ class Protocol:
 				if channel.isMuted(client):
 					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 				else:
-					self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, [], client)
+					self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, set([]), client)
 
 
 	def in_SAYPRIVATE(self, client, user, msg):
@@ -2124,7 +2124,7 @@ class Protocol:
 			self.out_SERVERMSG(client, "invalid ADDSTARTRECT received")
 			return
 		battle.startrects[allyno] = rect
-		self._root.broadcast_battle('ADDSTARTRECT %s' % (allyno)+' %(left)s %(top)s %(right)s %(bottom)s' %(rect), client.current_battle, [client.username])
+		self._root.broadcast_battle('ADDSTARTRECT %s' % (allyno)+' %(left)s %(top)s %(right)s %(bottom)s' %(rect), client.current_battle)
 
 	def in_REMOVESTARTRECT(self, client, allyno):
 		'''
@@ -2142,7 +2142,7 @@ class Protocol:
 		except:
 			self.out_SERVERMSG(client, 'invalid rect removed: %d' % (allyno), True)
 			return
-		self._root.broadcast_battle('REMOVESTARTRECT %s' % allyno, client.current_battle, [client.username])
+		self._root.broadcast_battle('REMOVESTARTRECT %s' % allyno, client.current_battle)
 
 	def in_DISABLEUNITS(self, client, units):
 		'''
@@ -2162,7 +2162,7 @@ class Protocol:
 				disabled_units.append(unit)
 		if disabled_units:
 			disabled_units = ' '.join(disabled_units)
-			self._root.broadcast_battle('DISABLEUNITS %s'%disabled_units, client.current_battle, client.username)
+			self._root.broadcast_battle('DISABLEUNITS %s'%disabled_units, client.current_battle)
 
 	def in_ENABLEUNITS(self, client, units):
 		'''
