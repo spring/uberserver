@@ -492,7 +492,10 @@ class Protocol:
 		## must be checked here too (not just in _validPasswordSyntax)
 		## because both CHANGEACCOUNTPASS and TESTLOGIN might call us
 		assert(type(password) == str)
-		md5hash = base64.b64decode(password)
+		try:
+			md5hash = base64.b64decode(password)
+		except Exception as e:
+			return False, "Invalid base64-encoding: %s" %(str(e))
 		if (md5hash == password):
 			return False, "Invalid base64-encoding."
 		if (len(md5hash) != 16):
