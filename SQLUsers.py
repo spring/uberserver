@@ -610,8 +610,8 @@ class UsersHandler:
 		banlist = []
 		for ban in self.session.query(BanIP):
 			banlist.append('ip: %s end: %s reason: %s' % (ban.ip, ban.end_time, ban.reason))
-		for ban in self.session.query(BanUser):
-			banlist.append('userid: %s end: %s reason: %s' % (ban.user_id, ban.end_time, ban.reason))
+		for ban in self.session.query(BanUser, User.id, BanUser.end_time, BanUser.reason, User.username).join(User,BanUser.user_id == User.id ):
+			banlist.append('userid: %d username:%s end: %s reason: %s' % (ban.id, ban.username, ban.end_time, ban.reason))
 		return banlist
 
 	def rename_user(self, user, newname):
