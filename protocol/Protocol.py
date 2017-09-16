@@ -2782,6 +2782,7 @@ class Protocol:
 			self._calc_access_status(user)
 			self._root.broadcast('CLIENTSTATUS %s %d' % (username, user.status))
 		self.userdb.save_user(user)
+		self.out_OK(client, "SETACCESS")
 		# remove the new mod/admin from everyones ignore list and notify affected users
 		if access in ('mod', 'admin'):
 			userIds = self.userdb.globally_unignore_user(user.db_id)
