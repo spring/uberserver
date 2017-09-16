@@ -1374,7 +1374,8 @@ class Protocol:
 		else:
 			channel = self._root.channels[chan]
 		if client.session_id in channel.users:
-			self.out_FAILED(client, "JOIN", 'Already in channel %s' %(chan), True)
+			# https://github.com/springlobby/springlobby/issues/782
+			#self.out_FAILED(client, "JOIN", 'Already in channel %s' %(chan), True)
 			return
 		if not channel.isFounder(client):
 			if channel.key and not channel.key in (key, None, '*', ''):
