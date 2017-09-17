@@ -12,6 +12,7 @@ import os.path
 import logging
 import socket
 import traceback
+import dbconfig
 from logging.handlers import TimedRotatingFileHandler
 
 from SQLUsers import User, Rename, Login
@@ -32,7 +33,7 @@ fh.setFormatter(formatter)
 fh.setLevel(logging.DEBUG)
 logger.addHandler(fh)
 
-sqlurl = 'sqlite:///server.db'
+sqlurl = dbconfig.sqlurl
 xmlhost = "localhost"
 xmlport = 8300
 
@@ -63,7 +64,7 @@ def validateLogin(username, password):
 		session.close()
 		logger.warning("User not found: %s" %(username))
 		return {"status": 1}
-	if not db_user.password == unicode(b64encode(LEGACY_HASH_FUNC(password).digest())):
+	if not db_user.password == b64encode(LEGACY_HASH_FUNC(password).digest()):
 		session.close()
 		logger.error("Invalid password: %s" %(username))
 		return {"status": 1}

@@ -21,3 +21,4 @@ xmlrpc.log
 /uberserver.pid
 /args.txt
 /proxies.txt
+/dbconfig.py
