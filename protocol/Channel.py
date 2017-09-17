@@ -20,8 +20,8 @@ class Channel():
 		self.key = None
 		self.store_history = False
 
-	def broadcast(self, message):
-		self._root.broadcast(message, self.name)
+	def broadcast(self, message, ignore=set([])):
+		self._root.broadcast(message, self.name, ignore)
 
 	def channelMessage(self, message):
 		self.broadcast('CHANNELMESSAGE %s %s' % (self.name, message))
@@ -33,7 +33,7 @@ class Channel():
 		if client.session_id in self.users:
 			return
 		self.users.add(client.session_id)
-		self.broadcast('JOINED %s %s' % (self.name, client.username))
+		self.broadcast('JOINED %s %s' % (self.name, client.username), client.session_id)
 
 	def removeUser(self, client, reason=None):
 		chan = self.name
