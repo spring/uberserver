@@ -2773,8 +2773,10 @@ class Protocol:
 		'''
 		Retrieve a list of all bans currently active on the server.
 		'''
-		for entry in self.userdb.banlist():
-			self.out_SERVERMSG(client, '%s' % entry)
+		for entry in self.userdb.banlistuser():
+			self.out_SERVERMSG(client, '%s' % str(entry))
+		for entry in self.userdb.banlistip():
+			self.out_SERVERMSG(client, '%s' % str(entry))
 
 	def in_SETACCESS(self, client, username, access):
 		'''

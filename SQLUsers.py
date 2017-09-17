@@ -606,12 +606,25 @@ class UsersHandler:
 		else:
 			return 'No matching bans for %s.' % ip
 	
-	def banlist(self):
+	def banlistuser(self):
+		banlist = []
+		for ban in self.session.query(BanUser, User.id, BanUser.end_time, BanUser.reason, User.username).join(User,BanUser.user_id == User.id ):
+			banlist.append({
+				'userid': ban.id,
+				'username': ban.username,
+				'endtime': ban.end_time,
+				'reason': ban.reason
+			})
+		return banlist
+
+	def banlistip(self):
 		banlist = []
 		for ban in self.session.query(BanIP):
-			banlist.append('ip: %s end: %s reason: %s' % (ban.ip, ban.end_time, ban.reason))
-		for ban in self.session.query(BanUser, User.id, BanUser.end_time, BanUser.reason, User.username).join(User,BanUser.user_id == User.id ):
-			banlist.append('userid: %d username:%s end: %s reason: %s' % (ban.id, ban.username, ban.end_time, ban.reason))
+			banlist.append({
+				'userid': ban.ip,
+				'endtime': ban.end_time,
+				'reason': ban.reason
+			})
 		return banlist
 
 	def rename_user(self, user, newname):
