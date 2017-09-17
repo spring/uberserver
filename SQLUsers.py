@@ -722,7 +722,7 @@ class UsersHandler:
 		# old messages > 2 weeks
 		self.session.query(ChannelHistory).filter(ChannelHistory.time < now - timedelta(days=14)).delete(synchronize_session=False)
 
-		session.commit()
+		self.session.commit()
 
 	def ignore_user(self, user_id, ignore_user_id, reason=None):
 		entry = Ignore(user_id, ignore_user_id, reason)
