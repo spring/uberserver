@@ -556,10 +556,9 @@ class Protocol:
 
 	def _canForceBattle(self, client):
 		' returns true when client can force sth. to a battle / username in current battle (=client is host & username is in battle)'
-		battle_id = client.current_battle
-		if not battle_id in self._root.battles:
+		battle_id = getCurrentBattle(client)
+		if not battle_id:
 			return False
-		battle = self._root.battles[battle_id]
 		if not client.session_id == battle.host:
 			return False
 		return battle
@@ -2858,29 +2857,30 @@ class Protocol:
 		nbattle = 0
 		nuser = 0
 		#cleanup battles
-		tmpbattle = self._root.battles.copy()
-		for battle in tmpbattle:
-			for sessionid in self._root.battles[battle].users:
+		for battle in self._root.battles:
+			for sessionid in battle.users:
 				if not sessionid in self._root.clients:
-					logging.info("deleting user in battle %s" % user)
+					logging.error("deleting user in battle %s" % user)
 					self._root.battles[battle].users.remove(user)
 					nuser = nuser + 1
-			if not self._root.battles[battle].host in self._root.clients:
-				logging.info("deleting battle %s" % battle)
+			if not battle.host in self._root.clients:
+				logging.error("deleting battle %s" % battle)
 				del self._root.battles[battle]
 				nbattle = nbattle + 1
-				continue
+			if len(battle.users) == 0:
+				logging.error("deleting empty battle %s" % battle)
+				del self._root.battles[battle]
+				nbattle = nbattle + 1
 
 		#cleanup channels
-		tmpchannels = self._root.channels.copy()
-		for channel in tmpchannels:
+		for channel in self._root.channels:
 			for session_id in self._root.channels[channel].users:
 				if not session_id in self._root.clients:
-					logging.info("deleting user %s from channel %s" %(session_id , channel))
+					logging.error("deleting user %s from channel %s" %(session_id , channel))
 					self._root.channels[channel].users.remove(session_id)
 			if len(self._root.channels[channel].users) == 0:
 				del self._root.channels[channel]
-				logging.info("deleting empty channel %s" % channel)
+				logging.error("deleting empty channel %s" % channel)
 				nchan = nchan + 1
 
 		self.userdb.clean_users()
