@@ -2837,7 +2837,7 @@ class Protocol:
 
 		logging.info("Stats of command usage:")
 		for k in self.stats:
-			logging.info("%s" % (str(k)))
+			logging.info("%s %d" % (k, self.stats[k]))
 
 		self._root.admin_broadcast('Reloading initiated by %s' %(client.username))
 		self._root.reload()
