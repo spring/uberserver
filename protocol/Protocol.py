@@ -556,8 +556,8 @@ class Protocol:
 
 	def _canForceBattle(self, client):
 		' returns true when client can force sth. to a battle / username in current battle (=client is host & username is in battle)'
-		battle_id = getCurrentBattle(client)
-		if not battle_id:
+		battle = self.getCurrentBattle(client)
+		if not battle:
 			return False
 		if not client.session_id == battle.host:
 			return False
