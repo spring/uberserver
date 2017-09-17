@@ -2857,7 +2857,7 @@ class Protocol:
 		nbattle = 0
 		nuser = 0
 		#cleanup battles
-		for battle in self._root.battles:
+		for battle_id, battle in self._root.battles.items():
 			for sessionid in battle.users:
 				if not sessionid in self._root.clients:
 					logging.error("deleting user in battle %s" % user)
