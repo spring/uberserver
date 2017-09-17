@@ -17,8 +17,8 @@ install:
 
 script:
    - protocol/Protocol.py
-   - ip2country.py
-   - SQLUsers.py
+   - ./ip2country.py
+   - ./SQLUsers.py
    - ./server.py &
    - sleep 30 # wait for server to start up
    - tests/TestLobbyClient.py
