@@ -219,6 +219,8 @@ class Client(BaseClient):
 		self.transport.write(data.encode("utf-8") + b"\n")
 
 	def Send(self, data):
+		if self.msg_id:
+			data = self.msg_id + data
 		if self.buffersend:
 			self.buffer += data + "\n"
 		else:
