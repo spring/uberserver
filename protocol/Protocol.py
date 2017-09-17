@@ -2833,7 +2833,12 @@ class Protocol:
 		LanUsers.py
 		'''
 		if not 'admin' in client.accesslevels:
-		    return
+			return
+
+		logging.info("Stats of command usage:")
+		for k in self.stats:
+			logging.info("%s" % (str(k)))
+
 		self._root.admin_broadcast('Reloading initiated by %s' %(client.username))
 		self._root.reload()
 		try:
@@ -2845,9 +2850,6 @@ class Protocol:
 			logging.error("reload failed:")
 			logging.error(e)
 
-		logging.info("Stats of command usage:")
-		for k in self.stats:
-			logging.info("%s" % (str(k)))
 		self._root.admin_broadcast('done')
 
 	def in_CLEANUP(self, client):
