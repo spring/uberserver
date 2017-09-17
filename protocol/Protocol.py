@@ -596,6 +596,7 @@ class Protocol:
 	def getCurrentBattle(self, client):
 		if not client.current_battle:
 			return False
+		battle_id = client.current_battle
 		if not battle_id in self._root.battles:
 			logger.error("Invalid battle stored for client %d %s" % (client.session_id, client.username))
 			return False
@@ -1964,7 +1965,7 @@ class Protocol:
 		if oldstatus == newstatus and client.teamcolor == oldcolor: #nothing changed, just send back to client
 			client.Send(statuscmd)
 			return
-		self._root.broadcast_battle(statuscmd, battle_id)
+		self._root.broadcast_battle(statuscmd, battle.id)
 
 	def in_UPDATEBATTLEINFO(self, client, SpectatorCount, locked, maphash, mapname):
 		'''
@@ -2332,9 +2333,9 @@ class Protocol:
 		if name in battle.bots:
 			self.out_FAILED(client, "ADDBOT", "Bot already exists!", True)
 			return
-		client.battle_bots[name] = battle_id
+		client.battle_bots[name] = battle.id
 		battle.bots[name] = {'owner':client.username, 'battlestatus':battlestatus, 'teamcolor':teamcolor, 'AIDLL':AIDLL}
-		self._root.broadcast_battle('ADDBOT %s %s %s %s %s %s'%(battle_id, name, client.username, battlestatus, teamcolor, AIDLL), battle_id)
+		self._root.broadcast_battle('ADDBOT %s %s %s %s %s %s'%(battle.id, name, client.username, battlestatus, teamcolor, AIDLL), battle.id)
 
 	def in_UPDATEBOT(self, client, name, battlestatus, teamcolor):
 		'''
@@ -2372,7 +2373,7 @@ class Protocol:
 			if client.username == battle.bots[name]['owner'] or client.session_id == battle.host:
 				del self._root.usernames[battle.bots[name]['owner']].battle_bots[name]
 				del battle.bots[name]
-				self._root.broadcast_battle('REMOVEBOT %s %s'%(battle_id, name), battle_id)
+				self._root.broadcast_battle('REMOVEBOT %s %s'%(battle.id, name), battle.id)
 
 	def in_GETINGAMETIME(self, client, username=None):
 		'''
