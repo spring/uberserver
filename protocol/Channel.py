@@ -33,7 +33,7 @@ class Channel():
 		if client.session_id in self.users:
 			return
 		self.users.add(client.session_id)
-		self.broadcast('JOINED %s %s' % (self.name, client.username), client.session_id)
+		self.broadcast('JOINED %s %s' % (self.name, client.username), set([client.session_id]))
 
 	def removeUser(self, client, reason=None):
 		chan = self.name
