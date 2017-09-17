@@ -593,6 +593,14 @@ class Protocol:
 		if not fromdb: return None
 		return self.userdb.clientFromID(db_id)
 
+	def getCurrentBattle(self, client):
+		if not client.current_battle:
+			return False
+		if not battle_id in self._root.battles:
+			logger.error("Invalid battle stored for client %d %s" % (client.session_id, client.username))
+			return False
+		return self._root.battles[battle_id]
+
 	def clientFromSession(self, session_id):
 		assert(isinstance(session_id, int))
 		if session_id in self._root.clients:
@@ -1578,8 +1586,9 @@ class Protocol:
 		@required.str message: The message to send.
 		'''
 		if not msg: return
-		battle_id = client.current_battle
-		battle = self._root.battles[battle_id]
+		battle = self.getCurrentBattle(client)
+		if not battle:
+			return
 		user = client.username
 		self.broadcast_SendBattle(battle, 'SAIDBATTLE %s %s' % (user, msg), client)
 
@@ -1589,8 +1598,9 @@ class Protocol:
 
 		@required.str message: The action to send.
 		'''
-		battle_id = client.current_battle
-		battle = self._root.battles[battle_id]
+		battle = self.getCurrentBattle(client)
+		if not battle:
+			return
 		self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg), client)
 
 	def in_SAYBATTLEPRIVATE(self, client, username, msg):
@@ -1601,11 +1611,12 @@ class Protocol:
 		@required.str username: The user to receive your message.
 		@required.str message: The message to send.
 		'''
-		battle_id = client.current_battle
 		user = self.clientFromUsername(username)
 		if not user:
 			return
-		battle = self._root.battles[battle_id]
+		battle = self.getCurrentBattle(client)
+		if not battle:
+			return
 		if client.session_id == battle.host and client.session_id in battle.users:
 			if not self.is_ignored(user, client):
 				user.Send('SAIDBATTLE %s %s' % (client.username, msg))
@@ -1618,10 +1629,11 @@ class Protocol:
 		@required.str username: The user to receive your action.
 		@required.str message: The action to send.
 		'''
-		battle_id = client.current_battle
 		if not username:
 			return
-		battle = self._root.battles[battle_id]
+		battle = self.getCurrentBattle(client)
+		if not battle:
+			return
 		if client.session_id == battle.host and username in battle.users:
 			if not self.is_ignored(user, client):
 				user.Send('SAIDBATTLEEX %s %s' % (client.username, msg))
@@ -1916,16 +1928,11 @@ class Protocol:
 			self.out_FAILED(client, 'MYBATTLESTATUS', 'invalid teamcolor: %s.' % (myteamcolor), True)
 			return
 
-		battle_id = client.current_battle
-		if not battle_id:
+		battle = self.getCurrentBattle(client)
+		if not battle:
 			self.out_FAILED(client, "MYBATTLESTATUS", "not inside a battle", True)
 			return
 
-		if not battle_id in self._root.battles:
-			self.out_FAILED(client, "MYBATTLESTATUS", "battle %s doesn't exist" %(str(battle_id)), True)
-			return
-
-		battle = self._root.battles[battle_id]
 		spectating = (client.battlestatus['mode'] == '0')
 
 		clients = (self.clientFromSession(name) for name in battle.users)
@@ -1969,8 +1976,9 @@ class Protocol:
 		@required.sint mapHash: A 32-bit signed hash of the current map as returned by unitsync.
 		@required.str mapName: The name of the current map.
 		'''
-		battle_id = client.current_battle
-		battle = self._root.battles[battle_id]
+		battle = self.getCurrentBattle(client)
+		if not battle:
+			return
 		if battle.host == client.session_id:
 			try:
 				maphash = int32(maphash)
@@ -2005,14 +2013,10 @@ class Protocol:
 		was_ingame = client.is_ingame
 		self._calc_status(client, status)
 		if client.is_ingame and not was_ingame:
-			battle_id = client.current_battle
-			if not battle_id:
+			battle = self.getCurrentBattle(client)
+			if not battle:
 				self.out_FAILED(client, 'MYSTATUS', 'ingame but no battleid set', True)
 				return
-			if not battle_id in self._root.battles:
-				self.out_FAILED(client, 'MYSTATUS', 'ingame & non-existent battleid', True)
-				return
-			battle = self._root.battles[battle_id]
 
 			if len(battle.users) > 1:
 				client.went_ingame = time.time()
@@ -2101,8 +2105,9 @@ class Protocol:
 		if not user: return
 		if not client.current_battle: return
 		if not 'mod' in client.accesslevels:
-			battle_id = client.current_battle
-			battle = self._root.battles[battle_id]
+			battle = self.getCurrentBattle(client)
+			if not battle:
+				return
 			if not battle.host in (client.session_id, user.session_id):
 				return
 			if not client.session_id in battle.users:
@@ -2300,8 +2305,10 @@ class Protocol:
 
 		if not user.battlestatus['mode'] == '1':
 			return
+		battle = self.getCurrentBattle(user)
+		if not battle:
+			return
 
-		battle = self._root.battles[user.current_battle]
 		battle.spectators += 1
 		user.battlestatus['mode'] = '0'
 		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(user), user.teamcolor), user.current_battle)
@@ -2317,12 +2324,11 @@ class Protocol:
 		@required.sint teamcolor: The color to assign, represented with hex 0xBBGGRR as a signed integer.
 		@required.str AIDLL: The name of the DLL loading the bot.
 		'''
-		battle_id = client.current_battle
-		if not battle_id in self._root.battles:
-			self.out_FAILED(client, "ADDBOT", "Couldn't find battle: %s" %(battle_id), True)
+		battle = self.getCurrentBattle(client)
+		if not battle:
+			self.out_FAILED(client, "ADDBOT", "Couldn't find battle", True)
 			return
 
-		battle = self._root.battles[battle_id]
 		if name in battle.bots:
 			self.out_FAILED(client, "ADDBOT", "Bot already exists!", True)
 			return
@@ -2339,13 +2345,14 @@ class Protocol:
 		@required.int battlestatus: The battle status of the bot.
 		@required.sint teamcolor: The color to assign, represented with hex 0xBBGGRR as a signed integer.
 		'''
-		battle_id = client.current_battle
-		if battle_id in self._root.battles:
-			battle = self._root.battles[battle_id]
-			if name in battle.bots:
-				if client.username == battle.bots[name]['owner'] or client.session_id == battle.host:
-					battle.bots[name].update({'battlestatus':battlestatus, 'teamcolor':teamcolor})
-					self._root.broadcast_battle('UPDATEBOT %s %s %s %s'%(battle_id, name, battlestatus, teamcolor), battle_id)
+		battle = self.getCurrentBattle(client)
+		if not battle:
+			self.out_FAILED(client, "UPDATEBOT", "Couldn't find battle", True)
+			return
+		if name in battle.bots:
+			if client.username == battle.bots[name]['owner'] or client.session_id == battle.host:
+				battle.bots[name].update({'battlestatus':battlestatus, 'teamcolor':teamcolor})
+				self._root.broadcast_battle('UPDATEBOT %s %s %s %s'%(battle_id, name, battlestatus, teamcolor), battle_id)
 
 
 
@@ -2357,14 +2364,15 @@ class Protocol:
 
 		@required.str name: The name of the bot.
 		'''
-		battle_id = client.current_battle
-		if battle_id in self._root.battles:
-			battle = self._root.battles[battle_id]
-			if name in battle.bots:
-				if client.username == battle.bots[name]['owner'] or client.session_id == battle.host:
-					del self._root.usernames[battle.bots[name]['owner']].battle_bots[name]
-					del battle.bots[name]
-					self._root.broadcast_battle('REMOVEBOT %s %s'%(battle_id, name), battle_id)
+		battle = self.getCurrentBattle(client)
+		if not battle:
+			self.out_FAILED(client, "REMOVEBOT", "Couldn't find battle", True)
+			return
+		if name in battle.bots:
+			if client.username == battle.bots[name]['owner'] or client.session_id == battle.host:
+				del self._root.usernames[battle.bots[name]['owner']].battle_bots[name]
+				del battle.bots[name]
+				self._root.broadcast_battle('REMOVEBOT %s %s'%(battle_id, name), battle_id)
 
 	def in_GETINGAMETIME(self, client, username=None):
 		'''
