@@ -19,8 +19,8 @@ script:
    - protocol/Protocol.py
    - ./ip2country.py
    - ./SQLUsers.py
-   - ./server.py &
-   - sleep 30 # wait for server to start up
-   - tests/TestLobbyClient.py
-   - sleep 10 # give server some time to write log, etc
-   - killall python
+#   - ./server.py &
+#   - sleep 30 # wait for server to start up
+#   - tests/TestLobbyClient.py
+#   - sleep 10 # give server some time to write log, etc
+#   - killall python
