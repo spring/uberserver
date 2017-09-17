@@ -36,19 +36,18 @@ class Channel():
 		self.broadcast('JOINED %s %s' % (self.name, client.username), set([client.session_id]))
 
 	def removeUser(self, client, reason=None):
-		chan = self.name
 
 		if self.name in client.channels:
-			client.channels.remove(chan)
+			client.channels.remove(self.name)
 
 		if not client.session_id in self.users:
 			return
 		self.users.remove(client.session_id)
 
 		if reason and len(reason) > 0:
-			self._root.broadcast('LEFT %s %s %s' % (chan, client.username, reason), chan)
+			self.broadcast('LEFT %s %s %s' % (chan, client.username, reason))
 		else:
-			self._root.broadcast('LEFT %s %s' % (chan, client.username), chan)
+			self.broadcast('LEFT %s %s' % (chan, client.username))
 
 	def isAdmin(self, client):
 		return client and ('admin' in client.accesslevels)
