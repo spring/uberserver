@@ -2353,7 +2353,7 @@ class Protocol:
 		if name in battle.bots:
 			if client.username == battle.bots[name]['owner'] or client.session_id == battle.host:
 				battle.bots[name].update({'battlestatus':battlestatus, 'teamcolor':teamcolor})
-				self._root.broadcast_battle('UPDATEBOT %s %s %s %s'%(battle_id, name, battlestatus, teamcolor), battle_id)
+				self._root.broadcast_battle('UPDATEBOT %s %s %s %s'%(battle.id, name, battlestatus, teamcolor), battle.id)
 
 
 
