@@ -1003,7 +1003,7 @@ class Protocol:
 		for session_id in channel.users:
 			user = self.clientFromSession(session_id)
 			if not user:
-				logging.info('[%s] ERROR: <%s>: %s %s user not in channel: %s' % (client.session_id, client.username, chan, params, username))
+				logging.info('[%s] <%s>: %s %s user not in channel: %s' % (client.session_id, client.username, chan, params, username))
 				continue
 			if user.compat['o']:
 				user.Send(newout)
@@ -1049,7 +1049,7 @@ class Protocol:
 		receiver = self.clientFromUsername(user)
 
 		if not receiver:
-			logging.info('[%s] ERROR: <%s>: user to pm is not online: %s' % (client.session_id, client.username, user))
+			logging.info('[%s] <%s>: user to pm is not online: %s' % (client.session_id, client.username, user))
 			return
 
 		client.Send('SAYPRIVATE %s %s' % (user, msg))
