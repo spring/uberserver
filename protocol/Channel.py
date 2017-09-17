@@ -45,9 +45,9 @@ class Channel():
 		self.users.remove(client.session_id)
 
 		if reason and len(reason) > 0:
-			self.broadcast('LEFT %s %s %s' % (chan, client.username, reason))
+			self.broadcast('LEFT %s %s %s' % (self.name, client.username, reason))
 		else:
-			self.broadcast('LEFT %s %s' % (chan, client.username))
+			self.broadcast('LEFT %s %s' % (self.name, client.username))
 
 	def isAdmin(self, client):
 		return client and ('admin' in client.accesslevels)
