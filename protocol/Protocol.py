@@ -1807,7 +1807,7 @@ class Protocol:
 		if username in host.battle_bans: # TODO: make this depend on db_id instead
 			client.Send('JOINBATTLEFAILED <%s> has banned you from their battles.' % host.username)
 			return
-		if host.compat['b']: # supports battleAuth
+		if host.compat['b'] and not (host.bot and 'mod' in client.accesslevels): # supports battleAuth
 			if client.session_id in battle.pending_users:
 				self.out_FAILED(client, "JOINBATTLE", "waiting for JOINBATTLEACCEPT/DENIED from host", True)
 			else:
@@ -2241,6 +2241,9 @@ class Protocol:
 		'''
 		user = self._canForceBattleUser(client, username)
 		if not user:
+			return
+
+		if client.bot and 'mod' in user.accesslevels: # disallow kicking mods from bot hosted battles
 			return
 
 		user.Send('FORCEQUITBATTLE %s' %(client.username))
