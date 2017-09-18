@@ -341,6 +341,8 @@ class DataHandler:
 			assert(type(session_id) == int)
 			client = self.clientFromSession(session_id)
 
+			if not client.logged_in:
+				continue
 			if client.session_id in ignore:
 				continue
 
