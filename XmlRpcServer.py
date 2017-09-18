@@ -6,7 +6,7 @@
 # TODO:
 #  - move SQLAlchemy calls to SQLUsers.py
 
-from xmlrpc.server import SimpleXMLRPCServer
+from xmlrpc.server import SimpleXMLRPCServer, SimpleXMLRPCRequestHandler
 from base64 import b64encode
 import os.path
 import logging
@@ -40,19 +40,21 @@ xmlport = 8300
 engine = sqlalchemy.create_engine(sqlurl)
 userdb = SQLUsers.UsersHandler(None, engine)
 
-class XmlRpcServer(object):
+class RequestHandler(SimpleXMLRPCRequestHandler):
+	def log_message(self, format, *args):
+		logger.info(format % args)
+
+class XmlRpcServer(SimpleXMLRPCServer):
 	"""
 		XMLRPC service, exported functions are in class _RpcFuncs
 	"""
 	def __init__(self, host, port):
-		self._server = SimpleXMLRPCServer((host, port))
-		self._server.register_introspection_functions()
-		self._server.register_instance(_RpcFuncs())
+		super(XmlRpcServer, self).__init__((host, port), requestHandler=RequestHandler)
+		self.register_introspection_functions()
+		self.register_instance(_RpcFuncs())
 		logger.info('Listening for XMLRPC clients on %s:%d', host, port)
-		self._server.serve_forever()
+		self.serve_forever()
 
-	def shutdown(self):
-		self._server.shutdown()
 
 
 def validateLogin(username, password):
@@ -64,7 +66,7 @@ def validateLogin(username, password):
 		session.close()
 		logger.warning("User not found: %s" %(username))
 		return {"status": 1}
-	if not db_user.password == b64encode(LEGACY_HASH_FUNC(password).digest()):
+	if not db_user.password == b64encode(LEGACY_HASH_FUNC(password.encode()).digest()):
 		session.close()
 		logger.error("Invalid password: %s" %(username))
 		return {"status": 1}
@@ -79,6 +81,7 @@ def validateLogin(username, password):
 			"country": country[0] if country else ''
 		 }
 	session.close()
+	logger.info(result + password)
 	return result
 
 class _RpcFuncs(object):
@@ -93,8 +96,8 @@ class _RpcFuncs(object):
 			logger.error('Exception: %s: %s' %(str(e), str(traceback.format_exc())))
 			return {"status": 1}
 try:
-        xmlrpcserver = XmlRpcServer(xmlhost, xmlport)
+	xmlrpcserver = XmlRpcServer(xmlhost, xmlport)
 except socket.error:
-        logger.error('Error: Could not start XmlRpcServer.')
+	logger.error('Error: Could not start XmlRpcServer.')
 
 
