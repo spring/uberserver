@@ -37,7 +37,7 @@ sqlurl = dbconfig.sqlurl
 xmlhost = "localhost"
 xmlport = 8300
 
-engine = sqlalchemy.create_engine(sqlurl)
+engine = sqlalchemy.create_engine(sqlurl, echo=False)
 userdb = SQLUsers.UsersHandler(None, engine)
 
 class RequestHandler(SimpleXMLRPCRequestHandler):
@@ -66,7 +66,7 @@ def validateLogin(username, password):
 		session.close()
 		logger.warning("User not found: %s" %(username))
 		return {"status": 1}
-	if not db_user.password == b64encode(LEGACY_HASH_FUNC(password.encode()).digest()):
+	if not db_user.password == b64encode(LEGACY_HASH_FUNC(password.encode()).digest()).decode():
 		session.close()
 		logger.error("Invalid password: %s" %(username))
 		return {"status": 1}
@@ -81,7 +81,7 @@ def validateLogin(username, password):
 			"country": country[0] if country else ''
 		 }
 	session.close()
-	logger.info(result + password)
+	logger.info("validation success: %s" % (username))
 	return result
 
 class _RpcFuncs(object):
