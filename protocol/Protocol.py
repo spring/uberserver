@@ -2972,9 +2972,9 @@ class Protocol:
 		client.Send("ENDLISTSUBSCRIPTION")
 
 	def in_STARTTLS(self, client):
+		client.StartTLS()
 		self.out_OK(client, "STARTTLS")
 		client.flushBuffer()
-		client.StartTLS()
 
 	# Begin outgoing protocol section #
 	#
