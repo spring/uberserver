@@ -23,6 +23,8 @@ print("Certificate:")
 print(ssl.DER_cert_to_PEM_cert(cert))
 print("Certificate fingerprint: %s" %(m.hexdigest()))
 
+assert(m.hexdigest() == "0124dc0f4295b401a2d81ade3dc81b7a467eb9a70b0a4912b5e15fede735fe73")
+
 s.send(b"PING\n")
 print(s.recv(1024))
 
