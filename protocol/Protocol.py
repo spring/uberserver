@@ -2487,7 +2487,7 @@ class Protocol:
 		target = self.clientFromUsername(username)
 		if target:
 			if target.ip_address in self._root.trusted_proxies:
-				ip = target.local_ip
+				ip = "%s via proxy %s" % (target.local_ip, target.ip_address)
 			else:
 				ip = target.ip_address
 			self.out_SERVERMSG(client, '<%s> is currently bound to %s' % (username, ip))
