@@ -2484,8 +2484,13 @@ class Protocol:
 
 		@required.str username: The target user.
 		'''
-		if username in self._root.usernames:
-			self.out_SERVERMSG(client, '<%s> is currently bound to %s' % (username, self._root.usernames[username].ip_address))
+		target = self.clientFromUsername(username)
+		if target:
+			if target.ip_address in self._root.trusted_proxies:
+				ip = target.local_ip
+			else:
+				ip = target.ip_address
+			self.out_SERVERMSG(client, '<%s> is currently bound to %s' % (username, ip))
 			return
 
 		ip = self.userdb.get_ip(username)
