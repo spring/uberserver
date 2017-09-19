@@ -7,7 +7,7 @@ context = ssl.SSLContext()
 #context.verify_mode = ssl.CERT_REQUIRED
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.connect(('127.0.0.1', 8200))
+s.connect(('lobby.springrts.com', 8200))
 
 print(s.recv(1024))
 s.send(b"STARTTLS\n")
