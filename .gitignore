@@ -5,10 +5,11 @@
 .pydevproject
 .idea
 .settings
-xmlrpc.log
+xmlrpc.log*
 /sqlalchemy/
 /server.log*
 /server.db
+/test.db
 /deps.zip
 /GeoIP.dat
 /GeoIP.dat.gz
