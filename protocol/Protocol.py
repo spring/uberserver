@@ -2978,8 +2978,8 @@ class Protocol:
 
 	def in_STARTTLS(self, client):
 		client.StartTLS()
-		self.out_OK(client, "STARTTLS")
 		client.flushBuffer()
+		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0')))
 
 	# Begin outgoing protocol section #
 	#
