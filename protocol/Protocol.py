@@ -870,6 +870,17 @@ class Protocol:
 		if (username in self._root.usernames):
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
+
+		client.access = user_or_error.access
+		self._calc_access(client)
+
+		if (client.access == 'agreement'):
+			logging.info('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
+			for line in self._root.agreement:
+				client.Send("AGREEMENT %s" %(line))
+			client.Send('AGREEMENTEND')
+			return
+
 		client.buffersend = True # enqeue all sends to client made from other threads until server state is send
 		#assert(not client.db_id in self._root.db_ids)
 		self._root.db_ids[client.db_id] = client
@@ -879,8 +890,6 @@ class Protocol:
 
 		## update local client fields from DB User values
 		client.logged_in = True
-		client.access = user_or_error.access
-		self._calc_access(client)
 		client.set_user_pwrd_salt(user_or_error.username, (user_or_error.password, user_or_error.randsalt))
 		client.lobby_id = user_or_error.lobby_id
 		client.bot = user_or_error.bot
@@ -901,13 +910,6 @@ class Protocol:
 		if client.ip_address in self._root.trusted_proxies:
 			client.setFlagByIP(local_ip, False)
 
-		if (client.access == 'agreement'):
-			client.buffersend = False
-			logging.info('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
-			for line in self._root.agreement:
-				client.Send("AGREEMENT %s" %(line))
-			client.Send('AGREEMENTEND')
-			return
 		self._SendLoginInfo(client)
 
 	def _SendLoginInfo(self, client):
