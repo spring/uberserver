@@ -872,13 +872,10 @@ class Protocol:
 			return
 		client.buffersend = True # enqeue all sends to client made from other threads until server state is send
 		#assert(not client.db_id in self._root.db_ids)
-		self._root.db_ids[client.db_id] = client
 		#assert(not user_or_error.username in self._root.usernames)
-		self._root.usernames[user_or_error.username] = client
 
 
 		## update local client fields from DB User values
-		client.logged_in = True
 		client.access = user_or_error.access
 		self._calc_access(client)
 		client.set_user_pwrd_salt(user_or_error.username, (user_or_error.password, user_or_error.randsalt))
@@ -913,6 +910,9 @@ class Protocol:
 	def _SendLoginInfo(self, client):
 		logging.info('[%s] <%s> logged in (access=%s).' % (client.session_id, client.username, client.access))
 		self._calc_status(client, 0)
+		client.logged_in = True
+		self._root.db_ids[client.db_id] = client
+		self._root.usernames[user_or_error.username] = client
 		ignoreList = self.userdb.get_ignored_user_ids(client.db_id)
 		client.ignored = {ignoredUserId:True for ignoredUserId in ignoreList}
 
