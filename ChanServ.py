@@ -59,12 +59,12 @@ class ChanServ:
 			channel = self._root.channels[chan]
 			access = channel.getAccess(client)
 			if cmd == 'info':
-				founder = self._root.clientFromID(channel.owner, True)
+				founder = self._root.protocol.clientFromID(channel.owner, True)
 				if founder: founder = 'Founder is <%s>' % founder.username
 				else: founder = 'No founder is registered'
 				admins = []
 				for admin in channel.admins:
-					client = self._root.clientFromID(admin)
+					client = self._root.protocol.clientFromID(admin)
 					if client: admins.append(client.username)
 				users = channel.users
 				antispam = 'on' if channel.antispam else 'off'
