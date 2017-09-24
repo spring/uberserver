@@ -2853,6 +2853,7 @@ class Protocol:
 			chan = importlib.reload(sys.modules['Channel'])
 			self = proto.Protocol(self._root)
 			self._root.protocol = self
+			self.userdb.session = self.userdb.sessionmaker()
 		except Exception as e:
 			logging.error("reload failed:")
 			logging.error(e)
