@@ -912,7 +912,7 @@ class Protocol:
 		self._calc_status(client, 0)
 		client.logged_in = True
 		self._root.db_ids[client.db_id] = client
-		self._root.usernames[user_or_error.username] = client
+		self._root.usernames[client.username] = client
 		ignoreList = self.userdb.get_ignored_user_ids(client.db_id)
 		client.ignored = {ignoredUserId:True for ignoredUserId in ignoreList}
 
