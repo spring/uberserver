@@ -866,11 +866,6 @@ class Protocol:
 		assert(user_or_error != None)
 		assert(type(user_or_error) != str)
 
-		# needs to be checked directly before it is added, to make it somelike atomic as we have no locking over threads
-		if (username in self._root.usernames):
-			self.out_DENIED(client, username, 'Already logged in.', False)
-			return
-		client.buffersend = True # enqeue all sends to client made from other threads until server state is send
 		#assert(not client.db_id in self._root.db_ids)
 		#assert(not user_or_error.username in self._root.usernames)
 
@@ -899,7 +894,6 @@ class Protocol:
 			client.setFlagByIP(local_ip, False)
 
 		if (client.access == 'agreement'):
-			client.buffersend = False
 			logging.info('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
 			for line in self._root.agreement:
 				client.Send("AGREEMENT %s" %(line))
@@ -908,11 +902,18 @@ class Protocol:
 		self._SendLoginInfo(client)
 
 	def _SendLoginInfo(self, client):
-		logging.info('[%s] <%s> logged in (access=%s).' % (client.session_id, client.username, client.access))
+
+		if (username in self._root.usernames):
+			self.out_DENIED(client, username, 'Already logged in.', False)
+			return
+
 		self._calc_status(client, 0)
 		client.logged_in = True
+		client.buffersend = True # enqeue all sends to client made from other threads until server state is send
 		self._root.db_ids[client.db_id] = client
 		self._root.usernames[client.username] = client
+
+		logging.info('[%s] <%s> logged in (access=%s).' % (client.session_id, client.username, client.access))
 		ignoreList = self.userdb.get_ignored_user_ids(client.db_id)
 		client.ignored = {ignoredUserId:True for ignoredUserId in ignoreList}
 
