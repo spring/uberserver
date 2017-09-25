@@ -903,7 +903,7 @@ class Protocol:
 
 	def _SendLoginInfo(self, client):
 
-		if (username in self._root.usernames):
+		if (client.username in self._root.usernames):
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
 
@@ -2884,7 +2884,7 @@ class Protocol:
 
 		#cleanup channels
 		for channel in self._root.channels:
-			for session_id in self._root.channels[channel].users:
+			for session_id in self._root.channels[channel].users.copy():
 				if not session_id in self._root.clients:
 					logging.error("deleting user %s from channel %s" %(session_id , channel))
 					self._root.channels[channel].users.remove(session_id)
@@ -2894,18 +2894,30 @@ class Protocol:
 				nchan = nchan + 1
 
 		dupcheck = set()
+		todel = []
 		for sessid, c in self._root.clients.items():
 			if c.username in dupcheck:
 				logging.error("duplicate user: %s", c.username)
 				continue
 			dupcheck.add(c.username)
 			if c.username not in self._root.usernames:
-				logging.error("missing user: %s", c.username)
+				logging.error("missing user: %s %s session_id: %d", c.username, str(client.logged_in), c.session_id)
+				todel.append(c)
+			d = self.clientFromSession(c.session_id)
+			if d.username != c.username:
+				logging.error("missmatch clients: %s %s" %(d.username, c.username))
+
+		for c in todel:
+			del self._root.clients[c.session_id]
+			logging.error("deleted invalid session: %d %s", c.session_id, c.username)
 
 		for uname in self._root.usernames:
 			c = self.clientFromUsername(uname)
 			if not c.session_id in self._root.clients:
 				logging.error("missing session for %s", c.username)
+			d = self.clientFromSession(c.session_id)
+			if d.username != c.username:
+				logging.error("missmatch usernames: %s %s" %(d.username, c.username))
 
 		self.userdb.clean_users()
 
