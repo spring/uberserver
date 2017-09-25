@@ -809,6 +809,11 @@ class Protocol:
 			self.out_DENIED(client, username, reason)
 			return
 
+		# this check is a duplicate: prevents db access
+		if (username in self._root.usernames):
+			self.out_DENIED(client, username, 'Already logged in.', False)
+			return
+
 		try: int32(cpu)
 		except: cpu = '0'
 
@@ -903,8 +908,8 @@ class Protocol:
 
 	def _SendLoginInfo(self, client):
 
-		if (client.username in self._root.usernames):
-			self.out_DENIED(client, username, 'Already logged in.', False)
+		if (client.username in self._root.usernames): # required to avoid problems because of parallel execution
+			self.out_DENIED(client, client.username, 'Already logged in.', False)
 			return
 
 		self._calc_status(client, 0)
@@ -2883,10 +2888,10 @@ class Protocol:
 				nbattle = nbattle + 1
 
 		#cleanup channels
-		for channel in self._root.channels:
+		for channel in self._root.channels.copy():
 			for session_id in self._root.channels[channel].users.copy():
 				if not session_id in self._root.clients:
-					logging.error("deleting user %s from channel %s" %(session_id , channel))
+					logging.error("deleting session id <%d> from channel %s" %(session_id, channel))
 					self._root.channels[channel].users.remove(session_id)
 			if len(self._root.channels[channel].users) == 0:
 				del self._root.channels[channel]
