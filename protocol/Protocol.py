@@ -2893,6 +2893,20 @@ class Protocol:
 				logging.error("deleting empty channel %s" % channel)
 				nchan = nchan + 1
 
+		dupcheck = set()
+		for sessid, c in self._root.clients.items():
+			if c.username in dupcheck:
+				logging.error("duplicate user: %s", c.username)
+				continue
+			dupcheck.add(c.username)
+			if c.username not in self._root.usernames:
+				logging.error("missing user: %s", c.username)
+
+		for uname in self._root.usernames:
+			c = self.clientFromUsername(uname)
+			if not c.session_id in self._root.clients:
+				logging.error("missing session for %s", c.username)
+
 		self.userdb.clean_users()
 
 		self._root.admin_broadcast("deleted channels: %d battles: %d users: %d" %(nchan, nbattle, nuser))
