@@ -2547,6 +2547,15 @@ class Protocol:
 		if (db_user == None):
 			return
 
+		if (not self.userdb.legacy_test_user_pwrd(db_user, cur_password)):
+			self.out_SERVERMSG(client, 'Incorrect old password.')
+			return
+
+		self.userdb.legacy_update_user_pwrd(db_user, new_password)
+		self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
+
+		return #FIXME: reimplement:
+
 		if (client.use_secure_session()):
 			## secure command (meaning we want our password salted, etc.)
 			##
@@ -2560,13 +2569,7 @@ class Protocol:
 
 			self.userdb.secure_update_user_pwrd(db_user, new_password)
 			self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
-		else:
-			if (not self.userdb.legacy_test_user_pwrd(db_user, cur_password)):
-				self.out_SERVERMSG(client, 'Incorrect old password.')
-				return
-
-			self.userdb.legacy_update_user_pwrd(db_user, new_password)
-			self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
+			return
 
 
 	def in_GETLOBBYVERSION(self, client, username):
