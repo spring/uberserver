@@ -2881,6 +2881,10 @@ class Protocol:
 					logging.error("deleting user in battle %s" % user)
 					self._root.battles[battle].users.remove(user)
 					nuser = nuser + 1
+			for sessionid in battle.pending_users:
+				if not sessionid in self._root.clients:
+					logging.error("session %d in pending users doesn't exist" % (sessionid))
+
 			if not battle.host in self._root.clients:
 				logging.error("deleting battle %s" % battle)
 				del self._root.battles[battle]
