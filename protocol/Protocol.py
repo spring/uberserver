@@ -2864,9 +2864,11 @@ class Protocol:
 		try:
 			proto = importlib.reload(sys.modules['Protocol'])
 			chan = importlib.reload(sys.modules['Channel'])
+			chanserv = importlib.reload(sys.modules['ChanServ'])
 			self = proto.Protocol(self._root)
 			self._root.protocol = self
 			self.userdb.session = self.userdb.sessionmaker()
+			self._root.chanserv = chanserv.ChanServClient(self._root, (self._root.online_ip, 0), self._root.chanserv.session_id)
 		except Exception as e:
 			logging.error("reload failed:")
 			logging.error(e)
