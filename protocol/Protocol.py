@@ -214,7 +214,7 @@ class Protocol:
 
 		for battle_id, battle in self._root.battles.items():
 			if client.session_id in battle.pending_users:
-				del battle.pending_users[client.session_id]
+				battle.pending_users.remove(client.session_id)
 
 		self.broadcast_RemoveUser(client)
 
@@ -2885,10 +2885,10 @@ class Protocol:
 					logging.error("deleting user in battle %s" % user)
 					self._root.battles[battle].users.remove(user)
 					nuser = nuser + 1
-			for sessionid in battle.pending_users:
+			for sessionid in battle.pending_users.copy():
 				if not sessionid in self._root.clients:
 					logging.error("session %d in pending users doesn't exist" % (sessionid))
-					del battle.pending_users[sessionid]
+					battle.pending_users.remove(sessionid)
 
 			if not battle.host in self._root.clients:
 				logging.error("deleting battle %s" % battle)
