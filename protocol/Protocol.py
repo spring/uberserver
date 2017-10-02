@@ -971,7 +971,7 @@ class Protocol:
 			self.userdb.save_user(client)
 			self._calc_access_status(client)
 			self._SendLoginInfo(client)
-			self.broadcast_Moderator('New user: %s' %(client.username))
+			self.broadcast_Moderator('New user: %s %s %s %s %s %s' %(client.username, client.country_code, client.ip_address, client.local_ip, client.last_id, client.lobby_id))
 
 	def in_SAY(self, client, chan, params):
 		'''
