@@ -967,6 +967,7 @@ class Protocol:
 			self.userdb.save_user(client)
 			self._calc_access_status(client)
 			self._SendLoginInfo(client)
+			self._root.admin_broadcast("New user: %s" %(client.username))
 
 	def in_SAY(self, client, chan, params):
 		'''
