@@ -652,6 +652,9 @@ class Protocol:
 			if not name == client.username:
 				self.client_RemoveUser(receiver, client)
 
+	def broadcast_Moderator(self, message):
+		self.in_SAY(self._root.chanserv, 'moderator', message)
+
 	def client_AddUser(self, receiver, user):
 		'sends the protocol for adding a user'
 		if receiver.compat['a']: #accountIDs
@@ -968,7 +971,7 @@ class Protocol:
 			self.userdb.save_user(client)
 			self._calc_access_status(client)
 			self._SendLoginInfo(client)
-			self.in_SAY(self._root.chanserv, 'moderator', 'New user: %s' %(client.username))
+			self.broadcast_Moderator('New user: %s' %(client.username))
 
 	def in_SAY(self, client, chan, params):
 		'''
@@ -2864,7 +2867,7 @@ class Protocol:
 		for k in self.stats:
 			logging.info("%s %d" % (k, self.stats[k]))
 
-		self._root.admin_broadcast('Reloading initiated by %s' %(client.username))
+		self.broadcast_Moderator('Reload initiated by : %s' %(client.username))
 		self._root.reload()
 		try:
 			proto = importlib.reload(sys.modules['Protocol'])
@@ -2878,7 +2881,7 @@ class Protocol:
 			logging.error("reload failed:")
 			logging.error(e)
 
-		self._root.admin_broadcast('done')
+		self.broadcast_Moderator('done')
 
 	def in_CLEANUP(self, client):
 		self._root.admin_broadcast('Cleanup initiated by %s (deleting old users, zombie channels / users)...' %(client.username))
