@@ -779,8 +779,8 @@ class Protocol:
 
 			client.Send('REGISTRATIONACCEPTED')
 
-			newClient = self.clientFromUsername(username, True)
-			newClient.access = 'agreement'
+			client = self.clientFromUsername(username, True)
+			client.access = 'agreement'
 		else:
 			logging.info('[%s] Registration failed for user <%s>.' % (client.session_id, username))
 			client.Send('REGISTRATIONDENIED %s' % reason)
