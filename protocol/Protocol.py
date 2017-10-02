@@ -779,7 +779,6 @@ class Protocol:
 
 			client.Send('REGISTRATIONACCEPTED')
 
-			client = self.clientFromUsername(username, True)
 			client.access = 'agreement'
 		else:
 			logging.info('[%s] Registration failed for user <%s>.' % (client.session_id, username))
@@ -958,6 +957,8 @@ class Protocol:
 		self.broadcast_AddUser(client) # send ADDUSER to all clients except self
 		if client.status != 0:
 			self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status)) # broadcast current client status
+		if 'mod' in client.accesslevels:
+			self.in_JOIN(client, "moderator")
 
 
 	def in_CONFIRMAGREEMENT(self, client):
@@ -967,7 +968,7 @@ class Protocol:
 			self.userdb.save_user(client)
 			self._calc_access_status(client)
 			self._SendLoginInfo(client)
-			self._root.admin_broadcast("New user: %s" %(client.username))
+			self.in_SAY(self._root.chanserv, 'moderator', 'New user: %s' %(client.username))
 
 	def in_SAY(self, client, chan, params):
 		'''
@@ -1387,6 +1388,9 @@ class Protocol:
 		# FIXME: unhardcode this
 		if client.bot and chan in ("newbies", "ba") and client.username != "ChanServ":
 			#client.Send('JOINFAILED %s No bots allowed in #%s!' %(chan, chan))
+			return
+		if chan == 'moderator' and not 'mod' in client.accesslevels:
+			self.out_FAILED(client, "JOIN", "Only moderators allowed in this channel! access=%s" %(client.access), True)
 			return
 
 		if not chan:
