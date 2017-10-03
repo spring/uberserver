@@ -2094,7 +2094,7 @@ class Protocol:
 			return
 		try:
 			timestamp = datetime.datetime.fromtimestamp(int(timestr))
-		except ValueError:
+		except:
 			self.out_FAILED(client, "GETCHANNELMESSAGES", "Invalid timestamp", True)
 			return
 		msgs = self.userdb.get_channel_messages(client.db_id, channel.id, timestamp)
