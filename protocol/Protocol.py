@@ -8,6 +8,7 @@ import Channel
 import Battle
 import importlib
 import logging
+import datetime
 
 from Crypto.Hash import MD5
 import base64
@@ -81,6 +82,7 @@ restricted = {
 	'SAYPRIVATEEX',
 	'SETCHANNELKEY',
 	'UNMUTE',
+	'GETCHANNELMESSAGES',
 	########
 	# ignore
 	'IGNORE',
@@ -2076,6 +2078,28 @@ class Protocol:
 			channel = self._root.channels[chan]
 			if channel.isOp(client):
 				channel.setTopic(client, topic)
+
+	def in_GETCHANNELMESSAGES(self, client, chan, timestr):
+		'''
+		Get historical messages from the chan since the specified time
+		@required.str chan: The target channel
+		@required.str time: messages to get since this unix timestamp
+		'''
+		if not chan in self._root.channels:
+			return
+
+		channel = self._root.channels[chan]
+		if not client.session_id in channel.users:
+			self.out_FAILED(client, "GETCHANNELMESSAGES", "Can't get channel messages when not joined", True)
+			return
+		try:
+			timestamp = datetime.datetime.fromtimestamp(int(timestr))
+		except ValueError:
+			self.out_FAILED(client, "GETCHANNELMESSAGES", "Invalid timestamp", True)
+			return
+		msgs = self.userdb.get_channel_messages(client.db_id, channel.id, timestamp)
+		for msg in msgs:
+			client.Send("SAID " + self._dictToTags( { "chanName": chan, "time": str(time.mktime(msg[0].timetuple())), "userName": msg[1], "msg": msg[2]} ))
 
 	def in_FORCELEAVECHANNEL(self, client, chan, username, reason=''):
 		'''
