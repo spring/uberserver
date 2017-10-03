@@ -960,7 +960,7 @@ class Protocol:
 		self.broadcast_AddUser(client) # send ADDUSER to all clients except self
 		if client.status != 0:
 			self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status)) # broadcast current client status
-		if 'mod' in client.accesslevels:
+		if not client.bot and 'mod' in client.accesslevels:
 			self.in_JOIN(client, "moderator")
 
 
