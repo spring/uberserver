@@ -48,7 +48,6 @@ restricted = {
 	'FORCETEAMCOLOR',
 	'FORCETEAMNO',
 	'FORCEJOINBATTLE',
-	'FORCELEAVECHANNEL',
 	'HANDICAP',
 	'JOINBATTLE',
 	'JOINBATTLEACCEPT',
@@ -124,6 +123,7 @@ restricted = {
 	'GETUSERID',
 	'SETBOTMODE',
 	'GETLOBBYVERSION',
+	'FORCELEAVECHANNEL',
 	]),
 'admin':set([
 	#########
@@ -2101,15 +2101,11 @@ class Protocol:
 		if not chan in self._root.channels:
 			self.out_SERVERMSG(client, 'channel <%s> does not exist!' % (chan))
 			return
-		channel = self._root.channels[chan]
-		if not (channel.isOp(client) or 'mod' in client.accesslevels):
-			self.out_SERVERMSG(client, 'access denied')
 		target = self.clientFromUsername(username)
-		if target and username in channel.users:
-			channel.kickUser(client, target, reason)
-			self.out_SERVERMSG(client, '<%s> kicked from channel #%s' % (username, chan))
-		else:
+		if not target:
 			self.out_SERVERMSG(client, '<%s> not in channel #%s' % (username, chan))
+			return
+		self.in_LEAVE(target, chan, "was kicked by %s" %(client.username))
 
 	def in_RING(self, client, username):
 		'''

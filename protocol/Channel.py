@@ -131,16 +131,6 @@ class Channel():
 		self.admins.remove(target.db_id)
 		self.channelMessage("<%s> has just been removed from this channel's operator list by <%s>" % (target.username, client.username))
 
-	def kickUser(self, client, target, reason=''):
-		if self.isFounder(target): return
-		if not target:
-			return
-		if not target.session_id in self.users:
-			return
-		target.Send('FORCELEAVECHANNEL %s %s %s' % (self.name, client.username, reason))
-		self.channelMessage('<%s> has kicked <%s> from the channel%s' % (client.username, target.username, (' (reason: %s)'%reason if reason else '')))
-		self.removeUser(target, 'kicked from channel%s' % (' (reason: %s)'%reason if reason else ''))
-
 	def banUser(self, client, target, reason=''):
 		if self.isFounder(target): return
 		if not target:
