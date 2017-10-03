@@ -69,7 +69,6 @@ restricted = {
 	'UPDATEBOT',
 	#########
 	# channel
-	'CHANNELMESSAGE',
 	'CHANNELS',
 	'CHANNELTOPIC',
 	'JOIN',
@@ -2077,18 +2076,6 @@ class Protocol:
 			channel = self._root.channels[chan]
 			if channel.isOp(client):
 				channel.setTopic(client, topic)
-
-	def in_CHANNELMESSAGE(self, client, chan, message):
-		'''
-		Send a server message to target channel.
-
-		@required.str channel: The target channel.
-		@required.str message: The message to send.
-		'''
-		if chan in self._root.channels:
-			channel = self._root.channels[chan]
-			if channel.isOp(client):
-				channel.channelMessage(message)
 
 	def in_FORCELEAVECHANNEL(self, client, chan, username, reason=''):
 		'''
