@@ -602,7 +602,7 @@ class Protocol:
 			return False
 		battle_id = client.current_battle
 		if not battle_id in self._root.battles:
-			logger.error("Invalid battle stored for client %d %s" % (client.session_id, client.username))
+			logging.error("Invalid battle stored for client %d %s" % (client.session_id, client.username))
 			return False
 		return self._root.battles[battle_id]
 
