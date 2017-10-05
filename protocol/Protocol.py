@@ -2930,6 +2930,8 @@ class Protocol:
 		dupcheck = set()
 		todel = []
 		for sessid, c in self._root.clients.items():
+			if not c.connected:
+				logging.error("Not connected client: %s %s"%(c.username, c.connected))
 			if c.username in dupcheck:
 				logging.error("duplicate user: %s", c.username)
 				todel.append(c)

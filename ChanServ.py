@@ -217,6 +217,7 @@ class ChanServClient(Client):
 		
 		self.static = True # can't be removed... don't want to anyway :)
 		self.logged_in = True
+		self.connected = True
 		self.access = 'admin'
 		self.accesslevels = ['admin', 'mod', 'user', 'everyone']
 		
