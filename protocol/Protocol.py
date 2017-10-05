@@ -2932,6 +2932,7 @@ class Protocol:
 		for sessid, c in self._root.clients.items():
 			if c.username in dupcheck:
 				logging.error("duplicate user: %s", c.username)
+				todel.append(c)
 				continue
 			dupcheck.add(c.username)
 			if c.username not in self._root.usernames:
