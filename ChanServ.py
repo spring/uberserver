@@ -39,9 +39,9 @@ class ChanServClient(Client):
 			logging.error(traceback.format_exc())
 
 	def Respond(self, msg):
-	'''
+		'''
 		Send data to the lobby server
-	'''
+		'''
 		self._root.protocol._handle(self, msg)
 
 	def HandleMessage(self, chan, user, msg):
@@ -220,11 +220,11 @@ class ChanServClient(Client):
 		pass
 
 	def Send(self, data):
-	""" called by lobby server. ~Receive """
+		""" called by lobby server. ~Receive """
 		self.RealSend(data)
 
 	def RealSend(self, msg):
-	""" called by lobby server. ~Receive """
+		""" called by lobby server. ~Receive """
 		if not msg:
 			return
 		self.Handle(msg)
