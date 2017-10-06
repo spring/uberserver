@@ -1,11 +1,28 @@
 import time, traceback, logging
 from Client import Client
 
-class ChanServ:
-	def __init__(self, client, root):
-		self.client = client
+class ChanServClient(Client):
+	def __init__(self, root, address, session_id):
+		'initial setup for the connected client'
+		Client.__init__(self, root, address, session_id)
+
+		self.accesslevels = ['admin', 'mod', 'user', 'everyone']
+		self.logged_in = True
+		self.connected = True
+		self.bot = 1
+		self.db_id = 1
+		self.static = True
+
+		self.username = 'ChanServ'
+		self.password = 'ChanServ'
+		self.lobby_id = 'ChanServ'
+		self._root.usernames[self.username] = self
+		self._root.clients[session_id] = self
 		self._root = root
 		self.channeldb = root.channeldb
+
+		logging.info('[%s] <%s> logged in (access=ChanServ)'%(session_id, self.username))
+
 	
 	def Handle(self, msg):
 		try:
@@ -20,7 +37,10 @@ class ChanServ:
 				self.HandleMessage(None, user, msg)
 		except:
 			logging.error(traceback.format_exc())
-	
+
+	def Respond(self, msg):
+		self._root.protocol._handle(self, msg)
+
 	def HandleMessage(self, chan, user, msg):
 		if len(msg) <= 0:
 			return
@@ -47,7 +67,9 @@ class ChanServ:
 			cmd = msg
 		response = self.HandleCommand(chan, user, cmd, args)
 		if response:
-			self.Send(['SAYPRIVATE %s %s'%(user, s) for s in response.split('\n')])
+			for s in response.split('\n'):
+				self.Respond('SAYPRIVATE %s %s'%(user, s))
+
 
 	def HandleCommand(self, chan, user, cmd, args=None):
 		client = self._root.protocol.clientFromUsername(user)
@@ -184,7 +206,7 @@ class ChanServ:
 		if cmd == 'register':
 			if client.isMod():
 				if not args: args = user
-				self.Send('JOIN %s' % chan)
+				self.Respond('JOIN %s' % chan)
 				if not chan in self._root.channels:
 					return '# Channel %s does not exist.' % (chan)
 				channel = self._root.channels[chan]
@@ -200,49 +222,17 @@ class ChanServ:
 		if not chan:
 			return 'command "%s" not found, use "!help" to get help!' %(cmd)
 	
-	def Send(self, msg):
-		if type(msg) == list or type(msg) == tuple:
-			for s in msg:
-				self.client.HandleProtocolCommand(s)
-		else:
-			self.client.HandleProtocolCommand(msg)
-
-class ChanServClient(Client):
-	'this object is chanserv implemented through the standard client interface'
-
-	def __init__(self, root, address, session_id):
-		'initial setup for the connected client'
-		
-		Client.__init__(self, root, address, session_id)
-		
-		self.static = True # can't be removed... don't want to anyway :)
-		self.logged_in = True
-		self.connected = True
-		self.access = 'admin'
-		self.accesslevels = ['admin', 'mod', 'user', 'everyone']
-		
-		self.bot = 1
-		self.username = 'ChanServ'
-		self.password = 'ChanServ'
-		self.cpu = '9001'
-		self.lobby_id = 'ChanServ'
-		self._root.usernames[self.username] = self
-		self._root.clients[session_id] = self
-		logging.info('[%s] <%s> logged in (access=ChanServ)'%(self.session_id, self.username))
-		self.reload()
-
-	def reload(self):
-		self.ChanServ = ChanServ(self, self._root)
-
-	def Handle(self, data):
-		pass
-
 	def Remove(self, reason=None):
 		pass
 
-	def Send(self, msg, binary=False):
-		if not msg: return
-		self.ChanServ.Handle(msg)
+	def Send(self, data):
+		self.RealSend(data)
+
+	def RealSend(self, msg):
+		if not msg:
+			return
+		self.Handle(msg)
+
 
 	def FlushBuffer(self):
 		pass
