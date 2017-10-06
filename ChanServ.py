@@ -155,15 +155,6 @@ class ChanServClient(Client):
 					channel.deopUser(client, target)
 				else:
 					return '#%s: You do not have permission to deop users' % chan
-			elif cmd == 'chanmsg':
-				if access in ['mod', 'founder', 'op']:
-					if not args: return '#%s: You must specify a channel message' % chan
-					target = self._root.clientFromUsername(args)
-					if target and channel.isOp(target): args = 'issued by <%s>: %s' % (user, args)
-					channel.channelMessage(args)
-					return #return '#%s: insert chanmsg here'
-				else:
-					return '#%s: You do not have permission to issue a channel message' % chan
 			elif cmd == 'lock':
 				if access in ['mod', 'founder', 'op']:
 					if not args: return '#%s: You must specify a channel key to lock a channel' % chan
