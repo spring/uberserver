@@ -21,6 +21,7 @@ class Client(BaseClient):
 		self.local_ip = address[0]
 		self.port = address[1]
 		
+		self.country_code = '??'
 		self.setFlagByIP(self.ip_address)
 		
 		self.session_id = session_id
@@ -89,7 +90,6 @@ class Client(BaseClient):
 		
 		self.ignored = {}
 		self.channels = set()
-
 
 	def set_msg_id(self, msg):
 		self.msg_id = ""

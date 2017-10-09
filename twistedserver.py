@@ -1,8 +1,7 @@
 from twisted.internet.protocol import Factory
-from twisted.internet import protocol, ssl
+from twisted.internet import protocol
 from twisted.protocols.policies import TimeoutMixin
 from protocol import Protocol
-from OpenSSL import SSL
 import DataHandler
 import Client
 import traceback

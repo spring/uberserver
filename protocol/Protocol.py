@@ -8,11 +8,12 @@ import Channel
 import Battle
 import importlib
 import logging
+import datetime
 
 from Crypto.Hash import MD5
 import base64
 
-# see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
+# see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
 # max. 8 ranks are possible (rank 0 isn't listed)
 # rank, ingame time in hours
 ranks = (5, 15, 30, 100, 300, 1000, 3000)
@@ -26,6 +27,7 @@ restricted = {
 
 	## encryption
 	'STARTTLS',
+	'STLS',
 	]),
 'fresh':set([
 	'LOGIN',
@@ -48,7 +50,6 @@ restricted = {
 	'FORCETEAMCOLOR',
 	'FORCETEAMNO',
 	'FORCEJOINBATTLE',
-	'FORCELEAVECHANNEL',
 	'HANDICAP',
 	'JOINBATTLE',
 	'JOINBATTLEACCEPT',
@@ -70,7 +71,6 @@ restricted = {
 	'UPDATEBOT',
 	#########
 	# channel
-	'CHANNELMESSAGE',
 	'CHANNELS',
 	'CHANNELTOPIC',
 	'JOIN',
@@ -83,6 +83,7 @@ restricted = {
 	'SAYPRIVATEEX',
 	'SETCHANNELKEY',
 	'UNMUTE',
+	'GETCHANNELMESSAGES',
 	########
 	# ignore
 	'IGNORE',
@@ -124,6 +125,7 @@ restricted = {
 	'GETUSERID',
 	'SETBOTMODE',
 	'GETLOBBYVERSION',
+	'FORCELEAVECHANNEL',
 	]),
 'admin':set([
 	#########
@@ -211,6 +213,10 @@ class Protocol:
 
 		if client.current_battle:
 			self.in_LEAVEBATTLE(client)
+
+		for battle_id, battle in self._root.battles.items():
+			if client.session_id in battle.pending_users:
+				battle.pending_users.remove(client.session_id)
 
 		self.broadcast_RemoveUser(client)
 
@@ -469,11 +475,11 @@ class Protocol:
 		'check the compatibility flags of client and report possible/upcoming problems to it'
 		if not client.compat['sp']: # blocks protocol increase to 0.37
 			client.RealSend("MOTD Your client doesn't support the 'sp' compatibility flag, please upgrade it!")
-			client.RealSend("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.36")
+			client.RealSend("MOTD see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.36")
 			missing_flags += ' sp'
 		if not client.compat['cl']: # cl should be used (bugfixed version of eb)
 			client.RealSend("MOTD Your client doesn't support the 'cl' compatibility flag, please upgrade it!")
-			client.RealSend("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
+			client.RealSend("MOTD see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
 			missing_flags += ' cl'
 		if not client.compat['p']:
 			client.RealSend("MOTD Your client doesn't support the 'p' compatibility flag, please upgrade it!")
@@ -578,7 +584,7 @@ class Protocol:
 
 	def _informErrors(self, client):
 		if client.lobby_id in ("SpringLobby 0.188 (win x32)", "SpringLobby 0.200 (win x32)"):
-			client.Send("SAYPRIVATE ChanServ The autoupdater of SpringLobby 0.188 is broken, please manually update: http://springrts.com/phpbb/viewtopic.php?f=64&t=31224")
+			client.Send("SAYPRIVATE ChanServ The autoupdater of SpringLobby 0.188 is broken, please manually update: https://springrts.com/phpbb/viewtopic.php?f=64&t=31224")
 	def _getNextBattleId(self):
 		self._root.nextbattle += 1 #FIXME: handle overflow (int32)
 		id = self._root.nextbattle
@@ -597,7 +603,7 @@ class Protocol:
 			return False
 		battle_id = client.current_battle
 		if not battle_id in self._root.battles:
-			logger.error("Invalid battle stored for client %d %s" % (client.session_id, client.username))
+			logging.error("Invalid battle stored for client %d %s" % (client.session_id, client.username))
 			return False
 		return self._root.battles[battle_id]
 
@@ -647,6 +653,9 @@ class Protocol:
 				continue
 			if not name == client.username:
 				self.client_RemoveUser(receiver, client)
+
+	def broadcast_Moderator(self, message):
+		self.in_SAY(self._root.chanserv, 'moderator', message)
 
 	def client_AddUser(self, receiver, user):
 		'sends the protocol for adding a user'
@@ -775,8 +784,7 @@ class Protocol:
 
 			client.Send('REGISTRATIONACCEPTED')
 
-			newClient = self.clientFromUsername(username, True)
-			newClient.access = 'agreement'
+			client.access = 'agreement'
 		else:
 			logging.info('[%s] Registration failed for user <%s>.' % (client.session_id, username))
 			client.Send('REGISTRATIONDENIED %s' % reason)
@@ -807,6 +815,11 @@ class Protocol:
 
 		if (not good):
 			self.out_DENIED(client, username, reason)
+			return
+
+		# this check is a duplicate: prevents db access
+		if (username in self._root.usernames):
+			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
 
 		try: int32(cpu)
@@ -866,19 +879,11 @@ class Protocol:
 		assert(user_or_error != None)
 		assert(type(user_or_error) != str)
 
-		# needs to be checked directly before it is added, to make it somelike atomic as we have no locking over threads
-		if (username in self._root.usernames):
-			self.out_DENIED(client, username, 'Already logged in.', False)
-			return
-		client.buffersend = True # enqeue all sends to client made from other threads until server state is send
 		#assert(not client.db_id in self._root.db_ids)
-		self._root.db_ids[client.db_id] = client
 		#assert(not user_or_error.username in self._root.usernames)
-		self._root.usernames[user_or_error.username] = client
 
 
 		## update local client fields from DB User values
-		client.logged_in = True
 		client.access = user_or_error.access
 		self._calc_access(client)
 		client.set_user_pwrd_salt(user_or_error.username, (user_or_error.password, user_or_error.randsalt))
@@ -902,7 +907,6 @@ class Protocol:
 			client.setFlagByIP(local_ip, False)
 
 		if (client.access == 'agreement'):
-			client.buffersend = False
 			logging.info('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
 			for line in self._root.agreement:
 				client.Send("AGREEMENT %s" %(line))
@@ -911,8 +915,18 @@ class Protocol:
 		self._SendLoginInfo(client)
 
 	def _SendLoginInfo(self, client):
-		logging.info('[%s] <%s> logged in (access=%s).' % (client.session_id, client.username, client.access))
+
+		if (client.username in self._root.usernames): # required to avoid problems because of parallel execution
+			self.out_DENIED(client, client.username, 'Already logged in.', False)
+			return
+
 		self._calc_status(client, 0)
+		client.logged_in = True
+		client.buffersend = True # enqeue all sends to client made from other threads until server state is send
+		self._root.db_ids[client.db_id] = client
+		self._root.usernames[client.username] = client
+
+		logging.info('[%s] <%s> logged in (access=%s).' % (client.session_id, client.username, client.access))
 		ignoreList = self.userdb.get_ignored_user_ids(client.db_id)
 		client.ignored = {ignoredUserId:True for ignoredUserId in ignoreList}
 
@@ -948,6 +962,8 @@ class Protocol:
 		self.broadcast_AddUser(client) # send ADDUSER to all clients except self
 		if client.status != 0:
 			self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status)) # broadcast current client status
+		if not client.bot and 'mod' in client.accesslevels:
+			self.in_JOIN(client, "moderator")
 
 
 	def in_CONFIRMAGREEMENT(self, client):
@@ -957,6 +973,7 @@ class Protocol:
 			self.userdb.save_user(client)
 			self._calc_access_status(client)
 			self._SendLoginInfo(client)
+			self.broadcast_Moderator('New user: %s %s %s %s %s %s' %(client.username, client.country_code, client.ip_address, client.local_ip, client.last_id, client.lobby_id))
 
 	def in_SAY(self, client, chan, params):
 		'''
@@ -1376,6 +1393,9 @@ class Protocol:
 		# FIXME: unhardcode this
 		if client.bot and chan in ("newbies", "ba") and client.username != "ChanServ":
 			#client.Send('JOINFAILED %s No bots allowed in #%s!' %(chan, chan))
+			return
+		if chan == 'moderator' and not 'mod' in client.accesslevels:
+			self.out_FAILED(client, "JOIN", "Only moderators allowed in this channel! access=%s" %(client.access), True)
 			return
 
 		if not chan:
@@ -2060,17 +2080,27 @@ class Protocol:
 			if channel.isOp(client):
 				channel.setTopic(client, topic)
 
-	def in_CHANNELMESSAGE(self, client, chan, message):
+	def in_GETCHANNELMESSAGES(self, client, chan, timestr):
 		'''
-		Send a server message to target channel.
+		Get historical messages from the chan since the specified time
+		@required.str chan: The target channel
+		@required.str time: messages to get since this unix timestamp
+		'''
+		if not chan in self._root.channels:
+			return
 
-		@required.str channel: The target channel.
-		@required.str message: The message to send.
-		'''
-		if chan in self._root.channels:
-			channel = self._root.channels[chan]
-			if channel.isOp(client):
-				channel.channelMessage(message)
+		channel = self._root.channels[chan]
+		if not client.session_id in channel.users:
+			self.out_FAILED(client, "GETCHANNELMESSAGES", "Can't get channel messages when not joined", True)
+			return
+		try:
+			timestamp = datetime.datetime.fromtimestamp(int(timestr))
+		except:
+			self.out_FAILED(client, "GETCHANNELMESSAGES", "Invalid timestamp", True)
+			return
+		msgs = self.userdb.get_channel_messages(client.db_id, channel.id, timestamp)
+		for msg in msgs:
+			client.Send("SAID " + self._dictToTags( { "chanName": chan, "time": str(time.mktime(msg[0].timetuple())), "userName": msg[1], "msg": msg[2]} ))
 
 	def in_FORCELEAVECHANNEL(self, client, chan, username, reason=''):
 		'''
@@ -2083,15 +2113,11 @@ class Protocol:
 		if not chan in self._root.channels:
 			self.out_SERVERMSG(client, 'channel <%s> does not exist!' % (chan))
 			return
-		channel = self._root.channels[chan]
-		if not (channel.isOp(client) or 'mod' in client.accesslevels):
-			self.out_SERVERMSG(client, 'access denied')
 		target = self.clientFromUsername(username)
-		if target and username in channel.users:
-			channel.kickUser(client, target, reason)
-			self.out_SERVERMSG(client, '<%s> kicked from channel #%s' % (username, chan))
-		else:
+		if not target:
 			self.out_SERVERMSG(client, '<%s> not in channel #%s' % (username, chan))
+			return
+		self.in_LEAVE(target, chan, "was kicked by %s" %(client.username))
 
 	def in_RING(self, client, username):
 		'''
@@ -2541,6 +2567,15 @@ class Protocol:
 		if (db_user == None):
 			return
 
+		if (not self.userdb.legacy_test_user_pwrd(db_user, cur_password)):
+			self.out_SERVERMSG(client, 'Incorrect old password.')
+			return
+
+		self.userdb.legacy_update_user_pwrd(db_user, new_password)
+		self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
+
+		return #FIXME: reimplement:
+
 		if (client.use_secure_session()):
 			## secure command (meaning we want our password salted, etc.)
 			##
@@ -2554,13 +2589,7 @@ class Protocol:
 
 			self.userdb.secure_update_user_pwrd(db_user, new_password)
 			self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
-		else:
-			if (not self.userdb.legacy_test_user_pwrd(db_user, cur_password)):
-				self.out_SERVERMSG(client, 'Incorrect old password.')
-				return
-
-			self.userdb.legacy_update_user_pwrd(db_user, new_password)
-			self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
+			return
 
 
 	def in_GETLOBBYVERSION(self, client, username):
@@ -2846,18 +2875,21 @@ class Protocol:
 		for k in self.stats:
 			logging.info("%s %d" % (k, self.stats[k]))
 
-		self._root.admin_broadcast('Reloading initiated by %s' %(client.username))
+		self.broadcast_Moderator('Reload initiated by : %s' %(client.username))
 		self._root.reload()
 		try:
 			proto = importlib.reload(sys.modules['Protocol'])
 			chan = importlib.reload(sys.modules['Channel'])
+			chanserv = importlib.reload(sys.modules['ChanServ'])
 			self = proto.Protocol(self._root)
 			self._root.protocol = self
+			self.userdb.session = self.userdb.sessionmaker()
+			self._root.chanserv = chanserv.ChanServClient(self._root, (self._root.online_ip, 0), self._root.chanserv.session_id)
 		except Exception as e:
 			logging.error("reload failed:")
 			logging.error(e)
 
-		self._root.admin_broadcast('done')
+		self.broadcast_Moderator('done')
 
 	def in_CLEANUP(self, client):
 		self._root.admin_broadcast('Cleanup initiated by %s (deleting old users, zombie channels / users)...' %(client.username))
@@ -2871,6 +2903,11 @@ class Protocol:
 					logging.error("deleting user in battle %s" % user)
 					self._root.battles[battle].users.remove(user)
 					nuser = nuser + 1
+			for sessionid in battle.pending_users.copy():
+				if not sessionid in self._root.clients:
+					logging.error("session %d in pending users doesn't exist" % (sessionid))
+					battle.pending_users.remove(sessionid)
+
 			if not battle.host in self._root.clients:
 				logging.error("deleting battle %s" % battle)
 				del self._root.battles[battle]
@@ -2881,15 +2918,44 @@ class Protocol:
 				nbattle = nbattle + 1
 
 		#cleanup channels
-		for channel in self._root.channels:
-			for session_id in self._root.channels[channel].users:
+		for channel in self._root.channels.copy():
+			for session_id in self._root.channels[channel].users.copy():
 				if not session_id in self._root.clients:
-					logging.error("deleting user %s from channel %s" %(session_id , channel))
+					logging.error("deleting session id <%d> from channel %s" %(session_id, channel))
 					self._root.channels[channel].users.remove(session_id)
 			if len(self._root.channels[channel].users) == 0:
 				del self._root.channels[channel]
 				logging.error("deleting empty channel %s" % channel)
 				nchan = nchan + 1
+
+		dupcheck = set()
+		todel = []
+		for sessid, c in self._root.clients.items():
+			if not c.connected:
+				logging.error("Not connected client: %s %s"%(c.username, c.connected))
+			if c.username in dupcheck:
+				logging.error("duplicate user: %s", c.username)
+				todel.append(c)
+				continue
+			dupcheck.add(c.username)
+			if c.username not in self._root.usernames:
+				logging.error("missing user: %s %s session_id: %d", c.username, str(client.logged_in), c.session_id)
+				todel.append(c)
+			d = self.clientFromSession(c.session_id)
+			if d.username != c.username:
+				logging.error("missmatch clients: %s %s" %(d.username, c.username))
+
+		for c in todel:
+			del self._root.clients[c.session_id]
+			logging.error("deleted invalid session: %d %s", c.session_id, c.username)
+
+		for uname in self._root.usernames:
+			c = self.clientFromUsername(uname)
+			if not c.session_id in self._root.clients:
+				logging.error("missing session for %s", c.username)
+			d = self.clientFromSession(c.session_id)
+			if d.username != c.username:
+				logging.error("missmatch usernames: %s %s" %(d.username, c.username))
 
 		self.userdb.clean_users()
 
@@ -2977,9 +3043,16 @@ class Protocol:
 		client.Send("ENDLISTSUBSCRIPTION")
 
 	def in_STARTTLS(self, client):
+		#deprecated
 		client.StartTLS()
-		self.out_OK(client, "STARTTLS")
 		client.flushBuffer()
+		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0')))
+
+	def in_STLS(self, client):
+		self.out_OK(client, "STLS")
+		client.StartTLS()
+		client.flushBuffer()
+		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0')))
 
 	# Begin outgoing protocol section #
 	#

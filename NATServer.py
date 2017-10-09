@@ -1,8 +1,4 @@
-try:
-	from SocketServer import UDPServer,DatagramRequestHandler
-except:
-	# renamed in python 3
-	from socketserver import UDPServer,DatagramRequestHandler
+from socketserver import UDPServer,DatagramRequestHandler
 import sys
 
 class CustomUDPServer(UDPServer):
@@ -32,7 +28,7 @@ class handler(DatagramRequestHandler):
 		addr = self.client_address
 		msg = self.rfile.readline().rstrip()
 		#print "%s from %s(%d)" % (msg, addr[0], addr[1])
-		self.wfile.write('PONG')
+		self.wfile.write(b'PONG')
 		if msg in self._root.usernames:
 			self._root.usernames[msg]._protocol._udp_packet(msg, addr[0], addr[1])
 

@@ -10,7 +10,8 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect(('lobby.springrts.com', 8200))
 
 print(s.recv(1024))
-s.send(b"STARTTLS\n")
+s.send(b"STLS\n")
+assert(s.recv(1024).startswith(b"OK"))
 
 s = context.wrap_socket(s)
 

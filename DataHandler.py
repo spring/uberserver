@@ -418,7 +418,7 @@ class DataHandler:
 		try:
 			timeout = socket.getdefaulttimeout()
 			socket.setdefaulttimeout(5)
-			web_addr = urlopen('http://springrts.com/lobby/getip.php').read().decode("utf-8")
+			web_addr = urlopen('https://springrts.com/lobby/getip.php').read().decode("utf-8")
 			socket.setdefaulttimeout(timeout)
 			logging.info(web_addr)
 		except:
