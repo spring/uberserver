@@ -27,6 +27,7 @@ restricted = {
 
 	## encryption
 	'STARTTLS',
+	'STLS',
 	]),
 'fresh':set([
 	'LOGIN',
@@ -3042,6 +3043,13 @@ class Protocol:
 		client.Send("ENDLISTSUBSCRIPTION")
 
 	def in_STARTTLS(self, client):
+		#deprecated
+		client.StartTLS()
+		client.flushBuffer()
+		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0')))
+
+	def in_STLS(self, client):
+		self.out_OK(client, "STLS")
 		client.StartTLS()
 		client.flushBuffer()
 		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0')))
