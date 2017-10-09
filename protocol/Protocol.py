@@ -13,7 +13,7 @@ import datetime
 from Crypto.Hash import MD5
 import base64
 
-# see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
+# see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
 # max. 8 ranks are possible (rank 0 isn't listed)
 # rank, ingame time in hours
 ranks = (5, 15, 30, 100, 300, 1000, 3000)
@@ -475,11 +475,11 @@ class Protocol:
 		'check the compatibility flags of client and report possible/upcoming problems to it'
 		if not client.compat['sp']: # blocks protocol increase to 0.37
 			client.RealSend("MOTD Your client doesn't support the 'sp' compatibility flag, please upgrade it!")
-			client.RealSend("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.36")
+			client.RealSend("MOTD see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.36")
 			missing_flags += ' sp'
 		if not client.compat['cl']: # cl should be used (bugfixed version of eb)
 			client.RealSend("MOTD Your client doesn't support the 'cl' compatibility flag, please upgrade it!")
-			client.RealSend("MOTD see http://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
+			client.RealSend("MOTD see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
 			missing_flags += ' cl'
 		if not client.compat['p']:
 			client.RealSend("MOTD Your client doesn't support the 'p' compatibility flag, please upgrade it!")
@@ -584,7 +584,7 @@ class Protocol:
 
 	def _informErrors(self, client):
 		if client.lobby_id in ("SpringLobby 0.188 (win x32)", "SpringLobby 0.200 (win x32)"):
-			client.Send("SAYPRIVATE ChanServ The autoupdater of SpringLobby 0.188 is broken, please manually update: http://springrts.com/phpbb/viewtopic.php?f=64&t=31224")
+			client.Send("SAYPRIVATE ChanServ The autoupdater of SpringLobby 0.188 is broken, please manually update: https://springrts.com/phpbb/viewtopic.php?f=64&t=31224")
 	def _getNextBattleId(self):
 		self._root.nextbattle += 1 #FIXME: handle overflow (int32)
 		id = self._root.nextbattle
