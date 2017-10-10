@@ -786,7 +786,7 @@ class Protocol:
 
 			client.access = 'agreement'
 		else:
-			logging.info('[%s] Registration failed for user <%s>.' % (client.session_id, username))
+			logging.info('[%s] Registration failed for user <%s>: %s' % (client.session_id, username, reason))
 			client.Send('REGISTRATIONDENIED %s' % reason)
 
 
