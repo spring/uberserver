@@ -234,25 +234,6 @@ class ChannelHistory(object):
 	def __repr__(self):
 		return "<ChannelHistory('%s')>" % self.channel_id
 mapper(ChannelHistory, channelshistory_table)
-##########################################
-channelshistorysubscriptions_table = Table('channel_history_subscriptions', metadata,
-	Column('id', Integer, primary_key=True),
-	Column('user_id', Integer),
-	ForeignKeyConstraint(['user_id'], ['users.id']),
-	Column('channel_id', Integer),
-	ForeignKeyConstraint(['channel_id'], ['channels.id']),
-	UniqueConstraint('user_id', 'channel_id', name='user_chan'),
-	mysql_charset='utf8',
-	)
-class ChannelHistorySubscription(object):
-	def __init__(self, channel_id, user_id):
-		self.user_id = user_id
-		self.channel_id = channel_id
-
-	def __repr__(self):
-		return "<ChannelHistorySubscription('%s')>" % self.name
-mapper(ChannelHistorySubscription, channelshistorysubscriptions_table)
-
 
 ##########################################
 banip_table = Table('ban_ip', metadata, # server bans
@@ -822,32 +803,6 @@ class UsersHandler:
 			assert(type(msgs[0][2]) == str)
 		return msgs
 
-	def add_channelhistory_subscription(self, channel_id, user_id):
-		assert(channel_id > 0)
-		assert(user_id > 0)
-		try:
-			entry = ChannelHistorySubscription(channel_id, user_id)
-			self.sess().add(entry)
-			self.sess().commit()
-		except IntegrityError:
-			return False, "Already subscribed"
-		except Exception as e:
-			return False, str(e)
-		return True, ""
-
-	def remove_channelhistory_subscription(self, channel_id, user_id):
-		try:
-			self.sess().query(ChannelHistorySubscription).filter(ChannelHistorySubscription.channel_id == channel_id).filter(ChannelHistorySubscription.user_id == user_id).delete()
-			self.sess().commit()
-		except Exception as e:
-			return False, str(e)
-		return True, ""
-
-	def get_channel_subscriptions(self, user_id):
-		reqs = self.sess().query(ChannelHistorySubscription, Channel).filter(ChannelHistorySubscription.user_id == user_id).filter(ChannelHistorySubscription.channel_id == Channel.id) .all()
-		channels = [(channel.name) for sub, channel in reqs]
-		return channels
-
 class ChannelsHandler:
 	def __init__(self, root, engine):
 		self._root = root
@@ -964,10 +919,6 @@ if __name__ == '__main__':
 
 	# test channel message history
 	now = datetime.now()
-	userdb.add_channelhistory_subscription(channel.id, client.id)
-	subscriptions = userdb.get_channel_subscriptions(client.id)
-	assert(len(subscriptions) == 1)
-	assert(subscriptions[0] == channelname)
 	msg = u'test message %d äöüÄÖÜß ?(?_°)?'
 	for i in range(0, 20):
 		userdb.add_channel_message(channel.id, client.id, msg % i, now + timedelta(0, i))
