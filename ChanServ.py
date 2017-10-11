@@ -19,10 +19,11 @@ class ChanServClient(Client):
 		self._root.usernames[self.username] = self
 		self._root.clients[session_id] = self
 		self._root = root
-		self.channeldb = root.channeldb
 
 		logging.info('[%s] <%s> logged in (access=ChanServ)'%(session_id, self.username))
 
+	def db(self):
+		return self._root.channeldb
 	
 	def Handle(self, msg):
 		try:
@@ -102,7 +103,7 @@ class ChanServClient(Client):
 				if access in ['mod', 'founder', 'op']:
 					args = args or ''
 					channel.setTopic(client, args)
-					self.channeldb.setTopic(client.username, channel, args) # update topic in db
+					self.db().setTopic(client.username, channel, args) # update topic in db
 					return '#%s: Topic changed' % chan
 				else:
 					return '#%s: You do not have permission to set the topic' % chan
@@ -111,7 +112,7 @@ class ChanServClient(Client):
 					channel.owner = ''
 					channel.channelMessage('#%s has been unregistered'%chan)
 					self.Send('LEAVE %s' % chan)
-					self.channeldb.unRegister(client, channel)
+					self.db().unRegister(client, channel)
 					return '#%s: Successfully unregistered.' % chan
 				else:
 					return '#%s: You must contact one of the server moderators or the owner of the channel to unregister a channel' % chan
@@ -159,7 +160,7 @@ class ChanServClient(Client):
 				if access in ['mod', 'founder', 'op']:
 					if not args: return '#%s: You must specify a channel key to lock a channel' % chan
 					channel.setKey(client, args)
-					self.channeldb.setKey(channel, args)
+					self.db().setKey(channel, args)
 					## STUBS ARE BELOW
 					return '#%s: Locked' % chan
 				else:
@@ -167,7 +168,7 @@ class ChanServClient(Client):
 			elif cmd == 'unlock':
 				if access in ['mod', 'founder', 'op']:
 					channel.setKey(client, '*')
-					self.channeldb.setKey(channel, '*')
+					self.db().setKey(channel, '*')
 					return '#%s: Unlocked' % chan
 				else:
 					return '#%s: You do not have permission to unlock the channel' % chan
@@ -191,7 +192,7 @@ class ChanServClient(Client):
 			elif cmd == 'history':
 				if access in ['mod', 'founder', 'op']:
 					channel.store_history = not channel.store_history
-					self.channeldb.setHistory(channel)
+					self.db().setHistory(channel)
 					msg = '#%s: history enabled=%s' % (chan, str(channel.store_history))
 					channel.channelMessage(msg)
 					return msg
@@ -207,7 +208,7 @@ class ChanServClient(Client):
 				target = self._root.clientFromUsername(args)
 				if target:
 					channel.setFounder(client, target)
-					self.channeldb.register(channel, target) # register channel in db
+					self.db().register(channel, target) # register channel in db
 					return '#%s: Successfully registered to <%s>' % (chan, args.split(' ',1)[0])
 				else:
 					return '#%s: User <%s> does not exist.' % (chan, args)
