@@ -98,11 +98,6 @@ restricted = {
 	'FRIENDLIST',
 	'FRIENDREQUESTLIST',
 	########
-	# channel subscriptions
-	'SUBSCRIBE',
-	'UNSUBSCRIBE',
-	'LISTSUBSCRIPTIONS',
-	########
 	# meta
 	'CHANGEPASSWORD',
 	'GETINGAMETIME',
@@ -1034,8 +1029,8 @@ class Protocol:
 				user.Send(newout)
 			else:
 				user.Send(oldout)
-		#if channel.store_history:
-		#	self.userdb.add_channel_message(channel.id, client.db_id, msg)
+		if channel.store_history:
+			self.userdb.add_channel_message(channel.id, client.db_id, msg)
 
 	def in_SAYEX(self, client, chan, msg):
 		'''
@@ -1448,23 +1443,6 @@ class Protocol:
 			client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topictime, top))
 		elif client.compat['et']: # supports sendEmptyTopic
 			client.Send('NOCHANNELTOPIC %s' % chan)
-
-		if not channel.store_history:
-			return
-		msgs = self.userdb.get_channel_messages(client.db_id, channel.id, client.last_login)
-		if client.compat['o']:
-			for msg in msgs:
-				client.Send("SAID " + self._dictToTags( { "chanName": chan, "time": msg[0].isoformat(), "userName": msg[1], "msg": msg[2]} ))
-		else:
-			for msg in msgs:
-				client.Send("SAID %s %s %s" %(chan, msg[1], msg[2]))
-
-		# disabled because irc bridge spams JOIN commands
-		#
-		# a user can rejoin a channel to get the topic while in it
-		#topic = channel.topic
-		#if topic and user in channel.users:
-		#	client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topic['time'], topic['text']))
 
 	def in_SETCHANNELKEY(self, client, chan, key='*'):
 		'''
@@ -2988,60 +2966,6 @@ class Protocol:
 		user.email = newmail
 		self.userdb.save_user(user)
 		self.out_SERVERMSG(client,"changed email to %s"%(user.email))
-
-	def in_SUBSCRIBE(self, client, subscribeargs):
-		args = self._parseTags(subscribeargs)
-		if not 'chanName' in args:
-			self.out_FAILED(client, "SUBSCRIBE", "chanName missing")
-			return
-		chan = args['chanName']
-		good, reason = self._validChannelSyntax(chan)
-		if not good:
-			self.out_FAILED(client, "SUBSCRIBE", reason)
-			return
-
-		if chan not in self._root.channels:
-			self.out_FAILED(client, "SUBSCRIBE", "Channel %s doesn't exist" %(chan))
-			return
-
-		channel = self._root.channels[chan]
-		if not channel.store_history:
-			self.out_FAILED(client, "SUBSCRIBE", "History for channel %s is disabled, can't subscribe!" %(chan))
-			return
-		good, reason = self.userdb.add_channelhistory_subscription(channel.id, client.db_id)
-		if not good:
-			self.out_FAILED(client, "SUBSCRIBE", reason)
-			return
-		self.out_OK(client, "SUBSCRIBE")
-
-	def in_UNSUBSCRIBE(self, client, subscribeargs):
-		args = self._parseTags(subscribeargs)
-		if not 'chanName' in args:
-			self.out_FAILED(client, "UNSUBSCRIBE", "chanName missing")
-			return
-		chan = args['chanName']
-		good, reason = self._validChannelSyntax(chan)
-		if not good:
-			self.out_FAILED(client, "UNSUBSCRIBE", reason)
-			return
-
-		if chan not in self._root.channels:
-			self.out_FAILED(client, "UNSUBSCRIBE", "Channel %s doesn't exist" %(chan))
-			return
-
-		channel = self._root.channels[chan]
-		good, reason = self.userdb.remove_channelhistory_subscription(channel.id, client.db_id)
-		if not good:
-			self.out_FAILED(client, "UNSUBSCRIBE", reason)
-			return
-		self.out_OK(client, "UNSUBSCRIBE")
-
-	def in_LISTSUBSCRIPTIONS(self, client):
-		subscriptions = self.userdb.get_channel_subscriptions(client.db_id)
-		client.Send("STARTLISTSUBSCRIPTION")
-		for chan in subscriptions:
-			client.Send("LISTSUBSCRIPTION chanName=%s" % (chan))
-		client.Send("ENDLISTSUBSCRIPTION")
 
 	def in_STARTTLS(self, client):
 		#deprecated
