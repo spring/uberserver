@@ -797,8 +797,8 @@ class UsersHandler:
 	#returns a list of channel messages since starttime for the specific userid when he is subscribed to the channel
 	# [[date, user, msg], [date, user, msg], ...]
 	def get_channel_messages(self, user_id, channel_id, starttime):
-		reqs = self.sess().query(ChannelHistory, User).filter(ChannelHistory.channel_id == channel_id).filter(ChannelHistory.time >= starttime).filter(ChannelHistory.user_id == User.id).order_by(ChannelHistory.id).all()
-		msgs = [(history.time, user.username, history.msg) for history, user in reqs ]
+		reqs = self.sess().query(ChannelHistory.time, ChannelHistory.msg, User.username).filter(ChannelHistory.channel_id == channel_id).filter(ChannelHistory.time >= starttime).join(User, isouter=True).order_by(ChannelHistory.id).all()
+		msgs = [(htime, username, msg) if username else (htime, 'ChanServ', msg) for htime, msg, username in reqs ]
 		if len(msgs)>0:
 			assert(type(msgs[0][2]) == str)
 		return msgs
