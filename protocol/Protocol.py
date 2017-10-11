@@ -2884,7 +2884,7 @@ class Protocol:
 			self = proto.Protocol(self._root)
 			self._root.protocol = self
 			self.userdb.session = self.userdb.sessionmaker()
-			self.channeldb.session = self.channeldb.sessionmaker()
+			self._root.channeldb.session = self._root.channeldb.sessionmaker()
 			self._root.chanserv = chanserv.ChanServClient(self._root, (self._root.online_ip, 0), self._root.chanserv.session_id)
 		except Exception as e:
 			logging.error("reload failed:")
