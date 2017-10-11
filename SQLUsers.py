@@ -219,7 +219,7 @@ mapper(Channel, channels_table)
 channelshistory_table = Table('channel_history', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
-	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE'), nullable=True),
 	Column('time', DateTime),
 	Column('msg', Text),
 	mysql_charset='utf8',
@@ -933,6 +933,10 @@ if __name__ == '__main__':
 			assert(msgs[0][1] == client.username)
 			assert(msgs[0][2] == msg % i)
 			assert(type(msgs[0][2]) == str)
+
+	userdb.add_channel_message(channel.id, None, "test")
+	userdb.add_channel_message(channel.id, 99, "test")
+
 	userdb.clean_users()
 	print("Tests went ok")
 

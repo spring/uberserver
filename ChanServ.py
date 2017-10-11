@@ -10,7 +10,7 @@ class ChanServClient(Client):
 		self.logged_in = True
 		self.connected = True
 		self.bot = 1
-		self.db_id = 1
+		self.db_id = None
 		self.static = True
 
 		self.username = 'ChanServ'
