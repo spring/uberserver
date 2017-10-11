@@ -1044,17 +1044,19 @@ class Protocol:
 		if client.compat['o']:
 			self.out_FAILED("SAYEX", "use SAY action=yes")
 			return
-		if chan in self._root.channels:
-			channel = self._root.channels[chan]
-			user  = client.username
-			msg = self.SayHooks.hook_SAY(self, client, channel, msg)
-			if not msg or not msg.strip(): return
-			if client.session_id in channel.users:
-				if channel.isMuted(client):
-					client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
-				else:
-					self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, set([]), client)
-
+		if not chan in self._root.channels:
+			return
+		channel = self._root.channels[chan]
+		user  = client.username
+		msg = self.SayHooks.hook_SAY(self, client, channel, msg)
+		if not msg or not msg.strip(): return
+		if client.session_id in channel.users:
+			if channel.isMuted(client):
+				client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
+			else:
+				self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, set([]), client)
+		if channel.store_history:
+			self.userdb.add_channel_message(channel.id, client.db_id, msg)
 
 	def in_SAYPRIVATE(self, client, user, msg):
 		'''
