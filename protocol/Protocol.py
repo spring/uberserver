@@ -1034,8 +1034,8 @@ class Protocol:
 				user.Send(newout)
 			else:
 				user.Send(oldout)
-		if channel.store_history:
-			self.userdb.add_channel_message(channel.id, client.db_id, msg)
+		#if channel.store_history:
+		#	self.userdb.add_channel_message(channel.id, client.db_id, msg)
 
 	def in_SAYEX(self, client, chan, msg):
 		'''
