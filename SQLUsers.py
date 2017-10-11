@@ -506,7 +506,7 @@ class UsersHandler:
 		return True, ""
 
 
-	def common_register_user(self, session, username, password):
+	def common_register_user(self, username, password):
 		assert(type(username) == str)
 		assert(type(password) == str)
 
@@ -524,7 +524,7 @@ class UsersHandler:
 
 	# TODO: improve, e.g. also check if ip address is banned when registering account
 	def legacy_register_user(self, username, password, ip, country):
-		status, reason = self.common_register_user(self.session, username, password)
+		status, reason = self.common_register_user(username, password)
 
 		if (not status):
 			return False, reason
@@ -537,7 +537,7 @@ class UsersHandler:
 		return True, 'Account registered successfully.'
 
 	def secure_register_user(self, username, password, ip, country):
-		status, reason = self.common_register_user(self.session, username, password)
+		status, reason = self.common_register_user(username, password)
 
 		if (not status):
 			return False, reason
