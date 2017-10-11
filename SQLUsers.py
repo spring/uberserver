@@ -850,11 +850,13 @@ class ChannelsHandler:
 			entry.key = key
 			self.sess().commit()
 
-	def setHistory(self, chan):
+	def setHistory(self, chan, enable):
 		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()
-		if entry:
-			entry.store_history = chan.store_history
-			self.sess().commit()
+		if not entry:
+			return False
+		entry.store_history = enable
+		self.sess().commit()
+		return True
 
 	def register(self, channel, target):
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
@@ -912,7 +914,7 @@ if __name__ == '__main__':
 	# test setHistory
 	assert(channel.store_history == False)
 	channel.store_history = True
-	channeldb.setHistory(channel)
+	channeldb.setHistory(channel, channel.store_history)
 	channel = channeldb.load_channel(channelname)
 	assert(channel.store_history == True)
 
