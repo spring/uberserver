@@ -163,6 +163,11 @@ def uint32(x):
 	if val < 0 : raise OverflowError
 	return val
 
+
+def datetime_totimestamp(dt):
+	return int(time.mktime(dt.timetuple()))
+
+
 flag_map = {
 	'a': 'accountIDs',       # send account IDs in ADDUSER
 	'b': 'battleAuth',       # JOINBATTLEREQUEST/ACCEPT/DENY
@@ -2080,7 +2085,7 @@ class Protocol:
 			return
 		msgs = self.userdb.get_channel_messages(client.db_id, channel.id, timestamp)
 		for msg in msgs:
-			client.Send("SAID " + self._dictToTags( { "chanName": chan, "time": str(time.mktime(msg[0].timetuple())), "userName": msg[1], "msg": msg[2]} ))
+			client.Send('SAID ' + self._dictToTags({ "chanName": chan, "time": str(datetime_totimestamp(msg[0])), "userName": msg[1], "msg": msg[2]}))
 
 	def in_FORCELEAVECHANNEL(self, client, chan, username, reason=''):
 		'''
