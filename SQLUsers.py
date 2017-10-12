@@ -793,12 +793,13 @@ class UsersHandler:
 		entry = ChannelHistory(channel_id, user_id, msg, date)
 		self.sess().add(entry)
 		self.sess().commit()
+		return entry.id
 
 	#returns a list of channel messages since starttime for the specific userid when he is subscribed to the channel
 	# [[date, user, msg], [date, user, msg], ...]
-	def get_channel_messages(self, user_id, channel_id, starttime):
-		reqs = self.sess().query(ChannelHistory.time, ChannelHistory.msg, User.username).filter(ChannelHistory.channel_id == channel_id).filter(ChannelHistory.time >= starttime).join(User, isouter=True).order_by(ChannelHistory.id).all()
-		msgs = [(htime, username, msg) if username else (htime, 'ChanServ', msg) for htime, msg, username in reqs ]
+	def get_channel_messages(self, user_id, channel_id, lastid):
+		reqs = self.sess().query(ChannelHistory.time, ChannelHistory.msg, User.username, ChannelHistory.id).filter(ChannelHistory.channel_id == channel_id).filter(ChannelHistory.id > lastid).join(User, isouter=True).order_by(ChannelHistory.id).all()
+		msgs = [(htime, username, msg, id) if username else (htime, 'ChanServ', msg, id) for htime, msg, username, id in reqs ]
 		if len(msgs)>0:
 			assert(type(msgs[0][2]) == str)
 		return msgs
@@ -922,11 +923,17 @@ if __name__ == '__main__':
 	# test channel message history
 	now = datetime.now()
 	msg = u'test message %d äöüÄÖÜß ?(?_°)?'
+	lastid = -1
 	for i in range(0, 20):
-		userdb.add_channel_message(channel.id, client.id, msg % i, now + timedelta(0, i))
+		if i == 0:
+			lastid = userdb.add_channel_message(channel.id, client.id, msg % i, now + timedelta(0, i))
+		else:
+			userdb.add_channel_message(channel.id, client.id, msg % i, now + timedelta(0, i))
+
+	assert(lastid > -1)
 
 	for i in range(0,21):
-		msgs = userdb.get_channel_messages(channel.id, client.id, now + timedelta(0, i))
+		msgs = userdb.get_channel_messages(channel.id, client.id, lastid + i -1)
 		assert(len(msgs) == 20 - i)
 		if (len(msgs) > 0):
 			assert(msgs[0][0] == now + timedelta(0, i))

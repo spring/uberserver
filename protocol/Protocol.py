@@ -2032,7 +2032,7 @@ class Protocol:
 			if channel.isOp(client):
 				channel.setTopic(client, topic)
 
-	def in_GETCHANNELMESSAGES(self, client, chan, timestr):
+	def in_GETCHANNELMESSAGES(self, client, chan, id):
 		'''
 		Get historical messages from the chan since the specified time
 		@required.str chan: The target channel
@@ -2052,7 +2052,7 @@ class Protocol:
 			return
 		msgs = self.userdb.get_channel_messages(client.db_id, channel.id, timestamp)
 		for msg in msgs:
-			client.Send('DICT ' + self._dictToTags({"cmd": "SAID", "chanName": chan, "time": str(datetime_totimestamp(msg[0])), "userName": msg[1], "msg": msg[2]}))
+			client.Send('DICT ' + self._dictToTags({"cmd": "SAID", "chanName": chan, "time": str(datetime_totimestamp(msg[0])), "userName": msg[1], "msg": msg[2], "id": msg[3]}))
 
 	def in_FORCELEAVECHANNEL(self, client, chan, username, reason=''):
 		'''
