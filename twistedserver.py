@@ -23,7 +23,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 			if clientcount >= maxclients:
 				logging.error("to many connections: %d > %d" %(clientcount, maxclients))
 				self.transport.write(b"DENIED to many connections, sorry!\n")
-				self.transport.loseConnection()
+				self.transport.abortConnection()
 				return
 
 			self.root.session_id += 1
@@ -52,11 +52,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 			logging.error("Error in handling data from client: %s %s, %s, %s" % (self.username, str(e), data, str(traceback.format_exc())))
 
 	def timeoutConnection(self):
-		if self.username:
-			self.Send("SERVERMSG timeout: didn't login within 60 seconds")
-		else:
-			self.Send("SERVERMSG timeout: no data received within 60 seconds")
-		self.transport.loseConnection()
+		self.transport.abortConnection()
 
 	def Remove(self, reason='Quit'):
 		self.transport.loseConnection()
