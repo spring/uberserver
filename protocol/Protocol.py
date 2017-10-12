@@ -2827,7 +2827,11 @@ class Protocol:
 		for k in self.stats:
 			logging.info("%s %d" % (k, self.stats[k]))
 
-		self.broadcast_Moderator('Reload initiated by : %s' %(client.username))
+		try:
+			self.broadcast_Moderator('Reload initiated by : %s' %(client.username))
+		except Exception as e:
+			logging.error("Broadcast failed: %s" %(str(e)))
+
 		self._root.reload()
 		try:
 			proto = importlib.reload(sys.modules['Protocol'])
