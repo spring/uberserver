@@ -281,6 +281,10 @@ class Protocol:
 		command = command.upper()
 		allowed = False
 
+		if command not in restricted_list:
+			self.out_SERVERMSG(client, '%s failed. Unknown command.' % command, True)
+			return False
+
 		for level in client.accesslevels:
 			if command in restricted[level]:
 				allowed = True
