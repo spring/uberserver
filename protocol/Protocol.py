@@ -9,9 +9,8 @@ import Battle
 import importlib
 import logging
 import datetime
-
-from Crypto.Hash import MD5
 import base64
+import json
 
 # see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
 # max. 8 ranks are possible (rank 0 isn't listed)
@@ -2052,7 +2051,7 @@ class Protocol:
 			return
 		msgs = self.userdb.get_channel_messages(client.db_id, channel.id, timestamp)
 		for msg in msgs:
-			client.Send('DICT ' + self._dictToTags({"cmd": "SAID", "chanName": chan, "time": str(datetime_totimestamp(msg[0])), "userName": msg[1], "msg": msg[2], "id": msg[3]}))
+			self.out_JSON(client,client,  'SAID', {"chanName": chan, "time": str(datetime_totimestamp(msg[0])), "userName": msg[1], "msg": msg[2], "id": msg[3]})
 
 	def in_FORCELEAVECHANNEL(self, client, chan, username, reason=''):
 		'''
@@ -2996,6 +2995,9 @@ class Protocol:
 
 	def out_OK(self, client, cmd):
 		client.Send('OK ' + self._dictToTags({'cmd': cmd}))
+
+	def out_JSON(self, client, cmd, dict):
+		client.SEND('JSON ' + json.dumps({cmd: dict}, separators=(',', ':')))
 
 def check_protocol_commands():
 	for command in restricted_list:
