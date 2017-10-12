@@ -176,7 +176,6 @@ flag_map = {
 	'm': 'matchmaking',      # FORCEJOINBATTLE from battle hosts for matchmaking
 	'cl': 'cleanupBattles',  # BATTLEOPENED / OPENBATTLE with support for engine/version
 	'p':  'agreementPlain',  # AGREEMENT is plaintext
-	'o': 'offlineChat',      # offline support for SAID/SAIDEX
 }
 
 class Protocol:
@@ -994,16 +993,6 @@ class Protocol:
 			return
 
 		action = False
-		if client.compat['o']:
-			params = self._parseTags(params)
-			if not "msg" in params:
-				return
-			msg = params['msg']
-			if "action" in params:
-				action = True
-		else:
-			msg = params
-
 		msg = self.SayHooks.hook_SAY(self, client, channel, msg)
 		if not msg or not msg.strip(): return
 
@@ -1011,29 +1000,7 @@ class Protocol:
 			client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 			return
 
-		# old style SAID
-		oldout = 'SAID %s %s %s' % (chan, client.username, msg)
-
-		# new style SAID
-		outparams = {
-				'chan': chan,
-				'userName': client.username,
-				#'timestamp': int(time.time()), # FIXME: returns localtime, should be UTC
-				'msg': msg.replace("\t", "        "),
-			}
-		if action:
-			outparams['action'] = 'yes'
-		newout = 'SAID ' + self._dictToTags(outparams)
-
-		for session_id in channel.users:
-			user = self.clientFromSession(session_id)
-			if not user:
-				logging.info('[%s] <%s>: %s %s user not in channel: %s' % (client.session_id, client.username, chan, params, username))
-				continue
-			if user.compat['o']:
-				user.Send(newout)
-			else:
-				user.Send(oldout)
+		self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client)
 		if channel.store_history:
 			self.userdb.add_channel_message(channel.id, client.db_id, msg)
 
