@@ -974,7 +974,7 @@ class Protocol:
 			self._SendLoginInfo(client)
 			self.broadcast_Moderator('New user: %s %s %s %s %s %s' %(client.username, client.country_code, client.ip_address, client.local_ip, client.last_id, client.lobby_id))
 
-	def in_SAY(self, client, chan, params):
+	def in_SAY(self, client, chan, msg):
 		'''
 		Send a message to all users in specified channel.
 		The client must be in the channel to send it a message.
@@ -982,7 +982,7 @@ class Protocol:
 		@required.str channel: The target channel.
 		@required.str message: The message to send.
 		'''
-		if not params: return
+		if not msg: return
 		if not chan in self._root.channels:
 			return
 
