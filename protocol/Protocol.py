@@ -2498,7 +2498,7 @@ class Protocol:
 			return
 
 		if self.SayHooks.isNasty(username):
-			self.out_FAILED(client, "RENAMEACCOUNT", "invalid nickname")
+			self.out_FAILED(client, "RENAMEACCOUNT", "invalid nickname", True)
 			return
 
 		user = client.username
