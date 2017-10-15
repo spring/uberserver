@@ -771,6 +771,10 @@ class Protocol:
 			client.Send("REGISTRATIONDENIED %s" % (reason))
 			return
 
+		if self.SayHooks.isNasty(username):
+			client.Send("REGISTRATIONDENIED invalid nickname")
+			return
+
 		## test if password is well-formed
 		good, reason = self._validPasswordSyntax(client, password)
 
@@ -817,6 +821,10 @@ class Protocol:
 
 		if (not good):
 			self.out_DENIED(client, username, reason)
+			return
+
+		if self.SayHooks.isNasty(username):
+			self.out_DENIED(client, username, "invalid nickname")
 			return
 
 		# this check is a duplicate: prevents db access
@@ -2487,6 +2495,10 @@ class Protocol:
 		good, reason = self._validUsernameSyntax(newname)
 		if not good:
 			self.out_SERVERMSG(client, '%s' %(reason))
+			return
+
+		if self.SayHooks.isNasty(username):
+			self.out_FAILED(client, "RENAMEACCOUNT", "invalid nickname")
 			return
 
 		user = client.username

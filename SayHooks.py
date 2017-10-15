@@ -13,10 +13,10 @@ def _update_lists():
 			line = line.strip()
 			if not line: continue
 			if line.count(' ') < 1:
-				bad_word_dict[line] = '***'
+				bad_word_dict[line.lower()] = '***'
 			else:
 				sline = line.split(' ', 1)
-				bad_word_dict[sline[0]] = ' '.join(sline[1:])
+				bad_word_dict[sline[0].lower()] = ' '.join(sline[1:])
 		f.close()
 	except Exception as e:
 		print('Error parsing profanity list: %s' %(e))
@@ -25,7 +25,7 @@ def _update_lists():
 		bad_site_list = []
 		f = open('bad_sites.txt', 'r')
 		for line in f.readlines():
-			line = line.strip()
+			line = line.strip().lower()
 			if not line: continue
 			if line in bad_site_list:
 				print("duplicate line in bad_sites.txt: %s" %(line))
@@ -50,7 +50,7 @@ def _process_word(word):
 def _nasty_word_censor(msg):
 	msg = msg.lower()
 	for word in bad_word_dict.keys():
-		if word.lower() in msg: return False
+		if word in msg: return False
 	return True
 
 def _word_censor(msg):
@@ -142,4 +142,10 @@ def hook_OPENBATTLE(self, client, title):
 	title = _word_censor(title)
 	title = _site_censor(title)
 	return title
+
+def isNasty(msg):
+	msg = msg.lower()
+	for word in bad_word_dict.keys():
+		if word in msg: return True
+	return False
 
