@@ -823,9 +823,9 @@ class Protocol:
 			self.out_DENIED(client, username, reason)
 			return
 
-		if self.SayHooks.isNasty(username):
-			self.out_DENIED(client, username, "invalid nickname")
-			return
+		#if self.SayHooks.isNasty(username):
+		#	self.out_DENIED(client, username, "invalid nickname")
+		#	return
 
 		# this check is a duplicate: prevents db access
 		if (username in self._root.usernames):
@@ -2043,11 +2043,11 @@ class Protocol:
 			if channel.isOp(client):
 				channel.setTopic(client, topic)
 
-	def in_GETCHANNELMESSAGES(self, client, chan, id):
+	def in_GETCHANNELMESSAGES(self, client, chan, lastid):
 		'''
 		Get historical messages from the chan since the specified time
 		@required.str chan: The target channel
-		@required.str time: messages to get since this unix timestamp
+		@required.str lastid: messages to get since this id
 		'''
 		if not chan in self._root.channels:
 			return
@@ -2057,13 +2057,13 @@ class Protocol:
 			self.out_FAILED(client, "GETCHANNELMESSAGES", "Can't get channel messages when not joined", True)
 			return
 		try:
-			timestamp = datetime.datetime.fromtimestamp(int(timestr))
+			timestamp = datetime.datetime.fromtimestamp(int(lastid))
 		except:
-			self.out_FAILED(client, "GETCHANNELMESSAGES", "Invalid timestamp", True)
+			self.out_FAILED(client, "GETCHANNELMESSAGES", "Invalid id", True)
 			return
-		msgs = self.userdb.get_channel_messages(client.db_id, channel.id, timestamp)
+		msgs = self.userdb.get_channel_messages(client.db_id, channel.id, lastid)
 		for msg in msgs:
-			self.out_JSON(client,client,  'SAID', {"chanName": chan, "time": str(datetime_totimestamp(msg[0])), "userName": msg[1], "msg": msg[2], "id": msg[3]})
+			self.out_JSON(client,  'SAID', {"chanName": chan, "time": str(datetime_totimestamp(msg[0])), "userName": msg[1], "msg": msg[2], "id": msg[3]})
 
 	def in_FORCELEAVECHANNEL(self, client, chan, username, reason=''):
 		'''
@@ -3013,7 +3013,7 @@ class Protocol:
 		client.Send('OK ' + self._dictToTags({'cmd': cmd}))
 
 	def out_JSON(self, client, cmd, dict):
-		client.SEND('JSON ' + json.dumps({cmd: dict}, separators=(',', ':')))
+		client.Send('JSON ' + json.dumps({cmd: dict}, separators=(',', ':')))
 
 def check_protocol_commands():
 	for command in restricted_list:
