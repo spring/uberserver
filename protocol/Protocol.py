@@ -823,7 +823,8 @@ class Protocol:
 			self.out_DENIED(client, username, reason)
 			return
 
-		#if self.SayHooks.isNasty(username):
+		if self.SayHooks.isNasty(username):
+			logging.error("Invalid nickname %s" %(username))
 		#	self.out_DENIED(client, username, "invalid nickname")
 		#	return
 
@@ -2497,7 +2498,7 @@ class Protocol:
 			self.out_SERVERMSG(client, '%s' %(reason))
 			return
 
-		if self.SayHooks.isNasty(username):
+		if self.SayHooks.isNasty(newname):
 			self.out_FAILED(client, "RENAMEACCOUNT", "invalid nickname", True)
 			return
 
