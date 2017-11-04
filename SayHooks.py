@@ -2,6 +2,7 @@ import inspect, sys, os, types, time, string
 
 bad_word_dict = {}
 bad_site_list = []
+bad_nick_list = set()
 chars = string.ascii_letters + string.digits
 
 def _update_lists():
@@ -34,6 +35,21 @@ def _update_lists():
 		f.close()
 	except Exception as e:
 		print('Error parsing shock site list: %s' %(e))
+
+	try:
+		global bad_nick_list
+		bad_nick_list = set()
+		f = open('bad_sites.txt', 'r')
+		for line in f.readlines():
+			line = line.strip().lower()
+			if not line:
+				continue
+			bad_nick_list.add(line)
+		f.close()
+
+	except Exception as e:
+		print('Error parsing bad nick list: %s' %(e))
+
 
 _update_lists()
 
@@ -145,7 +161,7 @@ def hook_OPENBATTLE(self, client, title):
 
 def isNasty(msg):
 	msg = msg.lower()
-	for word in bad_word_dict.keys():
+	for word in bad_nick_list:
 		if word in msg: return True
 	return False
 

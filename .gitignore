@@ -15,6 +15,7 @@ xmlrpc.log*
 /GeoIP.dat.gz
 /bad_sites.txt
 /bad_words.txt
+/bad_nicks.txt
 /docs/protocol.txt
 /protocol/docs/protocol.txt
 /server.pem
