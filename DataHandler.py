@@ -128,7 +128,7 @@ class DataHandler:
 			self.channels[name] = newchan
 
 		self.parseFiles()
-		self.protocol = Protocol.Protocol(self) # MasterBel2 Note: Why is this defined here and not used again?
+		self.protocol = Protocol.Protocol(self) 
 		self.chanserv = ChanServ.ChanServClient(self, (self.online_ip, 0), self.session_id)
 
 		for name in channels:
