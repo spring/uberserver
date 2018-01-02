@@ -633,16 +633,15 @@ class Protocol:
 			if sourceClient == None or not sourceClient.db_id in client.ignored:
 				client.Send(data)
 				
-	def broadcast_Promote(self, battle):
-		for name, receiver in self._root.usernames.items():
-			receiver.Send('PROMOTE %s' % (battle))
-			## The following commented code needs to be re-appropriated for this purpose:
-			## The message should not be sent to anyone in the battle being promoted.
-			#if client.session_id == receiver.session_id: # don't send ADDUSER to self
-			#continue
-			#if client.username == receiver.username:
-			#client.out_FAILED(client, "Something weird happened!", True)
-			#continue
+	def broadcast_Promote(self, promotedBattle, client):
+		for name, reciever in self._root.usernames.items():
+			if client.session_id == receiver.session_id: # don't send PROMOTE to self
+				print('not sending promote to self')
+				return
+			if client.username == receiver.username:
+				client.out_FAILED(client, "Something weird happened!", True)
+				return
+			client.Send('PROMOTE %s' % (promotedBattle))
 
 	def broadcast_AddUser(self, client):
 		for name, receiver in self._root.usernames.items():
@@ -1592,10 +1591,13 @@ class Protocol:
 		client.Send('REQUESTBATTLESTATUS')
 
 	def in_PROMOTE(self, client):
-		battle = self.getCurrentBattle(client)
-		if not battle:
+		print('Promote command recieved')
+		promoted_battle = client.current_battle
+		if not promoted_battle:
+			print('client is not in a battle')
 			return
-		self.broadcast_Promote(battle)
+		print('client is in a battle')
+		self.broadcast_Promote(promoted_battle, client)
 
 	def in_SAYBATTLE(self, client, msg):
 		'''
