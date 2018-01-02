@@ -104,6 +104,7 @@ restricted = {
 	'MYSTATUS',
 	'PORTTEST',
 	'RENAMEACCOUNT',
+	'JSON',
 	]),
 'mod':set([
 	'BAN',
@@ -2974,6 +2975,18 @@ class Protocol:
 		client.StartTLS()
 		client.flushBuffer()
 		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0')))
+
+	def in_JSON(self, client, rawcmd):
+		cmd = json.loads(cmd)
+		if "PROMOTE" in cmd:
+			if not client.bot: # only bots are allowed to promote
+				return
+			battle = self.getCurrentBattle(client)
+			if not battle: #needs to be in battle
+				return
+			data = {"PROMOTE": {"battleid": battle.id}}
+			self._root.broadcast('JSON ' + json.dumps(data, separators=(',', ':')))
+			return
 
 	# Begin outgoing protocol section #
 	#
