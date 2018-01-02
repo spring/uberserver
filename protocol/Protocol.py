@@ -57,6 +57,7 @@ restricted = {
 	'LEAVEBATTLE',
 	'MYBATTLESTATUS',
 	'OPENBATTLE',
+	'PROMOTE', #Promote
 	'REMOVEBOT',
 	'REMOVESCRIPTTAGS',
 	'REMOVESTARTRECT',
@@ -640,6 +641,16 @@ class Protocol:
 			client = self.clientFromSession(session_id)
 			if sourceClient == None or not sourceClient.db_id in client.ignored:
 				client.Send(data)
+				
+	def broadcast_Promote(self, promotedBattle, client):
+		for name, reciever in self._root.usernames.items():
+			if client.session_id == receiver.session_id: # don't send PROMOTE to self
+				print('not sending promote to self')
+				return
+			if client.username == receiver.username:
+				client.out_FAILED(client, "Something weird happened!", True)
+				return
+			client.Send('PROMOTE %s' % (promotedBattle))
 
 	def broadcast_AddUser(self, client):
 		for name, receiver in self._root.usernames.items():
@@ -1563,6 +1574,15 @@ class Protocol:
 		client.Send('OPENBATTLE %s' % battle_id)
 		client.Send('JOINBATTLE %s %s' % (battle_id, hashcode))
 		client.Send('REQUESTBATTLESTATUS')
+
+	def in_PROMOTE(self, client):
+		print('Promote command recieved')
+		promoted_battle = client.current_battle
+		if not promoted_battle:
+			print('client is not in a battle')
+			return
+		print('client is in a battle')
+		self.broadcast_Promote(promoted_battle, client)
 
 	def in_SAYBATTLE(self, client, msg):
 		'''
