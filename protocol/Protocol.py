@@ -1373,7 +1373,7 @@ class Protocol:
 		user = client.username
 
 		# FIXME: unhardcode this
-		if (client.bot or or client.lobby_id.startswith("SPADS")) and chan in ("newbies", "ba") and client.username != "ChanServ":
+		if (client.bot or client.lobby_id.startswith("SPADS")) and chan in ("newbies", "ba") and client.username != "ChanServ":
 			#client.Send('JOINFAILED %s No bots allowed in #%s!' %(chan, chan))
 			return
 		if chan == 'moderator' and not 'mod' in client.accesslevels:
