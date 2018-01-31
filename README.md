@@ -20,7 +20,7 @@ Debian / Ubuntu:
 ```
 
 
-Clone UberServe sources
+Clone uberserver sources
 
 
 ```
