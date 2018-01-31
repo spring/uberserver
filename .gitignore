@@ -24,3 +24,4 @@ xmlrpc.log*
 /args.txt
 /proxies.txt
 /dbconfig.py
+venv/
