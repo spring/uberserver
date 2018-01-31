@@ -2977,7 +2977,11 @@ class Protocol:
 		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0')))
 
 	def in_JSON(self, client, rawcmd):
-		cmd = json.loads(cmd)
+		try:
+			cmd = json.loads(rawcmd)
+		except Exception as e:
+			self.out_JSON(client, "FAILED", {"msg": str(e)})
+			return
 		if "PROMOTE" in cmd:
 			if not client.bot: # only bots are allowed to promote
 				return
@@ -2987,6 +2991,34 @@ class Protocol:
 			data = {"PROMOTE": {"battleid": battle.id}}
 			self._root.broadcast('JSON ' + json.dumps(data, separators=(',', ':')))
 			return
+		if "KICKBAN" in cmd:
+			params = cmd["KICKBAN"]
+			if not "mod" in client.accesslevels:
+				self.out_JSON(client, "FAILED", {"msg": "Moderator permissions needed: %s" %(client.access)})
+				return
+			if not "username" in cmd["KICKBAN"]:
+				return
+			username = cmd["KICKBAN"]["username"]
+			valid, reason =  self._validUsernameSyntax(username)
+			if not valid:
+				self.out_JSON(client, "FAILED", {"msg": reason})
+			response = ""
+			reason = "bankicked by %s" %(client.username)
+			duration = 0.04 # ~1 hour
+
+			if "duration" in params:
+				try:
+					duration = float(duration)
+				except:
+					self.out_JSON(client, "FAILED", {"msg": 'Duration must be a float (the ban duration in days)'})
+					return
+
+			badclient = self.clientFromUsername(username)
+			if badclient: # online
+				response += self.userdb.ban_ip(badclient, badclient.ip_address, duration, reason)
+				badclient.Remove(reason)
+			response += self.userdb.ban_user(client, username, duration, reason)
+			self.out_JSON(client, "OK", {"msg": str(response)})
 
 	# Begin outgoing protocol section #
 	#
