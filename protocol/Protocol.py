@@ -3002,6 +3002,7 @@ class Protocol:
 			valid, reason =  self._validUsernameSyntax(username)
 			if not valid:
 				self.out_JSON(client, "FAILED", {"msg": reason})
+				return
 			response = ""
 			reason = "bankicked by %s" %(client.username)
 			duration = 0.04 # ~1 hour
