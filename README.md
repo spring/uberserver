@@ -6,13 +6,13 @@
 
 # Installation
 
-Install OpenSSL, Geoip headers. Optinal MariaDB | Mysql headers
+Install OpenSSL, Geoip headers. Optional MariaDB | Mysql client headers
 
 Debian / Ubuntu:
 
 - libssl-1.0-dev
 - libgeoip-dev
-- libmariadbclient-dev | libmysqlclient-decv
+- libmariadbclient-dev | libmysqlclient-dev
 
 ```
 # apt update
