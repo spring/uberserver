@@ -3020,6 +3020,8 @@ class Protocol:
 				badclient.Remove(reason)
 			response += self.userdb.ban_user(client, username, duration, reason)
 			self.out_JSON(client, "OK", {"msg": str(response)})
+			return
+		self.out_JSON(client, "FAILED", {"msg": "Unknown command: %s" %(rawcmd)})
 
 	# Begin outgoing protocol section #
 	#
