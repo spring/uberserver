@@ -97,7 +97,7 @@ class LobbyClient:
 			return
 		data += "\n"
 
-		self.host_socket.send(data.encode())
+		self.host_socket.send(data.encode("utf-8"))
 
 	def Recv(self):
 		num_received_bytes = len(self.socket_data)
