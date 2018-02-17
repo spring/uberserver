@@ -93,24 +93,11 @@ class LobbyClient:
 		## print("[Send][time=%d::iter=%d] data=\"%s\" key_acked=%d queue=%s batch=%d" % (time.time(), self.iters, data, self.client_acked_shared_key, self.data_send_queue, batch))
 		assert(type(data) == str)
 
-		def want_secure_command(data):
-			cmd = data.split()
-			cmd = cmd[0]
-			return (self.want_secure_session and (not cmd in ALLOWED_OPEN_COMMANDS))
-
-		def wrap_encrypt_sign_message(raw_msg):
-			raw_msg = int32_to_str(self.outgoing_msg_ctr) + raw_msg
-			enc_msg = encrypt_sign_message(self.aes_cipher_obj, raw_msg, self.use_msg_auth_codes())
-
-			self.outgoing_msg_ctr += 1
-			return enc_msg
-
-		buf = data
-
-		if (len(buf) == 0):
+		if (len(data) == 0):
 			return
+		data += "\n"
 
-		self.host_socket.send(buf.encode("utf-8"))
+		self.host_socket.send(data.encode())
 
 	def Recv(self):
 		num_received_bytes = len(self.socket_data)
@@ -183,18 +170,20 @@ class LobbyClient:
 			print(traceback.format_exc())
 			return False
 
+	def EncodePassword(self, password):
+		return ENCODE_FUNC(LEGACY_HASH_FUNC(self.password.encode()).digest()).decode()
 
 	def out_LOGIN(self):
 		print("[LOGIN][time=%d::iter=%d]" % (time.time(), self.iters))
 
-		self.Send("LOGIN %s %s" % (self.username, ENCODE_FUNC(LEGACY_HASH_FUNC(self.password.encode("utf-8")).digest())))
+		self.Send("LOGIN %s %s" % (self.username, self.EncodePassword(self.password)))
 
 		self.requested_authentication = True
 
 	def out_REGISTER(self):
 		print("[REGISTER][time=%d::iter=%d]" % (time.time(), self.iters))
 
-		self.Send("REGISTER %s %s" % (self.username, ENCODE_FUNC(LEGACY_HASH_FUNC(self.password).digest())))
+		self.Send("REGISTER %s %s" % (self.username, self.EncodePassword(self.password)))
 
 		self.requested_registration = True
 
