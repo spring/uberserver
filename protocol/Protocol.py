@@ -588,6 +588,9 @@ class Protocol:
 	def _informErrors(self, client):
 		if client.lobby_id in ("SpringLobby 0.188 (win x32)", "SpringLobby 0.200 (win x32)"):
 			client.Send("SAYPRIVATE ChanServ The autoupdater of SpringLobby 0.188 is broken, please manually update: https://springrts.com/phpbb/viewtopic.php?f=64&t=31224")
+		if self.SayHooks.isNasty(client.username):
+			client.Send("SAYPRIVATE ChanServ Your username is on the nasty word list. Please rename to a username which is not. If you think this is wrong, please create an issue on https://github.com/spring/uberserver/issues with the username which triggers this error.")
+
 	def _getNextBattleId(self):
 		self._root.nextbattle += 1 #FIXME: handle overflow (int32)
 		id = self._root.nextbattle
