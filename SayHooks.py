@@ -39,7 +39,7 @@ def _update_lists():
 	try:
 		global bad_nick_list
 		bad_nick_list = set()
-		f = open('bad_sites.txt', 'r')
+		f = open('bad_nicks.txt', 'r')
 		for line in f.readlines():
 			line = line.strip().lower()
 			if not line:
