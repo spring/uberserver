@@ -1106,12 +1106,21 @@ class Protocol:
 		@required.str channel: The target channel.
 		@required.str user: The user to unmute.
 		'''
-		if chan in self._root.channels:
-			channel = self._root.channels[chan]
-			if channel.isOp(client):
-				target = self.clientFromUsername(user)
-				if target:
-					channel.unmuteUser(client, target)
+		if not chan in self._root.channels:
+			self.out_FAILED(client, "UNMUTE", "Unknown channel: %s"%(chan))
+			return
+
+		channel = self._root.channels[chan]
+		if not channel.isOp(client):
+			self.out_FAILED(client, "UNMUTE", "Missing permissions for chan %s"%(chan))
+			return
+
+		target = self.clientFromUsername(user)
+		if not target:
+			self.out_FAILED(client, "UNMUTE", "User not found: %s"%(user))
+			return
+
+		channel.unmuteUser(client, target)
 
 	def in_MUTELIST(self, client, chan): # maybe restrict to open channels and channels you are in - not locked
 		'''
