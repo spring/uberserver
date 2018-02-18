@@ -1119,16 +1119,18 @@ class Protocol:
 
 		@required.str channel: The target channel.
 		'''
-		if chan in self._root.channels:
-			channel = self._root.channels[chan]
-			client.Send('MUTELISTBEGIN %s' % chan)
-			for user in channel.mutelist:
-				m = mutelist[user].copy()
-				message = self._time_until(m['expires']) + (' by IP.' if m['ip'] else '.')
-				user = self.clientFromID(user)
-				if user:
-					client.Send('MUTELIST %s, %s' % (user.username, message))
-			client.Send('MUTELISTEND')
+		if not chan in self._root.channels:
+			return
+		channel = self._root.channels[chan]
+		client.Send('MUTELISTBEGIN %s' % chan)
+		mutelist = channel.mutelist
+		for user in mutelist:
+			m = mutelist[user].copy()
+			message = self._time_until(m['expires'])
+			user = self.clientFromID(user)
+			if user:
+				client.Send('MUTELIST %s, %s' % (user.username, message))
+		client.Send('MUTELISTEND')
 
 	def in_IGNORE(self, client, tags):
 		'''
