@@ -776,6 +776,7 @@ class Protocol:
 			return
 
 		if self.SayHooks.isNasty(username):
+			logging.error("Invalid nickname userd for registering %s" %(username))
 			client.Send("REGISTRATIONDENIED invalid nickname")
 			return
 
