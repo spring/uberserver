@@ -161,7 +161,12 @@ def hook_OPENBATTLE(self, client, title):
 
 def isNasty(msg):
 	msg = msg.lower()
+
+	cleaned = msg
+	for ch in ["[", "]", "_"]:
+		cleaned = cleaned.replace(ch, "")
 	for word in bad_nick_list:
 		if word in msg: return True
+		if word in cleaned: return True
 	return False
 

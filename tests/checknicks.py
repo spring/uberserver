@@ -9,8 +9,11 @@ if len(sys.argv) < 2:
 	sys.exit(-1)
 tocheck = sys.argv[1]
 
+
 for check in sys.argv[1:]:
+	if SayHooks.isNasty(check):
+		print("Is Nasty: %s" % (check))
 	for nick in SayHooks.bad_nick_list:
-		if nick in check:
+		if nick in check.lower():
 			print("%s is in nasty word list: %s" %(nick, check))
 
