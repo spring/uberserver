@@ -488,10 +488,11 @@ class Protocol:
 			client.RealSend("MOTD Your client doesn't support the 'p' compatibility flag, please upgrade it!")
 			client.RealSend("MOTD see htpp://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
 			missing_flags += ' p'
+		if not client.TLS:
+			missing_flags += ' tls'
+			client.RealSend("MOTD Your client didn't use tls for logging in, please upgrade it!")
 		if len(missing_flags) > 0:
 			logging.info('[%s] <%s> client "%s" missing compat flags:%s'%(client.session_id, client.username, client.lobby_id, missing_flags))
-
-
 
 	def _validLegacyPasswordSyntax(self, password):
 		'checks if an old-style password is correctly encoded'
