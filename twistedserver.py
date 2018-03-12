@@ -50,7 +50,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 				self.resetTimeout() #reset timeout for authentificated users when data is received
 			self.Handle(data.decode("utf-8"))
 		except Exception as e:
-			logging.error("Error in handling data from client: %s %s, %s, %s" % (self.username, str(e), data, str(traceback.format_exc())))
+			logging.error("Error in handling data from client: %s %s %s %s, %s, %s" % (self.username, client.ip_address, client.port, str(e), data, str(traceback.format_exc())))
 
 	def timeoutConnection(self):
 		self.transport.abortConnection()
