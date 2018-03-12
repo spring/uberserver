@@ -62,8 +62,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 			self.transport.startTLS(self.root.cert)
 		except Exception as e:
 			logging.error("Error in handling data from client: %s, %s" % (str(e), str(traceback.format_exc())))
-			self.Remove("Error starting TLS")
-
+			self.transport.abortConnection()
 
 class ChatFactory(Factory):
 
