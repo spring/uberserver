@@ -639,6 +639,15 @@ class Protocol:
 
 	# the sourceClient is only sent for SAY*, and RING commands
 	def broadcast_SendBattle(self, battle, data, sourceClient=None):
+		if sourceClient:
+			dbid = sourceClient.db_id
+			if dbid in battle.mutelist:
+				endtime = battle.mutelist[dbid]
+				if endtime < datetime.datetime.now():
+					self.out_FAILED(sourceClient, "SAY", "You are muted in this battle until %s!" %(enddate))
+					return
+				battle.mutelist.remove[dbid]
+
 		for session_id in battle.users:
 			client = self.clientFromSession(session_id)
 			if sourceClient == None or not sourceClient.db_id in client.ignored:
@@ -649,7 +658,7 @@ class Protocol:
 			if client.session_id == receiver.session_id: # don't send ADDUSER to self
 				continue
 			if client.username == receiver.username:
-				client.out_FAILED(client, "Something weird happened!", True)
+				logging.error("Tried to send adduser to self: %s!"% client.username)
 				continue
 			receiver.Send(self.client_AddUser(receiver, client))
 
@@ -2997,6 +3006,7 @@ class Protocol:
 		except Exception as e:
 			self.out_JSON(client, "FAILED", {"msg": str(e)})
 			return
+
 		if "PROMOTE" in cmd:
 			if not client.bot: # only bots are allowed to promote
 				return
@@ -3006,6 +3016,7 @@ class Protocol:
 			data = {"PROMOTE": {"battleid": battle.id}}
 			self._root.broadcast('JSON ' + json.dumps(data, separators=(',', ':')))
 			return
+
 		if "KICKBAN" in cmd:
 			params = cmd["KICKBAN"]
 			if not "mod" in client.accesslevels:
@@ -3036,6 +3047,39 @@ class Protocol:
 			response += self.userdb.ban_user(client, username, duration, reason)
 			self.out_JSON(client, "OK", {"msg": str(response)})
 			return
+
+		if "BATTLEMUTE" in cmd:
+			params = cmd["BATTLEMUTE"]
+			if not "mod" in client.accesslevels:
+				self.out_JSON(client, "FAILED", {"msg": "Moderator permissions needed: %s" %(client.access)})
+				return
+			if not "username" in cmd["BATTLEMUTE"]:
+				return
+
+			username = cmd["BATTLEMUTE"]["username"]
+			badclient = self.clientFromUsername(username)
+			if not badclient:
+				self.out_JSON(client, "FAILED", {"msg": 'Client not found'})
+
+			duration = 60 #minutes
+			if "duration" in params:
+				try:
+					duration = int(duration)
+				except:
+					self.out_JSON(client, "FAILED", {"msg": 'Duration must be a int (the ban duration in minutes)'})
+					return
+
+			battle = self.getCurrentBattle(badclient)
+			if not bad_client.db_id in battle.mutelist:
+				battle.mutelist[bad_client.db_id] = datetime.datetime.now()
+
+			battle.mutelist[bad_client.db_id] += datetime.delta(minutes=duration)
+			enddate = battle.mutelist[bad_client.db_id]
+
+			self.broadcast_SendBattle(battle, 'SAIDBATTLE %s <%s> was muted until %s by %s.' % (battle.host.username, baduser.username, enddate, client.username), client)
+
+			return
+
 		self.out_JSON(client, "FAILED", {"msg": "Unknown command: %s" %(rawcmd)})
 
 	# Begin outgoing protocol section #

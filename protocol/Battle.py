@@ -35,4 +35,5 @@ class Battle():
 		self.sending_replay_script = False
 		self.locked = False
 		self.spectators = 0
+		self.mutelist = {}
 
