@@ -2950,13 +2950,19 @@ class Protocol:
 			del self._root.clients[c.session_id]
 			logging.error("deleted invalid session: %d %s", c.session_id, c.username)
 
+		todel = []
 		for uname in self._root.usernames:
 			c = self.clientFromUsername(uname)
 			if not c.session_id in self._root.clients:
 				logging.error("missing session for %s", c.username)
+				todel.append(uname)
+				continue
 			d = self.clientFromSession(c.session_id)
 			if d.username != c.username:
 				logging.error("missmatch usernames: %s %s" %(d.username, c.username))
+		for u in todel:
+			del self._root.usernames[u]
+			logging.error("Deleted username without session: %s" %(u))
 
 		self.userdb.clean_users()
 
