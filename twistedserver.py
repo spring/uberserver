@@ -49,6 +49,8 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 			if self.username:
 				self.resetTimeout() #reset timeout for authentificated users when data is received
 			self.Handle(data.decode("utf-8"))
+		except UnicodeDecodeError as e:
+			self.Remove("Invalid utf-8 data received, closing connection")
 		except Exception as e:
 			logging.error("Error in handling data from client: %s %s %s %s, %s, %s" % (self.username, client.ip_address, client.port, str(e), data, str(traceback.format_exc())))
 
