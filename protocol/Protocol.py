@@ -840,8 +840,8 @@ class Protocol:
 
 		if self.SayHooks.isNasty(username):
 			logging.error("Invalid nickname %s" %(username))
-		#	self.out_DENIED(client, username, "invalid nickname")
-		#	return
+			self.out_DENIED(client, username, "invalid nickname")
+			return
 
 		# this check is a duplicate: prevents db access
 		if (username in self._root.usernames):
