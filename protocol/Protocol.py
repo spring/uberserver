@@ -11,6 +11,7 @@ import logging
 import datetime
 import base64
 import json
+import urllib.request
 
 # see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
 # max. 8 ranks are possible (rank 0 isn't listed)
@@ -166,6 +167,16 @@ def uint32(x):
 
 def datetime_totimestamp(dt):
 	return int(time.mktime(dt.timetuple()))
+
+def url_is_alive(url):
+    request = urllib.request.Request(url)
+    request.get_method = lambda: 'HEAD'
+
+    try:
+        urllib.request.urlopen(request)
+        return True
+    except urllib.request.HTTPError:
+        return False
 
 
 flag_map = {
@@ -1539,6 +1550,20 @@ class Protocol:
 		for var, error in checkvars:
 			if not var:
 				self.out_OPENBATTLEFAILED(client, error)
+				return
+
+		# only allow botflagged hosts to use engine versions that are currently available for dl
+		if engine == 'spring' and client.bot:
+			words = version.split(' ', 2)
+			versionUrlPrefix = "https://springrts.com/dl/buildbot/default/"
+			versionString = words[0]
+			versionBranch = "master"
+			if len(words)==2:
+				versionBranch = words[1]
+			versionUrl = versionUrlPrefix + versionBranch + "/" + versionString + "/"
+			isAlive = url_is_alive(versionUrl)
+			if not isAlive:
+				self.out_OPENBATTLEFAILED(client, "Invalid engine version for botflagged host: %s not found" % versionUrl)
 				return
 
 		battle_id = self._getNextBattleId()
