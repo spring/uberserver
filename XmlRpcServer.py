@@ -20,8 +20,7 @@ import SQLUsers
 import sqlalchemy
 import datetime
 
-from Crypto.Hash import MD5
-LEGACY_HASH_FUNC = MD5.new
+from hashlib import md5
 
 # logging
 xmlrpc_logfile = os.path.join(os.path.dirname(__file__), "xmlrpc.log")
@@ -68,7 +67,7 @@ def validateLogin(username, password):
 		logger.warning("User not found: %s" %(username))
 		return {"status": 1}
 
-	if not db_user.password == b64encode(LEGACY_HASH_FUNC(password.encode()).digest()).decode():
+	if not db_user.password == b64encode(md5(password.encode()).digest()).decode():
 		session.close()
 		logger.error("Invalid password: %s" %(username))
 		return {"status": 1}
