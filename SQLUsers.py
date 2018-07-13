@@ -2,18 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from datetime import datetime, timedelta
-
-from base64 import b64encode as ENCODE_FUNC
-from base64 import b64decode as DECODE_FUNC
-
-
-from Crypto.Hash import MD5
-from Crypto.Hash import SHA256
-from Crypto import Random
-
-PWRD_HASH_ROUNDS = 1024
-USR_DB_SALT_SIZE = 16
-
 from BaseClient import BaseClient
 
 
@@ -315,86 +303,15 @@ class UsersHandler:
 		return OfflineClient(entry)
 
 
-	def convert_legacy_user_pwrd(self, session, db_user, password):
-		assert(db_user != None)
-		assert(len(db_user.randsalt) == 0)
-
-		## in a secure session, so password was only base64-encoded
-		## by client and we must apply B64ENCODE(MD5(B64DECODE(..)))
-		## to it first
-		legacy_pwrd = password.encode("utf-8")
-		legacy_pwrd = DECODE_FUNC(legacy_pwrd)
-		legacy_pwrd = MD5.new(legacy_pwrd)
-		legacy_pwrd = ENCODE_FUNC(legacy_pwrd.digest())
-		legacy_pwrd = legacy_pwrd.decode("utf-8")
-
-		## check if a legacy LOGIN would succeed with given password
-		if (not self.legacy_test_user_pwrd(db_user, legacy_pwrd)):
-			return False
-
-		## commit new-style password(-hash) and salt to DB
-		db_user.set_pwrd_salt(self.gen_user_pwrd_hash_and_salt(password))
-		session.commit()
-
-		assert(not db_user.has_legacy_password())
-		assert(self.secure_test_user_pwrd(db_user, password))
-		return True
-
-
 	def legacy_update_user_pwrd(self, db_user, password):
 		assert(db_user.has_legacy_password())
 
 		db_user.set_pwrd_salt((password, ""))
 		self.save_user(db_user)
 
-	def secure_update_user_pwrd(self, db_user, password):
-		db_user.set_pwrd_salt(self.gen_user_pwrd_hash_and_salt(password))
-		self.save_user(db_user)
-
-
 	def legacy_test_user_pwrd(self, user_inst, user_pwrd):
 		return (user_inst.password == user_pwrd)
 
-	## test LOGIN input <user_pwrd> against DB User instance <user_inst>
-	def secure_test_user_pwrd(self, user_inst, user_pwrd, hash_func = SHA256.new):
-		user_pwrd = DECODE_FUNC(user_pwrd.encode("utf-8"))
-		user_salt = DECODE_FUNC(user_inst.randsalt.encode("utf-8"))
-		user_hash = hash_func(user_pwrd + user_salt)
-
-		for i in xrange(PWRD_HASH_ROUNDS):
-			user_hash = hash_func(user_hash.digest() + user_salt)
-
-		return (user_inst.password.encode("utf-8") == ENCODE_FUNC(user_hash.digest()))
-
-
-	## server converts all incoming decrypted messages (including those
-	## containing password strings) to unicode --> hash-functions do not
-	## like this, so we need to encode them again
-	## (values retrieved from DB will also be in unicode)
-	def gen_user_pwrd_hash_and_salt(self, user_pass, hash_func = SHA256.new, rand_pool = Random.new()):
-		def gen_user_salt(rand_pool, num_salt_bytes = USR_DB_SALT_SIZE):
-			return (rand_pool.read(num_salt_bytes))
-
-		def gen_user_hash(user_pwrd, user_salt, hash_func = SHA256_HASH_FUNC):
-			assert(type(user_pwrd) == str)
-			assert(type(user_salt) == str)
-
-			user_hash = hash_func(user_pwrd + user_salt)
-
-			for i in xrange(PWRD_HASH_ROUNDS):
-				user_hash = hash_func(user_hash.digest() + user_salt)
-
-			return (user_hash.digest())
-
-		user_pass = DECODE_FUNC(user_pass.encode("utf-8"))
-		user_salt = gen_user_salt(rand_pool)
-		user_hash = gen_user_hash(user_pass, user_salt, hash_func)
-
-		assert(type(user_salt) == str)
-		assert(type(user_hash) == str)
-		return (ENCODE_FUNC(user_hash), ENCODE_FUNC(user_salt))
-
-	
 	def check_ban(self, user, ip, userid, now):
 		## FIXME: "Error reading from DB in in_LOGIN: <lambda>() takes exactly 2 arguments (3 given)"?
 		userban = self.sess().query(BanUser).filter(BanUser.user_id == userid, now <= BanUser.end_time).first()
@@ -463,32 +380,6 @@ class UsersHandler:
 
 		return (self.common_login_user(dbuser, self.session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
 
-	def secure_login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
-		assert(type(username) == str)
-		assert(type(password) == str)
-
-		db_user = self.sess().query(User).filter(User.username == username).first()
-
-		if (not db_user):
-			return False, 'Invalid username'
-
-		## check for the special case of a user first using secure login
-		## (meaning his legacy-hashed unsalted password is still present
-		## in the database)
-		## we can now either convert the password or generate a completely
-		## new temporary random string, which is more secure but also more
-		## inconvenient (or require users to create new accounts)
-		if (db_user.has_legacy_password() and (not self.convert_legacy_user_pwrd(session, db_user, password))):
-			return False, "Invalid password (conversion failed)."
-
-		## combine user-supplied password with DB salt
-		if (not self.secure_test_user_pwrd(db_user, password)):
-			return False, 'Invalid password'
-
-		## closes session
-		return (self.common_login_user(db_user, self.session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
-
-
 	def end_session(self, db_id):
 		entry = self.sess().query(User).filter(User.id==db_id).first()
 		if entry and not entry.logins[-1].end:
@@ -535,22 +426,6 @@ class UsersHandler:
 		self.sess().add(entry)
 		self.sess().commit()
 		return True, 'Account registered successfully.'
-
-	def secure_register_user(self, username, password, ip, country):
-		status, reason = self.common_register_user(username, password)
-
-		if (not status):
-			return False, reason
-
-		hash_salt = self.gen_user_pwrd_hash_and_salt(password)
-		## store the <hash(pwrd + salt), salt> pair in DB
-		## (will be converted to unicode automatically)
-		entry = User(username, hash_salt[0], hash_salt[1], ip)
-
-		session.add(entry)
-		session.commit()
-		return True, 'Account registered successfully.'
-
 
 	def ban_user(self, owner, username, duration, reason):
 		entry = self.sess().query(User).filter(User.username==username).first()

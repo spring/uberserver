@@ -9,12 +9,9 @@ import traceback
 import random
 import sys
 
-from Crypto.Hash import MD5
-from Crypto.Hash import SHA256
+from hashlib import md5
 
 from base64 import b64decode as SAFE_DECODE_FUNC
-
-SECURE_HASH_FUNC = SHA256.new
 
 import base64
 
@@ -41,7 +38,7 @@ class LobbyClient:
 
 		self.username = username
 		self.password = password
-		self.password = base64.b64encode(MD5.new(password.encode("utf-8")).digest()).decode("utf-8")
+		self.password = base64.b64encode(md5(password.encode("utf-8")).digest()).decode("utf-8")
 		assert(type(self.password) == str)
 
 		self.OpenSocket(server_addr)
@@ -172,7 +169,6 @@ class LobbyClient:
 
 
 	def out_LOGIN(self):
-		#print("[LOGIN][time=%d::iter=%d] sec_sess=%d" % (time.time(), self.iters, self.use_secure_session()))
 		self.Send("LOGIN %s %s 0 *\tstresstester client\t0\tsp cl p" % (self.username, self.password))
 
 		self.requested_authentication = True

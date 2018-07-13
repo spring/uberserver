@@ -6,15 +6,11 @@ import socket, inspect
 import time
 import threading
 import traceback
-
-from Crypto.Hash import MD5
-from Crypto.Hash import SHA256
+from hashlib import md5
 
 from base64 import b64decode as SAFE_DECODE_FUNC
 
 UNICODE_ENCODING = "utf-8"
-LEGACY_HASH_FUNC = MD5.new
-SECURE_HASH_FUNC = SHA256.new
 
 from base64 import b64encode as ENCODE_FUNC
 from base64 import b64decode as DECODE_FUNC
@@ -80,11 +76,6 @@ class LobbyClient:
 		self.accepted_registration    = False ## set on in_REGISTRATIONACCEPTED
 		self.rejected_registration    = False ## set on in_REGISTRATIONDENIED
 		self.accepted_authentication  = False ## set on in_ACCEPTED
-
-		## initialize key-exchange sequence (ends with ACKSHAREDKEY)
-		## needed even if (for some reason) we do not want a secure
-		## session to discover the server force_secure_{auths,comms}
-		## settings
 
 	def Send(self, data, batch = True):
 		## test-client never tries to send unicode strings, so
@@ -171,7 +162,7 @@ class LobbyClient:
 			return False
 
 	def EncodePassword(self, password):
-		return ENCODE_FUNC(LEGACY_HASH_FUNC(self.password.encode()).digest()).decode()
+		return ENCODE_FUNC(md5(self.password.encode()).digest()).decode()
 
 	def out_LOGIN(self):
 		print("[LOGIN][time=%d::iter=%d]" % (time.time(), self.iters))

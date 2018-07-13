@@ -2568,23 +2568,7 @@ class Protocol:
 		self.userdb.legacy_update_user_pwrd(db_user, new_password)
 		self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
 
-		return #FIXME: reimplement:
-
-		if (client.use_secure_session()):
-			## secure command (meaning we want our password salted, etc.)
-			##
-			## disallow converting old-style MD5 password to new-style if
-			## command is not encrypted (for obvious reasons: it would be
-			## sent in plaintext, unhashed)
-			## check if the supplied current password is authentic
-			if (not self.userdb.secure_test_user_pwrd(db_user, cur_password)):
-				self.out_SERVERMSG(client, 'Incorrect old password.')
-				return
-
-			self.userdb.secure_update_user_pwrd(db_user, new_password)
-			self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
-			return
-
+		return
 
 	def in_GETLOBBYVERSION(self, client, username):
 		'''
