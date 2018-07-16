@@ -11,6 +11,7 @@ import logging
 import datetime
 import base64
 import json
+import traceback
 
 # see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
 # max. 8 ranks are possible (rank 0 isn't listed)
@@ -618,6 +619,8 @@ class Protocol:
 		assert(isinstance(session_id, int))
 		if session_id in self._root.clients:
 			return self._root.clients[session_id]
+		logging.error("Couldn't get client from session_id: %d %s"% (session_id, traceback.format_exc()))
+		self.cleanup()
 		return None
 
 	def clientFromUsername(self, username, fromdb = False):
@@ -2878,6 +2881,9 @@ class Protocol:
 
 	def in_CLEANUP(self, client):
 		self._root.admin_broadcast('Cleanup initiated by %s (deleting old users, zombie channels / users)...' %(client.username))
+		self.cleanup()
+
+	def cleanup(self):
 		nchan = 0
 		nbattle = 0
 		nuser = 0
@@ -2924,7 +2930,7 @@ class Protocol:
 				continue
 			dupcheck.add(c.username)
 			if c.username not in self._root.usernames:
-				logging.error("missing user: %s %s session_id: %d", c.username, str(client.logged_in), c.session_id)
+				logging.error("missing user: %s %s session_id: %d", c.username, str(c.logged_in), c.session_id)
 				todel.append(c)
 			d = self.clientFromSession(c.session_id)
 			if d.username != c.username:
