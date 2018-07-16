@@ -2853,8 +2853,9 @@ class Protocol:
 			return
 
 		logging.info("Stats of command usage:")
-		for k in self.stats:
-			logging.info("%s %d" % (k, self.stats[k]))
+		for k in restricted_list:
+			count = self.stats[k] if k in self.stats else 0
+			logging.info("%s %d" % (k, count))
 
 		try:
 			self.broadcast_Moderator('Reload initiated by : %s' %(client.username))
