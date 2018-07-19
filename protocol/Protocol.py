@@ -2874,6 +2874,9 @@ class Protocol:
 			self._root.channeldb.session = self._root.channeldb.sessionmaker()
 			self._root.chanserv = chanserv.ChanServClient(self._root, (self._root.online_ip, 0), self._root.chanserv.session_id)
 			self._root.SayHooks = sayhooks
+			importlib.reload(sys.modules['BaseClient'])
+			importlib.reload(sys.modules['Client'])
+			importlib.reload(sys.modules['ip2country'])
 		except Exception as e:
 			logging.error("reload failed:")
 			logging.error(e)
