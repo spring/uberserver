@@ -60,7 +60,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 		self.transport.abortConnection()
 
 	def Remove(self, reason='Quit'):
-		self.transport.loseConnection()
+		self.transport.abortConnection()
 
 	def StartTLS(self):
 		try:

@@ -2685,15 +2685,16 @@ class Protocol:
 		@required.str username: The target user.
 		@optional.str reason: The reason to be shown.
 		'''
-		if user in self._root.usernames:
-			kickeduser = self._root.usernames[user]
-			if reason: reason = ' (reason: %s)' % reason
-			for chan in kickeduser.channels:
-				self._root.broadcast('CHANNELMESSAGE %s <%s> kicked <%s> from the server%s'%(chan, client.username, user, reason),chan)
-			self.out_SERVERMSG(client, 'You\'ve kicked <%s> from the server.' % user)
-			self.out_SERVERMSG(kickeduser, 'You\'ve been kicked from server by <%s>%s' % (client.username, reason))
-			kickeduser.Remove('was kicked from server by <%s>: %s' % (client.username, reason))
+		kickeduser = self.clientFromUsername(user)
+		if not kickeduser:
+			return
 
+		if reason: reason = ' (reason: %s)' % reason
+		for chan in kickeduser.channels:
+			self._root.broadcast('CHANNELMESSAGE %s <%s> kicked <%s> from the server%s'%(chan, client.username, user, reason),chan)
+		self.out_SERVERMSG(client, 'You\'ve kicked <%s> from the server.' % user)
+		self.out_SERVERMSG(kickeduser, 'You\'ve been kicked from server by <%s>%s' % (client.username, reason))
+		kickeduser.Remove('was kicked from server by <%s>: %s' % (client.username, reason))
 
 	def _testlogin(self, username, password):
 		'''
