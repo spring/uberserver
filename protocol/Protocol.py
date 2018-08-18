@@ -1014,6 +1014,9 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 
 		if (client.access == 'agreement'):
 			logging.info('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
+			if self._root.require_email_verification:
+				client.Send("AGREEMENT A verification code has been sent to the email address you provided. It may take a moment to arrive. Please read our terms of use below, and then enter your verification code.") 
+				client.Send("AGREEMENT ") # blank line 
 			for line in self._root.agreement:
 				client.Send("AGREEMENT %s" %(line))
 			client.Send('AGREEMENTEND')
