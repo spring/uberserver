@@ -26,7 +26,7 @@ _root.parseArgv(sys.argv)
 
 try:
 	signal.SIGHUP
-	
+
 	def sighup(sig, frame):
 		logging.info('Received SIGHUP.')
 		if _root.sighup:
