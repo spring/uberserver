@@ -570,6 +570,8 @@ class Protocol:
 		# get email user+pw
 		mail_user = self._root.mail_user
 		mail_password = self._root.mail_password
+		mail_server = self._root.mail_server
+		mail_server_port = self._root.mail_server_port
 
 		sent_from = mail_user
 		to = email
@@ -584,7 +586,7 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 		time.sleep(30)
 
 		try:
-			server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+			server = smtplib.SMTP_SSL(mail_server, mail_server_port)
 			server.ehlo()
 			server.login(mail_user, mail_password)
 

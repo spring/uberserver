@@ -72,6 +72,8 @@ class DataHandler:
 			lines = [l.strip() for l in lines]
 			self.mail_user = lines[0]
 			self.mail_password = lines[1]
+			self.mail_server = lines[2]
+			self.mail_server_port = int(lines[3])
 			self.require_email_verification = True
 			print('Email verification is enabled, server email account is %s' % self.mail_user)
 		except Exception as e:
