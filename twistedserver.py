@@ -53,7 +53,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 		except UnicodeDecodeError as e:
 			self.Remove("Invalid utf-8 data received, closing connection")
 		except Exception as e:
-			logging.error("Error in handling data from client: %s %s %s %s, %s, %s, running cleanup" % (self.username, client.ip_address, client.port, str(e), data, str(traceback.format_exc())))
+			logging.error("Error in handling data from client: %s %s %s %s, %s, %s, running cleanup" % (self.username, self.ip_address, self.port, str(e), data, str(traceback.format_exc())))
 			self.root.protocol.in_CLEANUP(self)
 
 	def timeoutConnection(self):
