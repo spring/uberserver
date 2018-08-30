@@ -1,6 +1,6 @@
 import socket, time, sys, ip2country, errno
-from collections import defaultdict
 
+from collections import defaultdict
 from BaseClient import BaseClient
 
 class Client(BaseClient):
@@ -16,17 +16,17 @@ class Client(BaseClient):
 				address = (root.online_ip, address[1])
 			elif root.local_ip:
 				address = (root.local_ip, address[1])
-		
+
 		self.ip_address = address[0]
 		self.local_ip = address[0]
 		self.port = address[1]
-		
+
 		self.country_code = '??'
 		self.setFlagByIP(self.ip_address)
-		
+
 		self.session_id = session_id
 		self.db_id = -1
-		
+
 		self.static = False
 		self.sendError = False
 		self.msg_id = ''
@@ -45,7 +45,7 @@ class Client(BaseClient):
 		self.cpu = 0
 		self.access = 'fresh'
 		self.accesslevels = ['fresh','everyone']
-		
+
 		self.battle_bots = {}
 		self.current_battle = None
 		self.battle_bans = []
@@ -58,7 +58,6 @@ class Client(BaseClient):
 		## copies of the DB User values, set on successful LOGIN
 		self.set_user_pwrd_salt("", ("", ""))
 
-		self.email = ''
 		self.hostport = None
 		self.udpport = 0
 		self.bot = 0
@@ -71,14 +70,17 @@ class Client(BaseClient):
 		}
 		self.msg_length_history = {}
 		self.lastsaid = {}
-		
+
 		self.debug = False
 		self.data = ''
 
 		# holds compatibility flags - will be set by Protocol as necessary
 		self.compat = defaultdict(lambda: False)
 		self.scriptPassword = None
-		
+
+		self.email = ''
+		self.registration_code = ''
+
 		now = time.time()
 		self.last_login = now
 		self.failed_logins = 0
@@ -87,7 +89,7 @@ class Client(BaseClient):
 		self.last_id = 0
 		self.buffersend = False # write all sends to a buffer (used when a client is logging in but didn't receive full server state)
 		self.buffer = ""
-		
+
 		self.ignored = {}
 		self.channels = set()
 
@@ -104,7 +106,6 @@ class Client(BaseClient):
 
 		self.msg_id = '#%s ' % test
 		return (' '.join(msg.split(' ')[1:]))
-
 
 	def setFlagByIP(self, ip, force=True):
 		cc = ip2country.lookup(ip)
@@ -215,7 +216,6 @@ class Client(BaseClient):
 		## don't append new data to buffer when client gets removed
 		if not data:
 			return
-
 		self.transport.write(data.encode("utf-8") + b"\n")
 
 	def Send(self, data):
@@ -233,7 +233,7 @@ class Client(BaseClient):
 
 	def isAdmin(self):
 		return ('admin' in self.accesslevels)
-	
+
 	def isMod(self):
 		return self.isAdmin() or ('mod' in self.accesslevels) # maybe cache these
 

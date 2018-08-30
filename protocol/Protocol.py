@@ -12,6 +12,14 @@ import datetime
 import base64
 import json
 import traceback
+import smtplib
+import random
+
+try:
+	import thread
+except:
+	# thread was renamed to _thread in python 3
+	import _thread
 
 # see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
 # max. 8 ranks are possible (rank 0 isn't listed)
@@ -523,8 +531,6 @@ class Protocol:
 
 		return (self._validLegacyPasswordSyntax(password))
 
-
-
 	def _validUsernameSyntax(self, username):
 		'checks if usernames syntax is correct / doesn''t contain invalid chars'
 		if not username:
@@ -534,6 +540,17 @@ class Protocol:
 				return False, 'Only ASCII chars, [], _, 0-9 are allowed in usernames.'
 		if len(username) > 20:
 			return False, 'Username is too long, max is 20 chars.'
+		return True, ""
+
+	def _validEmailSyntax(self, client, email):
+		assert(type(email) == str)
+
+		if (not email or email==""):
+			return False, "Email address is blank."
+
+		if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+			return False, "Invalid email address."
+
 		return True, ""
 
 	def _validChannelSyntax(self, channel):
@@ -546,6 +563,37 @@ class Protocol:
 		return True, ""
 
 
+	def _emailRegistrationCode(self, username, email, code):
+		assert(type(email) == str)
+		assert(type(code) == str)
+
+		# get email user+pw
+		mail_user = self._root.mail_user
+		mail_password = self._root.mail_password
+		mail_server = self._root.mail_server
+		mail_server_port = self._root.mail_server_port
+
+		sent_from = mail_user
+		to = email
+		subject = 'SpringRTS registration code'
+		body = """
+You are recieving this email because you recently registered an account at the SpringRTS lobbyserver
+Your registration code is """ + code + """
+
+If you recieved this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)"""
+		message = 'Subject: {}\n\n{}'.format(subject, body)
+
+		time.sleep(30)
+
+		try:
+			server = smtplib.SMTP_SSL(mail_server, mail_server_port)
+			server.ehlo()
+			server.login(mail_user, mail_password)
+
+			server.sendmail(sent_from, to, message)
+			server.close()
+		except Exception as e:
+			logging.error('Failed to email registration code: %s, %s, %s, %s' % (username, email, code, str(e)))
 
 	def _parseTags(self, tagstring):
 		'parses tags to a dict, for example user=bla\tcolor=123'
@@ -773,7 +821,7 @@ class Protocol:
 		sock.sendto('Port testing...', (host, port))
 		sock.close()
 
-	def in_REGISTER(self, client, username, password):
+	def in_REGISTER(self, client, username, password, email = ""):
 		'''
 		Register a new user in the account database.
 
@@ -782,6 +830,7 @@ class Protocol:
 		'''
 		assert(type(password) == str)
 
+		# test if username is well formed
 		good, reason = self._validUsernameSyntax(username)
 
 		if (not good):
@@ -789,29 +838,56 @@ class Protocol:
 			return
 
 		if self.SayHooks.isNasty(username):
-			logging.error("Invalid nickname used for registering %s" %(username))
+			logging.info("Invalid nickname used for registering %s" %(username))
 			client.Send("REGISTRATIONDENIED invalid nickname")
 			return
 
-		## test if password is well-formed
+		# test if password is well-formed
 		good, reason = self._validPasswordSyntax(client, password)
 
 		if (not good):
 			client.Send("REGISTRATIONDENIED %s" % (reason))
 			return
 
+		# test if email is well formed
+		email = email.lower()
+		good, reason = self._validEmailSyntax(client, email)
+		client.email = email
 
-		good, reason = self.userdb.legacy_register_user(username, password, client.ip_address, client.country_code)
+		if (not good and self._root.require_email_verification):
+			client.Send("REGISTRATIONDENIED %s" % (reason))
+			return
 
-		if (good):
-			logging.info('[%s] Successfully registered user <%s>.' % (client.session_id, username))
+		# test if user would be OK on db side (e.g. duplicate username/email)
+		good, reason = self.userdb.check_register_user(username, password, client.ip_address, client.country_code, email)
 
-			client.Send('REGISTRATIONACCEPTED')
-
-			client.access = 'agreement'
-		else:
+		if (not good):
 			logging.info('[%s] Registration failed for user <%s>: %s' % (client.session_id, username, reason))
 			client.Send('REGISTRATIONDENIED %s' % reason)
+			return
+
+		# create a registration code and save user to db
+		if client.registration_code=='' and self._root.require_email_verification:
+			client.registration_code = str(random.randint(1000,9999))
+		registration_code = client.registration_code
+
+		self.userdb.register_user(username, password, client.ip_address, client.country_code, email, registration_code)
+
+		# send registration code email
+		if self._root.require_email_verification:
+			try:
+				thread.start_new_thread(self._emailRegistrationCode, (username, email, registration_code,))
+			except NameError:
+				_thread.start_new_thread(self._emailRegistrationCode, (username, email, registration_code,))
+			except:
+				logging.error('Failed to launch _emailRegistrationCode: %s, %s, %s' % (username, email, registration_code))
+				client.Send('REGISTRATIONDENIED Failed to send registration code via email. This is a bug! Please report it.')
+				return
+
+		# declare success
+		logging.info('[%s] Successfully registered user <%s>.' % (client.session_id, username))
+		client.Send('REGISTRATIONACCEPTED')
+		client.access = 'agreement'
 
 
 	def in_LOGIN(self, client, username, password='', cpu='0', local_ip='', sentence_args=''):
@@ -911,8 +987,7 @@ class Protocol:
 		#assert(not client.db_id in self._root.db_ids)
 		#assert(not user_or_error.username in self._root.usernames)
 
-
-		## update local client fields from DB User values
+		# update local client fields from DB User values
 		client.access = user_or_error.access
 		self._calc_access(client)
 		client.set_user_pwrd_salt(user_or_error.username, (user_or_error.password, user_or_error.randsalt))
@@ -921,6 +996,8 @@ class Protocol:
 		client.register_date = user_or_error.register_date
 		client.last_login = user_or_error.last_login
 		client.cpu = cpu
+		client.email = user_or_error.email
+		client.registration_code = user_or_error.registration_code
 
 		client.local_ip = None
 		if local_ip.startswith('127.') or not validateIP(local_ip):
@@ -937,6 +1014,9 @@ class Protocol:
 
 		if (client.access == 'agreement'):
 			logging.info('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
+			if self._root.require_email_verification:
+				client.Send("AGREEMENT A verification code has been sent to the email address you provided. It may take a moment to arrive. Please read our terms of use below, and then enter your verification code.") 
+				client.Send("AGREEMENT ") # blank line 
 			for line in self._root.agreement:
 				client.Send("AGREEMENT %s" %(line))
 			client.Send('AGREEMENTEND')
@@ -995,14 +1075,19 @@ class Protocol:
 			self.in_JOIN(client, "moderator")
 
 
-	def in_CONFIRMAGREEMENT(self, client):
-		'Confirm the terms of service as shown with the AGREEMENT commands. Users must accept the terms of service to use their account.'
+	def in_CONFIRMAGREEMENT(self, client, registration_code = ""):
+		# Confirm the terms of service as shown with the AGREEMENT commands. Users must accept the terms of service to use their account.'
+		# Check the four digit registration code which the user recieved via email
+		if (self._root.require_email_verification and registration_code!=client.registration_code):
+			self.out_DENIED(client, client.username, "Incorrect registration code.")
+			return
+
 		if client.access == 'agreement':
 			client.access = 'user'
 			self.userdb.save_user(client)
 			self._calc_access_status(client)
 			self._SendLoginInfo(client)
-			self.broadcast_Moderator('New user: %s %s %s %s %s %s' %(client.username, client.country_code, client.ip_address, client.local_ip, client.last_id, client.lobby_id))
+			self.broadcast_Moderator('New user: %s %s %s %s %s %s %s' %(client.username, client.country_code, client.ip_address, client.local_ip, client.last_id, client.lobby_id, client.email))
 
 	def in_SAY(self, client, chan, msg):
 		'''
@@ -1195,7 +1280,7 @@ class Protocol:
 			return
 
 		self.ignore_user(client, ignoreClient, reason)
-		if not reason or not reason.strip(): 
+		if not reason or not reason.strip():
 			client.Send('IGNORE userName=%s' % (username))
 		else:
 			client.Send('IGNORE userName=%s\treason=%s' % (username, reason))

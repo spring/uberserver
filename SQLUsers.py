@@ -31,22 +31,24 @@ users_table = Table('users', metadata,
 	Column('ingame_time', Integer),
 	Column('access', String(32)),
 	Column('email', String(254)), # http://www.rfc-editor.org/errata_search.php?rfc=3696&eid=1690
+	Column('registration_code', String(4)),
 	Column('bot', Integer),
 	mysql_charset='utf8',
 	)
 
 class User(BaseClient):
-	def __init__(self, username, password, randsalt, last_ip, access='agreement'):
+	def __init__(self, username, password, randsalt, last_ip, email, registration_code, access='agreement'):
 		self.set_user_pwrd_salt(username, (password, randsalt))
 
 		self.last_login = datetime.now()
 		self.register_date = datetime.now()
 		self.last_ip = last_ip
+		self.email = email
+		self.registration_code = registration_code
 		self.ingame_time = 0
 		self.bot = 0
 		self.access = access # user, moderator, admin, bot, agreement
 		self.last_id = 0
-		self.email = ""
 
 	def __repr__(self):
 		return "<User('%s', '%s')>" % (self.username, self.password)
@@ -276,7 +278,7 @@ class OfflineClient(BaseClient):
 		self.last_id = sqluser.last_id
 		self.access = sqluser.access
 		self.email = sqluser.email
-
+		self.registration_code = sqluser.registration_code
 
 
 class UsersHandler:
@@ -296,7 +298,7 @@ class UsersHandler:
 		entry = self.sess().query(User).filter(User.id==db_id).first()
 		if not entry: return None
 		return OfflineClient(entry)
-	
+
 	def clientFromUsername(self, username):
 		entry = self.sess().query(User).filter(User.username==username).first()
 		if not entry: return None
@@ -350,7 +352,7 @@ class UsersHandler:
 
 		if (good):
 			## copy unicode(BASE64(...)) values out of DB, leave them as-is
-			user_copy = User(dbuser.username, dbuser.password, dbuser.randsalt, ip, now)
+			user_copy = User(dbuser.username, dbuser.password, dbuser.randsalt, ip, dbuser.email, dbuser.registration_code)
 			user_copy.access = dbuser.access
 			user_copy.id = dbuser.id
 			user_copy.ingame_time = dbuser.ingame_time
@@ -397,7 +399,8 @@ class UsersHandler:
 		return True, ""
 
 
-	def common_register_user(self, username, password):
+	# TODO: improve, e.g. also check if ip address is banned when registering account
+	def check_register_user(self, username, password, ip, country, email):
 		assert(type(username) == str)
 		assert(type(password) == str)
 
@@ -411,17 +414,17 @@ class UsersHandler:
 		if (dbuser):
 			return False, 'Username already exists.'
 
+		dbemail = self.sess().query(User).filter(User.email == email).first()
+
+		#if (dbemail):
+		#	return False, 'Email address already exists.'
+
 		return True, ""
 
-	# TODO: improve, e.g. also check if ip address is banned when registering account
-	def legacy_register_user(self, username, password, ip, country):
-		status, reason = self.common_register_user(username, password)
-
-		if (not status):
-			return False, reason
-
-		## note: password here is BASE64(MD5(...)) and already in unicode
-		entry = User(username, password, "", ip)
+	def register_user(self, username, password, ip, country, email, registration_code):
+		# note: password here is BASE64(MD5(...)) and already in unicode
+		# assume check_register_user was already called
+		entry = User(username, password, "", ip, email, registration_code)
 
 		self.sess().add(entry)
 		self.sess().commit()
@@ -436,7 +439,7 @@ class UsersHandler:
 		self.sess().add(ban)
 		self.sess().commit()
 		return 'Successfully banned %s for %s days.' % (username, duration)
-	
+
 	def unban_user(self, username):
 		client = self.clientFromUsername(username)
 		if not client:
@@ -467,7 +470,7 @@ class UsersHandler:
 			return 'Successfully unbanned %s.' % ip
 		else:
 			return 'No matching bans for %s.' % ip
-	
+
 	def banlistuser(self):
 		banlist = []
 		for ban in self.sess().query(BanUser, User.id, BanUser.end_time, BanUser.reason, User.username).join(User,BanUser.user_id == User.id ):
@@ -521,39 +524,40 @@ class UsersHandler:
 			entry.bot = obj.bot
 			entry.last_id = obj.last_id
 			entry.email = obj.email
+			entry.registration_code = obj.registration_code
 
 		self.sess().commit()
-	
+
 	def confirm_agreement(self, client):
 		entry = self.sess().query(User).filter(User.username==client.username).first()
 		if entry: entry.access = 'user'
 		self.sess().commit()
-	
+
 	def get_lastlogin(self, username):
 		entry = self.sess().query(User).filter(User.username==username).first()
 		if entry: return True, entry.last_login
 		else: return False, 'User not found.'
-	
+
 	def get_registration_date(self, username):
 		entry = self.sess().query(User).filter(User.username==username).first()
 		if entry and entry.register_date: return True, entry.register_date
 		else: return False, 'user or date not found in database'
-	
+
 	def get_ingame_time(self, username):
 		entry = self.sess().query(User).filter(User.username==username).first()
 		if entry: return True, entry.ingame_time
 		else: return False, 'user not found in database'
-	
+
 	def get_account_access(self, username):
 		entry = selfsession.query(User).filter(User.username==username).first()
 		if entry:
 			return True, entry.access
 		else: return False, 'user not found in database'
-	
+
 	def find_ip(self, ip):
 		results = self.sess().query(User).filter(User.last_ip==ip)
 		return results
-		
+
 	def get_ip(self, username):
 		entry = self.sess().query(User).filter(User.username==username).first()
 		if not entry:
@@ -778,7 +782,7 @@ if __name__ == '__main__':
 	channelname = u"testchannel"
 
 	# test save/load user
-	userdb.legacy_register_user(username, u"pass", "192.168.1.1", "DE")
+	userdb.register_user(username, u"pass", "192.168.1.1", "DE", "test_email@test.com", "1234")
 	client = userdb.clientFromUsername(username)
 	assert(isinstance(client.id, int))
 

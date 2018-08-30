@@ -44,7 +44,7 @@ class DataHandler:
 		self.engine = None
 		self.updatefile = None
 		self.trusted_proxyfile = None
-		
+
 		self.max_threads = 25
 		self.sqlurl = 'sqlite:///server.db'
 		self.nextbattle = 0
@@ -53,9 +53,9 @@ class DataHandler:
 		self.motd = None
 		self.running = True
 		self.redirect = None
-		
+
 		self.trusted_proxies = []
-		
+
 		self.start_time = time.time()
 		self.channels = {}
 		self.usernames = {}
@@ -64,6 +64,20 @@ class DataHandler:
 		self.battles = {}
 		self.detectIp()
 		self.cert = None
+
+		self.require_email_verification = False
+		try:
+			with open('server_email_account.txt') as f:
+				lines = f.readlines()
+			lines = [l.strip() for l in lines]
+			self.mail_user = lines[0]
+			self.mail_password = lines[1]
+			self.mail_server = lines[2]
+			self.mail_server_port = int(lines[3])
+			self.require_email_verification = True
+			print('Email verification is enabled, server email account is %s' % self.mail_user)
+		except Exception as e:
+			print('Could not load server_email_account.txt, email verification is disabled: %s' %(e))
 
 	def initlogger(self, filename):
 		# logging
@@ -272,7 +286,7 @@ class DataHandler:
 				for line in data.split('\n'):
 					motd.append(line.strip())
 			self.motd = motd
-		
+
 		if self.trusted_proxyfile:
 			self.trusted_proxies = set([])
 			f = open(self.trusted_proxyfile, 'r')
@@ -283,7 +297,7 @@ class DataHandler:
 					proxy = line.strip()
 					if not proxy.replace('.', '', 3).isdigit():
 						proxy = socket.gethostbyname(proxy)
-					
+
 					if proxy:
 						self.trusted_proxies.add(proxy)
 		self.agreement = []
@@ -295,10 +309,10 @@ class DataHandler:
 
 	def getUserDB(self):
 		return self.userdb
-	
+
 	def clientFromID(self, db_id):
 		if db_id in self.db_ids: return self.db_ids[db_id]
-	
+
 	def clientFromUsername(self, username):
 		if username in self.usernames: return self.usernames[username]
 
@@ -353,11 +367,11 @@ class DataHandler:
 				static.append(client)
 			else:
 				client.Send(msg)
-		
+
 		# this is so static clients don't respond before other people even receive the message
 		for client in static:
 			client.Send(msg)
-	
+
 	# the sourceClient is only sent for SAY*, and RING commands
 	def broadcast(self, msg, chan=None, ignore=set(), sourceClient=None):
 		assert(type(ignore) == set)
@@ -408,7 +422,7 @@ class DataHandler:
 		return '127.0.0.1'
 
 	def detectIp(self):
-		logging.info('\nDetecting local IP:')
+		logging.info('Detecting local IP:')
 		local_addr = self.get_ip_address()
 		logging.info(local_addr)
 
