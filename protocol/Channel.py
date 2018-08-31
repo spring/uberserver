@@ -166,20 +166,23 @@ class Channel():
 		self.channelMessage('<%s> has been disallowed in this channel by <%s>' % (target.username, client.username))
 
 	def muteUser(self, client, target, duration=0):
-		if self.isFounder(target): return
+		if self.isFounder(target): 
+			return
 		if not target:
 			return
 		if client.db_id in self.mutelist:
 			return
-		self.channelMessage('<%s> has muted <%s>' % (client.username, target.username))
 		try:
-			duration = float(duration)*60
-			if duration < 1:
-				duration = 0
-			else:
-				duration = time.time() + duration
+			duration = float(duration)
 		except:
 			duration = 0
+		if duration < 1:
+			duration = 0
+			self.channelMessage('<%s> has muted <%s>' % (client.username, target.username))
+		else:
+			self.channelMessage('<%s> has muted <%s> for %s minutes' % (client.username, target.username, duration))				
+			duration = duration * 60 #convert to seconds
+			duration = time.time() + duration
 		self.mutelist[target.db_id] = {'expires':duration }
 
 	def unmuteUser(self, client, target):
