@@ -103,7 +103,7 @@ class ChanServClient(Client):
 				if access in ['mod', 'founder', 'op']:
 					args = args or ''
 					channel.setTopic(client, args)
-					self.db().setTopic(client.username, channel, args) # update topic in db
+					self.db().setTopic(channel, args, client) 
 					return '#%s: Topic changed' % chan
 				else:
 					return '#%s: You do not have permission to set the topic' % chan
@@ -123,6 +123,7 @@ class ChanServClient(Client):
 					if not target: return '#%s: cannot assign founder status to a user who does not exist'
 					channel.setFounder(client, target)
 					channel.channelMessage('%s Founder has been changed to <%s>' % (chan, args))
+					self.db().setFounder(channel, target)
 					return '#%s: Successfully changed founder to <%s>' % (chan, args)
 				else:
 					return '#%s: You must contact one of the server moderators or the owner of the channel to change the founder' % chan

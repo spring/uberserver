@@ -173,12 +173,10 @@ channels_table = Table('channels', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('name', String(40), unique=True),
 	Column('key', String(32)),
-	Column('owner', String(40)), #FIXME: delete, use owner_userid
-	Column('owner_userid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # user owner id
+	Column('owner', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # user owner id
 	Column('topic', Text),
 	Column('topic_time', DateTime),
-	Column('topic_owner', String(40)), #FIXME: delete, use topic_userid
-	Column('topic_userid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # topic owner id
+	Column('topic_owner', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # topic owner id
 	Column('antispam', Boolean),
 	Column('autokick', String(5)),
 	Column('censor', Boolean),
@@ -226,7 +224,7 @@ class ChannelHistory(object):
 mapper(ChannelHistory, channelshistory_table)
 
 ##########################################
-banip_table = Table('ban_ip', metadata, # server bans
+banip_table = Table('ban_ip', metadata, # server ip bans
 	Column('id', Integer, primary_key=True),
 	Column('issuer_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # user which set ban
 	Column('ip', String(60)), #ip which is banned
@@ -316,13 +314,15 @@ class UsersHandler:
 
 	def check_ban(self, user, ip, userid, now):
 		## FIXME: "Error reading from DB in in_LOGIN: <lambda>() takes exactly 2 arguments (3 given)"?
+		
 		userban = self.sess().query(BanUser).filter(BanUser.user_id == userid, now <= BanUser.end_time).first()
+		if userban: 
+			return True, userban
 
-		if (not userban):
-			ipban = self.sess().query(BanIP).filter(BanIP.ip == ip, now <= BanIP.end_time).first()
-
-		if userban: return True, userban
-		if ipban: return True, ipban
+		ipban = self.sess().query(BanIP).filter(BanIP.ip == ip, now <= BanIP.end_time).first()
+		if ipban: 
+			return True, ipban
+		
 		return False, ""
 
 
@@ -709,6 +709,7 @@ class ChannelsHandler:
 					'owner':chan.owner,
 					'key':chan.key,
 					'topic':chan.topic or '',
+					'topic_owner':chan.topic_owner,
 					'antispam':chan.antispam,
 					'admins':[],
 					'chanserv': True,
@@ -716,12 +717,12 @@ class ChannelsHandler:
 				}
 		return channels
 
-	def setTopic(self, user, chan, topic):
+	def setTopic(self, chan, topic, target):
 		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()
 		if entry:
 			entry.topic = topic
 			entry.topic_time = datetime.now()
-			entry.topic_owner = user
+			entry.topic_owner = target.db_id
 			self.sess().commit()
 
 	def setKey(self, chan, key):
@@ -730,6 +731,12 @@ class ChannelsHandler:
 			entry.key = key
 			self.sess().commit()
 
+	def setFounder(self, chan, target):
+		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()
+		if entry:
+			entry.owner = target.db_id
+			self.sess().commit()			
+
 	def setHistory(self, chan, enable):
 		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()
 		if not entry:
@@ -737,7 +744,7 @@ class ChannelsHandler:
 		entry.store_history = enable
 		self.sess().commit()
 		return True
-
+		
 	def register(self, channel, target):
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
 		if not entry:
@@ -745,10 +752,10 @@ class ChannelsHandler:
 			if channel.topic:
 				entry.topic = channel.topic['text']
 				entry.topic_time =  datetime.fromtimestamp(channel.topic['time'])
-				entry.topic_owner = channel.topic['user']
+				entry.topic_owner = target.db_id
 			else:
 				entry.topic_time = datetime.now()
-			entry.owner = target.username
+			entry.owner = target.db_id
 			self.sess().add(entry)
 			self.sess().commit()
 			entry = self.sess().query(Channel).filter(Channel.name == channel.name).first() # set db id to runtime object

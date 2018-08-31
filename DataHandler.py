@@ -119,11 +119,12 @@ class DataHandler:
 
 			owner = None
 			admins = set()
-			client = self.userdb.clientFromUsername(channel['owner'])
-			if client and client.id: owner = client.id
+			client = self.userdb.clientFromID(channel['owner'])
+			if client and client.id: 
+				owner = client.id
 
 			for user in channel['admins']:
-				client = userdb.clientFromUsername(user)
+				client = userdb.clientFromID(user)
 				if client and client.id:
 					admins.append(client.id)
 			assert(name not in self.channels)
@@ -137,7 +138,11 @@ class DataHandler:
 			else:
 				newchan.key=channel['key']
 			newchan.antispam=channel['antispam']
-			newchan.topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time())}
+			topic_client = self.userdb.clientFromID(channel['topic_owner'])
+			topic_name = 'ChanServ'
+			if topic_client:
+				topic_name = topic_client.username
+			newchan.topic={'user':topic_name, 'text':channel['topic'], 'time':int(time.time())}
 			newchan.store_history = channel['store_history']
 			self.channels[name] = newchan
 
