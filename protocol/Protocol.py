@@ -3056,7 +3056,7 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 		@optional.str username: username to set the email address
 		'''
 		if not client.compat['cl']:
-			self.out_FAILED(client, 'CHANGEEMAIL',"compatibility flag cl needed")
+			self.out_SERVERMSG(client, "compatibility flag cl needed")
 			return
 
 		if not newmail:
@@ -3067,16 +3067,9 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 			self.userdb.save_user(client)
 			self.out_SERVERMSG(client,"changed email to %s"%(client.email))
 			return
-
 		user = self.clientFromUsername(username, True)
-
-		if not client.access in ('mod', 'admin'):
-			self.out_FAILED(client, 'CHANGEEMAIL',"access denied")
-			return
-
-		# disallow mods to change other mods / admins email
-		if user.access in ('mod', 'admin') and not client.access == 'admin':
-			self.out_FAILED(client, 'CHANGEEMAIL',"access denied")
+		if user.access in ('mod', 'admin') and not client.access == 'admin': #disallow mods to change other mods / admins email
+			self.out_SERVERMSG(client,"access denied")
 			return
 		user.email = newmail
 		self.userdb.save_user(user)
