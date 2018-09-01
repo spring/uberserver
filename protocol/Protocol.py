@@ -886,6 +886,7 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 
 		# declare success
 		logging.info('[%s] Successfully registered user <%s>.' % (client.session_id, username))
+		self.broadcast_Moderator('New user: %s %s %s %s %s' %(username, client.email, client.country_code, client.ip_address, client.local_ip))
 		client.Send('REGISTRATIONACCEPTED')
 		client.access = 'agreement'
 
@@ -1087,7 +1088,7 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 			self.userdb.save_user(client)
 			self._calc_access_status(client)
 			self._SendLoginInfo(client)
-			self.broadcast_Moderator('New user: %s %s %s %s %s %s %s' %(client.username, client.country_code, client.ip_address, client.local_ip, client.last_id, client.lobby_id, client.email))
+			self.broadcast_Moderator('Accepted: %s %s %s %s' %(client.username, client.last_id, client.lobby_id, client.email))
 
 	def in_SAY(self, client, chan, msg):
 		'''
@@ -1486,7 +1487,7 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 		user = client.username
 
 		# FIXME: unhardcode this
-		if (client.bot or client.lobby_id.startswith("SPADS")) and chan in ("newbies", "ba") and client.username != "ChanServ":
+		if (client.bot or client.lobby_id.startswith("SPADS")) and chan in ("newbies") and client.username != "ChanServ":
 			#client.Send('JOINFAILED %s No bots allowed in #%s!' %(chan, chan))
 			return
 		if chan == 'moderator' and not 'mod' in client.accesslevels:
