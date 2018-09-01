@@ -114,7 +114,6 @@ restricted = {
 	'PORTTEST',
 	'RENAMEACCOUNT',
 	'JSON',
-	'SETACCESS',
 	]),
 'mod':set([
 	'BAN',
