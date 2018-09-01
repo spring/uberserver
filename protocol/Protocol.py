@@ -114,6 +114,7 @@ restricted = {
 	'PORTTEST',
 	'RENAMEACCOUNT',
 	'JSON',
+	'SETACCESS',
 	]),
 'mod':set([
 	'BAN',
@@ -3063,18 +3064,31 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 		if not newmail:
 			self.out_SERVERMSG(client,"current email is %s" %(client.email))
 			return
-		if not username:
+
+		newmail = newmail.lower()	
+		good, reason = self._validEmailSyntax(client, newmail)
+		if not good:
+			self.out_SERVERMSG(client,"invalid email %s"%(newmail))
+			return		
+		if not username: # user changing own email
 			client.email = newmail
 			self.userdb.save_user(client)
 			self.out_SERVERMSG(client,"changed email to %s"%(client.email))
 			return
+			
+		if not client.access in ('mod', 'admin'): # mod changing user email
+			self.out_SERVERMSG(client,"access denied")
+			return
 		user = self.clientFromUsername(username, True)
-		if user.access in ('mod', 'admin') and not client.access == 'admin': #disallow mods to change other mods / admins email
+		if not user:
+			self.out_SERVERMSG(client,"user not found")
+			return
+		if user.access in ('mod', 'admin') and client.access == 'mod': 
 			self.out_SERVERMSG(client,"access denied")
 			return
 		user.email = newmail
 		self.userdb.save_user(user)
-		self.out_SERVERMSG(client,"changed email to %s"%(user.email))
+		self.out_SERVERMSG(client,"changed %s email to %s"%(username, user.email))
 
 	def in_STARTTLS(self, client):
 		#deprecated
