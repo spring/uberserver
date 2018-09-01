@@ -792,9 +792,10 @@ if __name__ == '__main__':
 	userdb.register_user(username, u"pass", "192.168.1.1", "DE", "test_email@test.com", "1234")
 	client = userdb.clientFromUsername(username)
 	assert(isinstance(client.id, int))
-
+	
 	# test save/load channel
 	channel = Channel(channelname)
+	client.db_id = client.id # only online clients can register channels, so pretend we are one of those
 	channeldb.register(channel, client)
 	assert(channel.id > 0)
 
