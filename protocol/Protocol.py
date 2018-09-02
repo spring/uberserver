@@ -3191,6 +3191,8 @@ def selftest():
 			pass
 		def getUserDB(self):
 			pass
+		def getVerificationDB(self):
+			pass
 	p = Protocol(DummyRoot())
 	assert(p._validUsernameSyntax("abcde")[0])
 	assert(not p._validUsernameSyntax("abcde ")[0])
