@@ -4,7 +4,7 @@
 from datetime import datetime, timedelta
 from BaseClient import BaseClient
 
-import time, random, smtplib
+import time, random, smtplib, re
 import logging
 
 try:
@@ -736,10 +736,23 @@ class VerificationsHandler:
 	def active(self):
 		return self.require_verification
 		
+	def valid_email_addr(self, email):
+		assert(type(email) == str)
+		if (not email or email==""):
+			return False, "email address is blank"
+		if ' ' in email:
+			return False, "invalid email address (check for whitespace)"
+		if not re.match(r"[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,6}", email):
+			return False, "invalid email address"
+		return True, ""
+		
 	def check_and_send(self, user_id, email, reason, wait_duration):
 		# check that we don't already have an active verification, send a new one if not
 		if not self.active():
 			return True, ''
+		good, reason = self.valid_email_addr(email)
+		if not good:
+			return False, reason
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first()
 		if entry and entry.expiry < datetime.now():
 			self.remove(user_id)
@@ -747,8 +760,8 @@ class VerificationsHandler:
 			entry = self.create(user_id, email) 
 			self.send(entry, reason, wait_duration)
 			return True, ''
-		if entry.attempts>3:
-			return False, 'too many attempts, please try again later'
+		if entry.email!=email:
+			return False, 'a verification code is active for ' + entry.email + ', use that or wait 24h for it to expire'
 		return False, 'already sent a verification code, please check your spam filter!'
 
 	def create(self, user_id, email):
@@ -788,20 +801,22 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 		except Exception as e:
 			logging.error('Failed to email registration code: %s, %s, %s' % (email, code, str(e)))
 	
-	def verify (self, user_id, code):
+	def verify (self, user_id, email, code):
 		if not self.active():
 			return True, ''
+		if code=="":
+			return False, 'verification code is empty'
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first() # there should be (at most) one code per user 
 		if not entry:
 			logging.error('Unexpected verification attempt: %s, %s' % (user_id, code))
-			return False, 'unexpected verification attempt'
+			return False, 'unexpected verification attempt, please request a verification code'
 		if entry.expiry < datetime.now():
 			self.remove(user_id)
 			return False, 'verification code has expired'
-		if entry.attempts>3:
+		if entry.attempts>=3:
 			return False, 'too many attempts, please try again later'
-		if code=="":
-			return False, 'empty verification code'
+		if entry.email!=email:
+			return False, 'failed to match email addresses'
 		try:
 			if entry.code==int(code):
 				self.remove(user_id)
@@ -946,7 +961,7 @@ if __name__ == '__main__':
 	verificationdb = VerificationsHandler(root, engine)
 	entry = verificationdb.create(client.id, client.email)
 	verificationdb._send(entry.email, entry.code, "test_reason", 0) #use main thread, or Python will exit without wait for the test!
-	verificationdb.verify(client.id, entry.code)
+	verificationdb.verify(client.id, client.email, entry.code)
 	verificationdb.clean()
 	
 	# test setHistory

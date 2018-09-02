@@ -42,7 +42,6 @@ restricted = {
 	# battle
 	'ADDBOT',
 	'ADDSTARTRECT',
-	'CHANGEEMAIL',
 	'DISABLEUNITS',
 	'ENABLEUNITS',
 	'ENABLEALLUNITS',
@@ -86,6 +85,12 @@ restricted = {
 	'UNMUTE',
 	'GETCHANNELMESSAGES',
 	########
+	# account management
+	'RENAMEACCOUNT',
+	'CHANGEPASSWORD',
+	'CHANGEEMAILREQUEST',
+	'CHANGEEMAIL',
+	########
 	# ignore
 	'IGNORE',
 	'UNIGNORE',
@@ -100,12 +105,10 @@ restricted = {
 	'FRIENDREQUESTLIST',
 	########
 	# meta
-	'CHANGEPASSWORD',
 	'GETINGAMETIME',
 	'GETREGISTRATIONDATE',
 	'MYSTATUS',
 	'PORTTEST',
-	'RENAMEACCOUNT',
 	'JSON',
 	]),
 'mod':set([
@@ -115,6 +118,7 @@ restricted = {
 	'UNBANIP',
 	'BANLIST',
 	'CHANGEACCOUNTPASS',
+	'CHANGEACCOUNTEMAIL',
 	'KICKUSER',
 	'FINDIP',
 	'GETIP',
@@ -536,17 +540,6 @@ class Protocol:
 			return False, 'Username is too long, max is 20 chars.'
 		return True, ""
 
-	def _validEmailSyntax(self, client, email):
-		assert(type(email) == str)
-
-		if (not email or email==""):
-			return False, "Email address is blank."
-
-		if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-			return False, "Invalid email address."
-
-		return True, ""
-
 	def _validChannelSyntax(self, channel):
 		'checks if usernames syntax is correct / doesn''t contain invalid chars'
 		for char in channel:
@@ -801,22 +794,13 @@ class Protocol:
 			logging.info("Invalid nickname used for registering %s" %(username))
 			client.Send("REGISTRATIONDENIED invalid nickname")
 			return
-
 		good, reason = self._validPasswordSyntax(client, password)
 		if not good:
 			client.Send("REGISTRATIONDENIED %s" % (reason))
 			return
 
-		email = email.lower()
-		good, reason = self._validEmailSyntax(client, email)
-		if not good and self.verificationdb.active():
-			client.Send("REGISTRATIONDENIED %s" % (reason))
-			return
-		client.email = email
-
-		# test if user would be OK on db side (e.g. duplicate username/email)
+		# test if user would be OK on db side (e.g. duplication)
 		good, reason = self.userdb.check_register_user(username, password, client.ip_address, client.country_code, email)
-
 		if (not good):
 			logging.info('[%s] Registration failed for user <%s>: %s' % (client.session_id, username, reason))
 			client.Send('REGISTRATIONDENIED %s' % reason)
@@ -832,12 +816,12 @@ class Protocol:
 		good, reason = self.verificationdb.check_and_send(client_fromdb.db_id, email, verif_reason, wait_duration)
 		if (not good):
 			client.SEND("REGISTRATIONDENIED %s" % ("verification failed: " + reason))
-	
+		
 		# declare success
-		logging.info('[%s] Successfully registered user <%s>.' % (client.session_id, username))
-		self.broadcast_Moderator('New user: %s %s %s %s %s' %(username, client.email, client.country_code, client.ip_address, client.local_ip))
-		client.Send('REGISTRATIONACCEPTED')
 		client.access = 'agreement'
+		logging.info('[%s] Successfully registered user <%s>.' % (client.session_id, username))
+		self.broadcast_Moderator('New user: %s %s %s %s %s' %(username, email, client.country_code, client.ip_address, client.local_ip))
+		client.Send('REGISTRATIONACCEPTED')
 
 
 	def in_LOGIN(self, client, username, password='', cpu='0', local_ip='', sentence_args=''):
@@ -1026,7 +1010,7 @@ class Protocol:
 		# Verify the users verification code.
 		if client.access != 'agreement':
 			return
-		good, reason = self.verificationdb.verify(client.db_id, verification_code) #fixme
+		good, reason = self.verificationdb.verify(client.db_id, client.email, verification_code) #fixme
 		if not good:
 			self.out_DENIED(client, client.username, reason)
 			return		
@@ -2995,35 +2979,39 @@ class Protocol:
 
 		self._root.admin_broadcast("deleted channels: %d battles: %d users: %d" %(nchan, nbattle, nuser))
 
-	def in_CHANGEEMAIL(self, client, newmail = None, username = None):
-		'''
-		Set the email address of target user.
-
-		@optional.str email: Email address to set. if empty current email address will be shown
-		@optional.str username: username to set the email address
-		'''
+	def in_CHANGEEMAILREQUEST(self, client, newmail):
+		# request to be sent a verification code for changing email address
 		if not client.compat['cl']:
 			self.out_SERVERMSG(client, "compatibility flag cl needed")
 			return
-
-		if not newmail:
-			self.out_SERVERMSG(client,"current email is %s" %(client.email))
+		if not self.verificationdb.active():
+			client.Send("CHANGEEMAILREQUESTDENIED email verification is currently turned off, you do not need a verification code!")
 			return
-
-		newmail = newmail.lower()	
-		good, reason = self._validEmailSyntax(client, newmail)
+		newmail = newmail.lower()
+		reason = "to change your email address for the SpringRTS lobbyserver"
+		good, reason = self.verificationdb.check_and_send(client.db_id, newmail, reason, 0) 
 		if not good:
-			self.out_SERVERMSG(client,"invalid email %s"%(newmail))
-			return		
-		if not username: # user changing own email
-			client.email = newmail
-			self.userdb.save_user(client)
-			self.out_SERVERMSG(client,"changed email to %s"%(client.email))
+			client.Send("CHANGEEMAILREQUESTDENIED " + reason)
+			return				
+		client.Send("CHANGEEMAILREQUESTACCEPT")
+
+	def in_CHANGEEMAIL(self, client, newmail, verification_code=""):
+		# client requests to change their own email address, with verification if necessary
+		if not client.compat['cl']:
+			self.out_SERVERMSG(client, "compatibility flag cl needed")
 			return
+		newmail = newmail.lower()
+		good, reason = self.verificationdb.verify(client.db_id, newmail, verification_code)
+		if not good:
+			client.Send("CHANGEEMAILDENIED " + reason)
+			return
+		client.email = newmail
+		self.userdb.save_user(client)
+		self.out_SERVERMSG(client, "Your email address has been changed to " + client.email)
+		client.Send("CHANGEEMAILACCEPT " + newmail)
 			
-		if not client.access in ('mod', 'admin'): # mod changing user email
-			self.out_SERVERMSG(client,"access denied")
-			return
+	def in_CHANGEACCOUNTEMAIL(self, client, username, newmail):
+		# forcibly change a clients email address
 		user = self.clientFromUsername(username, True)
 		if not user:
 			self.out_SERVERMSG(client,"user not found")
@@ -3031,8 +3019,10 @@ class Protocol:
 		if user.access in ('mod', 'admin') and client.access == 'mod': 
 			self.out_SERVERMSG(client,"access denied")
 			return
+		newmail = newmail.lower()
 		user.email = newmail
 		self.userdb.save_user(user)
+		self.verificationdb.remove(user.db_id)
 		self.out_SERVERMSG(client,"changed %s email to %s"%(username, user.email))
 
 	def in_STARTTLS(self, client):
