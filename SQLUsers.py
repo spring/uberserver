@@ -4,6 +4,14 @@
 from datetime import datetime, timedelta
 from BaseClient import BaseClient
 
+import time, random, smtplib
+import logging
+
+try:
+	import thread
+except:
+	# thread was renamed to _thread in python 3
+	import _thread
 
 try:
 	from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean, Text, DateTime, ForeignKeyConstraint, UniqueConstraint
@@ -31,20 +39,18 @@ users_table = Table('users', metadata,
 	Column('ingame_time', Integer),
 	Column('access', String(32)),
 	Column('email', String(254)), # http://www.rfc-editor.org/errata_search.php?rfc=3696&eid=1690
-	Column('registration_code', String(4)),
 	Column('bot', Integer),
 	mysql_charset='utf8',
-	)
+)
 
 class User(BaseClient):
-	def __init__(self, username, password, randsalt, last_ip, email, registration_code, access='agreement'):
+	def __init__(self, username, password, randsalt, last_ip, email, access='agreement'):
 		self.set_user_pwrd_salt(username, (password, randsalt))
 
 		self.last_login = datetime.now()
 		self.register_date = datetime.now()
 		self.last_ip = last_ip
 		self.email = email
-		self.registration_code = registration_code
 		self.ingame_time = 0
 		self.bot = 0
 		self.access = access # user, moderator, admin, bot, agreement
@@ -53,8 +59,27 @@ class User(BaseClient):
 	def __repr__(self):
 		return "<User('%s', '%s')>" % (self.username, self.password)
 
+##########################################
+verifications_table = Table('verifications', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('email', String(254), ForeignKey('users.email', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('code', Integer),
+	Column('expiry', DateTime),
+	Column('attempts', Integer),
+	mysql_charset='utf8',
+	)
+class Verification(object):
+	def __init__(self, user_id, email):
+		self.user_id = user_id
+		self.email = email
+		self.code = random.randint(1000,9999)
+		self.expiry = datetime.now() + timedelta(days=1)
+		self.attempts = 0
 
-
+	def __repr__(self):
+		return "<Verification('%s', '%s', '%s', '%s', '%s', %s)>" % (self.id, self.user_id, self.email, self.code, self.expiry, self.attempts)
+mapper(Verification, verifications_table)		
 ##########################################
 logins_table = Table('logins', metadata,
 	Column('id', Integer, primary_key=True),
@@ -276,7 +301,6 @@ class OfflineClient(BaseClient):
 		self.last_id = sqluser.last_id
 		self.access = sqluser.access
 		self.email = sqluser.email
-		self.registration_code = sqluser.registration_code
 
 
 class UsersHandler:
@@ -352,7 +376,7 @@ class UsersHandler:
 
 		if (good):
 			## copy unicode(BASE64(...)) values out of DB, leave them as-is
-			user_copy = User(dbuser.username, dbuser.password, dbuser.randsalt, ip, dbuser.email, dbuser.registration_code)
+			user_copy = User(dbuser.username, dbuser.password, dbuser.randsalt, ip, dbuser.email)
 			user_copy.access = dbuser.access
 			user_copy.id = dbuser.id
 			user_copy.ingame_time = dbuser.ingame_time
@@ -421,10 +445,10 @@ class UsersHandler:
 
 		return True, ""
 
-	def register_user(self, username, password, ip, country, email, registration_code):
+	def register_user(self, username, password, ip, country, email):
 		# note: password here is BASE64(MD5(...)) and already in unicode
 		# assume check_register_user was already called
-		entry = User(username, password, "", ip, email, registration_code)
+		entry = User(username, password, "", ip, email)
 
 		self.sess().add(entry)
 		self.sess().commit()
@@ -524,7 +548,6 @@ class UsersHandler:
 			entry.bot = obj.bot
 			entry.last_id = obj.last_id
 			entry.email = obj.email
-			entry.registration_code = obj.registration_code
 
 		self.sess().commit()
 
@@ -683,6 +706,126 @@ class UsersHandler:
 			assert(type(msgs[0][2]) == str)
 		return msgs
 
+class VerificationsHandler:
+	def __init__ (self, root, engine):
+		self._root = root
+		metadata.create_all(engine)
+		self.sessionmaker = sessionmaker(bind=engine, autoflush=True)
+		self.session = self.sessionmaker()
+		
+		self.require_verification = False
+		try:
+			with open('server_email_account.txt') as f:
+				lines = f.readlines()
+			lines = [l.strip() for l in lines]
+			self.mail_user = lines[0]
+			self.mail_password = lines[1]
+			self.mail_server = lines[2]
+			self.mail_server_port = int(lines[3])
+			self.require_verification = True
+			logging.info('Email verification is enabled, server email account is %s' % self.mail_user)
+		except Exception as e:
+			logging.info('Could not load server_email_account.txt, email verification is disabled: %s' %(e))
+		
+	def sess(self):
+		if self.session.is_active:
+			return self.session
+		self.session.rollback()
+		return self.session
+	
+	def active(self):
+		return self.require_verification
+		
+	def check_and_send(self, user_id, email, reason, wait_duration):
+		# check that we don't already have an active verification, send a new one if not
+		if not self.active():
+			return True, ''
+		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first()
+		if entry and entry.expiry < datetime.now():
+			self.remove(user_id)
+		if not entry or entry.expiry < datetime.now():
+			entry = self.create(user_id, email) 
+			self.send(entry, reason, wait_duration)
+			return True, ''
+		if entry.attempts>3:
+			return False, 'too many attempts, please try again later'
+		return False, 'already sent a verification code, please check your spam filter!'
+
+	def create(self, user_id, email):
+		entry = Verification(user_id, email)
+		self.sess().add(entry)
+		self.sess().commit()
+		return entry
+		
+	def send(self, entry, reason, wait_duration):
+		try:
+			thread.start_new_thread(self._send, (entry.email, entry.code, reason, wait_duration))
+		except NameError:
+			_thread.start_new_thread(self._send, (entry.email, entry.code, reason, wait_duration))
+		except:
+			logging.error('Failed to launch VerificationHandler._send: %s, %s, %s' % (entry, reason, wait_duration))
+	
+	def _send (self, email, code, reason, wait_duration):
+		if not self.active():
+			return 
+		sent_from = self.mail_user
+		to = email
+		subject = 'SpringRTS verification code'
+		body = """
+You are recieving this email because you recently """ + reason + """.
+Your email verification code is """ + str(code) + """
+
+If you recieved this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)"""
+		message = 'Subject: {}\n\n{}'.format(subject, body)
+
+		time.sleep(wait_duration)
+		try:
+			server = smtplib.SMTP_SSL(self.mail_server, self.mail_server_port)
+			server.ehlo()
+			server.login(self.mail_user, self.mail_password)
+			server.sendmail(sent_from, to, message)
+			server.close()
+		except Exception as e:
+			logging.error('Failed to email registration code: %s, %s, %s' % (email, code, str(e)))
+	
+	def verify (self, user_id, code):
+		if not self.active():
+			return True, ''
+		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first() # there should be (at most) one code per user 
+		if not entry:
+			logging.error('Unexpected verification attempt: %s, %s' % (user_id, code))
+			return False, 'unexpected verification attempt'
+		if entry.expiry < datetime.now():
+			self.remove(user_id)
+			return False, 'verification code has expired'
+		if entry.attempts>3:
+			return False, 'too many attempts, please try again later'
+		if code=="":
+			return False, 'empty verification code'
+		try:
+			if entry.code==int(code):
+				self.remove(user_id)
+				return True, ''
+			else:
+				entry.attempts += 1
+				self.sess().commit()
+				return False, 'incorrect verification code' 
+		except Exception as e:
+			entry.attempts += 1
+			self.sess().commit()
+			return False, 'incorrect verification code, ' + str(e) 
+		
+	def remove (self, user_id):
+		# remove all entries for user
+		self.sess().query(Verification).filter(Verification.user_id == user_id).delete(synchronize_session=False)			
+		self.sess().commit()
+		
+	def clean (self):
+		# remove all expired entries
+		now = datetime.now()
+		self.sess().query(Verification).filter(Verification.expiry < now).delete(synchronize_session=False)			
+		self.sess().commit()
+		
 class ChannelsHandler:
 	def __init__(self, root, engine):
 		self._root = root
@@ -784,12 +927,12 @@ if __name__ == '__main__':
 	root = root()
 	userdb = UsersHandler(root, engine)
 	channeldb = ChannelsHandler(root, engine)
-
+	
 	username = u"test"
 	channelname = u"testchannel"
 
 	# test save/load user
-	userdb.register_user(username, u"pass", "192.168.1.1", "DE", "test_email@test.com", "1234")
+	userdb.register_user(username, u"pass", "192.168.1.1", "DE", "blackhole@blackhole.io")
 	client = userdb.clientFromUsername(username)
 	assert(isinstance(client.id, int))
 	
@@ -799,6 +942,13 @@ if __name__ == '__main__':
 	channeldb.register(channel, client)
 	assert(channel.id > 0)
 
+	# test verification
+	verificationdb = VerificationsHandler(root, engine)
+	entry = verificationdb.create(client.id, client.email)
+	verificationdb._send(entry.email, entry.code, "test_reason", 0) #use main thread, or Python will exit without wait for the test!
+	verificationdb.verify(client.id, entry.code)
+	verificationdb.clean()
+	
 	# test setHistory
 	assert(channel.store_history == False)
 	channel.store_history = True

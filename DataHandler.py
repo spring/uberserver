@@ -41,6 +41,7 @@ class DataHandler:
 		self.chanserv = None
 		self.userdb = None
 		self.channeldb = None
+		self.verificationdb = None
 		self.engine = None
 		self.updatefile = None
 		self.trusted_proxyfile = None
@@ -64,21 +65,7 @@ class DataHandler:
 		self.battles = {}
 		self.detectIp()
 		self.cert = None
-
-		self.require_email_verification = False
-		try:
-			with open('server_email_account.txt') as f:
-				lines = f.readlines()
-			lines = [l.strip() for l in lines]
-			self.mail_user = lines[0]
-			self.mail_password = lines[1]
-			self.mail_server = lines[2]
-			self.mail_server_port = int(lines[3])
-			self.require_email_verification = True
-			print('Email verification is enabled, server email account is %s' % self.mail_user)
-		except Exception as e:
-			print('Could not load server_email_account.txt, email verification is disabled: %s' %(e))
-
+		
 	def initlogger(self, filename):
 		# logging
 		server_logfile = os.path.join(os.path.dirname(__file__), filename)
@@ -103,7 +90,7 @@ class DataHandler:
 			def _fk_pragma_on_connect(dbapi_con, con_record):
 				dbapi_con.execute('PRAGMA journal_mode = MEMORY')
 				dbapi_con.execute('PRAGMA synchronous = OFF')
-			## FIXME: "ImportError: cannot import name event"
+				# FIXME: "ImportError: cannot import name event"
 			from sqlalchemy import event
 			event.listen(self.engine, 'connect', _fk_pragma_on_connect)
 		else:
@@ -111,7 +98,8 @@ class DataHandler:
 
 		self.userdb = SQLUsers.UsersHandler(self, self.engine)
 		self.channeldb = SQLUsers.ChannelsHandler(self, self.engine)
-
+		self.verificationdb = SQLUsers.VerificationsHandler(self, self.engine)
+		
 		channels = self.channeldb.load_channels()
 
 		for name in channels:
@@ -314,6 +302,9 @@ class DataHandler:
 
 	def getUserDB(self):
 		return self.userdb
+
+	def getVerificationDB(self):
+		return self.verificationdb
 
 	def clientFromID(self, db_id):
 		if db_id in self.db_ids: return self.db_ids[db_id]
