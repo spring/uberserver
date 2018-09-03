@@ -8,7 +8,7 @@ except:
     import _thread
 
 import traceback, signal, socket, sys, logging
-from twisted.internet import reactor
+from twisted.internet import reactor, ssl
 
 sys.path.append("protocol")
 sys.path.append(".")
@@ -59,10 +59,18 @@ _root.init()
 
 try:
     reactor.listenTCP(_root.port, twistedserver.ChatFactory(_root))
+    reactor.listenSSL(8243,  twistedserver.ChatFactory(_root), ssl.DefaultOpenSSLContextFactory('server.key',
+                                                                                                'server.crt'))
+
     print('Started lobby server!')
     print('Connect the lobby client to')
-    print('  public:  %s:%d' % (_root.online_ip, _root.port))
-    print('  private: %s:%d' % (_root.local_ip, _root.port))
+    
+    print('\tpublic:  %s:%d' % (_root.online_ip, _root.port))
+    print('\tpublic ssl:  %s:%d' % (_root.online_ip, 8243))
+
+    print('\tprivate: %s:%d' % (_root.local_ip, _root.port))
+    print('\tprivate ssl: %s:%d' % (_root.local_ip, 8243))
+
     reactor.run()
 
 except KeyboardInterrupt:
