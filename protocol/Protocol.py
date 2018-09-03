@@ -800,7 +800,7 @@ class Protocol:
 			client.Send("REGISTRATIONDENIED %s" % (reason))
 			return
 		if self.SayHooks.isNasty(username):
-			logging.info("Invalid nickname used for registering %s" %(username))
+			logging.info("invalid nickname used for registering %s" %(username))
 			client.Send("REGISTRATIONDENIED invalid nickname")
 			return
 		good, reason = self._validPasswordSyntax(client, password)
@@ -817,7 +817,7 @@ class Protocol:
 
 		# require a valid looking email address, if we are going to require verification	
 		if self.verificationdb.active():
-			good, reason = self._root.verificationdb.valid_email_addr(email)
+			good, reason = self.verificationdb.valid_email_addr(email)
 			if not good:
 				client.Send('REGISTRATIONDENIED %s' % reason)
 				return
@@ -918,12 +918,11 @@ class Protocol:
 			lobby_id = sentence_args
 
 
-		good, user_or_error = self.userdb.legacy_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
+		good, user_or_error = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 
 		if (not good):
-			if (type(user_or_error) == str):
-				reason = user_or_error
-
+			assert (type(user_or_error) == str)
+			reason = user_or_error
 			self.out_DENIED(client, username, reason)
 			return
 
@@ -2797,7 +2796,7 @@ class Protocol:
 	def in_UNBAN(self, client, arg):
 		# arg might be a username(->db_id), ip, or email; remove all associated bans
 		good, response = self.bandb.unban(client, arg)
-		if good: self.broadcast_Moderator("%s unbanned %s" % (client.username, arg))
+		if good: self.broadcast_Moderator("%s unbanned <%s>" % (client.username, arg))
 		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_CLEARBANLIST(self, client):

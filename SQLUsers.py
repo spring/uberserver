@@ -343,27 +343,37 @@ class UsersHandler:
 		db_user.set_pwrd_salt((password, ""))
 		self.save_user(db_user)
 
-	def legacy_test_user_pwrd(self, user_inst, user_pwrd):
-		return (user_inst.password == user_pwrd)
-
-	def common_login_user(self, dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country):
+	def legacy_test_user_pwrd(self, dbuser, password):
+		return (dbuser.password == password)
+		
+	def remaining_ban_str(self, dbban, now):
+		timeleft = int((dbban.end_date - now).total_seconds())	
+		remaining = 'hours remaining: less than one'				
+		if timeleft > 60*60*24*900:
+			remaining = 'days remaining: forever!'
+		elif timeleft > 60*60*24:
+			remaining = 'days remaining: %s' % (int(timeleft / (60 * 60 * 24)))
+		elif timeleft > 60*60:
+			remaining = 'hours remaining: %s' % (int(timeleft / (60 * 60)))
+		return remaining
+		
+	def login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		if self._root.censor and not self._root.SayHooks._nasty_word_censor(username):
 			return False, 'Name failed to pass profanity filter.'
+
+		## should only ever be one user with each name so we can just grab the first one :)
+		## password here is unicode(BASE64(MD5(...))), matches the register_user DB encoding
+		dbuser = self.sess().query(User).filter(User.username == username).first()
+		if (not dbuser):
+			return False, 'Invalid username or password'
+		if (not self.legacy_test_user_pwrd(dbuser, password)):
+			return False, 'Invalid password'
 
 		now = datetime.now()
 		dbban = self._root.bandb.check_ban(dbuser.id, ip, dbuser.email, now)
 		if dbban and not dbuser.access=='admin':
-			timeleft = int((dbban.end_date - now).total_seconds())
 			reason = 'You are banned: (%s) ' %(dbban.reason)
-
-			if timeleft > 900*60*60*24:
-				reason += 'days remaining: forever!'
-			elif timeleft > 60*60*24:
-				reason += 'days remaining: %s' % (int(timeleft / (60 * 60 * 24)))
-			elif timeleft > 60*60:
-				reason += 'hours remaining: %s' % (int(timeleft / (60 * 60)))
-			else:
-				reason += 'hours remaining: less than one'				
+			reason += self.remaining_ban_str(dbban, now)
 			return False, reason
 			
 		dbuser.logins.append(Login(now, ip, lobby_id, user_id, cpu, local_ip, country))
@@ -382,25 +392,10 @@ class UsersHandler:
 		user_copy.lobby_id = lobby_id
 		reason = user_copy
 
-		dbuser.last_login = now # store current time to db but keep last_login in in user_copy
-		session.commit()
+		dbuser.last_login = now # store current time to db but keep last_login in the copy we send back
+		self.sess().commit()
 
 		return True, reason
-
-	def legacy_login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
-		assert(type(username) == str)
-		assert(type(password) == str)
-
-		## should only ever be one user with each name so we can just grab the first one :)
-		## password here is unicode(BASE64(MD5(...))), matches the register_user DB encoding
-		dbuser = self.sess().query(User).filter(User.username == username).first()
-
-		if (not dbuser):
-			return False, 'Invalid username or password'
-		if (not self.legacy_test_user_pwrd(dbuser, password)):
-			return False, 'Invalid password'
-
-		return (self.common_login_user(dbuser, self.session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country))
 
 	def end_session(self, db_id):
 		entry = self.sess().query(User).filter(User.id==db_id).first()
