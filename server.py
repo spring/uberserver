@@ -8,7 +8,7 @@ except:
 	import _thread
 
 import traceback, signal, socket, sys, logging
-from twisted.internet import reactor
+from twisted.internet import reactor, ssl
 
 sys.path.append("protocol")
 sys.path.append(".")
@@ -56,7 +56,8 @@ logging.info('Using %i client handling thread(s).'%_root.max_threads)
 _root.init()
 
 try:
-	reactor.listenTCP(_root.port, twistedserver.ChatFactory(_root))
+	# reactor.listenTCP(_root.port, twistedserver.ChatFactory(_root))
+	reactor.listenSSL(8243, twistedserver.ChatFactory(_root), ssl.DefaultOpenSSLContextFactory('server.key', 'server.crt'))
 	print('Started lobby server!')
 	print('Connect the lobby client to')
 	print('  public:  %s:%d' %(_root.online_ip, _root.port))
