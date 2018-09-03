@@ -67,6 +67,7 @@ verifications_table = Table('verifications', metadata,
 	Column('code', Integer),
 	Column('expiry', DateTime),
 	Column('attempts', Integer),
+	Column('resends', Integer),
 	mysql_charset='utf8',
 	)
 class Verification(object):
@@ -76,9 +77,10 @@ class Verification(object):
 		self.code = random.randint(1000,9999)
 		self.expiry = datetime.now() + timedelta(days=1)
 		self.attempts = 0
+		self.resends = 0
 
 	def __repr__(self):
-		return "<Verification('%s', '%s', '%s', '%s', '%s', %s)>" % (self.id, self.user_id, self.email, self.code, self.expiry, self.attempts)
+		return "<Verification('%s', '%s', '%s', '%s', '%s', %s, %s)>" % (self.id, self.user_id, self.email, self.code, self.expiry, self.attempts, self.resends)
 mapper(Verification, verifications_table)		
 ##########################################
 logins_table = Table('logins', metadata,
@@ -848,7 +850,7 @@ class VerificationsHandler:
 	def valid_email_addr(self, email):
 		assert(type(email) == str)
 		if (not email or email==""):
-			return False, "email address is blank"
+			return False, "an email address is required"
 		if ' ' in email:
 			return False, "invalid email address (check for whitespace)"
 		if not re.match(r"[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,6}", email):
@@ -871,9 +873,9 @@ class VerificationsHandler:
 		if not entry or entry.expiry < datetime.now():
 			entry = self.create(user_id, email) 
 			self.send(entry, reason, wait_duration)
-			return True, ''
+			return True, 'verification code sent to %s' % email
 		if entry.email!=email:
-			return False, 'a verification code is active for ' + entry.email + ', use that or wait 24h for it to expire'
+			return False, 'a verification code is active for ' + entry.email + ', use that or wait for it to expire (up to 24h)'
 		return False, 'already sent a verification code, please check your spam filter!'
 
 	def create(self, user_id, email):
@@ -881,7 +883,24 @@ class VerificationsHandler:
 		self.sess().add(entry)
 		self.sess().commit()
 		return entry
-		
+	
+	def resend(self, user_id, email):
+		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first()
+		if not entry:
+			return False, 'no active verification code for ' + email		
+		if entry.expiry < datetime.now():
+			return False, 'your verification code for ' + entry.email + ' has expired, please request a new one'
+		if email!=entry.email:
+			return False, 'your verification code for ' + entry.email + ' cannot be re-sent to a different email address, use it or wait for it to expire (up to 24h)'		
+		if entry.resends>=3:
+			return False, 'too many resends, please try again later'
+		entry.resends += 1
+		self.sess().commit()
+		wait_duration = 30
+		reason = "requested your verification code to be re-sent"
+		self.send(entry, reason, 30)		
+		return True, 'verification code sent to %s' % email
+	
 	def send(self, entry, reason, wait_duration):
 		try:
 			thread.start_new_thread(self._send, (entry.email, entry.code, reason, wait_duration))
@@ -917,14 +936,13 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 		if not self.active():
 			return True, ''
 		if code=="":
-			return False, 'verification code is empty'
+			return False, 'a verification code is required'
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first() # there should be (at most) one code per user 
 		if not entry:
 			logging.error('Unexpected verification attempt: %s, %s' % (user_id, code))
 			return False, 'unexpected verification attempt, please request a verification code'
 		if entry.expiry < datetime.now():
-			self.remove(user_id)
-			return False, 'verification code has expired'
+			return False, 'your verification code for ' + entry.email + ' has expired, please request a new one'
 		if entry.attempts>=3:
 			return False, 'too many attempts, please try again later'
 		if entry.email!=email:
@@ -936,11 +954,11 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 			else:
 				entry.attempts += 1
 				self.sess().commit()
-				return False, 'incorrect verification code' 
+				return False, 'incorrect verification code, %s/3 attempts' % (3-attempts) 
 		except Exception as e:
 			entry.attempts += 1
 			self.sess().commit()
-			return False, 'incorrect verification code, ' + str(e) 
+			return False, 'incorrect verification code, ' + str(e) + ', %s/3 attempts ' % (3-attempts)
 		
 	def remove (self, user_id):
 		# remove all entries for user

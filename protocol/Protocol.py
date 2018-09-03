@@ -35,7 +35,8 @@ restricted = {
 	'REGISTER'
 	]),
 'agreement':set([
-	'CONFIRMAGREEMENT'
+	'CONFIRMAGREEMENT',
+	'RESENDVERIFICATION',
 	]),
 'user':set([
 	########
@@ -90,6 +91,7 @@ restricted = {
 	'CHANGEPASSWORD',
 	'CHANGEEMAILREQUEST',
 	'CHANGEEMAIL',
+	'RESENDVERIFICATION',
 	########
 	# ignore
 	'IGNORE',
@@ -822,7 +824,7 @@ class Protocol:
 		wait_duration = 30 # seconds
 		good, reason = self.verificationdb.check_and_send(client_fromdb.db_id, email, verif_reason, wait_duration)
 		if (not good):
-			client.SEND("REGISTRATIONDENIED %s" % ("verification failed: " + reason))
+			client.Send("REGISTRATIONDENIED %s" % ("verification failed: " + reason))
 		
 		# declare success
 		client.access = 'agreement'
@@ -3041,8 +3043,18 @@ class Protocol:
 		user.email = newmail
 		self.userdb.save_user(user)
 		self.verificationdb.remove(user.db_id)
-		self.out_SERVERMSG(client,"changed %s email to %s"%(username, user.email))
+		self.out_SERVERMSG(client,"changed <%s> email to %s"%(username, user.email))
 
+	def in_RESENDVERIFICATION(self, client, newmail):
+		if not self.verificationdb.active():
+			client.Send("RESENDVERIFICATIONDENIED email verification is currently turned off, you do not need a verification code!")
+			return
+		good, reason = self.verificationdb.resend(client.db_id, newmail)
+		if not good:
+			client.Send("RESENDVERIFICATIONDENIED %s" % reason)			
+			return
+		client.Send("RESENDVERIFICATIONACCEPT")			
+	
 	def in_STARTTLS(self, client):
 		#deprecated
 		client.StartTLS()
