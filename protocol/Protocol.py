@@ -112,21 +112,25 @@ restricted = {
 	'JSON',
 	]),
 'mod':set([
-	'BAN',
-	'BANIP',
-	'UNBAN',
-	'UNBANIP',
-	'BANLIST',
+	# users
 	'CHANGEACCOUNTPASS',
 	'CHANGEACCOUNTEMAIL',
-	'KICKUSER',
-	'FINDIP',
-	'GETIP',
 	'GETLASTLOGINTIME',
-	'GETUSERID',
-	'SETBOTMODE',
 	'GETLOBBYVERSION',
+	'GETUSERID',
+	'GETIP',
+	'FINDIP',
+	'SETBOTMODE',
 	'FORCELEAVECHANNEL',
+	# kick/ban/etc
+	'KICK',
+	'BAN',
+	'BANSPECIFIC',
+	'UNBAN',
+	'BLACKLIST',
+	'UNBLACKLIST',
+	'LISTBANS',
+	'LISTBLACKLIST',
 	]),
 'admin':set([
 	#########
@@ -137,12 +141,12 @@ restricted = {
 	'RELOAD',
 	'CLEANUP',
 	'SETLATESTSPRINGVERSION',
+	'CLEARBANLIST',
 	#########
 	# users
-	'GETLASTLOGINTIME',
+	'SETACCESS',
 	'GETACCOUNTACCESS',
 	'FORCEJOIN',
-	'SETACCESS',
 	]),
 }
 
@@ -169,11 +173,10 @@ def uint32(x):
 	if val < 0 : raise OverflowError
 	return val
 
-
 def datetime_totimestamp(dt):
 	return int(time.mktime(dt.timetuple()))
 
-
+	
 flag_map = {
 	'a': 'accountIDs',       # send account IDs in ADDUSER
 	'b': 'battleAuth',       # JOINBATTLEREQUEST/ACCEPT/DENY
@@ -187,8 +190,9 @@ flag_map = {
 class Protocol:
 	def __init__(self, root):
 		self._root = root
-		self.userdb = root.getUserDB()
+		self.userdb = root.getUserDB() 
 		self.verificationdb = root.getVerificationDB()
+		self.bandb = root.getBanDB()
 		self.SayHooks = root.SayHooks
 		self.stats = {}
 
@@ -811,7 +815,7 @@ class Protocol:
 		client_fromdb = self.clientFromUsername(username, True)
 
 		# verification  
-		verif_reason = "registered an account at the SpringRTS lobbyserver"
+		verif_reason = "registered an account on the SpringRTS lobbyserver"
 		wait_duration = 30 # seconds
 		good, reason = self.verificationdb.check_and_send(client_fromdb.db_id, email, verif_reason, wait_duration)
 		if (not good):
@@ -2694,7 +2698,7 @@ class Protocol:
 		self._root.latestspringversion = version
 		self.out_SERVERMSG(client, 'Latest spring version is now set to: %s' % version)
 
-	def in_KICKUSER(self, client, user, reason=''):
+	def in_KICK(self, client, user, reason=''):
 		'''
 		Kick target user from the server.
 
@@ -2765,62 +2769,57 @@ class Protocol:
 		client.Send("COMPFLAGS %s" %(flags))
 
 	def in_BAN(self, client, username, duration, reason):
-		'''
-		Ban target user from the server.
+		# ban target user from the server, also ban their current ip and email
+		response = self.bandb.ban(client, duration, reason, username)
+		if response: self.out_SERVERMSG(client, '%s' % response)
 
-		@required.str username: The target user.
-		@required.float duration: The duration in days.
-		@required.str reason: The reason to be shown.
-		'''
-		try: duration = float(duration)
-		except:
-			self.out_SERVERMSG(client, 'Duration must be a float (the ban duration in days)')
+	def in_BANSPECIFIC(self, client, arg, duration, reason):
+		# arg might be a username(->db_id), ip, or email; ban it
+		response = self.bandb.ban_specific(client, duration, reason, arg)
+		if response: self.out_SERVERMSG(client, '%s' % response)
+
+	def in_UNBAN(self, client, arg):
+		# arg might be a username(->db_id), ip, or email; remove all associated bans
+		response = self.bandb.unban(client, arg)
+		if response: self.out_SERVERMSG(client, '%s' % response)
+
+	def in_CLEARBANLIST(self, client):
+		# arg might be a username(->db_id), ip, or email; remove all associated bans
+		response = self.bandb.clear_banlist()
+		if response: self.out_SERVERMSG(client, '%s' % response)
+
+	def in_BLACKLIST(self, client, domain, reason=""):
+		# add @somedomain.xyz to the blacklist
+		response = self.bandb.blacklist(client, domain, reason)
+		if response: self.out_SERVERMSG(client, '%s' % response)
+
+	def in_UNBLACKLIST(self, client, domain, reason=""):
+		# remove @somedomain.xyz from the blacklist
+		response = self.bandb.unblacklist(client, domain, reason)
+		if response: self.out_SERVERMSG(client, '%s' % response)
+
+	def in_LISTBANS(self, client):
+		# send the banlist 
+		banlist = self.bandb.list_bans()
+		if banlist:
+			self.out_SERVERMSG(client, '-- Banlist --')
+			for entry in banlist:
+				self.out_SERVERMSG(client, "%s, %s, %s :: '%s' :: ends %s (%s)" % (entry['username'], entry['ip'], entry['email'], entry['reason'], entry['end_date'], entry['issuer']))
+			self.out_SERVERMSG(client, '-- End Banlist --')
+			return 
+		self.out_SERVERMSG(client, 'Banlist is empty')
+
+	def in_LISTBLACKLIST(self, client):
+		# send the blacklist of domains for email verification
+		blacklist = self.bandb.list_blacklist()
+		if blacklist:
+			self.out_SERVERMSG(client, '-- Blacklist --')
+			for entry in blacklist:
+				self.out_SERVERMSG(client, "%s :: %s (%s)" % (entry['domain'], entry['reason'], entry['issuer']))
+			self.out_SERVERMSG(client, '-- End Blacklist--')
 			return
-		response = self.userdb.ban_user(client, username, duration, reason)
-		if response: self.out_SERVERMSG(client, '%s' % response)
-
-	def in_UNBAN(self, client, username):
-		'''
-		Remove all bans for target user from the server.
-
-		@required.str username: The target user.
-		'''
-		response = self.userdb.unban_user(username)
-		if response: self.out_SERVERMSG(client, '%s' % response)
-
-	def in_BANIP(self, client, ip, duration, reason):
-		'''
-		Ban an IP address from the server.
-
-		@required.str ip: The IP address to ban.
-		@required.float duration: The duration in days.
-		@required.str reason: The reason to show.
-		'''
-		try: duration = float(duration)
-		except:
-			self.out_SERVERMSG(client, 'Duration must be a float (the ban duration in days)')
-			return
-		response = self.userdb.ban_ip(client, ip, duration, reason)
-		if response: self.out_SERVERMSG(client, '%s' % response)
-
-	def in_UNBANIP(self, client, ip):
-		'''
-		Remove all bans for target IP from the server.
-
-		@required.str ip: The target IP.
-		'''
-		response = self.userdb.unban_ip(ip)
-		if response: self.out_SERVERMSG(client, '%s' % response)
-
-	def in_BANLIST(self, client):
-		'''
-		Retrieve a list of all bans currently active on the server.
-		'''
-		for entry in self.userdb.banlistuser():
-			self.out_SERVERMSG(client, '%s' % str(entry))
-		for entry in self.userdb.banlistip():
-			self.out_SERVERMSG(client, '%s' % str(entry))
-
+		self.out_SERVERMSG(client, 'Blacklist is empty')
+		
 	def in_SETACCESS(self, client, username, access):
 		'''
 		Set the access level of target user.
@@ -2975,7 +2974,9 @@ class Protocol:
 			del self._root.usernames[u]
 			logging.error("Deleted username without session: %s" %(u))
 
-		self.userdb.clean_users()
+		self.userdb.clean()
+		self.verificationdb.clean()
+		self.bandb.clean()
 
 		self._root.admin_broadcast("deleted channels: %d battles: %d users: %d" %(nchan, nbattle, nuser))
 
@@ -2988,7 +2989,7 @@ class Protocol:
 			client.Send("CHANGEEMAILREQUESTDENIED email verification is currently turned off, you do not need a verification code!")
 			return
 		newmail = newmail.lower()
-		reason = "to change your email address for the SpringRTS lobbyserver"
+		reason = "requested to change your email address on the SpringRTS lobbyserver (" + client.username + ")"
 		good, reason = self.verificationdb.check_and_send(client.db_id, newmail, reason, 0) 
 		if not good:
 			client.Send("CHANGEEMAILREQUESTDENIED " + reason)
@@ -3192,6 +3193,8 @@ def selftest():
 		def getUserDB(self):
 			pass
 		def getVerificationDB(self):
+			pass
+		def getBanDB(self):
 			pass
 	p = Protocol(DummyRoot())
 	assert(p._validUsernameSyntax("abcde")[0])

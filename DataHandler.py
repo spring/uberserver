@@ -97,9 +97,10 @@ class DataHandler:
 			self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.max_threads * 2, pool_recycle=300)
 
 		self.userdb = SQLUsers.UsersHandler(self, self.engine)
-		self.channeldb = SQLUsers.ChannelsHandler(self, self.engine)
 		self.verificationdb = SQLUsers.VerificationsHandler(self, self.engine)
+		self.bandb = SQLUsers.BansHandler(self, self.engine)
 		
+		self.channeldb = SQLUsers.ChannelsHandler(self, self.engine)
 		channels = self.channeldb.load_channels()
 
 		for name in channels:
@@ -305,6 +306,9 @@ class DataHandler:
 
 	def getVerificationDB(self):
 		return self.verificationdb
+
+	def getBanDB(self):
+		return self.bandb
 
 	def clientFromID(self, db_id):
 		if db_id in self.db_ids: return self.db_ids[db_id]

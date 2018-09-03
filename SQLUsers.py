@@ -249,43 +249,51 @@ class ChannelHistory(object):
 mapper(ChannelHistory, channelshistory_table)
 
 ##########################################
-banip_table = Table('ban_ip', metadata, # server ip bans
+ban_table = Table('ban', metadata, # server bans
 	Column('id', Integer, primary_key=True),
-	Column('issuer_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # user which set ban
-	Column('ip', String(60)), #ip which is banned
+	Column('issuer_username', String(40), ForeignKey('users.username', onupdate='CASCADE', ondelete='CASCADE')), # user which set ban
+	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # user id which is banned (optional)
+	Column('ip', String(60)), #ip which is banned (optional)
+	Column('email', String(254)), #email which is banned (optional & not foreignkey!)
 	Column('reason', Text),
-	Column('end_time', DateTime),
-	Column('updated', DateTime),
+	Column('end_date', DateTime),
 	mysql_charset='utf8',
 	)
-class BanIP(object):
-	def __init__(self, ip = None, issuer_id = None, reason = "", end_time = None):
-		self.issuer_id = issuer_id
-		self.ip = ip
-		self.reason = reason
-		self.end_time = end_time or datetime.now()
-		self.updated = datetime.now()
-mapper(BanIP, banip_table)
-##########################################
-banuser_table = Table('ban_user', metadata, # server bans
-	Column('id', Integer, primary_key=True),
-	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # user id which is banned
-	Column('issuer_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # user which set ban
-	Column('reason', Text),
-	Column('end_time', DateTime),
-	Column('updated', DateTime),
-	mysql_charset='utf8',
-	)
-class BanUser(object):
-	def __init__(self, user_id = None, issuer_id = None, reason = "", end_time = None):
+class Ban(object):
+	def __init__(self, issuer_username, duration, reason, user_id=None, ip=None, email=None):
+		self.issuer_username = issuer_username
 		self.user_id = user_id
-		self.issuer_id = issuer_id
+		self.ip = ip
+		self.email = email
 		self.reason = reason
-		self.end_time = end_time or datetime.now()
-		self.updated = datetime.now()
-mapper(BanUser, banuser_table)
+		self.end_date = datetime.now() + timedelta(duration)
+		
+	def __repr__(self):
+		user_id_str = str(self.user_id)+', ' if self.user_id else ""
+		ip_str = self.ip+', ' if self.ip else ""
+		email_str = self.email+', ' if self.email else ""
+		ban_str = user_id_str + email_str + ban_str
+		return "<Ban: %s (%s, expires %s)>" % (ban_str, self.issuer_username, self.end_date)
+mapper(Ban, ban_table)
 ##########################################
-
+blacklisted_email_domain_table = Table('blacklisted email domains', metadata, # email domains that can't be used for account verification
+	Column('id', Integer, primary_key=True),
+	Column('issuer_username', String(40), ForeignKey('users.username', onupdate='CASCADE', ondelete='CASCADE')), # user which set ban
+	Column('domain', String(254)), #email which is banned
+	Column('reason', Text),
+	Column('start_time', DateTime),
+	)
+class BlacklistedEmailDomain(object):
+	def __init__(self, issuer_username, domain, reason):
+		self.issuer_username = issuer_username
+		self.domain = domain
+		self.reason = reason
+		self.start_time = datetime.now()
+		
+	def __repr__(self):
+		return "<Domain: %s (%s, since %s)>" % (self.domain, self.issuer_username, self.start_time)
+mapper(BlacklistedEmailDomain, blacklisted_email_domain_table)
+##########################################
 #metadata.create_all(engine)
 
 
@@ -336,30 +344,14 @@ class UsersHandler:
 	def legacy_test_user_pwrd(self, user_inst, user_pwrd):
 		return (user_inst.password == user_pwrd)
 
-	def check_ban(self, user, ip, userid, now):
-		## FIXME: "Error reading from DB in in_LOGIN: <lambda>() takes exactly 2 arguments (3 given)"?
-		
-		userban = self.sess().query(BanUser).filter(BanUser.user_id == userid, now <= BanUser.end_time).first()
-		if userban: 
-			return True, userban
-
-		ipban = self.sess().query(BanIP).filter(BanIP.ip == ip, now <= BanIP.end_time).first()
-		if ipban: 
-			return True, ipban
-		
-		return False, ""
-
-
 	def common_login_user(self, dbuser, session,  username, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		if self._root.censor and not self._root.SayHooks._nasty_word_censor(username):
 			return False, 'Name failed to pass profanity filter.'
 
 		now = datetime.now()
-		banned, dbban = self.check_ban(username, ip, dbuser.id, now)
-		good = (not banned)
-
-		if banned:
-			timeleft = int((dbban.end_time - now).total_seconds())
+		dbban = self._root.bandb.check_ban(dbuser.id, ip, dbuser.email, now)
+		if dbban:
+			timeleft = int((dbban.end_date - now).total_seconds())
 			reason = 'You are banned: (%s) ' %(dbban.reason)
 
 			if timeleft > 60 * 60 * 24 * 1000:
@@ -368,28 +360,28 @@ class UsersHandler:
 				reason += 'days remaining: %s' % (timeleft / (60 * 60 * 24))
 			else:
 				reason += 'hours remaining: %s' % (timeleft / (60 * 60))
-
+			return False, reason
+			
 		dbuser.logins.append(Login(now, ip, lobby_id, user_id, cpu, local_ip, country))
 		dbuser.time = now
 		dbuser.last_ip = ip
 		dbuser.last_id = user_id
 
-		if (good):
-			## copy unicode(BASE64(...)) values out of DB, leave them as-is
-			user_copy = User(dbuser.username, dbuser.password, dbuser.randsalt, ip, dbuser.email)
-			user_copy.access = dbuser.access
-			user_copy.id = dbuser.id
-			user_copy.ingame_time = dbuser.ingame_time
-			user_copy.bot = dbuser.bot
-			user_copy.last_login = dbuser.last_login
-			user_copy.register_date = dbuser.register_date
-			user_copy.lobby_id = lobby_id
-			reason = user_copy
+		## copy unicode(BASE64(...)) values out of DB, leave them as-is
+		user_copy = User(dbuser.username, dbuser.password, dbuser.randsalt, ip, dbuser.email)
+		user_copy.access = dbuser.access
+		user_copy.id = dbuser.id
+		user_copy.ingame_time = dbuser.ingame_time
+		user_copy.bot = dbuser.bot
+		user_copy.last_login = dbuser.last_login
+		user_copy.register_date = dbuser.register_date
+		user_copy.lobby_id = lobby_id
+		reason = user_copy
 
 		dbuser.last_login = now # store current time to db but keep last_login in in user_copy
 		session.commit()
 
-		return good, reason
+		return True, reason
 
 	def legacy_login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
 		assert(type(username) == str)
@@ -413,8 +405,6 @@ class UsersHandler:
 			entry.last_login = datetime.now() # in real its last online / last seen
 			self.sess().commit()
 
-
-
 	def check_user_name(self, user_name):
 		if len(user_name) > 20: return False, 'Username too long'
 		if self._root.censor:
@@ -422,27 +412,20 @@ class UsersHandler:
 				return False, 'Name failed to pass profanity filter.'
 		return True, ""
 
-
 	# TODO: improve, e.g. also check if ip address is banned when registering account
 	def check_register_user(self, username, password, ip, country, email):
 		assert(type(username) == str)
 		assert(type(password) == str)
 
 		status, reason = self.check_user_name(username)
-
 		if (not status):
 			return False, reason
-
 		dbuser = self.sess().query(User).filter(User.username == username).first()
-
 		if (dbuser):
 			return False, 'Username already exists.'
-
 		dbemail = self.sess().query(User).filter(User.email == email).first()
-
 		#if (dbemail):
 		#	return False, 'Email address already exists.'
-
 		return True, ""
 
 	def register_user(self, username, password, ip, country, email):
@@ -453,68 +436,6 @@ class UsersHandler:
 		self.sess().add(entry)
 		self.sess().commit()
 		return True, 'Account registered successfully.'
-
-	def ban_user(self, owner, username, duration, reason):
-		entry = self.sess().query(User).filter(User.username==username).first()
-		if not entry:
-			return "Couldn't ban %s, user doesn't exist" % (username)
-		end_time = datetime.now() + timedelta(duration)
-		ban = BanUser(entry.id, owner.db_id, reason, end_time)
-		self.sess().add(ban)
-		self.sess().commit()
-		return 'Successfully banned %s for %s days.' % (username, duration)
-
-	def unban_user(self, username):
-		client = self.clientFromUsername(username)
-		if not client:
-			return "User %s doesn't exist" % username
-		results = self.sess().query(BanUser).filter(BanUser.user_id==client.id)
-		if results:
-			for result in results:
-				self.sess().delete(result)
-			self.sess().commit()
-			return 'Successfully unbanned %s.' % username
-		else:
-			return 'No matching bans for %s.' % username
-
-	def ban_ip(self, owner, ip, duration, reason):
-		# TODO: add owner field to the database for bans
-		end_time = datetime.now() + timedelta(duration)
-		ban = BanIP(ip, owner.db_id, reason, end_time)
-		self.sess().add(ban)
-		self.sess().commit()
-		return 'Successfully banned %s for %s days.' % (ip, duration)
-
-	def unban_ip(self, ip):
-		results = self.sess().query(BanIP).filter(BanIP.ip==ip)
-		if results:
-			for result in results:
-				self.sess().delete(result)
-			self.sess().commit()
-			return 'Successfully unbanned %s.' % ip
-		else:
-			return 'No matching bans for %s.' % ip
-
-	def banlistuser(self):
-		banlist = []
-		for ban in self.sess().query(BanUser, User.id, BanUser.end_time, BanUser.reason, User.username).join(User,BanUser.user_id == User.id ):
-			banlist.append({
-				'userid': ban.id,
-				'username': ban.username,
-				'endtime': ban.end_time,
-				'reason': ban.reason
-			})
-		return banlist
-
-	def banlistip(self):
-		banlist = []
-		for ban in self.sess().query(BanIP):
-			banlist.append({
-				'userid': ban.ip,
-				'endtime': ban.end_time,
-				'reason': ban.reason
-			})
-		return banlist
 
 	def rename_user(self, user, newname):
 		if len(newname)>20: return False, 'Username too long'
@@ -595,7 +516,7 @@ class UsersHandler:
 		self.sess().commit()
 		return True, 'Success.'
 
-	def clean_users(self):
+	def clean(self):
 		''' delete old user accounts (very likely unused) '''
 		now = datetime.now()
 		#delete users:
@@ -706,6 +627,178 @@ class UsersHandler:
 			assert(type(msgs[0][2]) == str)
 		return msgs
 
+class BansHandler:
+	def __init__(self, root, engine):
+		self._root = root
+		metadata.create_all(engine)
+		self.sessionmaker = sessionmaker(bind=engine, autoflush=True)
+		self.session = self.sessionmaker()
+
+	def sess(self):
+		if self.session.is_active:
+			return self.session
+		self.session.rollback()
+		return self.session
+
+	def check_ban(self, user_id=None, ip=None, email=None, now=None):
+		# check if any of the args are currently banned
+		# fixme: its probably possible to do this with a single db command!
+		if not now:
+			now = datetime.now()
+		userban = self.sess().query(Ban).filter(Ban.user_id == user_id, now <= Ban.end_date).first()
+		if userban: 
+			return userban
+		ipban = self.sess().query(Ban).filter(Ban.ip == ip, now <= Ban.end_date).first()
+		if ipban: 
+			return ipban
+		emailban = self.sess().query(Ban).filter(Ban.email == email, now <= Ban.end_date).first()
+		if emailban: 
+			return emailban
+		return None
+
+	def ban(self, issuer, duration, reason, username):
+		# ban the db_id, current ip, and current email, of the target username (as a single ban)
+		try:
+			duration = float(duration)
+		except:	
+			return 'Duration must be a float, cannot convert %s' % duration
+
+		entry = self.sess().query(User).filter(User.username==username).first()
+		if not entry:
+			return "Unable to ban %s, user doesn't exist" % username
+		ban = Ban(issuer.username, duration, reason, entry.id, entry.last_ip, entry.email)
+		self.sess().add(ban)
+		self.sess().commit()
+		return 'Successfully banned %s, %s, %s for %s days.' % (username, entry.last_ip, entry.email, duration)
+
+	def ban_specific(self, issuer, duration, reason, arg):
+		# arg might be username, ip or email; ban it
+		try:
+			duration = float(duration)
+		except:	
+			return 'Duration must be a float, cannot convert %s' % duration
+
+		email_match,_ = self._root.verificationdb.valid_email_addr(arg)
+		ip_match = re.match(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", arg)
+		entry = self.sess().query(User).filter(User.username==arg).first()
+		if email_match:
+			ban = Ban(issuer.username, duration, reason, None, None, arg)
+		elif ip_match:
+			ban = Ban(issuer.username, duration, reason, None, arg, None)
+		elif entry:
+			ban = Ban(issuer.username, duration, reason, entry.id, None, None)
+		else:
+			return "Unable to match '%s' to username/ip/email" % arg
+		self.sess().add(ban)
+		self.sess().commit()
+		return 'Successfully banned %s for %s days' % (arg, duration)
+
+	def unban(self, issuer, arg):
+		# arg might be username, ip or email; remove all associated bans
+		email_match,_ = self._root.verificationdb.valid_email_addr(arg)
+		ip_match = re.match(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", arg)
+		entry = self.sess().query(User).filter(User.username==arg).first()
+		if not (email_match or ip_match or entry):
+			return "Unable to match '%s' to username/ip/email" % arg
+		result = []
+		n_unban = 0
+		if email_match:
+			results = self.sess().query(Ban).filter(Ban.email==arg)
+			for result in results:
+				self.sess().delete(result)
+				n_unban += 1
+		if ip_match:
+			results = self.sess().query(Ban).filter(Ban.ip==arg)
+			for result in results:
+				self.sess().delete(result)
+				n_unban += 1
+		if entry:
+			results = self.sess().query(Ban).filter(Ban.user_id==entry.id)
+			for result in results:
+				self.sess().delete(result)
+				n_unban += 1
+		self.sess().commit()
+		if n_unban>0:
+			return 'Successfully removed %s bans relating to %s' % (n_unban, arg)
+		else:
+			return 'No matching bans for %s' % arg
+
+	def clear_banlist(self):
+		n_unban = 0
+		results = self.sess().query(Ban)
+		if results:
+			for result in results:
+				self.sess().delete(result)
+				n_unban += 1
+			self.sess().commit()
+		return "Cleared %s items from the banlist" % n_unban
+
+	def check_blacklist(self, email):
+		partition = email.partition('@')
+		if partition[1]=="":
+			return None
+		domain = partition[2]
+		entry = self.sess().query(BlacklistedEmailDomain).filter(BlacklistedEmailDomain.domain==domain).first()
+		if entry:
+			return entry
+		return None
+		
+	def blacklist(self, issuer, domain, reason):
+		entry = self.sess().query(BlacklistedEmailDomain).filter(BlacklistedEmailDomain.domain==domain).first()
+		if entry:
+			return 'Unable to add %s, entry already exists' % domain
+		entry = BlacklistedEmailDomain(issuer.username, domain, reason)
+		self.sess().add(entry)
+		self.sess().commit()
+		return 'Successfully added %s to blacklist' % domain
+		
+	def unblacklist(self, issuer, domain, reason):
+		entry = self.sess().query(BlacklistedEmailDomain).filter(BlacklistedEmailDomain.domain==domain).first()
+		if not entry:
+			return "Unable to remove %s, entry doesn't exist" % (domain)
+		self.sess().delete(entry)
+		self.sess().commit()
+		return "Sucessfully removed %s from blacklist" % domain
+	
+	def list_bans(self):
+		# return a list of all bans
+		banlist = []
+		for ban in self.sess().query(Ban):
+			username = None
+			if ban.user_id:
+				entry = self.sess().query(User).filter(User.id==ban.user_id).first()
+				if entry:
+					username = entry.username
+			banlist.append({
+				'username': username or "",
+				'id': ban.user_id,
+				'ip': ban.ip or "",
+				'email': ban.email or "",
+				'end_date': ban.end_date.strftime("%Y-%m-%d %H:%M"),
+				'reason': ban.reason,
+				'issuer': ban.issuer_username
+			})
+		return banlist
+
+	def list_blacklist(self):
+		# return a list of all blacklisted email domains
+		blacklist = []
+		for item in self.sess().query(BlacklistedEmailDomain):
+			username = None
+			blacklist.append({
+				'domain': item.domain,
+				'start_time': item.start_time.strftime("%Y-%m-%d %H:%M"),
+				'reason': item.reason or "",
+				'issuer': item.issuer_username
+			})
+		return blacklist
+	
+	def clean(self):
+		# remove all expired bans
+		now = datetime.now()
+		self.sess().query(Ban).filter(Ban.end_date < now).delete(synchronize_session=False)			
+		self.sess().commit()	
+	
 class VerificationsHandler:
 	def __init__ (self, root, engine):
 		self._root = root
@@ -750,9 +843,12 @@ class VerificationsHandler:
 		# check that we don't already have an active verification, send a new one if not
 		if not self.active():
 			return True, ''
-		good, reason = self.valid_email_addr(email)
+		good, validity_reason = self.valid_email_addr(email)
 		if not good:
-			return False, reason
+			return False, validity_reason
+		dbblacklist = self._root.bandb.check_blacklist(email)
+		if dbblacklist:
+			return False, dbblacklist.domain + " is blacklisted: " + dbblacklist.reason
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first()
 		if entry and entry.expiry < datetime.now():
 			self.remove(user_id)
@@ -924,9 +1020,8 @@ class ChannelsHandler:
 		self.sess().commit()
 
 if __name__ == '__main__':
-	class root():
+	class root:
 		censor = False
-		pass
 
 	import sqlalchemy, os
 	try: # cleanup old db
@@ -942,35 +1037,48 @@ if __name__ == '__main__':
 	root = root()
 	userdb = UsersHandler(root, engine)
 	channeldb = ChannelsHandler(root, engine)
+	verificationdb = VerificationsHandler(root, engine)
+	bandb = BansHandler(root, engine)
+	root.userdb = userdb
+	root.channeldb = channeldb
+	root.verificationdb = verificationdb
+	root.bandb = bandb
 	
-	username = u"test"
-	channelname = u"testchannel"
-
 	# test save/load user
+	username = u"test"
 	userdb.register_user(username, u"pass", "192.168.1.1", "DE", "blackhole@blackhole.io")
 	client = userdb.clientFromUsername(username)
 	assert(isinstance(client.id, int))
 	
+	# test verification
+	entry = verificationdb.create(client.id, client.email)
+	verificationdb._send(entry.email, entry.code, "test", 0) #use main thread, or Python will exit without waiting for the test!
+	verificationdb.verify(client.id, client.email, entry.code)
+	verificationdb.clean()
+
+	# test ban/unban
+	userdb.register_user("delinquent", u"pass", "192.168.1.2", "DE", "blackhole@blackhole.io")
+	client2 = userdb.clientFromUsername("delinquent")
+	bandb.ban(client, 1, "test", "delinquent")
+	ban = bandb.check_ban(client2.id, None, None)
+	assert(ban)
+	bandb.unban(client, "delinquent")	
+	ban = bandb.check_ban(client2.id, None, None)
+	assert(not ban)
+	
 	# test save/load channel
+	channelname = u"testchannel"
 	channel = Channel(channelname)
 	client.db_id = client.id # only online clients can register channels, so pretend we are one of those
 	channeldb.register(channel, client)
 	assert(channel.id > 0)
 
-	# test verification
-	verificationdb = VerificationsHandler(root, engine)
-	entry = verificationdb.create(client.id, client.email)
-	verificationdb._send(entry.email, entry.code, "test_reason", 0) #use main thread, or Python will exit without wait for the test!
-	verificationdb.verify(client.id, client.email, entry.code)
-	verificationdb.clean()
-	
 	# test setHistory
 	assert(channel.store_history == False)
 	channel.store_history = True
 	channeldb.setHistory(channel, channel.store_history)
 	channel = channeldb.load_channel(channelname)
 	assert(channel.store_history == True)
-
 
 	# test channel message history
 	now = datetime.now()
@@ -996,7 +1104,10 @@ if __name__ == '__main__':
 	userdb.add_channel_message(channel.id, None, "test")
 	userdb.add_channel_message(channel.id, 99, "test")
 
-	userdb.clean_users()
+	userdb.clean()
+	verificationdb.clean()
+	bandb.clean()
+	
 	print("Tests went ok")
 
 
