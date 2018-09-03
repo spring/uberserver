@@ -2709,6 +2709,8 @@ class Protocol:
 		@optional.str reason: The reason to be shown.
 		'''
 		kickeduser = self.clientFromUsername(username)
+		if kickeduser.access=='admin':
+			return
 		if not kickeduser:
 			self.out_SERVERMSG(client, 'User <%s> was not online' % username)
 			return
@@ -2772,7 +2774,7 @@ class Protocol:
 		# ban target user from the server, also ban their current ip and email
 		good, response = self.bandb.ban(client, duration, reason, username)
 		target = self.clientFromUsername(username)
-		if target: # is online
+		if good and target: # is online
 			self.in_KICK(client, target.username, "banned")
 		if good: self.broadcast_Moderator("%s banned <%s> for %s days (%s)" % (client.username, username, duration, reason))
 		if response: self.out_SERVERMSG(client, '%s' % response)
