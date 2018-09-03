@@ -7,6 +7,8 @@ except:
 	# thread was renamed to _thread in python 3
 	import _thread
 
+from OpenSSL import SSL
+
 import traceback, signal, socket, sys, logging
 from twisted.internet import reactor, ssl
 
@@ -55,13 +57,17 @@ logging.info('Using %i client handling thread(s).'%_root.max_threads)
 
 _root.init()
 
+
 try:
-	# reactor.listenTCP(_root.port, twistedserver.ChatFactory(_root))
-	reactor.listenSSL(8243, twistedserver.ChatFactory(_root), ssl.DefaultOpenSSLContextFactory('server.key', 'server.crt'))
+	reactor.listenTCP(_root.port, twistedserver.ChatFactory(_root))
+	reactor.listenSSL(_root.ssl_port, twistedserver.ChatFactory(_root),
+                      ssl.DefaultOpenSSLContextFactory('keys/server.key', 'keys/server.crt'))
 	print('Started lobby server!')
 	print('Connect the lobby client to')
 	print('  public:  %s:%d' %(_root.online_ip, _root.port))
 	print('  private: %s:%d' %(_root.local_ip, _root.port))
+	print('  public ssl:  %s:%d' %(_root.online_ip, _root.ssl_port))
+	print('  private ssl: %s:%d' %(_root.local_ip, _root.ssl_port))
 	reactor.run()
 
 except KeyboardInterrupt:

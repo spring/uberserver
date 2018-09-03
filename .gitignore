@@ -27,3 +27,5 @@ xmlrpc.log*
 venv/
 
 *.crt
+
+keys/

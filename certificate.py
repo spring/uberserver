@@ -34,9 +34,18 @@ def create_self_signed_cert(filename):
 	cert.set_pubkey(k)
 	cert.sign(k, 'sha1')
 
+	cert_file = crypto.dump_certificate(crypto.FILETYPE_PEM, cert).decode("UTF-8")
+	key_file = crypto.dump_privatekey(crypto.FILETYPE_PEM, k).decode("UTF-8")
+
 	with open(filename, 'wt') as certfile:
-		certfile.write(crypto.dump_certificate(crypto.FILETYPE_PEM, cert).decode("UTF-8"))
-		certfile.write(crypto.dump_privatekey(crypto.FILETYPE_PEM, k).decode("UTF-8"))
+		certfile.write(cert_file)
+		certfile.write(key_file)
+
+	with open("keys/server.crt", 'wt') as crt:
+		crt.write(cert_file)
+
+	with open("keys/server.key", 'wt') as key:
+		key.write(key_file)
 
 
-#create_self_signed_cert("server.key")
+# create_self_signed_cert("server.key")
