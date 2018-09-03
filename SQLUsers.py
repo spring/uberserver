@@ -350,16 +350,18 @@ class UsersHandler:
 
 		now = datetime.now()
 		dbban = self._root.bandb.check_ban(dbuser.id, ip, dbuser.email, now)
-		if dbban:
+		if dbban and not dbuser.access=='admin':
 			timeleft = int((dbban.end_date - now).total_seconds())
 			reason = 'You are banned: (%s) ' %(dbban.reason)
 
-			if timeleft > 60 * 60 * 24 * 1000:
-				reason += 'forever!'
-			elif timeleft > 60 * 60 * 24:
-				reason += 'days remaining: %s' % (timeleft / (60 * 60 * 24))
+			if timeleft > 900*60*60*24:
+				reason += 'days remaining: forever!'
+			elif timeleft > 60*60*24:
+				reason += 'days remaining: %s' % (int(timeleft / (60 * 60 * 24)))
+			elif timeleft > 60*60:
+				reason += 'hours remaining: %s' % (int(timeleft / (60 * 60)))
 			else:
-				reason += 'hours remaining: %s' % (timeleft / (60 * 60))
+				reason += 'hours remaining: less than one'				
 			return False, reason
 			
 		dbuser.logins.append(Login(now, ip, lobby_id, user_id, cpu, local_ip, country))
