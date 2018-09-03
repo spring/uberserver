@@ -815,6 +815,13 @@ class Protocol:
 			client.Send('REGISTRATIONDENIED %s' % reason)
 			return
 
+		# require a valid looking email address, if we are going to require verification	
+		if self.verificationdb.active():
+			good, reason = self._root.verificationdb.valid_email_addr(email)
+			if not good:
+				client.Send('REGISTRATIONDENIED %s' % reason)
+				return
+				
 		#save user to db
 		self.userdb.register_user(username, password, client.ip_address, client.country_code, email)
 		client_fromdb = self.clientFromUsername(username, True)
