@@ -42,6 +42,7 @@ class DataHandler:
 		self.userdb = None
 		self.channeldb = None
 		self.verificationdb = None
+		self.bandb = None
 		self.engine = None
 		self.updatefile = None
 		self.trusted_proxyfile = None

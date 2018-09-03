@@ -2698,23 +2698,20 @@ class Protocol:
 		self._root.latestspringversion = version
 		self.out_SERVERMSG(client, 'Latest spring version is now set to: %s' % version)
 
-	def in_KICK(self, client, user, reason=''):
+	def in_KICK(self, client, username, reason=''):
 		'''
 		Kick target user from the server.
 
 		@required.str username: The target user.
 		@optional.str reason: The reason to be shown.
 		'''
-		kickeduser = self.clientFromUsername(user)
+		kickeduser = self.clientFromUsername(username)
 		if not kickeduser:
+			self.out_SERVERMSG(client, 'User <%s> was not online' % username)
 			return
-
-		if reason: reason = ' (reason: %s)' % reason
-		for chan in kickeduser.channels:
-			self._root.broadcast('CHANNELMESSAGE %s <%s> kicked <%s> from the server%s'%(chan, client.username, user, reason),chan)
-		self.out_SERVERMSG(client, 'You\'ve kicked <%s> from the server.' % user)
-		self.out_SERVERMSG(kickeduser, 'You\'ve been kicked from server by <%s>%s' % (client.username, reason))
-		kickeduser.Remove('was kicked from server by <%s>: %s' % (client.username, reason))
+		self.out_SERVERMSG(kickeduser, 'You were kicked from the server (%s)' % (reason))
+		self.out_SERVERMSG(client, 'Kicked <%s> from the server' % username)
+		kickeduser.Remove('was kicked from server by <%s> (%s)' % (client.username, reason))
 
 	def _testlogin(self, username, password):
 		'''
@@ -2771,6 +2768,9 @@ class Protocol:
 	def in_BAN(self, client, username, duration, reason):
 		# ban target user from the server, also ban their current ip and email
 		response = self.bandb.ban(client, duration, reason, username)
+		target = self.clientFromUsername(username)
+		if target: # is online
+			self.in_KICK(client, target.username, "banned")
 		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_BANSPECIFIC(self, client, arg, duration, reason):
@@ -3053,37 +3053,6 @@ class Protocol:
 				return
 			data = {"PROMOTE": {"battleid": battle.id}}
 			self._root.broadcast('JSON ' + json.dumps(data, separators=(',', ':')))
-			return
-
-		if "KICKBAN" in cmd:
-			params = cmd["KICKBAN"]
-			if not "mod" in client.accesslevels:
-				self.out_JSON(client, "FAILED", {"msg": "Moderator permissions needed: %s" %(client.access)})
-				return
-			if not "username" in cmd["KICKBAN"]:
-				return
-			username = cmd["KICKBAN"]["username"]
-			valid, reason =  self._validUsernameSyntax(username)
-			if not valid:
-				self.out_JSON(client, "FAILED", {"msg": reason})
-				return
-			response = ""
-			reason = "bankicked by %s" %(client.username)
-			duration = 0.04 # ~1 hour
-
-			if "duration" in params:
-				try:
-					duration = float(duration)
-				except:
-					self.out_JSON(client, "FAILED", {"msg": 'Duration must be a float (the ban duration in days)'})
-					return
-
-			badclient = self.clientFromUsername(username)
-			if badclient: # online
-				response += self.userdb.ban_ip(badclient, badclient.ip_address, duration, reason)
-				badclient.Remove(reason)
-			response += self.userdb.ban_user(client, username, duration, reason)
-			self.out_JSON(client, "OK", {"msg": str(response)})
 			return
 
 		if "BATTLEMUTE" in cmd:
