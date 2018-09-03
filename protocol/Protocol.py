@@ -138,15 +138,18 @@ restricted = {
 	'ADMINBROADCAST',
 	'BROADCAST',
 	'BROADCASTEX',
-	'RELOAD',
-	'CLEANUP',
 	'SETLATESTSPRINGVERSION',
-	'CLEARBANLIST',
 	#########
 	# users
 	'SETACCESS',
 	'GETACCOUNTACCESS',
 	'FORCEJOIN',
+	#########
+	# dev
+	'RELOAD',
+	'CLEANUP',
+	'CLEARBANLIST',
+	'CLEARBLACKLIST',
 	]),
 }
 
@@ -2767,20 +2770,23 @@ class Protocol:
 
 	def in_BAN(self, client, username, duration, reason):
 		# ban target user from the server, also ban their current ip and email
-		response = self.bandb.ban(client, duration, reason, username)
+		good, response = self.bandb.ban(client, duration, reason, username)
 		target = self.clientFromUsername(username)
 		if target: # is online
 			self.in_KICK(client, target.username, "banned")
+		if good: self.broadcast_Moderator("%s banned <%s> for %s days (%s)" % (client.username, username, duration, reason))
 		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_BANSPECIFIC(self, client, arg, duration, reason):
 		# arg might be a username(->db_id), ip, or email; ban it
-		response = self.bandb.ban_specific(client, duration, reason, arg)
+		good, response = self.bandb.ban_specific(client, duration, reason, arg)
+		if good: self.broadcast_Moderator("%s banned-specific <%s> for %s days (%s)" % (client.username, arg, duration, reason))
 		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_UNBAN(self, client, arg):
 		# arg might be a username(->db_id), ip, or email; remove all associated bans
-		response = self.bandb.unban(client, arg)
+		good, response = self.bandb.unban(client, arg)
+		if good: self.broadcast_Moderator("%s unbanned %s" % (client.username, arg))
 		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_CLEARBANLIST(self, client):
@@ -2789,13 +2795,20 @@ class Protocol:
 		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_BLACKLIST(self, client, domain, reason=""):
-		# add @somedomain.xyz to the blacklist
-		response = self.bandb.blacklist(client, domain, reason)
+		# add somedomain.xyz to the blacklist
+		good, response = self.bandb.blacklist(client, domain, reason)
+		if good: self.broadcast_Moderator("%s blacklisted '%s' (%s)" % (client.username, domain, reason))
 		if response: self.out_SERVERMSG(client, '%s' % response)
 
-	def in_UNBLACKLIST(self, client, domain, reason=""):
-		# remove @somedomain.xyz from the blacklist
-		response = self.bandb.unblacklist(client, domain, reason)
+	def in_UNBLACKLIST(self, client, domain):
+		# remove somedomain.xyz from the blacklist
+		good, response = self.bandb.unblacklist(client, domain)
+		if good: self.broadcast_Moderator("%s un-blacklisted '%s' (%s)" % (client.username, domain, reason))
+		if response: self.out_SERVERMSG(client, '%s' % response)
+
+	def in_CLEARBLACKLIST(self, client):
+		# arg might be a username(->db_id), ip, or email; remove all associated bans
+		response = self.bandb.clear_blacklist()
 		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_LISTBANS(self, client):
@@ -2874,7 +2887,7 @@ class Protocol:
 			logging.info("%s %d" % (k, count))
 
 		try:
-			self.broadcast_Moderator('Reload initiated by : %s' %(client.username))
+			self.broadcast_Moderator('Reload initiated by <%s>' %(client.username))
 		except Exception as e:
 			logging.error("Broadcast failed: %s" %(str(e)))
 
@@ -2894,10 +2907,12 @@ class Protocol:
 			importlib.reload(sys.modules['Client'])
 			importlib.reload(sys.modules['ip2country'])
 		except Exception as e:
-			logging.error("reload failed:")
+			self.out_SERVERMSG(client, 'Reload failed!')
+			logging.error("Reload failed: ")
 			logging.error(e)
 
-		self.broadcast_Moderator('done')
+		self.out_SERVERMSG(client, 'Reload successful')
+		self.broadcast_Moderator('Reload successful')
 
 	def in_CLEANUP(self, client):
 		self._root.admin_broadcast('Cleanup initiated by %s (deleting old users, zombie channels / users)...' %(client.username))

@@ -661,22 +661,22 @@ class BansHandler:
 		try:
 			duration = float(duration)
 		except:	
-			return 'Duration must be a float, cannot convert %s' % duration
+			return False, 'Duration must be a float, cannot convert %s' % duration
 
 		entry = self.sess().query(User).filter(User.username==username).first()
 		if not entry:
-			return "Unable to ban %s, user doesn't exist" % username
+			return False, "Unable to ban %s, user doesn't exist" % username
 		ban = Ban(issuer.username, duration, reason, entry.id, entry.last_ip, entry.email)
 		self.sess().add(ban)
 		self.sess().commit()
-		return 'Successfully banned %s, %s, %s for %s days.' % (username, entry.last_ip, entry.email, duration)
+		return True, 'Successfully banned %s, %s, %s for %s days.' % (username, entry.last_ip, entry.email, duration)
 
 	def ban_specific(self, issuer, duration, reason, arg):
 		# arg might be username, ip or email; ban it
 		try:
 			duration = float(duration)
 		except:	
-			return 'Duration must be a float, cannot convert %s' % duration
+			return False, 'Duration must be a float, cannot convert %s' % duration
 
 		email_match,_ = self._root.verificationdb.valid_email_addr(arg)
 		ip_match = re.match(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", arg)
@@ -688,10 +688,10 @@ class BansHandler:
 		elif entry:
 			ban = Ban(issuer.username, duration, reason, entry.id, None, None)
 		else:
-			return "Unable to match '%s' to username/ip/email" % arg
+			return False, "Unable to match '%s' to username/ip/email" % arg
 		self.sess().add(ban)
 		self.sess().commit()
-		return 'Successfully banned %s for %s days' % (arg, duration)
+		return True, 'Successfully banned %s for %s days' % (arg, duration)
 
 	def unban(self, issuer, arg):
 		# arg might be username, ip or email; remove all associated bans
@@ -719,9 +719,9 @@ class BansHandler:
 				n_unban += 1
 		self.sess().commit()
 		if n_unban>0:
-			return 'Successfully removed %s bans relating to %s' % (n_unban, arg)
+			return True, 'Successfully removed %s bans relating to %s' % (n_unban, arg)
 		else:
-			return 'No matching bans for %s' % arg
+			return False, 'No matching bans for %s' % arg
 
 	def clear_banlist(self):
 		n_unban = 0
@@ -744,22 +744,36 @@ class BansHandler:
 		return None
 		
 	def blacklist(self, issuer, domain, reason):
+		if not '.' in domain:
+			return False, "invalid domain '%s', contains no '.'" % domain
+		if 'www' in domain or 'http' in domain or '/' in domain:
+			return False, "invalid domain '%s', do not include www or http(s) part, example: hawtmail.com" % domain	
 		entry = self.sess().query(BlacklistedEmailDomain).filter(BlacklistedEmailDomain.domain==domain).first()
 		if entry:
-			return 'Unable to add %s, entry already exists' % domain
+			return False, 'Domain %s is already blacklisted' % domain
 		entry = BlacklistedEmailDomain(issuer.username, domain, reason)
 		self.sess().add(entry)
 		self.sess().commit()
-		return 'Successfully added %s to blacklist' % domain
+		return True, 'Successfully added %s to blacklist' % domain
 		
-	def unblacklist(self, issuer, domain, reason):
+	def unblacklist(self, issuer, domain):
 		entry = self.sess().query(BlacklistedEmailDomain).filter(BlacklistedEmailDomain.domain==domain).first()
 		if not entry:
-			return "Unable to remove %s, entry doesn't exist" % (domain)
+			return False, "Unable to remove %s, entry doesn't exist" % (domain)
 		self.sess().delete(entry)
 		self.sess().commit()
-		return "Sucessfully removed %s from blacklist" % domain
+		return True, "Sucessfully removed %s from blacklist" % domain
 	
+	def clear_blacklist(self):
+		n_unban = 0
+		results = self.sess().query(BlacklistedEmailDomain)
+		if results:
+			for result in results:
+				self.sess().delete(result)
+				n_unban += 1
+			self.sess().commit()
+		return "Cleared %s items from the blacklist" % n_unban
+
 	def list_bans(self):
 		# return a list of all bans
 		banlist = []
