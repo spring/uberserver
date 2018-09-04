@@ -740,16 +740,6 @@ class BansHandler:
 		else:
 			return False, 'No matching bans for %s' % arg
 
-	def clear_banlist(self):
-		n_unban = 0
-		results = self.sess().query(Ban)
-		if results:
-			for result in results:
-				self.sess().delete(result)
-				n_unban += 1
-			self.sess().commit()
-		return "Cleared %s items from the banlist" % n_unban
-
 	def check_blacklist(self, email):
 		partition = email.partition('@')
 		if partition[1]=="":
@@ -781,16 +771,6 @@ class BansHandler:
 		self.sess().commit()
 		return True, "Sucessfully removed %s from blacklist" % domain
 	
-	def clear_blacklist(self):
-		n_unban = 0
-		results = self.sess().query(BlacklistedEmailDomain)
-		if results:
-			for result in results:
-				self.sess().delete(result)
-				n_unban += 1
-			self.sess().commit()
-		return "Cleared %s items from the blacklist" % n_unban
-
 	def list_bans(self):
 		# return a list of all bans
 		banlist = []

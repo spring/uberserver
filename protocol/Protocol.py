@@ -150,8 +150,6 @@ restricted = {
 	# dev
 	'RELOAD',
 	'CLEANUP',
-	'CLEARBANLIST',
-	'CLEARBLACKLIST',
 	]),
 }
 
@@ -2799,11 +2797,6 @@ class Protocol:
 		if good: self.broadcast_Moderator("%s unbanned <%s>" % (client.username, arg))
 		if response: self.out_SERVERMSG(client, '%s' % response)
 
-	def in_CLEARBANLIST(self, client):
-		# arg might be a username(->db_id), ip, or email; remove all associated bans
-		response = self.bandb.clear_banlist()
-		if response: self.out_SERVERMSG(client, '%s' % response)
-
 	def in_BLACKLIST(self, client, domain, reason=""):
 		# add somedomain.xyz to the blacklist
 		good, response = self.bandb.blacklist(client, domain, reason)
@@ -2813,12 +2806,7 @@ class Protocol:
 	def in_UNBLACKLIST(self, client, domain):
 		# remove somedomain.xyz from the blacklist
 		good, response = self.bandb.unblacklist(client, domain)
-		if good: self.broadcast_Moderator("%s un-blacklisted '%s' (%s)" % (client.username, domain, reason))
-		if response: self.out_SERVERMSG(client, '%s' % response)
-
-	def in_CLEARBLACKLIST(self, client):
-		# arg might be a username(->db_id), ip, or email; remove all associated bans
-		response = self.bandb.clear_blacklist()
+		if good: self.broadcast_Moderator("%s un-blacklisted '%s'" % (client.username, domain))
 		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_LISTBANS(self, client):

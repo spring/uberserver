@@ -115,8 +115,8 @@ class ChanServClient(Client):
 			elif cmd == 'unregister':
 				if access in ['mod', 'founder']:
 					channel.owner_user_id = None
+					channel.operators = set()
 					channel.channelMessage('#%s has been unregistered'%chan)
-					self.Send('LEAVE %s' % chan)
 					self.db().unRegister(client, channel)
 					return '#%s: Successfully unregistered.' % chan
 				else:
