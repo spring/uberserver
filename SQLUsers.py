@@ -299,7 +299,7 @@ mapper(Ban, ban_table)
 blacklisted_email_domain_table = Table('blacklisted email domains', metadata, # email domains that can't be used for account verification
 	Column('id', Integer, primary_key=True),
 	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # user which set ban
-	Column('domain', String(254), unique=True), #email which is banned
+	Column('domain', String(254), unique=True), 
 	Column('reason', Text),
 	Column('start_time', DateTime),
 	)

@@ -124,7 +124,7 @@ class ChanServClient(Client):
 			elif cmd == 'changefounder':
 				if access in ['mod', 'founder']:
 					if not args: return '#%s: You must specify a new founder' % chan
-					target = self._root.clientFromUsername(args)
+					target = self._root.protocol.clientFromUsername(args, True)
 					if not target: return '#%s: cannot assign founder status to a user who does not exist'
 					channel.setFounder(client, target)
 					channel.channelMessage('%s Founder has been changed to <%s>' % (chan, args))
@@ -149,8 +149,8 @@ class ChanServClient(Client):
 			elif cmd == 'op':
 				if access in ['mod', 'founder']:
 					if not args: return '#%s: You must specify a user to op' % chan
-					target = self._root.clientFromUsername(args)
-					if not target: return '#%s: cannot assign operator status, user not found online' 
+					target = self._root.protocol.clientFromUsername(args, True)
+					if not target: return '#%s: cannot assign operator status, user does not exit' 
 					if target and channel.isOp(target): return '#%s: <%s> was already an op' % (chan, args)
 					channel.opUser(client, target)
 					self.db().opUser(channel, target)
@@ -160,8 +160,8 @@ class ChanServClient(Client):
 			elif cmd == 'deop':
 				if access in ['mod', 'founder']:
 					if not args: return '#%s: You must specify a user to deop' % chan
-					target = self._root.clientFromUsername(args)
-					if not target: return '#%s: cannot remove operator status, user not found online'
+					target = self._root.protocol.clientFromUsername(args, True)
+					if not target: return '#%s: cannot remove operator status, user does not exist'
 					if target.db_id==channel.owner_user_id: return '#%s: cannot remove operator status from channel founder'
 					if target and not channel.isOp(target): return '#%s: <%s> was not an op' % (chan, args)
 					channel.deopUser(client, target)
@@ -221,7 +221,7 @@ class ChanServClient(Client):
 				if not chan in self._root.channels:
 					return '# Channel %s does not exist.' % (chan)
 				channel = self._root.channels[chan]
-				target = self._root.clientFromUsername(args)
+				target = self._root.protocol.clientFromUsername(args, True)
 				if target:
 					channel.setFounder(client, target)
 					self.db().register(channel, target) # register channel in db
