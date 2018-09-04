@@ -11,7 +11,7 @@ class Channel():
 		self.allow = []
 		self.autokick = 'ban'
 		self.chanserv = False
-		self.owner = ''
+		self.owner_user_id = None
 		self.mutelist = {}
 		self.antispam = False
 		self.censor = False
@@ -26,8 +26,8 @@ class Channel():
 	def channelMessage(self, message):
 		self.broadcast('CHANNELMESSAGE %s %s' % (self.name, message))
 
-	def register(self, client, owner):
-		self.owner = owner.db_id
+	def register(self, client, owner_user_id):
+		self.owner_user_id = owner.db_id
 
 	def addUser(self, client):
 		if client.session_id in self.users:
@@ -56,7 +56,7 @@ class Channel():
 		return client and (('mod' in client.accesslevels) or self.isAdmin(client))
 
 	def isFounder(self, client):
-		return client and ((client.db_id == self.owner) or self.isMod(client))
+		return client and ((client.db_id == self.owner_user_id) or self.isMod(client))
 
 	def isOp(self, client):
 		return client and ((client.db_id in self.admins) or self.isFounder(client))
@@ -112,7 +112,7 @@ class Channel():
 	def setFounder(self, client, target):
 		if not target:
 			return
-		self.owner = target.db_id
+		self.owner_user_id = target.db_id
 		self.channelMessage("<%s> has just been set as this channel's founder by <%s>" % (target.username, client.username))
 
 	def opUser(self, client, target):

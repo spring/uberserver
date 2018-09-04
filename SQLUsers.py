@@ -63,7 +63,7 @@ class User(BaseClient):
 verifications_table = Table('verifications', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
-	Column('email', String(254), ForeignKey('users.email', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('email', String(254), unique=True),
 	Column('code', Integer),
 	Column('expiry', DateTime),
 	Column('attempts', Integer),
@@ -196,14 +196,14 @@ mapper(User, users_table, properties={
 	})
 
 ##########################################
-channels_table = Table('channels', metadata,
+channels_table = Table('channels', metadata, #FIXME: add new table, foreign key channel.id, foreignkey users.id, to store oplist
 	Column('id', Integer, primary_key=True),
 	Column('name', String(40), unique=True),
 	Column('key', String(32)),
-	Column('owner', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # user owner id
+	Column('owner_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # FIXME: rename to user owner_user_id
 	Column('topic', Text),
 	Column('topic_time', DateTime),
-	Column('topic_owner', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # topic owner id
+	Column('topic_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # FIXME: rename to topic_user_id
 	Column('antispam', Boolean),
 	Column('autokick', String(5)),
 	Column('censor', Boolean),
@@ -212,14 +212,14 @@ channels_table = Table('channels', metadata,
 	mysql_charset='utf8',
 	)
 class Channel(object):
-	def __init__(self, name,  key='', chanserv=False, owner='', topic='', topic_time=None, topic_owner='', antispam=False, admins='', autokick='ban', censor=False, antishock=False, store_history=False):
+	def __init__(self, name,  key='', chanserv=False, owner_user_id=None, topic_time=None, topic='', topic_user_id=None, antispam=False, admins='', autokick='ban', censor=False, antishock=False, store_history=False):
 		self.name = name
 		self.key = key
 		self.chanserv = chanserv
-		self.owner = owner
+		self.owner_user_id = owner_user_id
 		self.topic = topic
 		self.topic_time = topic_time or datetime.now()
-		self.topic_owner = topic_owner
+		self.topic_user_id = topic_user_id
 		self.antispam = antispam
 		self.admins = admins
 		self.autokick = autokick
@@ -253,10 +253,10 @@ mapper(ChannelHistory, channelshistory_table)
 ##########################################
 ban_table = Table('ban', metadata, # server bans
 	Column('id', Integer, primary_key=True),
-	Column('issuer_username', String(40), ForeignKey('users.username', onupdate='CASCADE', ondelete='CASCADE')), # user which set ban
+	Column('issuer_username', String(40), ForeignKey('users.username', onupdate='CASCADE', ondelete='SET NULL')), # user which set ban #FIXME use primary key user_id from other table
 	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # user id which is banned (optional)
 	Column('ip', String(60)), #ip which is banned (optional)
-	Column('email', String(254)), #email which is banned (optional & not foreignkey!)
+	Column('email', String(254)), #email which is banned (optional)
 	Column('reason', Text),
 	Column('end_date', DateTime),
 	mysql_charset='utf8',
@@ -280,8 +280,8 @@ mapper(Ban, ban_table)
 ##########################################
 blacklisted_email_domain_table = Table('blacklisted email domains', metadata, # email domains that can't be used for account verification
 	Column('id', Integer, primary_key=True),
-	Column('issuer_username', String(40), ForeignKey('users.username', onupdate='CASCADE', ondelete='CASCADE')), # user which set ban
-	Column('domain', String(254)), #email which is banned
+	Column('issuer_username', String(40), ForeignKey('users.username', onupdate='CASCADE', ondelete='SET NULL')), # user which set ban
+	Column('domain', String(254), unique=True), #email which is banned
 	Column('reason', Text),
 	Column('start_time', DateTime),
 	)
@@ -989,10 +989,10 @@ class ChannelsHandler:
 		for chan in response:
 			channels[chan.name] = {
 					'id': chan.id,
-					'owner':chan.owner,
+					'owner_user_id':chan.owner_user_id,
 					'key':chan.key,
 					'topic':chan.topic or '',
-					'topic_owner':chan.topic_owner,
+					'topic_user_id':chan.topic_user_id,
 					'antispam':chan.antispam,
 					'admins':[],
 					'chanserv': True,
@@ -1005,7 +1005,7 @@ class ChannelsHandler:
 		if entry:
 			entry.topic = topic
 			entry.topic_time = datetime.now()
-			entry.topic_owner = target.db_id
+			entry.topic_user_id = target.db_id
 			self.sess().commit()
 
 	def setKey(self, chan, key):
@@ -1017,7 +1017,7 @@ class ChannelsHandler:
 	def setFounder(self, chan, target):
 		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()
 		if entry:
-			entry.owner = target.db_id
+			entry.owner_user_id = target.db_id
 			self.sess().commit()			
 
 	def setHistory(self, chan, enable):
@@ -1035,10 +1035,10 @@ class ChannelsHandler:
 			if channel.topic:
 				entry.topic = channel.topic['text']
 				entry.topic_time =  datetime.fromtimestamp(channel.topic['time'])
-				entry.topic_owner = target.db_id
+				entry.topic_user_id = target.db_id
 			else:
 				entry.topic_time = datetime.now()
-			entry.owner = target.db_id
+			entry.owner_user_id = target.db_id
 			self.sess().add(entry)
 			self.sess().commit()
 			entry = self.sess().query(Channel).filter(Channel.name == channel.name).first() # set db id to runtime object
