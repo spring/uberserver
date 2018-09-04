@@ -81,7 +81,8 @@ class Verification(object):
 
 	def __repr__(self):
 		return "<Verification('%s', '%s', '%s', '%s', '%s', %s, %s)>" % (self.id, self.user_id, self.email, self.code, self.expiry, self.attempts, self.resends)
-mapper(Verification, verifications_table)		
+mapper(Verification, verifications_table)	
+	
 ##########################################
 logins_table = Table('logins', metadata,
 	Column('id', Integer, primary_key=True),
@@ -110,6 +111,7 @@ class Login(object):
 	def __repr__(self):
 		return "<Login('%s', '%s')>" % (self.ip_address, self.time)
 mapper(Login, logins_table)
+
 ##########################################
 renames_table = Table('renames', metadata,
 	Column('id', Integer, primary_key=True),
@@ -128,6 +130,7 @@ class Rename(object):
 	def __repr__(self):
 		return "<Rename('%s' -> '%s')>" % (self.original, self.new)
 mapper(Rename, renames_table)
+
 ##########################################
 ignores_table = Table('ignores', metadata,
 	Column('id', Integer, primary_key=True),
@@ -147,6 +150,7 @@ class Ignore(object):
 	def __repr__(self):
 		return "<Ignore('%s', '%s', '%s', '%s')>" % (self.user_id, self.ignored_user_id, self.reason, self.time)
 mapper(Ignore, ignores_table)
+
 ##########################################
 friends_table = Table('friends', metadata,
 	Column('id', Integer, primary_key=True),
@@ -249,6 +253,20 @@ class ChannelHistory(object):
 	def __repr__(self):
 		return "<ChannelHistory('%s')>" % self.channel_id
 mapper(ChannelHistory, channelshistory_table)
+##########################################
+channelops_table = Table('channel_ops', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE'), nullable=True),
+	)
+class ChannelOp(object):
+	def __init__(self, channel_id, user_id):
+		self.channel_id = channel_id
+		self.user_id = user_id
+	
+	def __repr__(self):
+		return "<ChannelOp(%s,%s)>" % (self.channel_id, self.user_id)
+mapper(ChannelOp, channelops_table)
 
 ##########################################
 ban_table = Table('ban', metadata, # server bans
@@ -698,7 +716,7 @@ class BansHandler:
 		ip_match = re.match(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", arg)
 		entry = self.sess().query(User).filter(User.username==arg).first()
 		if not (email_match or ip_match or entry):
-			return "Unable to match '%s' to username/ip/email" % arg
+			return False, "Unable to match '%s' to username/ip/email" % arg
 		result = []
 		n_unban = 0
 		if email_match:
@@ -983,11 +1001,15 @@ class ChannelsHandler:
 		self.session.rollback()
 		return self.session
 
-	def load_channel(self, name):
+	def channel_from_name(self, name):
 		entry = self.sess().query(Channel).filter(Channel.name == name).first()
 		return entry
-
-	def load_channels(self):
+	
+	def channel_from_id(self, channel_id):
+		entry = self.sess().query(Channel).filter(Channel.id == channel_id).first()
+		return entry
+		
+	def all_channels(self):
 		response = self.sess().query(Channel)
 		channels = {}
 		for chan in response:
@@ -998,11 +1020,21 @@ class ChannelsHandler:
 					'topic':chan.topic or '',
 					'topic_user_id':chan.topic_user_id,
 					'antispam':chan.antispam,
-					'admins':[],
+					'operator':[],
 					'chanserv': True,
 					'store_history': chan.store_history,
 				}
 		return channels
+
+	def all_operators(self):
+		response = self.sess().query(ChannelOp)
+		operators = []
+		for op in response:
+			operators.append({
+					'channel_id': op.channel_id,
+					'user_id': op.user_id,
+				})
+		return operators
 
 	def setTopic(self, chan, topic, target):
 		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()
@@ -1023,6 +1055,17 @@ class ChannelsHandler:
 		if entry:
 			entry.owner_user_id = target.db_id
 			self.sess().commit()			
+
+	def opUser(self, chan, target):
+		entry = ChannelOp(chan.id, target.db_id)
+		self.sess().add(entry)
+		self.sess().commit()
+	
+	def deopUser(self, chan, target):
+		entry = self.sess().query(ChannelOp).filter(ChannelOp.user_id == target.db_id).filter(ChannelOp.channel_id == chan.id).first()
+		if entry:
+			self.sess().delete(entry)
+			self.sess().commit()
 
 	def setHistory(self, chan, enable):
 		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()

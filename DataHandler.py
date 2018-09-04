@@ -38,11 +38,12 @@ class DataHandler:
 		self.server_version = 0.36
 		self.sighup = False
 
-		self.chanserv = None
 		self.userdb = None
 		self.channeldb = None
 		self.verificationdb = None
 		self.bandb = None
+
+		self.chanserv = None
 		self.engine = None
 		self.updatefile = None
 		self.trusted_proxyfile = None
@@ -102,32 +103,28 @@ class DataHandler:
 		self.bandb = SQLUsers.BansHandler(self, self.engine)
 		
 		self.channeldb = SQLUsers.ChannelsHandler(self, self.engine)
-		channels = self.channeldb.load_channels()
+		channels = self.channeldb.all_channels()
+		operators = self.channeldb.all_operators()
 
 		for name in channels:
 			channel = channels[name]
 
 			owner_user_id = None
-			admins = set()
 			client = self.userdb.clientFromID(channel['owner_user_id'])
 			if client and client.id: 
 				owner_user_id = client.id
 
-			for user in channel['admins']:
-				client = userdb.clientFromID(user)
-				if client and client.id:
-					admins.append(client.id)
 			assert(name not in self.channels)
 			newchan = Channel.Channel(self, name)
-			newchan.chanserv=bool(owner_user_id)
+			newchan.chanserv = bool(owner_user_id)
 			newchan.id = channel['id']
-			newchan.owner_user_id=owner_user_id
-			newchan.admins=admins
+			newchan.owner_user_id = owner_user_id
+			newchan.operators = set()
 			if channel['key'] in ('', None, '*'):
 				newchan.key=None
 			else:
-				newchan.key=channel['key']
-			newchan.antispam=channel['antispam']
+				newchan.key = channel['key']
+			newchan.antispam = channel['antispam']
 			topic_client = self.userdb.clientFromID(channel['topic_user_id'])
 			topic_name = 'ChanServ'
 			if topic_client:
@@ -136,10 +133,15 @@ class DataHandler:
 			newchan.store_history = channel['store_history']
 			self.channels[name] = newchan
 
+		for op in operators:
+			dbchannel = self.channeldb.channel_from_id(op['channel_id'])
+			if dbchannel:
+				self.channels[dbchannel.name].operators.add(op['user_id']) 
+
 		self.parseFiles()
 		self.protocol = Protocol.Protocol(self)
+				
 		self.chanserv = ChanServ.ChanServClient(self, (self.online_ip, 0), self.session_id)
-
 		for name in channels:
 			self.chanserv.HandleProtocolCommand("JOIN %s" %(name))
 

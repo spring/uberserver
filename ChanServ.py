@@ -24,7 +24,7 @@ class ChanServClient(Client):
 
 	def db(self):
 		return self._root.channeldb
-	
+
 	def Handle(self, msg):
 		try:
 			if not msg.count(' '):
@@ -85,20 +85,25 @@ class ChanServClient(Client):
 			channel = self._root.channels[chan]
 			access = channel.getAccess(client)
 			if cmd == 'info':
-				founder = self._root.protocol.clientFromID(channel.owner_user_id, True)
-				if founder: founder = 'Founder is <%s>' % founder.username
-				else: founder = 'No founder is registered'
-				admins = []
-				for admin in channel.admins:
-					client = self._root.protocol.clientFromID(admin)
-					if client: admins.append(client.username)
-				users = channel.users
 				antispam = 'on' if channel.antispam else 'off'
-				if not admins: mods = 'no operators are registered'
-				else: mods = '%i registered operator(s) are <%s>' % (len(admins), '>, <'.join(admins))
+				founder = 'No founder is registered'				
+				if channel.owner_user_id:
+					founder = self._root.protocol.clientFromID(channel.owner_user_id, True)
+					if founder: founder = 'Founder is <%s>' % founder.username
+				operators = channel.operators
+				op_list = "operator list is "
+				separator = '['
+				for op_user_id in operators:
+					op_entry = self._root.protocol.clientFromID(op_user_id, True)
+					if op_entry:
+						op_list += separator + op_entry.username
+						if separator == '[': separator = ' '
+					if separator == ' ': op_list += ']'
+				if separator!=' ': op_list += 'empty'						
+				users = channel.users
 				if len(users) == 1: users = '1 user is'
-				else: users = '%i users are' % len(users)
-				return '#%s info: Anti-spam protection is %s. %s, %s. %s currently in the channel.' % (chan, antispam, founder, mods, users)
+				else: users = '%i users are currently in the channel' % len(users)
+				return '#%s info: Anti-spam protection is %s. %s, %s. %s. ' % (chan, antispam, founder, op_list, users)
 			elif cmd == 'topic':
 				if access in ['mod', 'founder', 'op']:
 					args = args or ''
@@ -145,16 +150,23 @@ class ChanServClient(Client):
 				if access in ['mod', 'founder']:
 					if not args: return '#%s: You must specify a user to op' % chan
 					target = self._root.clientFromUsername(args)
+					if not target: return '#%s: cannot assign operator status, user not found online' 
 					if target and channel.isOp(target): return '#%s: <%s> was already an op' % (chan, args)
 					channel.opUser(client, target)
+					self.db().opUser(channel, target)
+					return '#%s: Successfully added <%s> to operator list' % (chan, args)
 				else:
 					return '#%s: You do not have permission to op users' % chan
 			elif cmd == 'deop':
 				if access in ['mod', 'founder']:
 					if not args: return '#%s: You must specify a user to deop' % chan
 					target = self._root.clientFromUsername(args)
+					if not target: return '#%s: cannot remove operator status, user not found online'
+					if target.db_id==channel.owner_user_id: return '#%s: cannot remove operator status from channel founder'
 					if target and not channel.isOp(target): return '#%s: <%s> was not an op' % (chan, args)
 					channel.deopUser(client, target)
+					self.db().deopUser(channel, target)
+					return '#%s: Successfully removed <%s> from operator list' % (chan, args)
 				else:
 					return '#%s: You do not have permission to deop users' % chan
 			elif cmd == 'lock':

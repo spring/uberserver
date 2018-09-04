@@ -6,13 +6,15 @@ class Channel():
 		self._root = root
 		self.name = name
 		self.users = set() # list of session_ids
-		self.admins = {}
+		self.owner_user_id = None
+		self.operators = set()
+
 		self.ban = {}
+		self.mutelist = {}
 		self.allow = []
+
 		self.autokick = 'ban'
 		self.chanserv = False
-		self.owner_user_id = None
-		self.mutelist = {}
 		self.antispam = False
 		self.censor = False
 		self.antishock = False
@@ -59,7 +61,7 @@ class Channel():
 		return client and ((client.db_id == self.owner_user_id) or self.isMod(client))
 
 	def isOp(self, client):
-		return client and ((client.db_id in self.admins) or self.isFounder(client))
+		return client and ((client.db_id in self.operators) or self.isFounder(client))
 
 	def getAccess(self, client): # return client's security clearance
 		return 'mod' if self.isMod(client) else\
@@ -118,17 +120,17 @@ class Channel():
 	def opUser(self, client, target):
 		if not target:
 			return
-		if not target.db_id in self.admins:
+		if not target.db_id in self.operators:
 			return
-		self.admins.append(target.db_id)
+		self.operators.add(target.db_id)
 		self.channelMessage("<%s> has just been added to this channel's operator list by <%s>" % (target.username, client.username))
 
 	def deopUser(self, client, target):
 		if not target:
 			return
-		if not target.db_id in self.admins:
+		if not target.db_id in self.operators:
 			return
-		self.admins.remove(target.db_id)
+		self.operators.remove(target.db_id)
 		self.channelMessage("<%s> has just been removed from this channel's operator list by <%s>" % (target.username, client.username))
 
 	def banUser(self, client, target, reason=''):
