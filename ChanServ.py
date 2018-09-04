@@ -150,7 +150,7 @@ class ChanServClient(Client):
 				if access in ['mod', 'founder']:
 					if not args: return '#%s: You must specify a user to op' % chan
 					target = self._root.protocol.clientFromUsername(args, True)
-					if not target: return '#%s: cannot assign operator status, user does not exit' 
+					if not target: return '#%s: cannot assign operator status, user does not exist' 
 					if target and channel.isOp(target): return '#%s: <%s> was already an op' % (chan, args)
 					channel.opUser(client, target)
 					self.db().opUser(channel, target)
