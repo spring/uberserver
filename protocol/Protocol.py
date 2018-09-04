@@ -50,7 +50,6 @@ restricted = {
 	'FORCESPECTATORMODE',
 	'FORCETEAMCOLOR',
 	'FORCETEAMNO',
-	'FORCEJOINBATTLE',
 	'HANDICAP',
 	'JOINBATTLE',
 	'JOINBATTLEACCEPT',
@@ -146,6 +145,7 @@ restricted = {
 	'SETACCESS',
 	'GETACCOUNTACCESS',
 	'FORCEJOIN',
+	'FORCEJOINBATTLE',
 	#########
 	# dev
 	'RELOAD',
@@ -1700,10 +1700,6 @@ class Protocol:
 			return
 
 		battle_id = user.current_battle
-
-		if not 'mod' in client.accesslevels:
-			client.Send('FORCEJOINBATTLEFAILED You are not allowed to force this user into battle.')
-			return
 
 		if not user.compat['m']:
 			client.Send('FORCEJOINBATTLEFAILED This user does not subscribe to matchmaking.')
