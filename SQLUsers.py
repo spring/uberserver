@@ -253,7 +253,7 @@ mapper(ChannelHistory, channelshistory_table)
 ##########################################
 ban_table = Table('ban', metadata, # server bans
 	Column('id', Integer, primary_key=True),
-	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # user which set ban #FIXME use primary key user_id from other table
+	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # user which set ban 
 	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # user id which is banned (optional)
 	Column('ip', String(60)), #ip which is banned (optional)
 	Column('email', String(254)), #email which is banned (optional)
@@ -1090,6 +1090,7 @@ if __name__ == '__main__':
 	verificationdb.clean()
 
 	# test ban/unban
+	client.db_id = client.id # ban issuer is an *online* client; impersonate one
 	userdb.register_user("delinquent", u"pass", "192.168.1.2", "DE", "blackhole@blackhole.io")
 	client2 = userdb.clientFromUsername("delinquent")
 	bandb.ban(client, 1, "test", "delinquent")
