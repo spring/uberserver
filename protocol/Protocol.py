@@ -2838,7 +2838,7 @@ class Protocol:
 		if blacklist:
 			self.out_SERVERMSG(client, '-- Blacklist --')
 			for entry in blacklist:
-				self.out_SERVERMSG(client, "%s :: %s (%s)" % (entry['domain'], entry['reason'], entry['issuer']))
+				self.out_SERVERMSG(client, "%s :: '%s' (%s)" % (entry['domain'], entry['reason'], entry['issuer']))
 			self.out_SERVERMSG(client, '-- End Blacklist--')
 			return
 		self.out_SERVERMSG(client, 'Blacklist is empty')

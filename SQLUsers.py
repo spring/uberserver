@@ -200,10 +200,10 @@ channels_table = Table('channels', metadata, #FIXME: add new table, foreign key 
 	Column('id', Integer, primary_key=True),
 	Column('name', String(40), unique=True),
 	Column('key', String(32)),
-	Column('owner_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # FIXME: rename to user owner_user_id
+	Column('owner_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), 
 	Column('topic', Text),
 	Column('topic_time', DateTime),
-	Column('topic_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # FIXME: rename to topic_user_id
+	Column('topic_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), 
 	Column('antispam', Boolean),
 	Column('autokick', String(5)),
 	Column('censor', Boolean),
@@ -253,7 +253,7 @@ mapper(ChannelHistory, channelshistory_table)
 ##########################################
 ban_table = Table('ban', metadata, # server bans
 	Column('id', Integer, primary_key=True),
-	Column('issuer_username', String(40), ForeignKey('users.username', onupdate='CASCADE', ondelete='SET NULL')), # user which set ban #FIXME use primary key user_id from other table
+	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # user which set ban #FIXME use primary key user_id from other table
 	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # user id which is banned (optional)
 	Column('ip', String(60)), #ip which is banned (optional)
 	Column('email', String(254)), #email which is banned (optional)
@@ -262,8 +262,8 @@ ban_table = Table('ban', metadata, # server bans
 	mysql_charset='utf8',
 	)
 class Ban(object):
-	def __init__(self, issuer_username, duration, reason, user_id=None, ip=None, email=None):
-		self.issuer_username = issuer_username
+	def __init__(self, issuer_user_id, duration, reason, user_id=None, ip=None, email=None):
+		self.issuer_user_id = issuer_user_id
 		self.user_id = user_id
 		self.ip = ip
 		self.email = email
@@ -275,25 +275,25 @@ class Ban(object):
 		ip_str = self.ip+', ' if self.ip else ""
 		email_str = self.email+', ' if self.email else ""
 		ban_str = user_id_str + email_str + ban_str
-		return "<Ban: %s (%s, expires %s)>" % (ban_str, self.issuer_username, self.end_date)
+		return "<Ban: %s (%s, %s)>" % (ban_str, self.issuer_user_id, self.end_date)
 mapper(Ban, ban_table)
 ##########################################
 blacklisted_email_domain_table = Table('blacklisted email domains', metadata, # email domains that can't be used for account verification
 	Column('id', Integer, primary_key=True),
-	Column('issuer_username', String(40), ForeignKey('users.username', onupdate='CASCADE', ondelete='SET NULL')), # user which set ban
+	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # user which set ban
 	Column('domain', String(254), unique=True), #email which is banned
 	Column('reason', Text),
 	Column('start_time', DateTime),
 	)
 class BlacklistedEmailDomain(object):
-	def __init__(self, issuer_username, domain, reason):
-		self.issuer_username = issuer_username
+	def __init__(self, issuer_user_id, domain, reason):
+		self.issuer_user_id = issuer_user_id
 		self.domain = domain
 		self.reason = reason
 		self.start_time = datetime.now()
 		
 	def __repr__(self):
-		return "<Domain: %s (%s, since %s)>" % (self.domain, self.issuer_username, self.start_time)
+		return "<Domain: %s (%s, since %s)>" % (self.domain, self.issuer_user_id, self.start_time)
 mapper(BlacklistedEmailDomain, blacklisted_email_domain_table)
 ##########################################
 #metadata.create_all(engine)
@@ -348,13 +348,13 @@ class UsersHandler:
 		
 	def remaining_ban_str(self, dbban, now):
 		timeleft = int((dbban.end_date - now).total_seconds())	
-		remaining = 'hours remaining: less than one'				
+		remaining = 'less than one hou remaining'				
 		if timeleft > 60*60*24*900:
-			remaining = 'days remaining: forever!'
+			remaining = ''
 		elif timeleft > 60*60*24:
-			remaining = 'days remaining: %s' % (int(timeleft / (60 * 60 * 24)))
+			remaining = '%s days remaining' % (int(timeleft / (60 * 60 * 24)))
 		elif timeleft > 60*60:
-			remaining = 'hours remaining: %s' % (int(timeleft / (60 * 60)))
+			remaining = '%s hours remaining' % (int(timeleft / (60 * 60)))
 		return remaining
 		
 	def login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
@@ -372,7 +372,7 @@ class UsersHandler:
 		now = datetime.now()
 		dbban = self._root.bandb.check_ban(dbuser.id, ip, dbuser.email, now)
 		if dbban and not dbuser.access=='admin':
-			reason = 'You are banned: (%s) ' %(dbban.reason)
+			reason = 'You are banned: (%s), ' %(dbban.reason)
 			reason += self.remaining_ban_str(dbban, now)
 			return False, reason
 			
@@ -665,7 +665,7 @@ class BansHandler:
 		entry = self.sess().query(User).filter(User.username==username).first()
 		if not entry:
 			return False, "Unable to ban %s, user doesn't exist" % username
-		ban = Ban(issuer.username, duration, reason, entry.id, entry.last_ip, entry.email)
+		ban = Ban(issuer.db_id, duration, reason, entry.id, entry.last_ip, entry.email)
 		self.sess().add(ban)
 		self.sess().commit()
 		return True, 'Successfully banned %s, %s, %s for %s days.' % (username, entry.last_ip, entry.email, duration)
@@ -681,11 +681,11 @@ class BansHandler:
 		ip_match = re.match(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", arg)
 		entry = self.sess().query(User).filter(User.username==arg).first()
 		if email_match:
-			ban = Ban(issuer.username, duration, reason, None, None, arg)
+			ban = Ban(issuer.db_id, duration, reason, None, None, arg)
 		elif ip_match:
-			ban = Ban(issuer.username, duration, reason, None, arg, None)
+			ban = Ban(issuer.db_id, duration, reason, None, arg, None)
 		elif entry:
-			ban = Ban(issuer.username, duration, reason, entry.id, None, None)
+			ban = Ban(issuer.db_id, duration, reason, entry.id, None, None)
 		else:
 			return False, "Unable to match '%s' to username/ip/email" % arg
 		self.sess().add(ban)
@@ -750,7 +750,7 @@ class BansHandler:
 		entry = self.sess().query(BlacklistedEmailDomain).filter(BlacklistedEmailDomain.domain==domain).first()
 		if entry:
 			return False, 'Domain %s is already blacklisted' % domain
-		entry = BlacklistedEmailDomain(issuer.username, domain, reason)
+		entry = BlacklistedEmailDomain(issuer.db_id, domain, reason)
 		self.sess().add(entry)
 		self.sess().commit()
 		return True, 'Successfully added %s to blacklist' % domain
@@ -778,10 +778,13 @@ class BansHandler:
 		banlist = []
 		for ban in self.sess().query(Ban):
 			username = None
+			issuer = None
 			if ban.user_id:
 				entry = self.sess().query(User).filter(User.id==ban.user_id).first()
-				if entry:
-					username = entry.username
+				if entry: username = entry.username
+			if ban.issuer_user_id:
+				issuer =  self.sess().query(User).filter(User.id==ban.issuer_user_id).first()
+				if issuer: issuer_username = issuer.username				
 			banlist.append({
 				'username': username or "",
 				'id': ban.user_id,
@@ -789,7 +792,7 @@ class BansHandler:
 				'email': ban.email or "",
 				'end_date': ban.end_date.strftime("%Y-%m-%d %H:%M"),
 				'reason': ban.reason,
-				'issuer': ban.issuer_username
+				'issuer': issuer_username
 			})
 		return banlist
 
@@ -797,12 +800,13 @@ class BansHandler:
 		# return a list of all blacklisted email domains
 		blacklist = []
 		for item in self.sess().query(BlacklistedEmailDomain):
-			username = None
+			issuer =  self.sess().query(User).filter(User.id==item.issuer_user_id).first()
+			if issuer: issuer_username = issuer.username				
 			blacklist.append({
 				'domain': item.domain,
 				'start_time': item.start_time.strftime("%Y-%m-%d %H:%M"),
 				'reason': item.reason or "",
-				'issuer': item.issuer_username
+				'issuer': issuer_username
 			})
 		return blacklist
 	
