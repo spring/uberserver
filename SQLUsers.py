@@ -1154,7 +1154,7 @@ if __name__ == '__main__':
 	assert(channel.store_history == False)
 	channel.store_history = True
 	channeldb.setHistory(channel, channel.store_history)
-	channel = channeldb.load_channel(channelname)
+	channel = channeldb.channel_from_name(channelname)
 	assert(channel.store_history == True)
 
 	# test channel message history
