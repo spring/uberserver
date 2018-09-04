@@ -817,6 +817,7 @@ class Protocol:
 		if self.verificationdb.active():
 			good, reason = self.verificationdb.valid_email_addr(email)
 			if not good:
+				if email=='': reason += " -- if you were not asked to enter one, please update your lobby client!"
 				client.Send('REGISTRATIONDENIED %s' % reason)
 				return
 				
@@ -960,6 +961,9 @@ class Protocol:
 
 		if (client.access == 'agreement'):
 			logging.info('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
+			if self.verificationdb.active():			
+				client.Send("AGREEMENT A verification code has been sent to your email address. Please read our terms of service and then enter your four digit code below.")
+				client.Send("AGREEMENT ")
 			for line in self._root.agreement:
 				client.Send("AGREEMENT %s" %(line))
 			client.Send('AGREEMENTEND')
