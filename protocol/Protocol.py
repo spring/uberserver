@@ -2999,7 +2999,7 @@ class Protocol:
 			self.out_SERVERMSG(client, "compatibility flag cl needed")
 			return
 		if not self.verificationdb.active():
-			client.Send("CHANGEEMAILREQUESTDENIED email verification is currently turned off, you do not need a verification code!")
+			client.Send("CHANGEEMAILREQUEST email verification is currently turned off, a blank verification code will be accepted!")
 			return
 		newmail = newmail.lower()
 		reason = "requested to change your email address on the SpringRTS lobbyserver (" + client.username + ")"
