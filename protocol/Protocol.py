@@ -144,8 +144,6 @@ restricted = {
 	# users
 	'SETACCESS',
 	'GETACCOUNTACCESS',
-	'FORCEJOIN',
-	'FORCEJOINBATTLE',
 	#########
 	# dev
 	'RELOAD',
@@ -185,7 +183,6 @@ flag_map = {
 	'b': 'battleAuth',       # JOINBATTLEREQUEST/ACCEPT/DENY
 	'sp': 'scriptPassword',  # scriptPassword in JOINEDBATTLE
 	'et': 'sendEmptyTopic',  # send NOCHANNELTOPIC on join if channel has no topic
-	'm': 'matchmaking',      # FORCEJOINBATTLE from battle hosts for matchmaking
 	'cl': 'cleanupBattles',  # BATTLEOPENED / OPENBATTLE with support for engine/version
 	'p':  'agreementPlain',  # AGREEMENT is plaintext
 }
@@ -1394,30 +1391,6 @@ class Protocol:
 		client.Send('FRIENDLISTEND')
 
 
-	def in_FORCEJOIN(self, client, user, chan, key=None):
-		'''
-		Force a user to join a channel.
-
-		@required.str username: user to send to
-		@required.str channel: target channel
-		@optional.str password: channel password
-		'''
-		ok, reason = self._validChannelSyntax(chan)
-		if not ok:
-			self.out_SERVERMSG(client, '%s' % reason)
-			return
-
-		if chan in self._root.channels:
-			channel = self._root.channels[chan]
-			if user in channel.users:
-				self.out_SERVERMSG(client, 'FORCEJOIN failed: %s Already in channel!' % chan)
-				return
-
-		if user in self._root.usernames:
-			self._handle(self._root.usernames[user], "JOIN %s %s" % (chan, key))
-		else:
-			self.out_SERVERMSG(client, '%s user not found' % user)
-
 	def in_JOIN(self, client, chan, key=None):
 		'''
 		Attempt to join target channel.
@@ -1683,41 +1656,6 @@ class Protocol:
 		if client.session_id == battle.host and username in battle.users:
 			if not self.is_ignored(user, client):
 				user.Send('SAIDBATTLEEX %s %s' % (client.username, msg))
-
-	def in_FORCEJOINBATTLE(self, client, username, target_battle, password=None):
-		'''
-		Instruct a user in your battle to join another.
-		[host]
-
-		@required.str username: The target user.
-		@required.int battle_id: The destination battle.
-		@optional.str password: The battle's password, if required.
-		'''
-
-		user = self._canForceBattleUser(client, username)
-		if not user:
-			client.Send("FORCEJOINBATTLEFAILED user %s not found!" %(username))
-			return
-
-		battle_id = user.current_battle
-
-		if not user.compat['m']:
-			client.Send('FORCEJOINBATTLEFAILED This user does not subscribe to matchmaking.')
-			return
-
-		if not target_battle in self._root.battles:
-			client.Send('FORCEJOINBATTLEFAILED Target battle does not exist.')
-			return
-
-		target = self._root.battles[target_battle]
-		if target.passworded:
-			if password == target.password:
-				user.Send('FORCEJOINBATTLE %s %s' % (target_battle, password))
-			else:
-				client.Send('FORCEJOINBATTLEFAILED Incorrect password for target battle.')
-			return
-
-		user.Send('FORCEJOINBATTLE %s' % (target_battle))
 
 	def _joinBattle(self, client, battle):
 		'''
