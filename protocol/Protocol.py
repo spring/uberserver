@@ -12,14 +12,7 @@ import datetime
 import base64
 import json
 import traceback
-import smtplib
-import random
 
-try:
-	import thread
-except:
-	# thread was renamed to _thread in python 3
-	import _thread
 
 # see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
 # max. 8 ranks are possible (rank 0 isn't listed)
@@ -42,14 +35,14 @@ restricted = {
 	'REGISTER'
 	]),
 'agreement':set([
-	'CONFIRMAGREEMENT'
+	'CONFIRMAGREEMENT',
+	'RESENDVERIFICATION',
 	]),
 'user':set([
 	########
 	# battle
 	'ADDBOT',
 	'ADDSTARTRECT',
-	'CHANGEEMAIL',
 	'DISABLEUNITS',
 	'ENABLEUNITS',
 	'ENABLEALLUNITS',
@@ -57,7 +50,6 @@ restricted = {
 	'FORCESPECTATORMODE',
 	'FORCETEAMCOLOR',
 	'FORCETEAMNO',
-	'FORCEJOINBATTLE',
 	'HANDICAP',
 	'JOINBATTLE',
 	'JOINBATTLEACCEPT',
@@ -93,6 +85,13 @@ restricted = {
 	'UNMUTE',
 	'GETCHANNELMESSAGES',
 	########
+	# account management
+	'RENAMEACCOUNT',
+	'CHANGEPASSWORD',
+	'CHANGEEMAILREQUEST',
+	'CHANGEEMAIL',
+	'RESENDVERIFICATION',
+	########
 	# ignore
 	'IGNORE',
 	'UNIGNORE',
@@ -107,29 +106,32 @@ restricted = {
 	'FRIENDREQUESTLIST',
 	########
 	# meta
-	'CHANGEPASSWORD',
 	'GETINGAMETIME',
 	'GETREGISTRATIONDATE',
 	'MYSTATUS',
 	'PORTTEST',
-	'RENAMEACCOUNT',
 	'JSON',
 	]),
 'mod':set([
-	'BAN',
-	'BANIP',
-	'UNBAN',
-	'UNBANIP',
-	'BANLIST',
+	# users
 	'CHANGEACCOUNTPASS',
-	'KICKUSER',
-	'FINDIP',
-	'GETIP',
+	'CHANGEACCOUNTEMAIL',
 	'GETLASTLOGINTIME',
-	'GETUSERID',
-	'SETBOTMODE',
 	'GETLOBBYVERSION',
+	'GETUSERID',
+	'GETIP',
+	'FINDIP',
+	'SETBOTMODE',
 	'FORCELEAVECHANNEL',
+	# kick/ban/etc
+	'KICK',
+	'BAN',
+	'BANSPECIFIC',
+	'UNBAN',
+	'BLACKLIST',
+	'UNBLACKLIST',
+	'LISTBANS',
+	'LISTBLACKLIST',
 	]),
 'admin':set([
 	#########
@@ -137,15 +139,17 @@ restricted = {
 	'ADMINBROADCAST',
 	'BROADCAST',
 	'BROADCASTEX',
-	'RELOAD',
-	'CLEANUP',
 	'SETLATESTSPRINGVERSION',
 	#########
 	# users
-	'GETLASTLOGINTIME',
+	'SETACCESS',
 	'GETACCOUNTACCESS',
 	'FORCEJOIN',
-	'SETACCESS',
+	'FORCEJOINBATTLE',
+	#########
+	# dev
+	'RELOAD',
+	'CLEANUP',
 	]),
 }
 
@@ -172,11 +176,10 @@ def uint32(x):
 	if val < 0 : raise OverflowError
 	return val
 
-
 def datetime_totimestamp(dt):
 	return int(time.mktime(dt.timetuple()))
 
-
+	
 flag_map = {
 	'a': 'accountIDs',       # send account IDs in ADDUSER
 	'b': 'battleAuth',       # JOINBATTLEREQUEST/ACCEPT/DENY
@@ -190,7 +193,9 @@ flag_map = {
 class Protocol:
 	def __init__(self, root):
 		self._root = root
-		self.userdb = root.getUserDB()
+		self.userdb = root.getUserDB() 
+		self.verificationdb = root.getVerificationDB()
+		self.bandb = root.getBanDB()
 		self.SayHooks = root.SayHooks
 		self.stats = {}
 
@@ -542,17 +547,6 @@ class Protocol:
 			return False, 'Username is too long, max is 20 chars.'
 		return True, ""
 
-	def _validEmailSyntax(self, client, email):
-		assert(type(email) == str)
-
-		if (not email or email==""):
-			return False, "Email address is blank."
-
-		if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-			return False, "Invalid email address."
-
-		return True, ""
-
 	def _validChannelSyntax(self, channel):
 		'checks if usernames syntax is correct / doesn''t contain invalid chars'
 		for char in channel:
@@ -562,38 +556,6 @@ class Protocol:
 			return False, 'Channelname is too long, max is 20 chars.'
 		return True, ""
 
-
-	def _emailRegistrationCode(self, username, email, code):
-		assert(type(email) == str)
-		assert(type(code) == str)
-
-		# get email user+pw
-		mail_user = self._root.mail_user
-		mail_password = self._root.mail_password
-		mail_server = self._root.mail_server
-		mail_server_port = self._root.mail_server_port
-
-		sent_from = mail_user
-		to = email
-		subject = 'SpringRTS registration code'
-		body = """
-You are recieving this email because you recently registered an account at the SpringRTS lobbyserver
-Your registration code is """ + code + """
-
-If you recieved this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)"""
-		message = 'Subject: {}\n\n{}'.format(subject, body)
-
-		time.sleep(30)
-
-		try:
-			server = smtplib.SMTP_SSL(mail_server, mail_server_port)
-			server.ehlo()
-			server.login(mail_user, mail_password)
-
-			server.sendmail(sent_from, to, message)
-			server.close()
-		except Exception as e:
-			logging.error('Failed to email registration code: %s, %s, %s, %s' % (username, email, code, str(e)))
 
 	def _parseTags(self, tagstring):
 		'parses tags to a dict, for example user=bla\tcolor=123'
@@ -830,64 +792,51 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 		'''
 		assert(type(password) == str)
 
-		# test if username is well formed
+		# well formed-ness tests
 		good, reason = self._validUsernameSyntax(username)
-
-		if (not good):
+		if not good:
 			client.Send("REGISTRATIONDENIED %s" % (reason))
 			return
-
 		if self.SayHooks.isNasty(username):
-			logging.info("Invalid nickname used for registering %s" %(username))
+			logging.info("invalid nickname used for registering %s" %(username))
 			client.Send("REGISTRATIONDENIED invalid nickname")
 			return
-
-		# test if password is well-formed
 		good, reason = self._validPasswordSyntax(client, password)
-
-		if (not good):
+		if not good:
 			client.Send("REGISTRATIONDENIED %s" % (reason))
 			return
 
-		# test if email is well formed
-		email = email.lower()
-		good, reason = self._validEmailSyntax(client, email)
-		client.email = email
-
-		if (not good and self._root.require_email_verification):
-			client.Send("REGISTRATIONDENIED %s" % (reason))
-			return
-
-		# test if user would be OK on db side (e.g. duplicate username/email)
+		# test if user would be OK on db side (e.g. duplication)
 		good, reason = self.userdb.check_register_user(username, password, client.ip_address, client.country_code, email)
-
 		if (not good):
 			logging.info('[%s] Registration failed for user <%s>: %s' % (client.session_id, username, reason))
 			client.Send('REGISTRATIONDENIED %s' % reason)
 			return
 
-		# create a registration code and save user to db
-		if client.registration_code=='' and self._root.require_email_verification:
-			client.registration_code = str(random.randint(1000,9999))
-		registration_code = client.registration_code
-
-		self.userdb.register_user(username, password, client.ip_address, client.country_code, email, registration_code)
-
-		# send registration code email
-		if self._root.require_email_verification:
-			try:
-				thread.start_new_thread(self._emailRegistrationCode, (username, email, registration_code,))
-			except NameError:
-				_thread.start_new_thread(self._emailRegistrationCode, (username, email, registration_code,))
-			except:
-				logging.error('Failed to launch _emailRegistrationCode: %s, %s, %s' % (username, email, registration_code))
-				client.Send('REGISTRATIONDENIED Failed to send registration code via email. This is a bug! Please report it.')
+		# require a valid looking email address, if we are going to require verification	
+		if self.verificationdb.active():
+			good, reason = self.verificationdb.valid_email_addr(email)
+			if not good:
+				if email=='': reason += " -- if you were not asked to enter one, please update your lobby client!"
+				client.Send('REGISTRATIONDENIED %s' % reason)
 				return
+				
+		#save user to db
+		self.userdb.register_user(username, password, client.ip_address, client.country_code, email)
+		client_fromdb = self.clientFromUsername(username, True)
 
+		# verification  
+		verif_reason = "registered an account on the SpringRTS lobbyserver"
+		wait_duration = 30 # seconds
+		good, reason = self.verificationdb.check_and_send(client_fromdb.db_id, email, verif_reason, wait_duration)
+		if (not good):
+			client.Send("REGISTRATIONDENIED %s" % ("verification failed: " + reason))
+		
 		# declare success
-		logging.info('[%s] Successfully registered user <%s>.' % (client.session_id, username))
-		client.Send('REGISTRATIONACCEPTED')
 		client.access = 'agreement'
+		logging.info('[%s] Successfully registered user <%s>.' % (client.session_id, username))
+		self.broadcast_Moderator('New user: %s %s %s %s %s' %(username, email, client.country_code, client.ip_address, client.local_ip))
+		client.Send('REGISTRATIONACCEPTED')
 
 
 	def in_LOGIN(self, client, username, password='', cpu='0', local_ip='', sentence_args=''):
@@ -968,12 +917,11 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 			lobby_id = sentence_args
 
 
-		good, user_or_error = self.userdb.legacy_login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
+		good, user_or_error = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
 
 		if (not good):
-			if (type(user_or_error) == str):
-				reason = user_or_error
-
+			assert (type(user_or_error) == str)
+			reason = user_or_error
 			self.out_DENIED(client, username, reason)
 			return
 
@@ -997,7 +945,6 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 		client.last_login = user_or_error.last_login
 		client.cpu = cpu
 		client.email = user_or_error.email
-		client.registration_code = user_or_error.registration_code
 
 		client.local_ip = None
 		if local_ip.startswith('127.') or not validateIP(local_ip):
@@ -1014,9 +961,9 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 
 		if (client.access == 'agreement'):
 			logging.info('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
-			if self._root.require_email_verification:
-				client.Send("AGREEMENT A verification code has been sent to the email address you provided. It may take a moment to arrive. Please read our terms of use below, and then enter your verification code.") 
-				client.Send("AGREEMENT ") # blank line 
+			if self.verificationdb.active():			
+				client.Send("AGREEMENT A verification code has been sent to your email address. Please read our terms of service and then enter your four digit code below.")
+				client.Send("AGREEMENT ")
 			for line in self._root.agreement:
 				client.Send("AGREEMENT %s" %(line))
 			client.Send('AGREEMENTEND')
@@ -1075,19 +1022,20 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 			self.in_JOIN(client, "moderator")
 
 
-	def in_CONFIRMAGREEMENT(self, client, registration_code = ""):
-		# Confirm the terms of service as shown with the AGREEMENT commands. Users must accept the terms of service to use their account.'
-		# Check the four digit registration code which the user recieved via email
-		if (self._root.require_email_verification and registration_code!=client.registration_code):
-			self.out_DENIED(client, client.username, "Incorrect registration code.")
+	def in_CONFIRMAGREEMENT(self, client, verification_code = ""):
+		# Confirm the terms of service as shown with the AGREEMENT commands. (Users must accept the terms of service to use their account.)
+		# Verify the users verification code.
+		if client.access != 'agreement':
 			return
-
-		if client.access == 'agreement':
-			client.access = 'user'
-			self.userdb.save_user(client)
-			self._calc_access_status(client)
-			self._SendLoginInfo(client)
-			self.broadcast_Moderator('New user: %s %s %s %s %s %s %s' %(client.username, client.country_code, client.ip_address, client.local_ip, client.last_id, client.lobby_id, client.email))
+		good, reason = self.verificationdb.verify(client.db_id, client.email, verification_code) #fixme
+		if not good:
+			self.out_DENIED(client, client.username, reason)
+			return		
+		client.access = 'user'
+		self.userdb.save_user(client)
+		self._calc_access_status(client)
+		self._SendLoginInfo(client)
+		self.broadcast_Moderator('Accepted: %s %s %s' %(client.username, client.last_id, client.lobby_id))
 
 	def in_SAY(self, client, chan, msg):
 		'''
@@ -1486,7 +1434,7 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 		user = client.username
 
 		# FIXME: unhardcode this
-		if (client.bot or client.lobby_id.startswith("SPADS")) and chan in ("newbies", "ba") and client.username != "ChanServ":
+		if (client.bot or client.lobby_id.startswith("SPADS")) and chan in ("newbies") and client.username != "ChanServ":
 			#client.Send('JOINFAILED %s No bots allowed in #%s!' %(chan, chan))
 			return
 		if chan == 'moderator' and not 'mod' in client.accesslevels:
@@ -1752,10 +1700,6 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 			return
 
 		battle_id = user.current_battle
-
-		if not 'mod' in client.accesslevels:
-			client.Send('FORCEJOINBATTLEFAILED You are not allowed to force this user into battle.')
-			return
 
 		if not user.compat['m']:
 			client.Send('FORCEJOINBATTLEFAILED This user does not subscribe to matchmaking.')
@@ -2763,23 +2707,22 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 		self._root.latestspringversion = version
 		self.out_SERVERMSG(client, 'Latest spring version is now set to: %s' % version)
 
-	def in_KICKUSER(self, client, user, reason=''):
+	def in_KICK(self, client, username, reason=''):
 		'''
 		Kick target user from the server.
 
 		@required.str username: The target user.
 		@optional.str reason: The reason to be shown.
 		'''
-		kickeduser = self.clientFromUsername(user)
-		if not kickeduser:
+		kickeduser = self.clientFromUsername(username)
+		if kickeduser.access=='admin':
 			return
-
-		if reason: reason = ' (reason: %s)' % reason
-		for chan in kickeduser.channels:
-			self._root.broadcast('CHANNELMESSAGE %s <%s> kicked <%s> from the server%s'%(chan, client.username, user, reason),chan)
-		self.out_SERVERMSG(client, 'You\'ve kicked <%s> from the server.' % user)
-		self.out_SERVERMSG(kickeduser, 'You\'ve been kicked from server by <%s>%s' % (client.username, reason))
-		kickeduser.Remove('was kicked from server by <%s>: %s' % (client.username, reason))
+		if not kickeduser:
+			self.out_SERVERMSG(client, 'User <%s> was not online' % username)
+			return
+		self.out_SERVERMSG(kickeduser, 'You were kicked from the server (%s)' % (reason))
+		self.out_SERVERMSG(client, 'Kicked <%s> from the server' % username)
+		kickeduser.Remove('was kicked from server by <%s> (%s)' % (client.username, reason))
 
 	def _testlogin(self, username, password):
 		'''
@@ -2834,62 +2777,60 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 		client.Send("COMPFLAGS %s" %(flags))
 
 	def in_BAN(self, client, username, duration, reason):
-		'''
-		Ban target user from the server.
+		# ban target user from the server, also ban their current ip and email
+		good, response = self.bandb.ban(client, duration, reason, username)
+		target = self.clientFromUsername(username)
+		if good and target: # is online
+			self.in_KICK(client, target.username, "banned")
+		if good: self.broadcast_Moderator("%s banned <%s> for %s days (%s)" % (client.username, username, duration, reason))
+		if response: self.out_SERVERMSG(client, '%s' % response)
 
-		@required.str username: The target user.
-		@required.float duration: The duration in days.
-		@required.str reason: The reason to be shown.
-		'''
-		try: duration = float(duration)
-		except:
-			self.out_SERVERMSG(client, 'Duration must be a float (the ban duration in days)')
+	def in_BANSPECIFIC(self, client, arg, duration, reason):
+		# arg might be a username(->db_id), ip, or email; ban it
+		good, response = self.bandb.ban_specific(client, duration, reason, arg)
+		if good: self.broadcast_Moderator("%s banned-specific <%s> for %s days (%s)" % (client.username, arg, duration, reason))
+		if response: self.out_SERVERMSG(client, '%s' % response)
+
+	def in_UNBAN(self, client, arg):
+		# arg might be a username(->db_id), ip, or email; remove all associated bans
+		good, response = self.bandb.unban(client, arg)
+		if good: self.broadcast_Moderator("%s unbanned <%s>" % (client.username, arg))
+		if response: self.out_SERVERMSG(client, '%s' % response)
+
+	def in_BLACKLIST(self, client, domain, reason=""):
+		# add somedomain.xyz to the blacklist
+		good, response = self.bandb.blacklist(client, domain, reason)
+		if good: self.broadcast_Moderator("%s blacklisted '%s' (%s)" % (client.username, domain, reason))
+		if response: self.out_SERVERMSG(client, '%s' % response)
+
+	def in_UNBLACKLIST(self, client, domain):
+		# remove somedomain.xyz from the blacklist
+		good, response = self.bandb.unblacklist(client, domain)
+		if good: self.broadcast_Moderator("%s un-blacklisted '%s'" % (client.username, domain))
+		if response: self.out_SERVERMSG(client, '%s' % response)
+
+	def in_LISTBANS(self, client):
+		# send the banlist 
+		banlist = self.bandb.list_bans()
+		if banlist:
+			self.out_SERVERMSG(client, '-- Banlist --')
+			for entry in banlist:
+				self.out_SERVERMSG(client, "%s, %s, %s :: '%s' :: ends %s (%s)" % (entry['username'], entry['ip'], entry['email'], entry['reason'], entry['end_date'], entry['issuer']))
+			self.out_SERVERMSG(client, '-- End Banlist --')
+			return 
+		self.out_SERVERMSG(client, 'Banlist is empty')
+
+	def in_LISTBLACKLIST(self, client):
+		# send the blacklist of domains for email verification
+		blacklist = self.bandb.list_blacklist()
+		if blacklist:
+			self.out_SERVERMSG(client, '-- Blacklist --')
+			for entry in blacklist:
+				self.out_SERVERMSG(client, "%s :: '%s' (%s)" % (entry['domain'], entry['reason'], entry['issuer']))
+			self.out_SERVERMSG(client, '-- End Blacklist--')
 			return
-		response = self.userdb.ban_user(client, username, duration, reason)
-		if response: self.out_SERVERMSG(client, '%s' % response)
-
-	def in_UNBAN(self, client, username):
-		'''
-		Remove all bans for target user from the server.
-
-		@required.str username: The target user.
-		'''
-		response = self.userdb.unban_user(username)
-		if response: self.out_SERVERMSG(client, '%s' % response)
-
-	def in_BANIP(self, client, ip, duration, reason):
-		'''
-		Ban an IP address from the server.
-
-		@required.str ip: The IP address to ban.
-		@required.float duration: The duration in days.
-		@required.str reason: The reason to show.
-		'''
-		try: duration = float(duration)
-		except:
-			self.out_SERVERMSG(client, 'Duration must be a float (the ban duration in days)')
-			return
-		response = self.userdb.ban_ip(client, ip, duration, reason)
-		if response: self.out_SERVERMSG(client, '%s' % response)
-
-	def in_UNBANIP(self, client, ip):
-		'''
-		Remove all bans for target IP from the server.
-
-		@required.str ip: The target IP.
-		'''
-		response = self.userdb.unban_ip(ip)
-		if response: self.out_SERVERMSG(client, '%s' % response)
-
-	def in_BANLIST(self, client):
-		'''
-		Retrieve a list of all bans currently active on the server.
-		'''
-		for entry in self.userdb.banlistuser():
-			self.out_SERVERMSG(client, '%s' % str(entry))
-		for entry in self.userdb.banlistip():
-			self.out_SERVERMSG(client, '%s' % str(entry))
-
+		self.out_SERVERMSG(client, 'Blacklist is empty')
+		
 	def in_SETACCESS(self, client, username, access):
 		'''
 		Set the access level of target user.
@@ -2944,7 +2885,7 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 			logging.info("%s %d" % (k, count))
 
 		try:
-			self.broadcast_Moderator('Reload initiated by : %s' %(client.username))
+			self.broadcast_Moderator('Reload initiated by <%s>' %(client.username))
 		except Exception as e:
 			logging.error("Broadcast failed: %s" %(str(e)))
 
@@ -2964,10 +2905,12 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 			importlib.reload(sys.modules['Client'])
 			importlib.reload(sys.modules['ip2country'])
 		except Exception as e:
-			logging.error("reload failed:")
+			self.out_SERVERMSG(client, 'Reload failed!')
+			logging.error("Reload failed: ")
 			logging.error(e)
 
-		self.broadcast_Moderator('done')
+		self.out_SERVERMSG(client, 'Reload successful')
+		self.broadcast_Moderator('Reload successful')
 
 	def in_CLEANUP(self, client):
 		self._root.admin_broadcast('Cleanup initiated by %s (deleting old users, zombie channels / users)...' %(client.username))
@@ -3044,37 +2987,68 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 			del self._root.usernames[u]
 			logging.error("Deleted username without session: %s" %(u))
 
-		self.userdb.clean_users()
+		self.userdb.clean()
+		self.verificationdb.clean()
+		self.bandb.clean()
 
 		self._root.admin_broadcast("deleted channels: %d battles: %d users: %d" %(nchan, nbattle, nuser))
 
-	def in_CHANGEEMAIL(self, client, newmail = None, username = None):
-		'''
-		Set the email address of target user.
-
-		@optional.str email: Email address to set. if empty current email address will be shown
-		@optional.str username: username to set the email address
-		'''
+	def in_CHANGEEMAILREQUEST(self, client, newmail):
+		# request to be sent a verification code for changing email address
 		if not client.compat['cl']:
 			self.out_SERVERMSG(client, "compatibility flag cl needed")
 			return
+		if not self.verificationdb.active():
+			client.Send("CHANGEEMAILREQUESTDENIED email verification is currently turned off, a blank verification code will be accepted!")
+			return
+		newmail = newmail.lower()
+		reason = "requested to change your email address on the SpringRTS lobbyserver (" + client.username + ")"
+		good, reason = self.verificationdb.check_and_send(client.db_id, newmail, reason, 0) 
+		if not good:
+			client.Send("CHANGEEMAILREQUESTDENIED " + reason)
+			return				
+		client.Send("CHANGEEMAILREQUESTACCEPT")
 
-		if not newmail:
-			self.out_SERVERMSG(client,"current email is %s" %(client.email))
+	def in_CHANGEEMAIL(self, client, newmail, verification_code=""):
+		# client requests to change their own email address, with verification if necessary
+		if not client.compat['cl']:
+			self.out_SERVERMSG(client, "compatibility flag cl needed")
 			return
-		if not username:
-			client.email = newmail
-			self.userdb.save_user(client)
-			self.out_SERVERMSG(client,"changed email to %s"%(client.email))
+		newmail = newmail.lower()
+		good, reason = self.verificationdb.verify(client.db_id, newmail, verification_code)
+		if not good:
+			client.Send("CHANGEEMAILDENIED " + reason)
 			return
+		client.email = newmail
+		self.userdb.save_user(client)
+		self.out_SERVERMSG(client, "Your email address has been changed to " + client.email)
+		client.Send("CHANGEEMAILACCEPT " + newmail)
+			
+	def in_CHANGEACCOUNTEMAIL(self, client, username, newmail):
+		# forcibly change a clients email address
 		user = self.clientFromUsername(username, True)
-		if user.access in ('mod', 'admin') and not client.access == 'admin': #disallow mods to change other mods / admins email
+		if not user:
+			self.out_SERVERMSG(client,"user not found")
+			return
+		if user.access in ('mod', 'admin') and client.access == 'mod': 
 			self.out_SERVERMSG(client,"access denied")
 			return
+		newmail = newmail.lower()
 		user.email = newmail
 		self.userdb.save_user(user)
-		self.out_SERVERMSG(client,"changed email to %s"%(user.email))
+		self.verificationdb.remove(user.db_id)
+		self.out_SERVERMSG(client,"changed <%s> email to %s"%(username, user.email))
 
+	def in_RESENDVERIFICATION(self, client, newmail):
+		if not self.verificationdb.active():
+			client.Send("RESENDVERIFICATIONDENIED email verification is currently turned off, you do not need a verification code!")
+			return
+		good, reason = self.verificationdb.resend(client.db_id, newmail)
+		if not good:
+			client.Send("RESENDVERIFICATIONDENIED %s" % reason)			
+			return
+		client.Send("RESENDVERIFICATIONACCEPT")			
+	
 	def in_STARTTLS(self, client):
 		#deprecated
 		client.StartTLS()
@@ -3102,37 +3076,6 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 				return
 			data = {"PROMOTE": {"battleid": battle.id}}
 			self._root.broadcast('JSON ' + json.dumps(data, separators=(',', ':')))
-			return
-
-		if "KICKBAN" in cmd:
-			params = cmd["KICKBAN"]
-			if not "mod" in client.accesslevels:
-				self.out_JSON(client, "FAILED", {"msg": "Moderator permissions needed: %s" %(client.access)})
-				return
-			if not "username" in cmd["KICKBAN"]:
-				return
-			username = cmd["KICKBAN"]["username"]
-			valid, reason =  self._validUsernameSyntax(username)
-			if not valid:
-				self.out_JSON(client, "FAILED", {"msg": reason})
-				return
-			response = ""
-			reason = "bankicked by %s" %(client.username)
-			duration = 0.04 # ~1 hour
-
-			if "duration" in params:
-				try:
-					duration = float(duration)
-				except:
-					self.out_JSON(client, "FAILED", {"msg": 'Duration must be a float (the ban duration in days)'})
-					return
-
-			badclient = self.clientFromUsername(username)
-			if badclient: # online
-				response += self.userdb.ban_ip(badclient, badclient.ip_address, duration, reason)
-				badclient.Remove(reason)
-			response += self.userdb.ban_user(client, username, duration, reason)
-			self.out_JSON(client, "OK", {"msg": str(response)})
 			return
 
 		if "BATTLEMUTE" in cmd:
@@ -3240,6 +3183,10 @@ def selftest():
 		def SayHooks(self):
 			pass
 		def getUserDB(self):
+			pass
+		def getVerificationDB(self):
+			pass
+		def getBanDB(self):
 			pass
 	p = Protocol(DummyRoot())
 	assert(p._validUsernameSyntax("abcde")[0])

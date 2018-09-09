@@ -79,7 +79,6 @@ class Client(BaseClient):
 		self.scriptPassword = None
 
 		self.email = ''
-		self.registration_code = ''
 
 		now = time.time()
 		self.last_login = now

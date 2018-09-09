@@ -38,9 +38,12 @@ class DataHandler:
 		self.server_version = 0.36
 		self.sighup = False
 
-		self.chanserv = None
 		self.userdb = None
 		self.channeldb = None
+		self.verificationdb = None
+		self.bandb = None
+
+		self.chanserv = None
 		self.engine = None
 		self.updatefile = None
 		self.trusted_proxyfile = None
@@ -64,21 +67,7 @@ class DataHandler:
 		self.battles = {}
 		self.detectIp()
 		self.cert = None
-
-		self.require_email_verification = False
-		try:
-			with open('server_email_account.txt') as f:
-				lines = f.readlines()
-			lines = [l.strip() for l in lines]
-			self.mail_user = lines[0]
-			self.mail_password = lines[1]
-			self.mail_server = lines[2]
-			self.mail_server_port = int(lines[3])
-			self.require_email_verification = True
-			print('Email verification is enabled, server email account is %s' % self.mail_user)
-		except Exception as e:
-			print('Could not load server_email_account.txt, email verification is disabled: %s' %(e))
-
+		
 	def initlogger(self, filename):
 		# logging
 		server_logfile = os.path.join(os.path.dirname(__file__), filename)
@@ -103,48 +92,56 @@ class DataHandler:
 			def _fk_pragma_on_connect(dbapi_con, con_record):
 				dbapi_con.execute('PRAGMA journal_mode = MEMORY')
 				dbapi_con.execute('PRAGMA synchronous = OFF')
-			## FIXME: "ImportError: cannot import name event"
+				# FIXME: "ImportError: cannot import name event"
 			from sqlalchemy import event
 			event.listen(self.engine, 'connect', _fk_pragma_on_connect)
 		else:
 			self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.max_threads * 2, pool_recycle=300)
 
 		self.userdb = SQLUsers.UsersHandler(self, self.engine)
+		self.verificationdb = SQLUsers.VerificationsHandler(self, self.engine)
+		self.bandb = SQLUsers.BansHandler(self, self.engine)
+		
 		self.channeldb = SQLUsers.ChannelsHandler(self, self.engine)
-
-		channels = self.channeldb.load_channels()
+		channels = self.channeldb.all_channels()
+		operators = self.channeldb.all_operators()
 
 		for name in channels:
 			channel = channels[name]
 
-			owner = None
-			admins = set()
-			client = self.userdb.clientFromUsername(channel['owner'])
-			if client and client.id: owner = client.id
+			owner_user_id = None
+			client = self.userdb.clientFromID(channel['owner_user_id'])
+			if client and client.id: 
+				owner_user_id = client.id
 
-			for user in channel['admins']:
-				client = userdb.clientFromUsername(user)
-				if client and client.id:
-					admins.append(client.id)
 			assert(name not in self.channels)
 			newchan = Channel.Channel(self, name)
-			newchan.chanserv=bool(owner)
+			newchan.chanserv = bool(owner_user_id)
 			newchan.id = channel['id']
-			newchan.owner=owner
-			newchan.admins=admins
+			newchan.owner_user_id = owner_user_id
+			newchan.operators = set()
 			if channel['key'] in ('', None, '*'):
 				newchan.key=None
 			else:
-				newchan.key=channel['key']
-			newchan.antispam=channel['antispam']
-			newchan.topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time())}
+				newchan.key = channel['key']
+			newchan.antispam = channel['antispam']
+			topic_client = self.userdb.clientFromID(channel['topic_user_id'])
+			topic_name = 'ChanServ'
+			if topic_client:
+				topic_name = topic_client.username
+			newchan.topic={'user':topic_name, 'text':channel['topic'], 'time':int(time.time())}
 			newchan.store_history = channel['store_history']
 			self.channels[name] = newchan
 
+		for op in operators:
+			dbchannel = self.channeldb.channel_from_id(op['channel_id'])
+			if dbchannel:
+				self.channels[dbchannel.name].operators.add(op['user_id']) 
+
 		self.parseFiles()
 		self.protocol = Protocol.Protocol(self)
+				
 		self.chanserv = ChanServ.ChanServClient(self, (self.online_ip, 0), self.session_id)
-
 		for name in channels:
 			self.chanserv.HandleProtocolCommand("JOIN %s" %(name))
 
@@ -309,6 +306,12 @@ class DataHandler:
 
 	def getUserDB(self):
 		return self.userdb
+
+	def getVerificationDB(self):
+		return self.verificationdb
+
+	def getBanDB(self):
+		return self.bandb
 
 	def clientFromID(self, db_id):
 		if db_id in self.db_ids: return self.db_ids[db_id]
