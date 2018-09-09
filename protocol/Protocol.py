@@ -185,6 +185,7 @@ flag_map = {
 	'et': 'sendEmptyTopic',  # send NOCHANNELTOPIC on join if channel has no topic
 	'cl': 'cleanupBattles',  # BATTLEOPENED / OPENBATTLE with support for engine/version
 	'p':  'agreementPlain',  # AGREEMENT is plaintext
+	'm': 'matchmaking',      # deprecated / not used any more (keept to avoid sending errors to clients)
 }
 
 class Protocol:
