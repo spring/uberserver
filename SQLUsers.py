@@ -204,10 +204,10 @@ channels_table = Table('channels', metadata, #FIXME: add new table, foreign key 
 	Column('id', Integer, primary_key=True),
 	Column('name', String(40), unique=True),
 	Column('key', String(32)),
-	Column('owner_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), 
+	Column('owner_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True),
 	Column('topic', Text),
 	Column('topic_time', DateTime),
-	Column('topic_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), 
+	Column('topic_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True),
 	Column('antispam', Boolean),
 	Column('autokick', String(5)),
 	Column('censor', Boolean),
@@ -238,7 +238,7 @@ mapper(Channel, channels_table)
 channelshistory_table = Table('channel_history', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
-	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE'), nullable=True),
+	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('time', DateTime),
 	Column('msg', Text),
 	mysql_charset='utf8',
@@ -257,7 +257,7 @@ mapper(ChannelHistory, channelshistory_table)
 channelops_table = Table('channel_ops', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
-	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE'), nullable=True),
+	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	)
 class ChannelOp(object):
 	def __init__(self, channel_id, user_id):
@@ -271,7 +271,7 @@ mapper(ChannelOp, channelops_table)
 ##########################################
 ban_table = Table('ban', metadata, # server bans
 	Column('id', Integer, primary_key=True),
-	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # user which set ban 
+	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True), # user which set ban
 	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # user id which is banned (optional)
 	Column('ip', String(60)), #ip which is banned (optional)
 	Column('email', String(254)), #email which is banned (optional)
@@ -298,7 +298,7 @@ mapper(Ban, ban_table)
 ##########################################
 blacklisted_email_domain_table = Table('blacklisted email domains', metadata, # email domains that can't be used for account verification
 	Column('id', Integer, primary_key=True),
-	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL')), # user which set ban
+	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True), # user which set ban
 	Column('domain', String(254), unique=True), 
 	Column('reason', Text),
 	Column('start_time', DateTime),
