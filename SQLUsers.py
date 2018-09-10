@@ -893,9 +893,9 @@ class VerificationsHandler:
 	def resend(self, user_id, email):
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first()
 		if not entry:
-			return False, 'no active verification code for ' + email		
+			return False, 'you do not have an active verification code'		
 		if entry.expiry <= datetime.now():
-			return False, 'your verification code for ' + entry.email + ' has expired, please request a new one'
+			return False, 'your verification code has expired, please request a new one'
 		if email!=entry.email:
 			return False, 'your verification code for ' + entry.email + ' cannot be re-sent to a different email address, use it or wait for it to expire (up to 24h)'		
 		if entry.resends>=3:
