@@ -3007,7 +3007,7 @@ class Protocol:
 		if not good:
 			client.Send("CHANGEEMAILREQUESTDENIED " + reason)
 			return				
-		client.Send("CHANGEEMAILREQUESTACCEPT")
+		client.Send("CHANGEEMAILREQUESTACCEPTED")
 
 	def in_CHANGEEMAIL(self, client, newmail, verification_code=""):
 		# client requests to change their own email address, with verification if necessary
@@ -3022,7 +3022,7 @@ class Protocol:
 		client.email = newmail
 		self.userdb.save_user(client)
 		self.out_SERVERMSG(client, "Your email address has been changed to " + client.email)
-		client.Send("CHANGEEMAILACCEPT " + newmail)
+		client.Send("CHANGEEMAILACCEPTED " + newmail)
 			
 	def in_CHANGEACCOUNTEMAIL(self, client, username, newmail):
 		# forcibly change a clients email address
@@ -3047,7 +3047,7 @@ class Protocol:
 		if not good:
 			client.Send("RESENDVERIFICATIONDENIED %s" % reason)			
 			return
-		client.Send("RESENDVERIFICATIONACCEPT")			
+		client.Send("RESENDVERIFICATIONACCEPTED")			
 	
 	def in_STARTTLS(self, client):
 		#deprecated
