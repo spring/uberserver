@@ -1027,7 +1027,7 @@ class Protocol:
 		# Verify the users verification code.
 		if client.access != 'agreement':
 			return
-		good, reason = self.verificationdb.verify(client.db_id, client.email, verification_code) #fixme
+		good, reason = self.verificationdb.verify(client.db_id, client.email, verification_code) 
 		if not good:
 			self.out_DENIED(client, client.username, reason)
 			return		

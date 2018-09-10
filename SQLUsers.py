@@ -200,7 +200,7 @@ mapper(User, users_table, properties={
 	})
 
 ##########################################
-channels_table = Table('channels', metadata, #FIXME: add new table, foreign key channel.id, foreignkey users.id, to store oplist
+channels_table = Table('channels', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('name', String(40), unique=True),
 	Column('key', String(32)),
