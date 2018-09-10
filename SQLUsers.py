@@ -909,13 +909,13 @@ class VerificationsHandler:
 	
 	def send(self, entry, reason, wait_duration):
 		try:
-			thread.start_new_thread(self._send, (entry.email, entry.code, reason, wait_duration))
+			thread.start_new_thread(self._send, (entry.email, entry.code, entry.expiry, reason, wait_duration))
 		except NameError:
-			_thread.start_new_thread(self._send, (entry.email, entry.code, reason, wait_duration))
+			_thread.start_new_thread(self._send, (entry.email, entry.code, entry.expiry, reason, wait_duration))
 		except:
 			logging.error('Failed to launch VerificationHandler._send: %s, %s, %s' % (entry, reason, wait_duration))
 	
-	def _send (self, email, code, reason, wait_duration):
+	def _send (self, email, code, expiry, reason, wait_duration):
 		if not self.active():
 			return 
 		sent_from = self.mail_user
@@ -923,9 +923,10 @@ class VerificationsHandler:
 		subject = 'SpringRTS verification code'
 		body = """
 You are recieving this email because you recently """ + reason + """.
-Your email verification code is """ + str(code) + """
+Your email verification code is """ + str(code) + """.
+It will expire on """ + expiry.strftime("%Y-%m-%d") + """ at """ + expiry.strftime("%H:%M") + """.
 
-If you recieved this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)"""
+If you recieved this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)."""
 		message = 'Subject: {}\n\n{}'.format(subject, body)
 
 		time.sleep(wait_duration)
