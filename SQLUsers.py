@@ -864,16 +864,25 @@ class VerificationsHandler:
 		dbblacklist = self._root.bandb.check_blacklist(email)
 		if dbblacklist:
 			return False, dbblacklist.domain + " is blacklisted: " + dbblacklist.reason
+		
+		email_entry = self.sess().query(Verification).filter(Verification.email == email).first()
+		if email_entry: 
+			if datetime.now() <= email_entry.expiry:
+				return False, 'a verification attempt is already active for ' + email + ', use that or wait for it to expire (up to 24h)'
+		if email_entry: #expired
+			self.remove(email_entry.user_id)
+			
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first()
-		if entry and entry.expiry < datetime.now():
+		if entry:
+			if entry.email != email:
+				return False, 'a verification code is active for ' + entry.email + ', use that or wait for it to expire (up to 24h)'
+			if datetime.now() < entry.expiry:
+				return False, 'already sent a verification code, please check your spam filter!'
+		if entry: #expired
 			self.remove(user_id)
-		if not entry or entry.expiry < datetime.now():
-			entry = self.create(user_id, email) 
-			self.send(entry, reason, wait_duration)
-			return True, 'verification code sent to %s' % email
-		if entry.email!=email:
-			return False, 'a verification code is active for ' + entry.email + ', use that or wait for it to expire (up to 24h)'
-		return False, 'already sent a verification code, please check your spam filter!'
+		entry = self.create(user_id, email) 
+		self.send(entry, reason, wait_duration)
+		return True, 'verification code sent to %s' % email
 
 	def create(self, user_id, email):
 		entry = Verification(user_id, email)
@@ -885,7 +894,7 @@ class VerificationsHandler:
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first()
 		if not entry:
 			return False, 'no active verification code for ' + email		
-		if entry.expiry < datetime.now():
+		if entry.expiry <= datetime.now():
 			return False, 'your verification code for ' + entry.email + ' has expired, please request a new one'
 		if email!=entry.email:
 			return False, 'your verification code for ' + entry.email + ' cannot be re-sent to a different email address, use it or wait for it to expire (up to 24h)'		
@@ -938,7 +947,7 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 		if not entry:
 			logging.error('Unexpected verification attempt: %s, %s' % (user_id, code))
 			return False, 'unexpected verification attempt, please request a verification code'
-		if entry.expiry < datetime.now():
+		if entry.expiry <= datetime.now():
 			return False, 'your verification code for ' + entry.email + ' has expired, please request a new one'
 		if entry.attempts>=3:
 			return False, 'too many attempts, please try again later'
