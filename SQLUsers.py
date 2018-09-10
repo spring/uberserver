@@ -924,9 +924,9 @@ class VerificationsHandler:
 		body = """
 You are recieving this email because you recently """ + reason + """.
 Your email verification code is """ + str(code) + """.
-It will expire on """ + expiry.strftime("%Y-%m-%d") + """ at """ + expiry.strftime("%H:%M") + """.
 
-If you recieved this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)."""
+It will expire on """ + expiry.strftime("%Y-%m-%d") + """ at """ + expiry.strftime("%H:%M") + """.
+If you received this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)."""
 		message = 'Subject: {}\n\n{}'.format(subject, body)
 
 		time.sleep(wait_duration)
