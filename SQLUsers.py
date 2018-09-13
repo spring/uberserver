@@ -1118,7 +1118,7 @@ if __name__ == '__main__':
 	
 	# test verification
 	entry = verificationdb.create(client.id, client.email)
-	verificationdb._send(entry.email, entry.code, "test", 0) #use main thread, or Python will exit without waiting for the test!
+	verificationdb._send(entry.email, entry.code, entry.expiry, "test", 0) #use main thread, or Python will exit without waiting for the test!
 	verificationdb.verify(client.id, client.email, entry.code)
 	verificationdb.clean()
 
