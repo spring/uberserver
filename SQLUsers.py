@@ -366,7 +366,7 @@ class UsersHandler:
 		
 	def remaining_ban_str(self, dbban, now):
 		timeleft = int((dbban.end_date - now).total_seconds())	
-		remaining = 'less than one hou remaining'				
+		remaining = 'less than one hour remaining'				
 		if timeleft > 60*60*24*900:
 			remaining = ''
 		elif timeleft > 60*60*24:
