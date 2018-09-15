@@ -674,7 +674,7 @@ class Protocol:
 			if client.username == receiver.username:
 				logging.error("Tried to send adduser to self: %s!"% client.username)
 				continue
-			receiver.Send(self.client_AddUser(receiver, client))
+			self.client_AddUser(receiver, client)
 
 	def broadcast_RemoveUser(self, client):
 		for name, receiver in self._root.usernames.items():
@@ -689,9 +689,9 @@ class Protocol:
 	def client_AddUser(self, receiver, user):
 		'sends the protocol for adding a user'
 		if receiver.compat['a']: #accountIDs
-			return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, user.cpu, user.db_id)
-		else:
-			return 'ADDUSER %s %s %s' % (user.username, user.country_code, user.cpu)
+			receiver.Send('ADDUSER %s %s %s %s' % (user.username, user.country_code, user.cpu, user.db_id))
+			return
+		receiver.Send('ADDUSER %s %s %s' % (user.username, user.country_code, user.cpu))
 
 	def client_RemoveUser(self, client, user):
 		'sends the protocol for removing a user'
@@ -994,7 +994,7 @@ class Protocol:
 		for sessid, addclient in self._root.clients.items():
 			if not addclient.logged_in:
 				continue
-			client.RealSend(self.client_AddUser(client, addclient))
+			self.client_AddUser(client, addclient)
 
 		for battleid, battle in self._root.battles.items():
 			client.RealSend(self.client_AddBattle(client, battle))
@@ -2749,32 +2749,42 @@ class Protocol:
 		target = self.clientFromUsername(username)
 		if good and target: # is online
 			self.in_KICK(client, target.username, "banned")
-		if good: self.broadcast_Moderator("%s banned <%s> for %s days (%s)" % (client.username, username, duration, reason))
-		if response: self.out_SERVERMSG(client, '%s' % response)
+		if good: 
+			self.broadcast_Moderator("%s banned <%s> for %s days (%s)" % (client.username, username, duration, reason))
+		if response: 
+			self.out_SERVERMSG(client, '%s' % response)
 
 	def in_BANSPECIFIC(self, client, arg, duration, reason):
 		# arg might be a username(->db_id), ip, or email; ban it
 		good, response = self.bandb.ban_specific(client, duration, reason, arg)
-		if good: self.broadcast_Moderator("%s banned-specific <%s> for %s days (%s)" % (client.username, arg, duration, reason))
-		if response: self.out_SERVERMSG(client, '%s' % response)
+		if good: 
+			self.broadcast_Moderator("%s banned-specific <%s> for %s days (%s)" % (client.username, arg, duration, reason))
+		if response: 
+			self.out_SERVERMSG(client, '%s' % response)
 
 	def in_UNBAN(self, client, arg):
 		# arg might be a username(->db_id), ip, or email; remove all associated bans
 		good, response = self.bandb.unban(client, arg)
-		if good: self.broadcast_Moderator("%s unbanned <%s>" % (client.username, arg))
-		if response: self.out_SERVERMSG(client, '%s' % response)
+		if good: 
+			self.broadcast_Moderator("%s unbanned <%s>" % (client.username, arg))
+		if response: 
+			self.out_SERVERMSG(client, '%s' % response)
 
 	def in_BLACKLIST(self, client, domain, reason=""):
 		# add somedomain.xyz to the blacklist
 		good, response = self.bandb.blacklist(client, domain, reason)
-		if good: self.broadcast_Moderator("%s blacklisted '%s' (%s)" % (client.username, domain, reason))
-		if response: self.out_SERVERMSG(client, '%s' % response)
+		if good: 
+			self.broadcast_Moderator("%s blacklisted '%s' (%s)" % (client.username, domain, reason))
+		if response: 
+			self.out_SERVERMSG(client, '%s' % response)
 
 	def in_UNBLACKLIST(self, client, domain):
 		# remove somedomain.xyz from the blacklist
 		good, response = self.bandb.unblacklist(client, domain)
-		if good: self.broadcast_Moderator("%s un-blacklisted '%s'" % (client.username, domain))
-		if response: self.out_SERVERMSG(client, '%s' % response)
+		if good: 
+			self.broadcast_Moderator("%s un-blacklisted '%s'" % (client.username, domain))
+		if response: 
+			self.out_SERVERMSG(client, '%s' % response)
 
 	def in_LISTBANS(self, client):
 		# send the banlist 
