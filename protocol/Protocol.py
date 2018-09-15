@@ -2724,39 +2724,6 @@ class Protocol:
 		self.out_SERVERMSG(client, 'Kicked <%s> from the server' % username)
 		kickeduser.Remove('was kicked from server by <%s> (%s)' % (client.username, reason))
 
-	def _testlogin(self, username, password):
-		'''
-		Test logging in as target user. [mod]
-
-		@required.str username: The target user.
-		@required.str password: The password to try.
-		'''
-		good, reason = self._validUsernameSyntax(username)
-
-		if (not good):
-			return False
-
-		targetUser = self.clientFromUsername(username, True)
-
-		if (not targetUser):
-			return False
-
-		## if this user has created a secure account, disallow
-		## anyone but himself to login with it (password should
-		## NEVER be shared by user to anyone, including admins)
-		if (not targetUser.has_legacy_password()):
-			return False
-
-		good, reason = self._validLegacyPasswordSyntax(password)
-
-		if (not good):
-			return False
-
-		if (self.userdb.legacy_test_user_pwrd(targetUser, password)):
-			return True
-
-		return False
-
 	def in_EXIT(self, client, reason=('Exiting')):
 		'''
 		Disconnect from the server, with an optional reason.
@@ -3114,8 +3081,11 @@ class Protocol:
 
 	# Begin outgoing protocol section #
 	#
-	# any function definition beginning with out_ and ending with capital letters
+	# Any function definition beginning with out_ and ending with capital letters
 	# is a definition of an outgoing command.
+	#
+	# Most outgoing commands are sent directly via client.Send within an in_ command
+	
 	def out_DENIED(self, client, username, reason, inc = True):
 		'''
 			response to LOGIN
