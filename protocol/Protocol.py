@@ -1602,7 +1602,7 @@ class Protocol:
 			return
 
 		if hashcode == 0:
-			self.out_FAILED(client, 'OPENBATTLE', 'Invalid game hash 0', True)
+			self.out_OPENBATTLEFAILED(client, 'Invalid game hash 0')
 			return
 		if maxplayers > 10 and not client.bot:
 			maxplayers = 10
@@ -1835,9 +1835,8 @@ class Protocol:
 			return
 		battle = self._root.battles[battle_id]
 		if client.session_id in battle.users: # user is already in battle
-			self.out_FAILED(client, 'JOINBATTLE', 'client is already in battle', True)
+			client.Send('JOINBATTLEFAILED client is already in battle')
 			return
-
 		host = self.clientFromSession(battle.host)
 		if battle.passworded == 1 and not battle.password == password:
 			client.Send('JOINBATTLEFAILED Incorrect password.')
@@ -1850,7 +1849,7 @@ class Protocol:
 			return
 		if host.compat['b'] and not (host.bot and 'mod' in client.accesslevels): # supports battleAuth
 			if client.session_id in battle.pending_users:
-				self.out_FAILED(client, "JOINBATTLE", "waiting for JOINBATTLEACCEPT/DENIED from host", True)
+				client.Send('JOINBATTLEFAILED waiting for JOINBATTLEACCEPT/JOINBATTLEDENIED from host')
 			else:
 				battle.pending_users.add(client.session_id)
 			if client.ip_address in self._root.trusted_proxies:
