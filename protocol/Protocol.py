@@ -598,8 +598,6 @@ class Protocol:
 
 
 	def _informErrors(self, client):
-		if client.lobby_id in ("SpringLobby 0.188 (win x32)", "SpringLobby 0.200 (win x32)"):
-			client.Send("SAYPRIVATE ChanServ The autoupdater of SpringLobby 0.188 is broken, please manually update: https://springrts.com/phpbb/viewtopic.php?f=64&t=31224")
 		if self.SayHooks.isNasty(client.username):
 			client.Send("SAYPRIVATE ChanServ Your username is on the nasty word list. Please rename to a username which is not. If you think this is wrong, please create an issue on https://github.com/spring/uberserver/issues with the username which triggers this error.")
 
@@ -645,7 +643,7 @@ class Protocol:
 
 	def broadcast_AddBattle(self, battle):
 		for cid, client in self._root.usernames.items():
-			client.Send(self.client_AddBattle(client, battle))
+			self.client_AddBattle(client, battle)
 
 	def broadcast_RemoveBattle(self, battle):
 		for cid, client in self._root.usernames.items():
@@ -710,14 +708,15 @@ class Protocol:
 		battle.ip = translated_ip
 		battle.host = host.session_id # session_id -> username
 		if client.compat['cl']: #supports cleanupBattles
-			return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s\t%s\t%s' %(battle.id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded, battle.rank, battle.maphash, battle.engine, battle.version, battle.map, battle.title, battle.modname)
-
+			client.RealSend('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s\t%s\t%s' %(battle.id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded, battle.rank, battle.maphash, battle.engine, battle.version, battle.map, battle.title, battle.modname))
+			return
+			
 		# give client without version support a hint, that this battle is incompatible to his version
 		if not (battle.engine == 'spring' and (battle.version == self._root.latestspringversion or battle.version == self._root.latestspringversion + '.0')):
 			title =  'Incompatible (%s %s) %s' %(battle.engine, battle.version, battle.title)
 		else:
 			title = battle.title
-		return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' % (battle.id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded, battle.rank, battle.maphash, battle.map, title, battle.modname)
+		client.RealSend('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' % (battle.id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded, battle.rank, battle.maphash, battle.map, title, battle.modname))
 
 	def is_ignored(self, client, ignoredClient):
 		# verify that this is an online client (only those have an .ignored attr)
@@ -912,7 +911,7 @@ class Protocol:
 			try:
 				client.last_id = uint32(user_id)
 			except:
-				self.out_SERVERMSG(client, 'Invalid userID specified: %s' % (user_id), True)
+				self.out_SERVERMSG(client, 'Invalid user_id specified: %s' % (user_id), True)
 		else:
 			lobby_id = sentence_args
 
@@ -997,7 +996,7 @@ class Protocol:
 			self.client_AddUser(client, addclient)
 
 		for battleid, battle in self._root.battles.items():
-			client.RealSend(self.client_AddBattle(client, battle))
+			self.client_AddBattle(client, battle)
 			client.RealSend('UPDATEBATTLEINFO %s %i %i %s %s' % (battle.id, battle.spectators, battle.locked, battle.maphash, battle.map))
 			for session_id in battle.users:
 				battleclient = self.clientFromSession(session_id)
