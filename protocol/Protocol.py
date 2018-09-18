@@ -918,6 +918,10 @@ class Protocol:
 			self.out_DENIED(client, username, "lobby_id is to long (max=64 chars)")
 			return
 
+		if self.SayHooks.isNasty(lobby_id):
+			self.out_DENIED(client, username, "invalid lobby_id")
+			return
+
 		good, user_or_error = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, local_ip, client.country_code)
 
 		if (not good):
