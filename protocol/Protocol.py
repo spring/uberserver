@@ -596,8 +596,6 @@ class Protocol:
 
 
 	def _informErrors(self, client):
-		if client.lobby_id in ("SpringLobby 0.188 (win x32)", "SpringLobby 0.200 (win x32)"):
-			client.Send("SAYPRIVATE ChanServ The autoupdater of SpringLobby 0.188 is broken, please manually update: https://springrts.com/phpbb/viewtopic.php?f=64&t=31224")
 		if self.SayHooks.isNasty(client.username):
 			client.Send("SAYPRIVATE ChanServ Your username is on the nasty word list. Please rename to a username which is not. If you think this is wrong, please create an issue on https://github.com/spring/uberserver/issues with the username which triggers this error.")
 
@@ -643,7 +641,7 @@ class Protocol:
 
 	def broadcast_AddBattle(self, battle):
 		for cid, client in self._root.usernames.items():
-			client.Send(self.client_AddBattle(client, battle))
+			self.client_AddBattle(client, battle)
 
 	def broadcast_RemoveBattle(self, battle):
 		for cid, client in self._root.usernames.items():
@@ -672,7 +670,7 @@ class Protocol:
 			if client.username == receiver.username:
 				logging.error("Tried to send adduser to self: %s!"% client.username)
 				continue
-			receiver.Send(self.client_AddUser(receiver, client))
+			self.client_AddUser(receiver, client)
 
 	def broadcast_RemoveUser(self, client):
 		for name, receiver in self._root.usernames.items():
@@ -687,9 +685,9 @@ class Protocol:
 	def client_AddUser(self, receiver, user):
 		'sends the protocol for adding a user'
 		if receiver.compat['a']: #accountIDs
-			return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, user.cpu, user.db_id)
-		else:
-			return 'ADDUSER %s %s %s' % (user.username, user.country_code, user.cpu)
+			receiver.Send('ADDUSER %s %s %s %s' % (user.username, user.country_code, user.cpu, user.db_id))
+			return
+		receiver.Send('ADDUSER %s %s %s' % (user.username, user.country_code, user.cpu))
 
 	def client_RemoveUser(self, client, user):
 		'sends the protocol for removing a user'
@@ -708,14 +706,15 @@ class Protocol:
 		battle.ip = translated_ip
 		battle.host = host.session_id # session_id -> username
 		if client.compat['cl']: #supports cleanupBattles
-			return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s\t%s\t%s' %(battle.id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded, battle.rank, battle.maphash, battle.engine, battle.version, battle.map, battle.title, battle.modname)
-
+			client.RealSend('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s\t%s\t%s' %(battle.id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded, battle.rank, battle.maphash, battle.engine, battle.version, battle.map, battle.title, battle.modname))
+			return
+			
 		# give client without version support a hint, that this battle is incompatible to his version
 		if not (battle.engine == 'spring' and (battle.version == self._root.latestspringversion or battle.version == self._root.latestspringversion + '.0')):
 			title =  'Incompatible (%s %s) %s' %(battle.engine, battle.version, battle.title)
 		else:
 			title = battle.title
-		return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' % (battle.id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded, battle.rank, battle.maphash, battle.map, title, battle.modname)
+		client.RealSend('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' % (battle.id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded, battle.rank, battle.maphash, battle.map, title, battle.modname))
 
 	def is_ignored(self, client, ignoredClient):
 		# verify that this is an online client (only those have an .ignored attr)
@@ -910,7 +909,7 @@ class Protocol:
 			try:
 				client.last_id = uint32(user_id)
 			except:
-				self.out_SERVERMSG(client, 'Invalid userID specified: %s' % (user_id), True)
+				self.out_SERVERMSG(client, 'Invalid user_id specified: %s' % (user_id), True)
 		else:
 			lobby_id = sentence_args
 
@@ -992,10 +991,10 @@ class Protocol:
 		for sessid, addclient in self._root.clients.items():
 			if not addclient.logged_in:
 				continue
-			client.RealSend(self.client_AddUser(client, addclient))
+			self.client_AddUser(client, addclient)
 
 		for battleid, battle in self._root.battles.items():
-			client.RealSend(self.client_AddBattle(client, battle))
+			self.client_AddBattle(client, battle)
 			client.RealSend('UPDATEBATTLEINFO %s %i %i %s %s' % (battle.id, battle.spectators, battle.locked, battle.maphash, battle.map))
 			for session_id in battle.users:
 				battleclient = self.clientFromSession(session_id)
@@ -1025,7 +1024,7 @@ class Protocol:
 		# Verify the users verification code.
 		if client.access != 'agreement':
 			return
-		good, reason = self.verificationdb.verify(client.db_id, client.email, verification_code) #fixme
+		good, reason = self.verificationdb.verify(client.db_id, client.email, verification_code) 
 		if not good:
 			self.out_DENIED(client, client.username, reason)
 			return		
@@ -1577,7 +1576,7 @@ class Protocol:
 			return
 
 		if hashcode == 0:
-			self.out_FAILED(client, 'OPENBATTLE', 'Invalid game hash 0', True)
+			self.out_OPENBATTLEFAILED(client, 'Invalid game hash 0')
 			return
 		if maxplayers > 10 and not client.bot:
 			maxplayers = 10
@@ -1775,9 +1774,8 @@ class Protocol:
 			return
 		battle = self._root.battles[battle_id]
 		if client.session_id in battle.users: # user is already in battle
-			self.out_FAILED(client, 'JOINBATTLE', 'client is already in battle', True)
+			client.Send('JOINBATTLEFAILED client is already in battle')
 			return
-
 		host = self.clientFromSession(battle.host)
 		if battle.passworded == 1 and not battle.password == password:
 			client.Send('JOINBATTLEFAILED Incorrect password.')
@@ -1790,7 +1788,7 @@ class Protocol:
 			return
 		if host.compat['b'] and not (host.bot and 'mod' in client.accesslevels): # supports battleAuth
 			if client.session_id in battle.pending_users:
-				self.out_FAILED(client, "JOINBATTLE", "waiting for JOINBATTLEACCEPT/DENIED from host", True)
+				client.Send('JOINBATTLEFAILED waiting for JOINBATTLEACCEPT/JOINBATTLEDENIED from host')
 			else:
 				battle.pending_users.add(client.session_id)
 			if client.ip_address in self._root.trusted_proxies:
@@ -2663,39 +2661,6 @@ class Protocol:
 		self.out_SERVERMSG(client, 'Kicked <%s> from the server' % username)
 		kickeduser.Remove('was kicked from server by <%s> (%s)' % (client.username, reason))
 
-	def _testlogin(self, username, password):
-		'''
-		Test logging in as target user. [mod]
-
-		@required.str username: The target user.
-		@required.str password: The password to try.
-		'''
-		good, reason = self._validUsernameSyntax(username)
-
-		if (not good):
-			return False
-
-		targetUser = self.clientFromUsername(username, True)
-
-		if (not targetUser):
-			return False
-
-		## if this user has created a secure account, disallow
-		## anyone but himself to login with it (password should
-		## NEVER be shared by user to anyone, including admins)
-		if (not targetUser.has_legacy_password()):
-			return False
-
-		good, reason = self._validLegacyPasswordSyntax(password)
-
-		if (not good):
-			return False
-
-		if (self.userdb.legacy_test_user_pwrd(targetUser, password)):
-			return True
-
-		return False
-
 	def in_EXIT(self, client, reason=('Exiting')):
 		'''
 		Disconnect from the server, with an optional reason.
@@ -2721,32 +2686,42 @@ class Protocol:
 		target = self.clientFromUsername(username)
 		if good and target: # is online
 			self.in_KICK(client, target.username, "banned")
-		if good: self.broadcast_Moderator("%s banned <%s> for %s days (%s)" % (client.username, username, duration, reason))
-		if response: self.out_SERVERMSG(client, '%s' % response)
+		if good: 
+			self.broadcast_Moderator("%s banned <%s> for %s days (%s)" % (client.username, username, duration, reason))
+		if response: 
+			self.out_SERVERMSG(client, '%s' % response)
 
 	def in_BANSPECIFIC(self, client, arg, duration, reason):
 		# arg might be a username(->db_id), ip, or email; ban it
 		good, response = self.bandb.ban_specific(client, duration, reason, arg)
-		if good: self.broadcast_Moderator("%s banned-specific <%s> for %s days (%s)" % (client.username, arg, duration, reason))
-		if response: self.out_SERVERMSG(client, '%s' % response)
+		if good: 
+			self.broadcast_Moderator("%s banned-specific <%s> for %s days (%s)" % (client.username, arg, duration, reason))
+		if response: 
+			self.out_SERVERMSG(client, '%s' % response)
 
 	def in_UNBAN(self, client, arg):
 		# arg might be a username(->db_id), ip, or email; remove all associated bans
 		good, response = self.bandb.unban(client, arg)
-		if good: self.broadcast_Moderator("%s unbanned <%s>" % (client.username, arg))
-		if response: self.out_SERVERMSG(client, '%s' % response)
+		if good: 
+			self.broadcast_Moderator("%s unbanned <%s>" % (client.username, arg))
+		if response: 
+			self.out_SERVERMSG(client, '%s' % response)
 
 	def in_BLACKLIST(self, client, domain, reason=""):
 		# add somedomain.xyz to the blacklist
 		good, response = self.bandb.blacklist(client, domain, reason)
-		if good: self.broadcast_Moderator("%s blacklisted '%s' (%s)" % (client.username, domain, reason))
-		if response: self.out_SERVERMSG(client, '%s' % response)
+		if good: 
+			self.broadcast_Moderator("%s blacklisted '%s' (%s)" % (client.username, domain, reason))
+		if response: 
+			self.out_SERVERMSG(client, '%s' % response)
 
 	def in_UNBLACKLIST(self, client, domain):
 		# remove somedomain.xyz from the blacklist
 		good, response = self.bandb.unblacklist(client, domain)
-		if good: self.broadcast_Moderator("%s un-blacklisted '%s'" % (client.username, domain))
-		if response: self.out_SERVERMSG(client, '%s' % response)
+		if good: 
+			self.broadcast_Moderator("%s un-blacklisted '%s'" % (client.username, domain))
+		if response: 
+			self.out_SERVERMSG(client, '%s' % response)
 
 	def in_LISTBANS(self, client):
 		# send the banlist 
@@ -2946,7 +2921,7 @@ class Protocol:
 		if not good:
 			client.Send("CHANGEEMAILREQUESTDENIED " + reason)
 			return				
-		client.Send("CHANGEEMAILREQUESTACCEPT")
+		client.Send("CHANGEEMAILREQUESTACCEPTED")
 
 	def in_CHANGEEMAIL(self, client, newmail, verification_code=""):
 		# client requests to change their own email address, with verification if necessary
@@ -2961,7 +2936,7 @@ class Protocol:
 		client.email = newmail
 		self.userdb.save_user(client)
 		self.out_SERVERMSG(client, "Your email address has been changed to " + client.email)
-		client.Send("CHANGEEMAILACCEPT " + newmail)
+		client.Send("CHANGEEMAILACCEPTED " + newmail)
 			
 	def in_CHANGEACCOUNTEMAIL(self, client, username, newmail):
 		# forcibly change a clients email address
@@ -2986,7 +2961,7 @@ class Protocol:
 		if not good:
 			client.Send("RESENDVERIFICATIONDENIED %s" % reason)			
 			return
-		client.Send("RESENDVERIFICATIONACCEPT")			
+		client.Send("RESENDVERIFICATIONACCEPTED")			
 	
 	def in_STARTTLS(self, client):
 		#deprecated
@@ -3053,8 +3028,11 @@ class Protocol:
 
 	# Begin outgoing protocol section #
 	#
-	# any function definition beginning with out_ and ending with capital letters
+	# Any function definition beginning with out_ and ending with capital letters
 	# is a definition of an outgoing command.
+	#
+	# Most outgoing commands are sent directly via client.Send within an in_ command
+	
 	def out_DENIED(self, client, username, reason, inc = True):
 		'''
 			response to LOGIN

@@ -200,7 +200,7 @@ mapper(User, users_table, properties={
 	})
 
 ##########################################
-channels_table = Table('channels', metadata, #FIXME: add new table, foreign key channel.id, foreignkey users.id, to store oplist
+channels_table = Table('channels', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('name', String(40), unique=True),
 	Column('key', String(32)),
@@ -366,7 +366,7 @@ class UsersHandler:
 		
 	def remaining_ban_str(self, dbban, now):
 		timeleft = int((dbban.end_date - now).total_seconds())	
-		remaining = 'less than one hou remaining'				
+		remaining = 'less than one hour remaining'				
 		if timeleft > 60*60*24*900:
 			remaining = ''
 		elif timeleft > 60*60*24:
@@ -864,16 +864,25 @@ class VerificationsHandler:
 		dbblacklist = self._root.bandb.check_blacklist(email)
 		if dbblacklist:
 			return False, dbblacklist.domain + " is blacklisted: " + dbblacklist.reason
+		
+		email_entry = self.sess().query(Verification).filter(Verification.email == email).first()
+		if email_entry: 
+			if datetime.now() <= email_entry.expiry:
+				return False, 'a verification attempt is already active for ' + email + ', use that or wait for it to expire (up to 24h)'
+		if email_entry: #expired
+			self.remove(email_entry.user_id)
+			
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first()
-		if entry and entry.expiry < datetime.now():
+		if entry:
+			if entry.email != email:
+				return False, 'a verification code is active for ' + entry.email + ', use that or wait for it to expire (up to 24h)'
+			if datetime.now() < entry.expiry:
+				return False, 'already sent a verification code, please check your spam filter!'
+		if entry: #expired
 			self.remove(user_id)
-		if not entry or entry.expiry < datetime.now():
-			entry = self.create(user_id, email) 
-			self.send(entry, reason, wait_duration)
-			return True, 'verification code sent to %s' % email
-		if entry.email!=email:
-			return False, 'a verification code is active for ' + entry.email + ', use that or wait for it to expire (up to 24h)'
-		return False, 'already sent a verification code, please check your spam filter!'
+		entry = self.create(user_id, email) 
+		self.send(entry, reason, wait_duration)
+		return True, 'verification code sent to %s' % email
 
 	def create(self, user_id, email):
 		entry = Verification(user_id, email)
@@ -884,9 +893,9 @@ class VerificationsHandler:
 	def resend(self, user_id, email):
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first()
 		if not entry:
-			return False, 'no active verification code for ' + email		
-		if entry.expiry < datetime.now():
-			return False, 'your verification code for ' + entry.email + ' has expired, please request a new one'
+			return False, 'you do not have an active verification code'		
+		if entry.expiry <= datetime.now():
+			return False, 'your verification code has expired, please request a new one'
 		if email!=entry.email:
 			return False, 'your verification code for ' + entry.email + ' cannot be re-sent to a different email address, use it or wait for it to expire (up to 24h)'		
 		if entry.resends>=3:
@@ -900,13 +909,13 @@ class VerificationsHandler:
 	
 	def send(self, entry, reason, wait_duration):
 		try:
-			thread.start_new_thread(self._send, (entry.email, entry.code, reason, wait_duration))
+			thread.start_new_thread(self._send, (entry.email, entry.code, entry.expiry, reason, wait_duration))
 		except NameError:
-			_thread.start_new_thread(self._send, (entry.email, entry.code, reason, wait_duration))
+			_thread.start_new_thread(self._send, (entry.email, entry.code, entry.expiry, reason, wait_duration))
 		except:
 			logging.error('Failed to launch VerificationHandler._send: %s, %s, %s' % (entry, reason, wait_duration))
 	
-	def _send (self, email, code, reason, wait_duration):
+	def _send (self, email, code, expiry, reason, wait_duration):
 		if not self.active():
 			return 
 		sent_from = self.mail_user
@@ -914,9 +923,10 @@ class VerificationsHandler:
 		subject = 'SpringRTS verification code'
 		body = """
 You are recieving this email because you recently """ + reason + """.
-Your email verification code is """ + str(code) + """
+Your email verification code is """ + str(code) + """.
 
-If you recieved this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)"""
+It will expire on """ + expiry.strftime("%Y-%m-%d") + """ at """ + expiry.strftime("%H:%M") + """.
+If you received this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)."""
 		message = 'Subject: {}\n\n{}'.format(subject, body)
 
 		time.sleep(wait_duration)
@@ -938,7 +948,7 @@ If you recieved this message in error, please contact us at www.springrts.com (d
 		if not entry:
 			logging.error('Unexpected verification attempt: %s, %s' % (user_id, code))
 			return False, 'unexpected verification attempt, please request a verification code'
-		if entry.expiry < datetime.now():
+		if entry.expiry <= datetime.now():
 			return False, 'your verification code for ' + entry.email + ' has expired, please request a new one'
 		if entry.attempts>=3:
 			return False, 'too many attempts, please try again later'
@@ -1108,7 +1118,7 @@ if __name__ == '__main__':
 	
 	# test verification
 	entry = verificationdb.create(client.id, client.email)
-	verificationdb._send(entry.email, entry.code, "test", 0) #use main thread, or Python will exit without waiting for the test!
+	verificationdb._send(entry.email, entry.code, entry.expiry, "test", 0) #use main thread, or Python will exit without waiting for the test!
 	verificationdb.verify(client.id, client.email, entry.code)
 	verificationdb.clean()
 
