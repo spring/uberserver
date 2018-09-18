@@ -596,6 +596,8 @@ class Protocol:
 
 
 	def _informErrors(self, client):
+		if client.lobby_id in ("SpringLobby 0.188 (win x32)", "SpringLobby 0.200 (win x32)"):
+			client.Send("SAYPRIVATE ChanServ The autoupdater of SpringLobby 0.188 is broken, please manually update: https://springrts.com/phpbb/viewtopic.php?f=64&t=31224")
 		if self.SayHooks.isNasty(client.username):
 			client.Send("SAYPRIVATE ChanServ Your username is on the nasty word list. Please rename to a username which is not. If you think this is wrong, please create an issue on https://github.com/spring/uberserver/issues with the username which triggers this error.")
 
@@ -641,7 +643,7 @@ class Protocol:
 
 	def broadcast_AddBattle(self, battle):
 		for cid, client in self._root.usernames.items():
-			self.client_AddBattle(client, battle)
+			client.Send(self.client_AddBattle(client, battle))
 
 	def broadcast_RemoveBattle(self, battle):
 		for cid, client in self._root.usernames.items():
@@ -670,7 +672,7 @@ class Protocol:
 			if client.username == receiver.username:
 				logging.error("Tried to send adduser to self: %s!"% client.username)
 				continue
-			self.client_AddUser(receiver, client)
+			receiver.Send(self.client_AddUser(receiver, client))
 
 	def broadcast_RemoveUser(self, client):
 		for name, receiver in self._root.usernames.items():
@@ -685,9 +687,9 @@ class Protocol:
 	def client_AddUser(self, receiver, user):
 		'sends the protocol for adding a user'
 		if receiver.compat['a']: #accountIDs
-			receiver.Send('ADDUSER %s %s %s %s' % (user.username, user.country_code, user.cpu, user.db_id))
-			return
-		receiver.Send('ADDUSER %s %s %s' % (user.username, user.country_code, user.cpu))
+			return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, user.cpu, user.db_id)
+		else:
+			return 'ADDUSER %s %s %s' % (user.username, user.country_code, user.cpu)
 
 	def client_RemoveUser(self, client, user):
 		'sends the protocol for removing a user'
@@ -706,15 +708,14 @@ class Protocol:
 		battle.ip = translated_ip
 		battle.host = host.session_id # session_id -> username
 		if client.compat['cl']: #supports cleanupBattles
-			client.RealSend('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s\t%s\t%s' %(battle.id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded, battle.rank, battle.maphash, battle.engine, battle.version, battle.map, battle.title, battle.modname))
-			return
-			
+			return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s\t%s\t%s' %(battle.id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded, battle.rank, battle.maphash, battle.engine, battle.version, battle.map, battle.title, battle.modname)
+
 		# give client without version support a hint, that this battle is incompatible to his version
 		if not (battle.engine == 'spring' and (battle.version == self._root.latestspringversion or battle.version == self._root.latestspringversion + '.0')):
 			title =  'Incompatible (%s %s) %s' %(battle.engine, battle.version, battle.title)
 		else:
 			title = battle.title
-		client.RealSend('BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' % (battle.id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded, battle.rank, battle.maphash, battle.map, title, battle.modname))
+		return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' % (battle.id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded, battle.rank, battle.maphash, battle.map, title, battle.modname)
 
 	def is_ignored(self, client, ignoredClient):
 		# verify that this is an online client (only those have an .ignored attr)
@@ -909,7 +910,7 @@ class Protocol:
 			try:
 				client.last_id = uint32(user_id)
 			except:
-				self.out_SERVERMSG(client, 'Invalid user_id specified: %s' % (user_id), True)
+				self.out_SERVERMSG(client, 'Invalid userID specified: %s' % (user_id), True)
 		else:
 			lobby_id = sentence_args
 
@@ -991,10 +992,10 @@ class Protocol:
 		for sessid, addclient in self._root.clients.items():
 			if not addclient.logged_in:
 				continue
-			self.client_AddUser(client, addclient)
+			client.RealSend(self.client_AddUser(client, addclient))
 
 		for battleid, battle in self._root.battles.items():
-			self.client_AddBattle(client, battle)
+			client.RealSend(self.client_AddBattle(client, battle))
 			client.RealSend('UPDATEBATTLEINFO %s %i %i %s %s' % (battle.id, battle.spectators, battle.locked, battle.maphash, battle.map))
 			for session_id in battle.users:
 				battleclient = self.clientFromSession(session_id)
@@ -2686,42 +2687,32 @@ class Protocol:
 		target = self.clientFromUsername(username)
 		if good and target: # is online
 			self.in_KICK(client, target.username, "banned")
-		if good: 
-			self.broadcast_Moderator("%s banned <%s> for %s days (%s)" % (client.username, username, duration, reason))
-		if response: 
-			self.out_SERVERMSG(client, '%s' % response)
+		if good: self.broadcast_Moderator("%s banned <%s> for %s days (%s)" % (client.username, username, duration, reason))
+		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_BANSPECIFIC(self, client, arg, duration, reason):
 		# arg might be a username(->db_id), ip, or email; ban it
 		good, response = self.bandb.ban_specific(client, duration, reason, arg)
-		if good: 
-			self.broadcast_Moderator("%s banned-specific <%s> for %s days (%s)" % (client.username, arg, duration, reason))
-		if response: 
-			self.out_SERVERMSG(client, '%s' % response)
+		if good: self.broadcast_Moderator("%s banned-specific <%s> for %s days (%s)" % (client.username, arg, duration, reason))
+		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_UNBAN(self, client, arg):
 		# arg might be a username(->db_id), ip, or email; remove all associated bans
 		good, response = self.bandb.unban(client, arg)
-		if good: 
-			self.broadcast_Moderator("%s unbanned <%s>" % (client.username, arg))
-		if response: 
-			self.out_SERVERMSG(client, '%s' % response)
+		if good: self.broadcast_Moderator("%s unbanned <%s>" % (client.username, arg))
+		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_BLACKLIST(self, client, domain, reason=""):
 		# add somedomain.xyz to the blacklist
 		good, response = self.bandb.blacklist(client, domain, reason)
-		if good: 
-			self.broadcast_Moderator("%s blacklisted '%s' (%s)" % (client.username, domain, reason))
-		if response: 
-			self.out_SERVERMSG(client, '%s' % response)
+		if good: self.broadcast_Moderator("%s blacklisted '%s' (%s)" % (client.username, domain, reason))
+		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_UNBLACKLIST(self, client, domain):
 		# remove somedomain.xyz from the blacklist
 		good, response = self.bandb.unblacklist(client, domain)
-		if good: 
-			self.broadcast_Moderator("%s un-blacklisted '%s'" % (client.username, domain))
-		if response: 
-			self.out_SERVERMSG(client, '%s' % response)
+		if good: self.broadcast_Moderator("%s un-blacklisted '%s'" % (client.username, domain))
+		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_LISTBANS(self, client):
 		# send the banlist 
