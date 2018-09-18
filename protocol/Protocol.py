@@ -688,7 +688,7 @@ class Protocol:
 	def client_AddUser(self, receiver, user):
 		'sends the protocol for adding a user'
 		if receiver.compat['l']:
-			return 'ADDUSER %s %s %s %s %s' % (user.username, user.country_code, user.db_id, user.lobby_id)
+			return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, user.db_id, user.lobby_id)
 		if receiver.compat['a']: #accountIDs
 			return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, 0, user.db_id)
 
