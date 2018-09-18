@@ -179,13 +179,13 @@ def datetime_totimestamp(dt):
 
 	
 flag_map = {
-	'a':  'accountIDs',      # send account IDs in ADDUSER
 	'l':  'lobbyIDs',        # send lobby IDs in ADDUSER
 	'b':  'battleAuth',      # JOINBATTLEREQUEST/ACCEPT/DENY
 	'sp': 'scriptPassword',  # scriptPassword in JOINEDBATTLE
 	'et': 'sendEmptyTopic',  # send NOCHANNELTOPIC on join if channel has no topic
 	'cl': 'cleanupBattles',  # BATTLEOPENED / OPENBATTLE with support for engine/version
 	'p':  'agreementPlain',  # AGREEMENT is plaintext
+	'a':  'accountIDs',      # deprecated / replaced by 'l'
 	'm':  'matchmaking',     # deprecated / not used any more (keept to avoid sending errors to clients)
 }
 
