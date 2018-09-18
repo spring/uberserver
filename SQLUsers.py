@@ -89,8 +89,7 @@ logins_table = Table('logins', metadata,
 	Column('user_dbid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('ip_address', String(15), nullable=False),
 	Column('time', DateTime),
-	Column('lobby_id', String(128)),
-	Column('cpu', Integer),
+	Column('lobby_id', String(64)),
 	Column('local_ip', String(15)), # needs update for ipv6
 	Column('country', String(4)),
 	Column('end', DateTime),
@@ -98,12 +97,11 @@ logins_table = Table('logins', metadata,
 	mysql_charset='utf8',
 	)
 class Login(object):
-	def __init__(self, now, ip_address, lobby_id, user_id, cpu, local_ip, country):
+	def __init__(self, now, ip_address, lobby_id, user_id, local_ip, country):
 		self.time = now
 		self.ip_address = ip_address
 		self.lobby_id = lobby_id
 		self.user_id = user_id
-		self.cpu = cpu
 		self.local_ip = local_ip
 		self.country = country
 		#self.end = 0
@@ -375,7 +373,7 @@ class UsersHandler:
 			remaining = '%s hours remaining' % (int(timeleft / (60 * 60)))
 		return remaining
 		
-	def login_user(self, username, password, ip, lobby_id, user_id, cpu, local_ip, country):
+	def login_user(self, username, password, ip, lobby_id, user_id, local_ip, country):
 		if self._root.censor and not self._root.SayHooks._nasty_word_censor(username):
 			return False, 'Name failed to pass profanity filter.'
 
@@ -394,7 +392,7 @@ class UsersHandler:
 			reason += self.remaining_ban_str(dbban, now)
 			return False, reason
 			
-		dbuser.logins.append(Login(now, ip, lobby_id, user_id, cpu, local_ip, country))
+		dbuser.logins.append(Login(now, ip, lobby_id, user_id, local_ip, country))
 		dbuser.time = now
 		dbuser.last_ip = ip
 		dbuser.last_id = user_id

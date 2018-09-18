@@ -180,6 +180,7 @@ def datetime_totimestamp(dt):
 	
 flag_map = {
 	'a': 'accountIDs',       # send account IDs in ADDUSER
+	'l' : 'lobbyIDs',        # send lobby IDs in ADDUSER
 	'b': 'battleAuth',       # JOINBATTLEREQUEST/ACCEPT/DENY
 	'sp': 'scriptPassword',  # scriptPassword in JOINEDBATTLE
 	'et': 'sendEmptyTopic',  # send NOCHANNELTOPIC on join if channel has no topic
@@ -686,10 +687,12 @@ class Protocol:
 
 	def client_AddUser(self, receiver, user):
 		'sends the protocol for adding a user'
+		if receiver.compat['l']:
+			return 'ADDUSER %s %s %s %s %s' % (user.username, user.country_code, user.db_id, user.lobby_id)
 		if receiver.compat['a']: #accountIDs
-			return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, user.cpu, user.db_id)
-		else:
-			return 'ADDUSER %s %s %s' % (user.username, user.country_code, user.cpu)
+			return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, 0, user.db_id)
+
+		return 'ADDUSER %s %s %s' % (user.username, user.country_code, 0)
 
 	def client_RemoveUser(self, client, user):
 		'sends the protocol for removing a user'
@@ -843,7 +846,7 @@ class Protocol:
 
 		@required.str username: Username
 		@required.str password: Password (old-style: BASE64(MD5(PWRD)), new-style: BASE64(PWRD))
-		@optional.int cpu: CPU speed
+		@optional.int cpu: deprecated
 		@optional.ip local_ip: LAN IP address, sent to clients when they have the same WAN IP as host
 		@optional.sentence.str lobby_id: Lobby name and version
 		@optional.sentence.int user_id: User ID provided by lobby
@@ -873,9 +876,6 @@ class Protocol:
 		if (username in self._root.usernames):
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
-
-		try: int32(cpu)
-		except: cpu = '0'
 
 		user_id = 0
 		## represents <client> after logging in
@@ -914,8 +914,11 @@ class Protocol:
 		else:
 			lobby_id = sentence_args
 
+		if len(lobby_id) > 64:
+			self.out_DENIED(client, username, "lobby_id is to long (max=64 chars)")
+			return
 
-		good, user_or_error = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, cpu, local_ip, client.country_code)
+		good, user_or_error = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, local_ip, client.country_code)
 
 		if (not good):
 			assert (type(user_or_error) == str)
@@ -941,7 +944,6 @@ class Protocol:
 		client.bot = user_or_error.bot
 		client.register_date = user_or_error.register_date
 		client.last_login = user_or_error.last_login
-		client.cpu = cpu
 		client.email = user_or_error.email
 
 		client.local_ip = None
