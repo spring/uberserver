@@ -179,8 +179,9 @@ def datetime_totimestamp(dt):
 
 	
 flag_map = {
-	'a': 'accountIDs',       # send account IDs in ADDUSER
-	'b': 'battleAuth',       # JOINBATTLEREQUEST/ACCEPT/DENY
+	'a' : 'accountIDs',      # send account IDs in ADDUSER
+	'l' : 'lobbyIDs',        # send lobby IDs in ADDUSER
+	'b' : 'battleAuth',      # JOINBATTLEREQUEST/ACCEPT/DENY
 	'sp': 'scriptPassword',  # scriptPassword in JOINEDBATTLE
 	'et': 'sendEmptyTopic',  # send NOCHANNELTOPIC on join if channel has no topic
 	'cl': 'cleanupBattles',  # BATTLEOPENED / OPENBATTLE with support for engine/version
@@ -686,8 +687,12 @@ class Protocol:
 
 	def client_AddUser(self, receiver, user):
 		'sends the protocol for adding a user'
-		if receiver.compat['a']: #accountIDs
+		if receiver.compat['l'] and receiver.compat['a']:
+			return 'ADDUSER %s %s %s %s %s' % (user.username, user.country_code, user.cpu, user.db_id, user.lobby_id)
+		if receiver.compat['a']: # accountIDs
 			return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, user.cpu, user.db_id)
+		if receiver.compat['l']: # lobbyIDs
+			return 'ADDUSER %s %s %s %s %s' % (user.username, user.country_code, user.cpu, user.lobby_id)
 		else:
 			return 'ADDUSER %s %s %s' % (user.username, user.country_code, user.cpu)
 
