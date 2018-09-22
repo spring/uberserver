@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # coding=utf-8
 
-import inspect, time, re, sys
-
+import inspect
+import time
+import re
+import sys
 import socket
 import Channel
 import Battle
@@ -176,6 +178,22 @@ def uint32(x):
 
 def datetime_totimestamp(dt):
 	return int(time.mktime(dt.timetuple()))
+
+def versiontuple(version):
+	assert(len(version) > 0)
+	v = ""
+	for c in version:
+		if c not in "0123456789.":
+			break
+		v+=c
+	return tuple(map(int, (v.split("."))))
+
+def validEngineVersion(engine, version, minver):
+	if engine != "spring":
+		return False
+	if not version:
+		return False
+	return versiontuple(version) >= versiontuple(minver)
 
 	
 flag_map = {
@@ -1589,6 +1607,7 @@ class Protocol:
 			maxplayers = 10
 			self.out_SERVERMSG(client, "Without botflag its not allowed to host battles with > 10 players. Your battle was restricted to 10 players")
 
+
 		client.current_battle = battle_id
 
 		battle = Battle.Battle(
@@ -1596,8 +1615,14 @@ class Protocol:
 						password=password, port=port, maxplayers=maxplayers, hashcode=hashcode,
 						rank=rank, maphash=maphash, map=map, title=title, modname=modname,
 						passworded=passworded, host=client.session_id, users={client.session_id})
-		battle.engine=engine
-		battle.version=version
+
+		if client.bot and not validEngineVersion(engine, version, self._root.latestspringversion):
+			battle.engine = "spring"
+			battle.version = self._root.latestspringversion
+			self.out_FAILED(client, "Engine version specified is invalid, reset to default version: %s %s" %(battle.engine, battle.version))
+		else:
+			battle.engine=engine
+			battle.version=version
 
 		self._root.battles[battle_id] = battle
 		self.broadcast_AddBattle(battle)
@@ -3108,6 +3133,23 @@ def selftest():
 	assert(p._validChannelSyntax("abcde")[0])
 	assert(not p._validChannelSyntax("#abcde")[0])
 	assert(not p._validChannelSyntax("ab cde")[0])
+
+	minver = "104.0"
+	tests = {
+		"103.0": False,
+		"83.0": False,
+		"84.1": False,
+		"83.0.1-13-g1234aaf develop": False,
+		"84.1.1-1354-g1234567 release": False,
+		"98.0.1-847-g61dee311 develop": False,
+		"104.0": True,
+		"104.0.1-730-g9af20e498a maintenance": True,
+		"104.0.1-1145-g6bce463 develop": True,
+		"105.0": True,
+		"105.0.1": True,
+	}
+	for ver, res in tests.items():
+		assert(validEngineVersion("spring", ver, minver) == res)
 
 if __name__ == '__main__':
 	import os
