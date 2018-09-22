@@ -1575,6 +1575,10 @@ class Protocol:
 				self.out_OPENBATTLEFAILED(client, error)
 				return
 
+		if client.bot and not validEngineVersion(engine, version, self._root.latestspringversion):
+			self.out_OPENBATTLEFAILED(client, "Engine version specified is invalid, at least version: %s %s is required to host!" %(battle.engine, battle.version))
+			return
+
 		battle_id = self._getNextBattleId()
 
 		if password == '*':
@@ -1616,13 +1620,9 @@ class Protocol:
 						rank=rank, maphash=maphash, map=map, title=title, modname=modname,
 						passworded=passworded, host=client.session_id, users={client.session_id})
 
-		if client.bot and not validEngineVersion(engine, version, self._root.latestspringversion):
-			battle.engine = "spring"
-			battle.version = self._root.latestspringversion
-			self.out_FAILED(client, "Engine version specified is invalid, reset to default version: %s %s" %(battle.engine, battle.version))
-		else:
-			battle.engine=engine
-			battle.version=version
+
+		battle.engine=engine
+		battle.version=version
 
 		self._root.battles[battle_id] = battle
 		self.broadcast_AddBattle(battle)
