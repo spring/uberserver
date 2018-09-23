@@ -60,13 +60,15 @@ class DataHandler:
 		self.trusted_proxies = []
 
 		self.start_time = time.time()
+		self.detectIp()
+		self.cert = None
+		
+		# lists of online stuff
 		self.channels = {}
 		self.usernames = {}
 		self.clients = {}
-		self.db_ids = {}
+		self.user_ids = {} 
 		self.battles = {}
-		self.detectIp()
-		self.cert = None
 		
 	def initlogger(self, filename):
 		# logging
@@ -313,8 +315,8 @@ class DataHandler:
 	def getBanDB(self):
 		return self.bandb
 
-	def clientFromID(self, db_id):
-		if db_id in self.db_ids: return self.db_ids[db_id]
+	def clientFromID(self, user_id):
+		if user_id in self.user_ids: return self.user_ids[user_id]
 
 	def clientFromUsername(self, username):
 		if username in self.usernames: return self.usernames[username]
@@ -340,11 +342,11 @@ class DataHandler:
 			for chan in channels:
 				channel = channels[chan]
 				mutelist = channel.mutelist
-				for db_id in mutelist:
-					expiretime = mutelist[db_id]['expires']
+				for user_id in mutelist:
+					expiretime = mutelist[user_id]['expires']
 					if 0 < expiretime and expiretime < now:
-						del channel.mutelist[db_id]
-						client = self.clientFromID(db_id)
+						del channel.mutelist[user_id]
+						client = self.clientFromID(user_id)
 						if client:
 							channel.channelMessage('<%s> has been unmuted (mute expired).' % client.username)
 		except:
@@ -363,7 +365,7 @@ class DataHandler:
 			if client.session_id in ignore:
 				continue
 
-			if sourceClient and sourceClient.db_id in client.ignored:
+			if sourceClient and sourceClient.user_id in client.ignored:
 				continue
 
 			if client.static:

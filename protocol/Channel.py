@@ -28,8 +28,8 @@ class Channel():
 	def channelMessage(self, message):
 		self.broadcast('CHANNELMESSAGE %s %s' % (self.name, message))
 
-	def register(self, client, owner_user_id):
-		self.owner_user_id = owner.db_id
+	def register(self, client, owner_user_id): # fixme: unused?
+		self.owner_user_id = owner_user_id
 
 	def addUser(self, client):
 		if client.session_id in self.users:
@@ -58,10 +58,10 @@ class Channel():
 		return client and (('mod' in client.accesslevels) or self.isAdmin(client))
 
 	def isFounder(self, client):
-		return client and ((client.db_id == self.owner_user_id) or self.isMod(client))
+		return client and ((client.user_id == self.owner_user_id) or self.isMod(client))
 
 	def isOp(self, client):
-		return client and ((client.db_id in self.operators) or self.isFounder(client))
+		return client and ((client.user_id in self.operators) or self.isFounder(client))
 
 	def getAccess(self, client): # return client's security clearance
 		return 'mod' if self.isMod(client) else\
@@ -70,11 +70,11 @@ class Channel():
 				'normal'))
 
 	def isMuted(self, client):
-		return client.db_id in self.mutelist
+		return client.user_id in self.mutelist
 
 	def getMuteMessage(self, client):
 		if self.isMuted(client):
-			m = self.mutelist[client.db_id]
+			m = self.mutelist[client.user_id]
 			if m['expires'] == 0:
 				return 'muted forever'
 			else:
@@ -85,9 +85,9 @@ class Channel():
 
 	def isAllowed(self, client):
 		if self.autokick == 'allow':
-			return (self.isOp(client) or (client.db_id in self.allow)) or 'not allowed here'
+			return (self.isOp(client) or (client.user_id in self.allow)) or 'not allowed here'
 		elif self.autokick == 'ban':
-			return (self.isOp(client) or (client.db_id not in self.ban)) or self.ban[client.db_id]
+			return (self.isOp(client) or (client.user_id not in self.ban)) or self.ban[client.user_id]
 
 	def setTopic(self, client, topic):
 		self.topic = topic
@@ -114,57 +114,57 @@ class Channel():
 	def setFounder(self, client, target):
 		if not target:
 			return
-		self.owner_user_id = target.db_id
+		self.owner_user_id = target.user_id
 		self.channelMessage("<%s> has just been set as this channel's founder by <%s>" % (target.username, client.username))
 
 	def opUser(self, client, target):
 		if not target:
 			return
-		if target.db_id in self.operators:
+		if target.user_id in self.operators:
 			return
-		self.operators.add(target.db_id)
+		self.operators.add(target.user_id)
 		self.channelMessage("<%s> has just been added to this channel's operator list by <%s>" % (target.username, client.username))
 
 	def deopUser(self, client, target):
 		if not target:
 			return
-		if not target.db_id in self.operators:
+		if not target.user_id in self.operators:
 			return
-		self.operators.remove(target.db_id)
+		self.operators.remove(target.user_id)
 		self.channelMessage("<%s> has just been removed from this channel's operator list by <%s>" % (target.username, client.username))
 
 	def banUser(self, client, target, reason=''):
 		if self.isFounder(target): return
 		if not target:
 			 return
-		if not target.db_id in self.ban:
+		if not target.user_id in self.ban:
 			return
-		self.ban[target.db_id] = reason
+		self.ban[target.user_id] = reason
 		self.kickUser(client, target, reason)
 		self.channelMessage('<%s> has been banned from this channel by <%s>' % (target.username, client.username))
 
 	def unbanUser(self, client, target):
 		if not target:
 			return
-		if not target.db_id in self.ban:
+		if not target.user_id in self.ban:
 			return
-		del self.ban[target.db_id]
+		del self.ban[target.user_id]
 		self.channelMessage('<%s> has been unbanned from this channel by <%s>' % (target.username, client.username))
 
 	def allowUser(self, client, target):
 		if not target:
 			return
-		if client.db_id in self.allow:
+		if client.user_id in self.allow:
 			return
-		self.allow.append(client.db_id)
+		self.allow.append(client.user_id)
 		self.channelMessage('<%s> has been allowed in this channel by <%s>' % (target.username, client.username))
 
 	def disallowUser(self, client, target):
 		if not target:
 			return
-		if not client.db_id in self.allow:
+		if not client.user_id in self.allow:
 			return
-		self.allow.remove(client.db_id)
+		self.allow.remove(client.user_id)
 		self.channelMessage('<%s> has been disallowed in this channel by <%s>' % (target.username, client.username))
 
 	def muteUser(self, client, target, duration=0):
@@ -172,7 +172,7 @@ class Channel():
 			return
 		if not target:
 			return
-		if client.db_id in self.mutelist:
+		if client.user_id in self.mutelist:
 			return
 		try:
 			duration = float(duration)
@@ -185,13 +185,13 @@ class Channel():
 			self.channelMessage('<%s> has muted <%s> for %s minutes' % (client.username, target.username, duration))				
 			duration = duration * 60 #convert to seconds
 			duration = time.time() + duration
-		self.mutelist[target.db_id] = {'expires':duration }
+		self.mutelist[target.user_id] = {'expires':duration }
 
 	def unmuteUser(self, client, target):
 		if not target:
 			return
-		if not target.db_id in self.mutelist:
+		if not target.user_id in self.mutelist:
 			return
-		del self.mutelist[target.db_id]
+		del self.mutelist[target.user_id]
 		self.channelMessage('<%s> has unmuted <%s>' % (client.username, target.username))
 
