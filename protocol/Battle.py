@@ -25,8 +25,8 @@ class Battle():
 
 		self.pending_users = set()
 
-		self.engine = 'spring'
-		self.version = root.latestspringversion
+		self.engine = ''
+		self.version = ''
 
 		self.bots = {}
 		self.script_tags = {}

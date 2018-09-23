@@ -31,7 +31,7 @@ class DataHandler:
 		self.console_buffer = []
 		self.port = 8200
 		self.natport = self.port + 1
-		self.latestspringversion = '*'
+		self.min_spring_version = '*'
 		self.agreementfile = 'agreement.txt'
 		self.agreement = []
 		self.server = 'TASServer'
@@ -165,7 +165,7 @@ class DataHandler:
 		print('      { Writes console output to file (for logging) }')
 		print('  -u, --sighup')
 		print('      { Reload the server on SIGHUP (if SIGHUP is supported by OS) }')
-		print('  -v, --latestspringversion version')
+		print('  -v, --min_spring_version version')
 		print('      { Sets latest Spring version to this string. Defaults to "*" }')
 		print('  -s, --sqlurl SQLURL')
 		print('      { Uses SQL database at the specified sqlurl for user, channel, and ban storage. }')
@@ -241,8 +241,8 @@ class DataHandler:
 				except: print('Error specifying log location')
 			elif arg in ['u', 'sighup']:
 				self.sighup = True
-			elif arg in ['v', 'latestspringversion']:
-				try: self.latestspringversion = argp[0] # ' '.join(argp) # shouldn't have spaces
+			elif arg in ['v', 'min_spring_version']:
+				try: self.min_spring_version = argp[0] # ' '.join(argp) # shouldn't have spaces
 				except: print('Error specifying latest spring version')
 			elif arg in ['s', 'sqlurl']:
 				try:
