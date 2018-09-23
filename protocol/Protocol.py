@@ -522,6 +522,7 @@ class Protocol:
 		if not client.TLS:
 			missing_flags += ' tls'
 			client.RealSend("MOTD Your client didn't use tls for logging in, please upgrade it!")
+			client.RealSend("MOTD see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#STLS:client")
 		if len(missing_flags) > 0:
 			logging.info('[%s] <%s> client "%s" missing compat flags:%s'%(client.session_id, client.username, client.lobby_id, missing_flags))
 
