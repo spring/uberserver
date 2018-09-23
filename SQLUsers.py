@@ -294,7 +294,7 @@ class Ban(object):
 		return "<Ban: %s (%s, %s)>" % (ban_str, self.issuer_user_id, self.end_date)
 mapper(Ban, ban_table)
 ##########################################
-blacklisted_email_domain_table = Table('blacklisted email domains', metadata, # email domains that can't be used for account verification
+blacklisted_email_domain_table = Table('blacklisted_email_domains', metadata, # email domains that can't be used for account verification
 	Column('id', Integer, primary_key=True),
 	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True), # user which set ban
 	Column('domain', String(254), unique=True), 
