@@ -246,8 +246,6 @@ class DataHandler:
 					self.min_spring_version = argp[0] # ' '.join(argp) # shouldn't have spaces
 				except Exception as e: 
 					print('Error specifying spring version: ' + str(e))
-				if self.min_spring_version=='latest':
-					self.set_latest_spring_version()
 			elif arg in ['s', 'sqlurl']:
 				try:
 					self.sqlurl = argp[0]
@@ -308,18 +306,6 @@ class DataHandler:
 		ins.close()
 		self.loadCertificates()
 
-	def set_latest_spring_version(self):
-		try:
-			timeout = socket.getdefaulttimeout()
-			socket.setdefaulttimeout(5)
-			data = urlopen("https://springrts.com/dl/buildbot/default/master/LATEST_win32").read(5).decode("utf-8") 
-			socket.setdefaulttimeout(timeout)
-			data = data.split("\n") #safety
-			self.min_spring_version = data[0]
-			logging.info("Set min spring version to latest: " + self.min_spring_version)
-		except Exception as e:
-			logging.info("Failed to set Spring version to latest: " + str(e))
-			
 	def getUserDB(self):
 		return self.userdb
 
