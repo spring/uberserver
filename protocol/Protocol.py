@@ -2689,6 +2689,8 @@ class Protocol:
 		for battleId, battle in self._root.battles.items():
 			if self.hasBotflag(battle) and not self._validEngineVersion(battle.engine, battle.version):
 				legacyBattleIds.append(battleId)
+				host = self.clientFromSession(battle.host)
+				self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s This battle will close, please join a battle with the new Spring version!' % host.username)
 		for battleId in legacyBattleIds:
 			battle = self._root.battles[battleId]
 			self.broadcast_RemoveBattle(battle)
