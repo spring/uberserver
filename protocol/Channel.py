@@ -145,9 +145,9 @@ class Channel():
 		self.channelMessage('<%s> has been unbanned from this channel by <%s>' % (target.username, client.username))
 
 	def muteUser(self, client, target, duration=0):
-		if self.isFounder(target): 
-			return
 		if not target:
+			return
+		if self.isFounder(target): 
 			return
 		if client.db_id in self.mutelist:
 			return
