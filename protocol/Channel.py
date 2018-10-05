@@ -11,7 +11,6 @@ class Channel():
 
 		self.ban = {}
 		self.mutelist = {}
-		self.allow = []
 
 		self.autokick = 'ban'
 		self.chanserv = False
@@ -83,12 +82,6 @@ class Channel():
 		else:
 			return 'not muted'
 
-	def isAllowed(self, client):
-		if self.autokick == 'allow':
-			return (self.isOp(client) or (client.db_id in self.allow)) or 'not allowed here'
-		elif self.autokick == 'ban':
-			return (self.isOp(client) or (client.db_id not in self.ban)) or self.ban[client.db_id]
-
 	def setTopic(self, client, topic):
 		self.topic = topic
 
@@ -150,22 +143,6 @@ class Channel():
 			return
 		del self.ban[target.db_id]
 		self.channelMessage('<%s> has been unbanned from this channel by <%s>' % (target.username, client.username))
-
-	def allowUser(self, client, target):
-		if not target:
-			return
-		if client.db_id in self.allow:
-			return
-		self.allow.append(client.db_id)
-		self.channelMessage('<%s> has been allowed in this channel by <%s>' % (target.username, client.username))
-
-	def disallowUser(self, client, target):
-		if not target:
-			return
-		if not client.db_id in self.allow:
-			return
-		self.allow.remove(client.db_id)
-		self.channelMessage('<%s> has been disallowed in this channel by <%s>' % (target.username, client.username))
 
 	def muteUser(self, client, target, duration=0):
 		if self.isFounder(target): 
