@@ -141,7 +141,7 @@ restricted = {
 	'ADMINBROADCAST',
 	'BROADCAST',
 	'BROADCASTEX',
-	'SETLATESTSPRINGVERSION',
+	'SETMINSPRINGVERSION',
 	#########
 	# users
 	'SETACCESS',
@@ -188,14 +188,7 @@ def versiontuple(version):
 		v+=c
 	return tuple(map(int, (v.split("."))))
 
-def validEngineVersion(engine, version, minver):
-	if engine != "spring":
-		return False
-	if not version:
-		return False
-	return versiontuple(version) >= versiontuple(minver)
 
-	
 flag_map = {
 	'l':  'lobbyIDs',        # send lobby IDs in ADDUSER
 	'b':  'battleAuth',      # JOINBATTLEREQUEST/ACCEPT/DENY
@@ -217,7 +210,7 @@ class Protocol:
 		self.stats = {}
 
 	def _new(self, client):
-		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0'))
+		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0'))
 		if self._root.redirect:
 			login_string += "\nREDIRECT " + self._root.redirect
 
@@ -525,6 +518,16 @@ class Protocol:
 		if len(missing_flags) > 0:
 			logging.info('[%s] <%s> client "%s" missing compat flags:%s'%(client.session_id, client.username, client.lobby_id, missing_flags))
 
+	def _validEngineVersion(self, engine, version):
+		if engine != "spring":
+			return False
+		minver = self._root.min_spring_version
+		if minver == '*':
+			return True
+		if not version:
+			return False
+		return versiontuple(version) >= versiontuple(minver)
+
 	def _validLegacyPasswordSyntax(self, password):
 		'checks if an old-style password is correctly encoded'
 		if (not password):
@@ -649,7 +652,13 @@ class Protocol:
 		logging.error("Couldn't get client from session_id: %d %s"% (session_id, traceback.format_exc()))
 		self.cleanup()
 		return None
-
+	
+	def hasBotflag(self, battle):
+		host = self.clientFromSession(battle.host)
+		if not host:
+			return False
+		return host.bot
+	
 	def clientFromUsername(self, username, fromdb = False):
 		'given a username, returns a client object from memory or the database'
 		client = self._root.clientFromUsername(username)
@@ -732,7 +741,7 @@ class Protocol:
 			return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s\t%s\t%s' %(battle.id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded, battle.rank, battle.maphash, battle.engine, battle.version, battle.map, battle.title, battle.modname)
 
 		# give client without version support a hint, that this battle is incompatible to his version
-		if not (battle.engine == 'spring' and (battle.version == self._root.latestspringversion or battle.version == self._root.latestspringversion + '.0')):
+		if not (battle.engine == 'spring' and (battle.version == self._root.min_spring_version or battle.version == self._root.min_spring_version + '.0')):
 			title =  'Incompatible (%s %s) %s' %(battle.engine, battle.version, battle.title)
 		else:
 			title = battle.title
@@ -844,7 +853,7 @@ class Protocol:
 		self.userdb.register_user(username, password, client.ip_address, client.country_code, email)
 		client_fromdb = self.clientFromUsername(username, True)
 
-		# verification  
+		# verification	
 		verif_reason = "registered an account on the SpringRTS lobbyserver"
 		wait_duration = 30 # seconds
 		good, reason = self.verificationdb.check_and_send(client_fromdb.user_id, email, verif_reason, wait_duration)
@@ -921,7 +930,7 @@ class Protocol:
 				for flag in flags:
 					client.compat[flag] = True
 					if not flag in flag_map:
-						unsupported +=  (" " + flag)
+						unsupported +=	(" " + flag)
 
 				if (len(unsupported) > 0):
 					self.out_SERVERMSG(client, 'Unsupported/unknown compatibility flag(s) in LOGIN: %s' % (unsupported), True)
@@ -1556,7 +1565,7 @@ class Protocol:
 		elif not client.compat['cl'] and argcount == 2:
 			map, title, modname = sentence_args.split('\t',2)
 			engine = 'spring'
-			version = self._root.latestspringversion
+			version = self._root.min_spring_version
 		else:
 			self.out_OPENBATTLEFAILED(client, 'To few arguments: %d' %(argcount))
 			return False
@@ -1575,8 +1584,8 @@ class Protocol:
 				self.out_OPENBATTLEFAILED(client, error)
 				return
 
-		if client.bot and not validEngineVersion(engine, version, self._root.latestspringversion):
-			self.out_OPENBATTLEFAILED(client, "Engine version specified is invalid, at least version: %s %s is required to host!" %(battle.engine, battle.version))
+		if client.bot and not self._validEngineVersion(engine, version):
+			self.out_OPENBATTLEFAILED(client, "Engine version specified is invalid: Spring %s or later is required!" % self._root.min_spring_version)
 			return
 
 		battle_id = self._getNextBattleId()
@@ -2664,15 +2673,26 @@ class Protocol:
 		'''
 		self._root.admin_broadcast(msg)
 
-	def in_SETLATESTSPRINGVERSION(self, client, version):
+	def in_SETMINSPRINGVERSION(self, client, version):
 		'''
-		Set a new version of Spring as the latest.
+		Set a new min Spring version.
 
 		@required.str version: The new version to apply.
 		'''
-		self._root.latestspringversion = version
-		self.out_SERVERMSG(client, 'Latest spring version is now set to: %s' % version)
-
+		self._root.min_spring_version = version
+		self.in_BROADCAST(client, 'New engine version: Spring %s' % version)
+		
+		legacyBattleIds = []
+		for battleId, battle in self._root.battles.items():
+			if self.hasBotflag(battle) and not self._validEngineVersion(battle.engine, battle.version):
+				legacyBattleIds.append(battleId)
+				host = self.clientFromSession(battle.host)
+				self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s -- This battle will close -- %s %s or later is now required by the server. Please join a battle with the new Spring version!' % (host.username, 'Spring', version))
+		for battleId in legacyBattleIds:
+			battle = self._root.battles[battleId]
+			self.broadcast_RemoveBattle(battle)
+			del self._root.battles[battleId]
+				
 	def in_KICK(self, client, username, reason=''):
 		'''
 		Kick target user from the server.
@@ -2986,13 +3006,13 @@ class Protocol:
 		#deprecated
 		client.StartTLS()
 		client.flushBuffer()
-		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0')))
+		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0')))
 
 	def in_STLS(self, client):
 		self.out_OK(client, "STLS")
 		client.StartTLS()
 		client.flushBuffer()
-		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.latestspringversion, str(self._root.natport), '0')))
+		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0')))
 
 	def in_JSON(self, client, rawcmd):
 		try:
@@ -3131,7 +3151,7 @@ def selftest():
 	assert(not p._validChannelSyntax("#abcde")[0])
 	assert(not p._validChannelSyntax("ab cde")[0])
 
-	minver = "104.0"
+	p._root.min_spring_version = "104.0"
 	tests = {
 		"103.0": False,
 		"83.0": False,
@@ -3146,7 +3166,7 @@ def selftest():
 		"105.0.1": True,
 	}
 	for ver, res in tests.items():
-		assert(validEngineVersion("spring", ver, minver) == res)
+		assert(p._validEngineVersion("spring", ver) == res)
 
 if __name__ == '__main__':
 	import os
