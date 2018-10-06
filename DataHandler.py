@@ -70,6 +70,8 @@ class DataHandler:
 		self.user_ids = {} 
 		self.battles = {}
 		
+		self.bridge_location_bots = {}		
+		
 	def initlogger(self, filename):
 		# logging
 		server_logfile = os.path.join(os.path.dirname(__file__), filename)

@@ -2,6 +2,7 @@ import socket, time, sys, ip2country, errno
 
 from collections import defaultdict
 from BaseClient import BaseClient
+from BridgedClient import BridgedClient
 
 class Client(BaseClient):
 	'this object represents one server-side connected client'
@@ -97,6 +98,29 @@ class Client(BaseClient):
 			'admin':{'msglength':10000, 'bytespersecond':100000, 'seconds':10},
 		}
 
+		self.debug = False
+		self.data = ''
+
+		# holds compatibility flags - will be set by Protocol as necessary
+		self.compat = defaultdict(lambda: False)
+		self.scriptPassword = None
+
+		self.email = ''
+
+		now = time.time()
+		self.last_login = now
+		self.failed_logins = 0
+		self.register_date = now
+		self.lastdata = now
+		self.last_id = 0
+		self.buffersend = False # write all sends to a buffer (used when a client is logging in but didn't receive full server state)
+		self.buffer = ""
+
+		self.ignored = {}
+		self.channels = set()
+		
+		self.bridged_clients = {}
+
 	def set_msg_id(self, msg):
 		self.msg_id = ""
 
@@ -120,6 +144,7 @@ class Client(BaseClient):
 	## handle data from client
 	##
 	def Handle(self, data):
+		print("< " + data)
 		if (self.access in self.floodlimit):
 			msg_limits = self.floodlimit[self.access]
 		else:
@@ -220,6 +245,7 @@ class Client(BaseClient):
 		## don't append new data to buffer when client gets removed
 		if not data:
 			return
+		print("> " + data)
 		self.transport.write(data.encode("utf-8") + b"\n")
 
 	def Send(self, data):
@@ -241,3 +267,14 @@ class Client(BaseClient):
 	def isMod(self):
 		return self.isAdmin() or ('mod' in self.accesslevels) # maybe cache these
 
+	def addBridgedClient(self, location, external_id, external_username):
+		bridgedClient = BridgedClient(self, location, external_id, external_username)
+		self.bridged_clients[bridgedClient.bridged_id] = bridgedClient
+		
+	def removeBridgedClient(self, bridgedClient):
+		bridgedClient_channels = bridgedClient.channels.copy() # avoid modifying dict while iterating
+		for channame in bridgedClient_channels:
+			channel = self._root.channels[channame]
+			channel.removeBridgedUser(self, bridgedClient)
+		del self.bridged_clients[bridgedClient.bridged_id]
+		

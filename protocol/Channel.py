@@ -5,12 +5,15 @@ class Channel():
 		self.id = 0
 		self._root = root
 		self.name = name
-		self.users = set() # list of session_ids
+		self.users = set() # session_ids
 		self.owner_user_id = None
 		self.operators = set()
 
 		self.ban = {}
 		self.mutelist = {}
+		
+		self.bridged_users = set() #bridged_ids
+		self.bridged_ban = {}
 
 		self.autokick = 'ban'
 		self.chanserv = False
@@ -37,19 +40,35 @@ class Channel():
 		self.broadcast('JOINED %s %s' % (self.name, client.username), set([client.session_id]))
 
 	def removeUser(self, client, reason=None):
-
 		if self.name in client.channels:
 			client.channels.remove(self.name)
-
 		if not client.session_id in self.users:
 			return
 		self.users.remove(client.session_id)
-
 		if reason and len(reason) > 0:
 			self.broadcast('LEFT %s %s %s' % (self.name, client.username, reason))
 		else:
 			self.broadcast('LEFT %s %s' % (self.name, client.username))
-
+	
+	def addBridgedUser(self, client, bridgedClient):
+		bridged_id = bridgedClient.bridged_id
+		if bridged_id in self.bridged_users:
+			return
+		self.bridged_users.add(bridged_id)
+		bridgedClient.channels.add(self.name)
+		self.broadcast('JOINEDFROM %s %s' % (self.name, bridgedClient.username))
+	
+	def removeBridgedUser(self, client, bridgedClient, reason=None):
+		bridged_id = bridgedClient.bridged_id
+		if not bridged_id in self.bridged_users:			
+			return
+		self.bridged_users.remove(bridged_id)
+		bridgedClient.channels.remove(self.name)
+		if reason and len(reason) > 0:
+			self.broadcast('LEFTFROM %s %s %s' % (self.name, bridgedClient.username, reason))
+		else:
+			self.broadcast('LEFTFROM %s %s' % (self.name, bridgedClient.username))
+		
 	def isAdmin(self, client):
 		return client and ('admin' in client.accesslevels)
 
@@ -144,7 +163,23 @@ class Channel():
 		del self.ban[target.user_id]
 		self.channelMessage('<%s> has been unbanned from this channel by <%s>' % (target.username, client.username))
 
-
+	def banBridgedUser(self, client, target):
+		if not target:
+			return
+		if not target.bridged_id in self.bridged_ban:
+			return
+		self.bridged_ban[target.bridged_id] = reason
+		self.removeBridgedUser(client, target)
+		self.channelMessage('<%s> has been banned from this channel by <%s>' % (target.username, client.username))
+	
+	def unbanBridgedUser(self, client, target):
+		if not target:
+			return
+		if not target.bridged_id in self.bridged_ban:
+			return
+		del self.bridged_ban[target.bridged_id]
+		self.channelMessage('<%s> has been unbanned from this channel by <%s>' % (target.username, client.username))
+	
 	def muteUser(self, client, target, duration=0):
 		if not target:
 			return
