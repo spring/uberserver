@@ -9,6 +9,7 @@ class Client(BaseClient):
 	def __init__(self, root, address, session_id):
 		'initial setup for the connected client'
 		self._root = root
+		now = time.time()
 
 		# detects if the connection is from this computer
 		if address[0].startswith('127.'):
@@ -21,75 +22,80 @@ class Client(BaseClient):
 		self.local_ip = address[0]
 		self.port = address[1]
 
-		self.country_code = '??'
-		self.setFlagByIP(self.ip_address)
-
+		# fields also in user db
+		self.user_id = -1 # db user object has a .id attr instead
+		self.set_user_pwrd_salt("", ("", "")) # inits self.username, self.password self.randsalt 
+		self.register_date = now	
+		self.last_login = now
+		self.last_ip = self.ip_address
+		self.last_id = 0
+		self.ingame_time = 0
+		self.access = 'fresh'
+		self.email = ''
+		self.bot = 0
+			
+		# session
 		self.session_id = session_id
-		self.db_id = -1
-
+		self.debug = False
 		self.static = False
 		self.sendError = False
+	
+		self.compat = defaultdict(lambda: False) # holds compatibility flags 
+
+		self.country_code = '??'
+		self.setFlagByIP(self.ip_address)
+		self.status = 12
+		self.accesslevels = ['fresh','everyone']
+
+		# note: this NEVER becomes false after LOGIN!
+		self.logged_in = False
+		self.failed_logins = 0
+
+		# server<->client comms
+		self.buffersend = False # if True, write all sends to a buffer (must not be used when a client is logging in but didn't yet receive full server state!)
+		self.buffer = ""
 		self.msg_id = ''
 		self.msg_sendbuffer = []
 		self.sendingmessage = ''
+		self.msg_length_history = {}
 
-		## time-stamps for encrypted data
+		# channels
+		self.channels = set()
+		self.ignored = {}
+		self.lastsaid = {}
+
+		# perhaps these are unused?
+		self.cpu = 0
+		self.data = '' 
+		self.lastdata = now
+
+		# time-stamps for encrypted data
 		self.incoming_msg_ctr = 0
 		self.outgoing_msg_ctr = 1
 
-		## note: this NEVER becomes false after LOGIN!
-		self.logged_in = False
-
-		self.status = 12
+		# battle stuff
 		self.is_ingame = False
-		self.access = 'fresh'
-		self.accesslevels = ['fresh','everyone']
+		self.scriptPassword = None
+		self.scriptPassword = None
 
 		self.battle_bots = {}
 		self.current_battle = None
 		self.battle_bans = []
-		self.ingame_time = 0
 		self.went_ingame = 0
 		self.spectator = False
 		self.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
 		self.teamcolor = '0'
 
-		## copies of the DB User values, set on successful LOGIN
-		self.set_user_pwrd_salt("", ("", ""))
-
 		self.hostport = None
 		self.udpport = 0
-		self.bot = 0
-		self.floodlimit = {
+		
+		self.floodlimit = { #fixme: this should be a property of the server, not the client!
 			'fresh':{'msglength':1024*32, 'bytespersecond':1024*32, 'seconds':2},
 			'user':{'msglength':1024*32, 'bytespersecond':1024*32, 'seconds':10},
 			'bot':{'msglength':1024, 'bytespersecond':10000, 'seconds':5},
 			'mod':{'msglength':10000, 'bytespersecond':10000, 'seconds':10},
 			'admin':{'msglength':10000, 'bytespersecond':100000, 'seconds':10},
 		}
-		self.msg_length_history = {}
-		self.lastsaid = {}
-
-		self.debug = False
-		self.data = ''
-
-		# holds compatibility flags - will be set by Protocol as necessary
-		self.compat = defaultdict(lambda: False)
-		self.scriptPassword = None
-
-		self.email = ''
-
-		now = time.time()
-		self.last_login = now
-		self.failed_logins = 0
-		self.register_date = now
-		self.lastdata = now
-		self.last_id = 0
-		self.buffersend = False # write all sends to a buffer (used when a client is logging in but didn't receive full server state)
-		self.buffer = ""
-
-		self.ignored = {}
-		self.channels = set()
 
 	def set_msg_id(self, msg):
 		self.msg_id = ""

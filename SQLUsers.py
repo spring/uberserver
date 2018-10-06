@@ -294,7 +294,7 @@ class Ban(object):
 		return "<Ban: %s (%s, %s)>" % (ban_str, self.issuer_user_id, self.end_date)
 mapper(Ban, ban_table)
 ##########################################
-blacklisted_email_domain_table = Table('blacklisted_email_domains', metadata, # email domains that can't be used for account verification
+blacklisted_email_domain_table = Table('blacklisted email domains', metadata, # email domains that can't be used for account verification
 	Column('id', Integer, primary_key=True),
 	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True), # user which set ban
 	Column('domain', String(254), unique=True), 
@@ -342,8 +342,8 @@ class UsersHandler:
 		self.session.rollback()
 		return self.session
 
-	def clientFromID(self, db_id):
-		entry = self.sess().query(User).filter(User.id==db_id).first()
+	def clientFromID(self, user_id):
+		entry = self.sess().query(User).filter(User.id==user_id).first()
 		if not entry: return None
 		return OfflineClient(entry)
 
@@ -377,8 +377,8 @@ class UsersHandler:
 		if self._root.censor and not self._root.SayHooks._nasty_word_censor(username):
 			return False, 'Name failed to pass profanity filter.'
 
-		## should only ever be one user with each name so we can just grab the first one :)
-		## password here is unicode(BASE64(MD5(...))), matches the register_user DB encoding
+		# should only ever be one user with each name so we can just grab the first one :)
+		# password here is unicode(BASE64(MD5(...))), matches the register_user DB encoding
 		dbuser = self.sess().query(User).filter(User.username == username).first()
 		if (not dbuser):
 			return False, 'Invalid username or password'
@@ -397,7 +397,7 @@ class UsersHandler:
 		dbuser.last_ip = ip
 		dbuser.last_id = user_id
 
-		## copy unicode(BASE64(...)) values out of DB, leave them as-is
+		# copy unicode(BASE64(...)) values out of DB, leave them as-is
 		user_copy = User(dbuser.username, dbuser.password, dbuser.randsalt, ip, dbuser.email)
 		user_copy.access = dbuser.access
 		user_copy.id = dbuser.id
@@ -413,8 +413,8 @@ class UsersHandler:
 
 		return True, reason
 
-	def end_session(self, db_id):
-		entry = self.sess().query(User).filter(User.id==db_id).first()
+	def end_session(self, user_id):
+		entry = self.sess().query(User).filter(User.id==user_id).first()
 		if entry and not entry.logins[-1].end:
 			entry.logins[-1].end = datetime.now()
 			entry.last_login = datetime.now() # in real its last online / last seen
@@ -672,7 +672,7 @@ class BansHandler:
 		return None
 
 	def ban(self, issuer, duration, reason, username):
-		# ban the db_id, current ip, and current email, of the target username (as a single ban)
+		# ban the user_id, current ip, and current email, of the target username (as a single ban)
 		try:
 			duration = float(duration)
 		except:	
@@ -681,7 +681,7 @@ class BansHandler:
 		entry = self.sess().query(User).filter(User.username==username).first()
 		if not entry:
 			return False, "Unable to ban %s, user doesn't exist" % username
-		ban = Ban(issuer.db_id, duration, reason, entry.id, entry.last_ip, entry.email)
+		ban = Ban(issuer.user_id, duration, reason, entry.id, entry.last_ip, entry.email)
 		self.sess().add(ban)
 		self.sess().commit()
 		return True, 'Successfully banned %s, %s, %s for %s days.' % (username, entry.last_ip, entry.email, duration)
@@ -697,11 +697,11 @@ class BansHandler:
 		ip_match = re.match(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", arg)
 		entry = self.sess().query(User).filter(User.username==arg).first()
 		if email_match:
-			ban = Ban(issuer.db_id, duration, reason, None, None, arg)
+			ban = Ban(issuer.user_id, duration, reason, None, None, arg)
 		elif ip_match:
-			ban = Ban(issuer.db_id, duration, reason, None, arg, None)
+			ban = Ban(issuer.user_id, duration, reason, None, arg, None)
 		elif entry:
-			ban = Ban(issuer.db_id, duration, reason, entry.id, None, None)
+			ban = Ban(issuer.user_id, duration, reason, entry.id, None, None)
 		else:
 			return False, "Unable to match '%s' to username/ip/email" % arg
 		self.sess().add(ban)
@@ -756,7 +756,7 @@ class BansHandler:
 		entry = self.sess().query(BlacklistedEmailDomain).filter(BlacklistedEmailDomain.domain==domain).first()
 		if entry:
 			return False, 'Domain %s is already blacklisted' % domain
-		entry = BlacklistedEmailDomain(issuer.db_id, domain, reason)
+		entry = BlacklistedEmailDomain(issuer.user_id, domain, reason)
 		self.sess().add(entry)
 		self.sess().commit()
 		return True, 'Successfully added %s to blacklist' % domain
@@ -1029,7 +1029,7 @@ class ChannelsHandler:
 		if entry:
 			entry.topic = topic
 			entry.topic_time = datetime.now()
-			entry.topic_user_id = target.db_id
+			entry.topic_user_id = target.user_id
 			self.sess().commit()
 
 	def setKey(self, chan, key):
@@ -1041,16 +1041,16 @@ class ChannelsHandler:
 	def setFounder(self, chan, target):
 		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()
 		if entry:
-			entry.owner_user_id = target.db_id
+			entry.owner_user_id = target.user_id
 			self.sess().commit()			
 
 	def opUser(self, chan, target):
-		entry = ChannelOp(chan.id, target.db_id)
+		entry = ChannelOp(chan.id, target.user_id)
 		self.sess().add(entry)
 		self.sess().commit()
 	
 	def deopUser(self, chan, target):
-		entry = self.sess().query(ChannelOp).filter(ChannelOp.user_id == target.db_id).filter(ChannelOp.channel_id == chan.id).first()
+		entry = self.sess().query(ChannelOp).filter(ChannelOp.user_id == target.user_id).filter(ChannelOp.channel_id == chan.id).first()
 		if entry:
 			self.sess().delete(entry)
 			self.sess().commit()
@@ -1070,10 +1070,10 @@ class ChannelsHandler:
 			if channel.topic:
 				entry.topic = channel.topic['text']
 				entry.topic_time =  datetime.fromtimestamp(channel.topic['time'])
-				entry.topic_user_id = target.db_id
+				entry.topic_user_id = target.user_id
 			else:
 				entry.topic_time = datetime.now()
-			entry.owner_user_id = target.db_id
+			entry.owner_user_id = target.user_id
 			self.sess().add(entry)
 			self.sess().commit()
 			entry = self.sess().query(Channel).filter(Channel.name == channel.name).first() # set db id to runtime object
@@ -1121,7 +1121,7 @@ if __name__ == '__main__':
 	verificationdb.clean()
 
 	# test ban/unban
-	client.db_id = client.id # ban issuer is an *online* client; impersonate one
+	client.user_id = client.id # ban issuer is an *online* client; impersonate one
 	userdb.register_user("delinquent", u"pass", "192.168.1.2", "DE", "blackhole@blackhole.io")
 	client2 = userdb.clientFromUsername("delinquent")
 	bandb.ban(client, 1, "test", "delinquent")
@@ -1134,7 +1134,7 @@ if __name__ == '__main__':
 	# test save/load channel
 	channelname = u"testchannel"
 	channel = Channel(channelname)
-	client.db_id = client.id # only online clients can register channels, so pretend we are one of those
+	client.user_id = client.id # only online clients can register channels, so pretend we are one of those
 	channeldb.register(channel, client)
 	assert(channel.id > 0)
 
