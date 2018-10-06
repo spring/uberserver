@@ -5,6 +5,8 @@ class BridgedClient:
 	def __init__(self, bridge_client, location, external_id, external_username):
 		self.bridge_user_id = bridge_client.user_id 
 		self.location = location
+		self.external_id = external_id
+		
 		self.bridged_id = external_id + '@' + location # uniquely identifies the bridged client
 		self.username = external_username + '@' + location
 	

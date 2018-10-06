@@ -68,6 +68,7 @@ class Client(BaseClient):
 		# for if we are a bridge bot
 		self.bridged_clients = {}
 		self.bridged_locations = set()
+		self.bridged_client_usernames = {}
 
 		# perhaps these are unused?
 		self.cpu = 0
@@ -248,11 +249,13 @@ class Client(BaseClient):
 	def addBridgedClient(self, location, external_id, external_username):
 		bridgedClient = BridgedClient(self, location, external_id, external_username)
 		self.bridged_clients[bridgedClient.bridged_id] = bridgedClient
+		self.bridged_client_usernames[bridgedClient.username] = bridgedClient.bridged_id
 		
 	def removeBridgedClient(self, bridgedClient):
 		bridgedClient_channels = bridgedClient.channels.copy() # avoid modifying dict while iterating
 		for channame in bridgedClient_channels:
 			channel = self._root.channels[channame]
 			channel.removeBridgedUser(self, bridgedClient)
+		del self.bridged_client_usernames[bridgedClient.username]
 		del self.bridged_clients[bridgedClient.bridged_id]
 		

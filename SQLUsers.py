@@ -207,14 +207,14 @@ channels_table = Table('channels', metadata,
 	Column('topic_time', DateTime),
 	Column('topic_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True),
 	Column('antispam', Boolean),
-	Column('autokick', String(5)),
+	Column('autokick', String(5)), #deprecated; todo: remove this
 	Column('censor', Boolean),
-	Column('antishock', Boolean),
+	Column('antishock', Boolean), #deprecated; todo: remove this
 	Column('store_history', Boolean),
 	mysql_charset='utf8',
 	)
 class Channel(object):
-	def __init__(self, name,  key='', chanserv=False, owner_user_id=None, topic_time=None, topic='', topic_user_id=None, antispam=False, admins='', autokick='ban', censor=False, antishock=False, store_history=False):
+	def __init__(self, name,  key='', chanserv=False, owner_user_id=None, topic_time=None, topic='', topic_user_id=None, antispam=False, admins='', autokick='', censor=False, antishock=False, store_history=False):
 		self.name = name
 		self.key = key
 		self.chanserv = chanserv

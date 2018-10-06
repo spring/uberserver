@@ -187,19 +187,17 @@ class ChanServClient(Client):
 					return '#%s: You do not have permission to unlock the channel' % chan
 			elif cmd == 'kick':
 				if access in ['mod', 'founder', 'op']:
-					if not args: return '#%s: You must specify a user to kick from the channel' % chan
-					
+					if not args: return '#%s: You must specify a user to kick from the channel' % chan				
 					if args.count(' '):
 						target, reason = args.split(' ', 1)
 					else:
 						target = args
-						reason = None
-						
+						reason = None						
 					if target in channel.users:
-						target = self._root.clientFromUsername(target)
+						target = self._root.protocol.clientFromUsername(target, True)
 						channel.kickUser(client, target, reason)
 						return '#%s: <%s> kicked' % (chan, target.username)
-					else: return '#%s: <%s> not in channel' % (chan, target)
+					else: return '#%s: user <%s> not found' % (chan, target)
 				else:
 					return '#%s: You do not have permission to kick users from the channel' % chan
 			elif cmd == 'history':
@@ -214,6 +212,48 @@ class ChanServClient(Client):
 					return msg
 				else:
 					return '#%s: You do not have permission to change history setting in the channel' % chan
+			elif cmd == 'ban':
+				if access in ['mod', 'founder', 'op']:
+					if not args: return '#%s: You must specify a user to ban from the channel' % chan					
+					if args.count(' '):
+						target_username, reason = args.split(' ', 1)
+					else:
+						target_username = args
+						reason = None
+					if not '@' in target_username:
+						target = self._root.protocol.clientFromUsername(target_username, True)
+						if target:
+							channel.banUser(client, target, reason)
+							return '#%s: <%s> banned' % (chan, target.username)
+					elif '@' in target_username:
+						target = self._root.protocol.bridgedClientFromUsername(target_username)
+						if target:
+							channel.banBridgedUser(client, target, reason)
+							return '#%s: <%s> banned' % (chan, target.username)
+					return '#%s: user <%s> not found' % (chan, target_username)						
+				else:
+					return '#%s: You do not have permission to ban users from this channel' % chan					
+			elif cmd == 'unban':
+				if access in ['mod', 'founder', 'op']:
+					if not args: return '#%s: You must specify a user to unban from the channel' % chan					
+					if args.count(' '):
+						tartarget_username, reason = args.split(' ', 1)
+					else:
+						target_username = args
+						reason = None
+					if not '@' in target_username:
+						target = self._root.protocol.clientFromUsername(target_username, True)
+						if target and target_username in channel.ban:
+							channel.unbanUser(client, target, reason)
+							return '#%s: <%s> unbanned' % (chan, target.username)
+					elif '@' in target_username:
+						target = self._root.protocol.bridgedClientFromUsername(target_username)
+						if target and target.bridged_id in channel.bridged_ban:
+							channel.unbanBridgedUser(client, target)
+							return '#%s: <%s> unbanned' % (chan, target.username)
+					return '#%s: user <%s> not found in banlist' % (chan, target_username)						
+				else:
+					return '#%s: You do not have permission to ban users from this channel' % chan					
 		if cmd == 'register':
 			if client.isMod():
 				if not args: args = user
@@ -231,7 +271,8 @@ class ChanServClient(Client):
 			elif not chan in self._root.channels:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to register a channel' % chan
 		if not chan:
-			return 'command "%s" not found, use "!help" to get help!' %(cmd)
+			return "channel not found, use !help to get help!"
+		return 'command "%s" not found, use "!help" to get help!' %(cmd)
 	
 	def Remove(self, reason=None):
 		pass

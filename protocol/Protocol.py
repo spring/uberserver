@@ -229,30 +229,27 @@ class Protocol:
 		logging.info('[%s] Client connected from %s:%s' % (client.session_id, client.ip_address, client.port))
 
 	def _logoutUser(self, client, reason):
-		# remove all references from client
+		# remove the client, and all its references 
+		bridged_clients = client.bridged_clients.copy() # avoid modifying dict while iterating
+		for bridged_id, bridgedClient in bridged_clients.items():
+			self.in_UNBRIDGECLIENTFROM(client, bridgedClient.location, bridgedClient.external_id)	
+		for location in client.bridged_locations:
+			del self._root.bridge_location_bots[location]	
+		for chan in list(client.channels):
+			channel = self._root.channels[chan]
+			self.in_LEAVE(client, chan, reason)
+		if client.current_battle:
+			self.in_LEAVEBATTLE(client)
+		for battle_id, battle in self._root.battles.items():
+			if client.session_id in battle.pending_users:
+				battle.pending_users.remove(client.session_id)
+
 		user = client.username
 		if user in self._root.usernames:
 			del self._root.usernames[user]
 		if client.user_id in self._root.user_ids:
 			del self._root.user_ids[client.user_id]
 
-		for chan in list(client.channels):
-			channel = self._root.channels[chan]
-			self.in_LEAVE(client, chan, reason)
-
-		if client.current_battle:
-			self.in_LEAVEBATTLE(client)
-
-		for battle_id, battle in self._root.battles.items():
-			if client.session_id in battle.pending_users:
-				battle.pending_users.remove(client.session_id)
-
-		for bridged_id, bridgedClient in client.bridged_clients.items():
-			self.in_UNBRIDGECLIENTFROM(client, bridgedClient.location, bridgedClient.external_id)
-		
-		for location in client.bridged_locations:
-			del self._root.bridge_location_bots[location]
-		
 		self.broadcast_RemoveUser(client)
 
 	def _remove(self, client, reason='Quit'):
@@ -681,17 +678,25 @@ class Protocol:
 		bridge_user_id = self._root.bridge_location_bots.get(location)
 		if not bridge_user_id: 
 			return None
+		print(location, external_id, bridge_user_id)
 		client = self.clientFromID(bridge_user_id)
 		bridged_id = external_id + '@' + location
 		bridgedClient = client.bridged_clients.get(bridged_id)
 		return bridgedClient
 		
-	def getBridgedClientFromID(self, bridged_id):
+	def bridgedClientFromID(self, bridged_id):
 		external_id, location = bridged_id.split('@',1)
+		return getBridgedClient(external_id, location)
+		
+	def bridgedClientFromUsername(self, username):
+		external_username, location = username.split('@',1)
 		bridge_user_id = self._root.bridge_location_bots.get(location)
 		if not bridge_user_id: 
 			return None
 		client = self.clientFromID(bridge_user_id)
+		bridged_id = client.bridged_client_usernames.get(username)
+		if not bridged_id:
+			return None
 		bridgedClient = client.bridged_clients.get(bridged_id)
 		return bridgedClient
 		
@@ -1278,8 +1283,9 @@ class Protocol:
 			self.out_FAILED(client, "BRIDGECLIENTFROM", "The location %s is already in use by bridge bot %s" % existing_bridge.username, True)		
 			return
 		bridgedClient = self.getBridgedClient(location, external_id)
-		if bridgedClient:
-			self.out_FAILED(client, "BRIDGECLIENTFROM", "Matches existing location and external_id", True)		
+		bridgedClient2 = self.bridgedClientFromUsername(external_username+'@'+location)
+		if bridgedClient or bridgedClient2:
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "There is already a client from location '%s' matching external_id '%s' and/or username '%s'" % (location, external_id, external_username), True)		
 			return
 		client.addBridgedClient(location, external_id, external_username)
 		client.Send("BRIDGEDCLIENTFROM %s %s %s" % (location, external_id, external_username))
@@ -1573,15 +1579,12 @@ class Protocol:
 			# https://github.com/springlobby/springlobby/issues/782
 			#self.out_FAILED(client, "JOIN", 'Already in channel %s' %(chan), True)
 			return
-		if not channel.isFounder(client):
-			if channel.key and not channel.key in (key, None, '*', ''):
-				client.Send('JOINFAILED %s Invalid key' % chan)
-				return
-			elif channel.autokick == 'ban' and client.user_id in channel.ban:
+		if not channel.isFounder(client) and not 'mod' in client.accesslevels:
+			if client.user_id in channel.ban:
 				client.Send('JOINFAILED %s You are banned from the channel %s' % (chan, channel.ban[client.user_id]))
 				return
-			elif channel.autokick == 'allow' and client.user_id not in channel.allow:
-				client.Send('JOINFAILED %s You are not allowed' % chan)
+			if channel.key and not channel.key in (key, None, '*', ''):
+				client.Send('JOINFAILED %s Invalid key' % chan)
 				return
 		assert(chan not in client.channels)
 		client.channels.add(chan)
@@ -1602,7 +1605,7 @@ class Protocol:
 		for bridged_id in channel.bridged_users:
 			if clientlist:
 				clientlist += " "
-			bridgedClient = self.getBridgedClientFromID(bridged_id)
+			bridgedClient = self.bridgedClientFromID(bridged_id)
 			assert(bridgedClient)
 			bridgedClientList += bridgedClient.username
 		client.Send('BRIDGEDCLIENTS %s %s' % (chan, bridgedClientList))

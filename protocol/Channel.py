@@ -4,25 +4,30 @@ class Channel():
 	def __init__(self, root, name):
 		self.id = 0
 		self._root = root
-		self.name = name
-		self.users = set() # session_ids
-		self.owner_user_id = None
-		self.operators = set()
-
-		self.ban = {}
-		self.mutelist = {}
 		
+		# db fields
+		self.name = name
+		self.key = None
+		self.owner_user_id = None
+		self.topic = None
+		self.topic_time = None
+		self.topic_user_id = None
+		self.antispam = False
+		self.autokick = '' #deprecated
+		self.censor = False
+		self.antishock = False #deprecated
+		self.store_history = False
+
+		# non-db fields
+		self.users = set() # session_ids
+		self.operators = set()
 		self.bridged_users = set() #bridged_ids
+
+		self.mutelist = {}
+		self.ban = {}	
 		self.bridged_ban = {}
 
-		self.autokick = 'ban'
 		self.chanserv = False
-		self.antispam = False
-		self.censor = False
-		self.antishock = False
-		self.topic = None
-		self.key = None
-		self.store_history = False
 
 	def broadcast(self, message, ignore=set([])):
 		self._root.broadcast(message, self.name, ignore)
@@ -127,7 +132,7 @@ class Channel():
 		if not target:
 			return
 		self.owner_user_id = target.user_id
-		self.channelMessage("<%s> has just been set as this channel's founder by <%s>" % (target.username, client.username))
+		self.channelMessage("<%s> has been set as this channel's founder by <%s>" % (target.username, client.username))
 
 	def opUser(self, client, target):
 		if not target:
@@ -135,7 +140,7 @@ class Channel():
 		if target.user_id in self.operators:
 			return
 		self.operators.add(target.user_id)
-		self.channelMessage("<%s> has just been added to this channel's operator list by <%s>" % (target.username, client.username))
+		self.channelMessage("<%s> has been added to this channel's operator list by <%s>" % (target.username, client.username))
 
 	def deopUser(self, client, target):
 		if not target:
@@ -143,7 +148,7 @@ class Channel():
 		if not target.user_id in self.operators:
 			return
 		self.operators.remove(target.user_id)
-		self.channelMessage("<%s> has just been removed from this channel's operator list by <%s>" % (target.username, client.username))
+		self.channelMessage("<%s> has been removed from this channel's operator list by <%s>" % (target.username, client.username))
 
 	def banUser(self, client, target, reason=''):
 		if self.isFounder(target): return
@@ -152,8 +157,8 @@ class Channel():
 		if not target.user_id in self.ban:
 			return
 		self.ban[target.user_id] = reason
-		self.kickUser(client, target, reason)
-		self.channelMessage('<%s> has been banned from this channel by <%s>' % (target.username, client.username))
+		self.removeUser(client, target, reason)
+		self.channelMessage('<%s> has been removed from this channel by <%s>' % (target.username, client.username))
 
 	def unbanUser(self, client, target):
 		if not target:
@@ -161,16 +166,15 @@ class Channel():
 		if not target.user_id in self.ban:
 			return
 		del self.ban[target.user_id]
-		self.channelMessage('<%s> has been unbanned from this channel by <%s>' % (target.username, client.username))
 
-	def banBridgedUser(self, client, target):
+	def banBridgedUser(self, client, target, reason=''):
 		if not target:
 			return
-		if not target.bridged_id in self.bridged_ban:
+		if target.bridged_id in self.bridged_ban:
 			return
 		self.bridged_ban[target.bridged_id] = reason
 		self.removeBridgedUser(client, target)
-		self.channelMessage('<%s> has been banned from this channel by <%s>' % (target.username, client.username))
+		self.channelMessage('<%s> has been removed from this channel by <%s>' % (target.username, client.username))
 	
 	def unbanBridgedUser(self, client, target):
 		if not target:
@@ -178,7 +182,6 @@ class Channel():
 		if not target.bridged_id in self.bridged_ban:
 			return
 		del self.bridged_ban[target.bridged_id]
-		self.channelMessage('<%s> has been unbanned from this channel by <%s>' % (target.username, client.username))
 	
 	def muteUser(self, client, target, duration=0):
 		if not target:
