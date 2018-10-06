@@ -67,6 +67,7 @@ class Client(BaseClient):
 		
 		# for if we are a bridge bot
 		self.bridged_clients = {}
+		self.bridged_locations = set()
 
 		# perhaps these are unused?
 		self.cpu = 0
