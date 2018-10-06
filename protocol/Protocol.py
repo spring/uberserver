@@ -247,6 +247,12 @@ class Protocol:
 			if client.session_id in battle.pending_users:
 				battle.pending_users.remove(client.session_id)
 
+		for bridged_id, bridgedClient in client.bridged_clients.items():
+			self.in_UNBRIDGECLIENTFROM(client, bridgedClient.location, bridgedClient.external_id)
+		
+		for location in client.bridged_locations:
+			del self._root.bridge_location_bots[location]
+		
 		self.broadcast_RemoveUser(client)
 
 	def _remove(self, client, reason='Quit'):
@@ -1267,7 +1273,9 @@ class Protocol:
 		if not location in self._root.bridge_location_bots:
 			self._root.bridge_location_bots[location] = client.user_id
 		if self._root.bridge_location_bots[location] != client.user_id:
-			self.out_FAILED(client, "BRIDGECLIENTFROM", "The location %s is already in use by a different bridge bot", True)		
+			existing_bridge = self.clientFromID(self._root.bridge_location_bots[location])
+			client.bridge_locations.add(location)
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "The location %s is already in use by bridge bot %s" % existing_bridge.username, True)		
 			return
 		bridgedClient = self.getBridgedClient(location, external_id)
 		if bridgedClient:
