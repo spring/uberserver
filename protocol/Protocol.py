@@ -1897,11 +1897,11 @@ class Protocol:
 			return
 
 		if battle_id not in self._root.battles:
-			client.Send('JOINBATTLEFAILED Unable to join battle.')
+			client.Send('JOINBATTLEFAILED Battle does not exist.')
 			return
 		battle = self._root.battles[battle_id]
 		if client.session_id in battle.users: # user is already in battle
-			client.Send('JOINBATTLEFAILED client is already in battle')
+			client.Send('JOINBATTLEFAILED Client is already in battle')
 			return
 		host = self.clientFromSession(battle.host)
 		if battle.passworded == 1 and not battle.password == password:
@@ -1909,9 +1909,6 @@ class Protocol:
 			return
 		if battle.locked:
 			client.Send('JOINBATTLEFAILED Battle is locked.')
-			return
-		if username in host.battle_bans: # TODO: make this depend on user_id instead
-			client.Send('JOINBATTLEFAILED <%s> has banned you from their battles.' % host.username)
 			return
 		if host.compat['b'] and not (host.bot and 'mod' in client.accesslevels): # supports battleAuth
 			if client.session_id in battle.pending_users:
