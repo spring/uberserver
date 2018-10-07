@@ -237,7 +237,7 @@ class ChanServClient(Client):
 				if access in ['mod', 'founder', 'op']:
 					if not args: return '#%s: You must specify a user to unban from the channel' % chan					
 					if args.count(' '):
-						tartarget_username, reason = args.split(' ', 1)
+						target_username, reason = args.split(' ', 1)
 					else:
 						target_username = args
 						reason = None
