@@ -65,8 +65,6 @@ restricted = {
 	'RING',
 	'SAYBATTLE',
 	'SAYBATTLEEX',
-	'SAYBATTLEPRIVATE',
-	'SAYBATTLEPRIVATEEX',
 	'SETSCRIPTTAGS',
 	'UPDATEBATTLEINFO',
 	'UPDATEBOT',
@@ -1785,41 +1783,6 @@ class Protocol:
 		if not battle:
 			return
 		self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg), client)
-
-	def in_SAYBATTLEPRIVATE(self, client, username, msg):
-		'''
-		Send a message to one target user in your current battle.
-		[host]
-
-		@required.str username: The user to receive your message.
-		@required.str message: The message to send.
-		'''
-		user = self.clientFromUsername(username)
-		if not user:
-			return
-		battle = self.getCurrentBattle(client)
-		if not battle:
-			return
-		if client.session_id == battle.host and client.session_id in battle.users:
-			if not self.is_ignored(user, client):
-				user.Send('SAIDBATTLE %s %s' % (client.username, msg))
-
-	def in_SAYBATTLEPRIVATEEX(self, client, username, msg):
-		'''
-		Send an action to one target user in your current battle.
-		[host]
-
-		@required.str username: The user to receive your action.
-		@required.str message: The action to send.
-		'''
-		if not username:
-			return
-		battle = self.getCurrentBattle(client)
-		if not battle:
-			return
-		if client.session_id == battle.host and username in battle.users:
-			if not self.is_ignored(user, client):
-				user.Send('SAIDBATTLEEX %s %s' % (client.username, msg))
 
 	def _joinBattle(self, client, battle):
 		'''
