@@ -118,6 +118,7 @@ class ChanServClient(Client):
 					channel.operators = set()
 					channel.channelMessage('#%s has been unregistered'%chan)
 					self.db().unRegister(client, channel)
+					self.Respond('LEAVE %s' % chan)
 					return '#%s: Successfully unregistered.' % chan
 				else:
 					return '#%s: You must contact one of the server moderators or the owner of the channel to unregister a channel' % chan
@@ -169,20 +170,23 @@ class ChanServClient(Client):
 					return '#%s: Successfully removed <%s> from operator list' % (chan, args)
 				else:
 					return '#%s: You do not have permission to deop users' % chan
-			elif cmd == 'lock':
+			elif cmd == 'lock' or cmd == 'unlock':
+				return 'This command no longer exists, use setkey/removekey'
+			elif cmd == 'setkey': 
 				if access in ['mod', 'founder', 'op']:
-					if not args: return '#%s: You must specify a channel key to lock a channel' % chan
+					if not args: return '#%s: You must specify a key for the channel' % chan
+					if channel.identity=='battle': return 'This is not currently possible, instead you can close and re-open the battle with a new password!'
 					channel.setKey(client, args)
 					self.db().setKey(channel, args)
-					## STUBS ARE BELOW
-					return '#%s: Locked' % chan
+					return '#%s: Set key' % chan
 				else:
 					return '#%s: You do not have permission to lock the channel' % chan
-			elif cmd == 'unlock':
+			elif cmd == 'removekey': 
 				if access in ['mod', 'founder', 'op']:
+					if channel.identity=='battle': return 'This is not currently possible, instead you can close and re-open the battle without a password!'
 					channel.setKey(client, '*')
 					self.db().setKey(channel, '*')
-					return '#%s: Unlocked' % chan
+					return '#%s: Removed key' % chan
 				else:
 					return '#%s: You do not have permission to unlock the channel' % chan
 			elif cmd == 'kick':
@@ -200,7 +204,7 @@ class ChanServClient(Client):
 					else: return '#%s: user <%s> not found' % (chan, target)
 				else:
 					return '#%s: You do not have permission to kick users from the channel' % chan
-			elif cmd == 'history':
+			elif cmd == 'history': #FIXME: battles
 				if access in ['mod', 'founder', 'op']:
 					enable = not channel.store_history
 					if self.db().setHistory(channel, enable):
@@ -253,17 +257,20 @@ class ChanServClient(Client):
 							return '#%s: <%s> unbanned' % (chan, target.username)
 					return '#%s: user <%s> not found in banlist' % (chan, target_username)						
 				else:
-					return '#%s: You do not have permission to ban users from this channel' % chan					
-		if cmd == 'register':
+					return '#%s: You do not have permission to ban users from this channel' % chan	
+				#FIXME: chanserv has no mute command
+				#FIXME: accept ymdhs durations for mutes/bans
+				#FIXME: ban should interact with ip & email ?
+		if cmd == 'register': #FIXME: way to register battles
 			if client.isMod():
 				if not args: args = user
 				self.Respond('JOIN %s' % chan)
 				if not chan in self._root.channels:
-					return '# Channel %s does not exist.' % (chan)
+					return '# Channel %s does not exist.' % chan
 				channel = self._root.channels[chan]
 				target = self._root.protocol.clientFromUsername(args, True)
 				if target:
-					channel.setFounder(client, target)
+					channel.register(client, target)
 					self.db().register(channel, target) # register channel in db
 					return '#%s: Successfully registered to <%s>' % (chan, args.split(' ',1)[0])
 				else:

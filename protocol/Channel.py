@@ -2,12 +2,13 @@ import time
 
 class Channel():
 	def __init__(self, root, name):
-		self.id = 0
 		self._root = root
+		self.identity = 'channel'
 		
 		# db fields
+		self.id = 0 #id 0 is used for all unregistered channels
 		self.name = name
-		self.key = None
+		self.key = None 
 		self.owner_user_id = None
 		self.topic = None
 		self.topic_time = None
@@ -19,13 +20,13 @@ class Channel():
 		self.store_history = False
 
 		# non-db fields
+		self.operators = set() #user_ids
 		self.users = set() # session_ids
-		self.operators = set()
 		self.bridged_users = set() #bridged_ids
 
-		self.mutelist = {}
-		self.ban = {}	
-		self.bridged_ban = {}
+		self.mutelist = {} #user_ids
+		self.ban = {} #user_ids
+		self.bridged_ban = {} #bridged_ids
 
 		self.chanserv = False
 
@@ -35,14 +36,50 @@ class Channel():
 	def channelMessage(self, message):
 		self.broadcast('CHANNELMESSAGE %s %s' % (self.name, message))
 
-	def register(self, client, owner_user_id): # fixme: unused?
-		self.owner_user_id = owner_user_id
+	def register(self, client, target): 
+		self.setFounder(client, target)
 
 	def addUser(self, client):
 		if client.session_id in self.users:
 			return
 		self.users.add(client.session_id)
+		client.channels.add(self.name)
+		client.Send('JOIN %s' % self.name)
 		self.broadcast('JOINED %s %s' % (self.name, client.username), set([client.session_id]))
+		
+		clientlist = ""
+		for session_id in self.users:
+			if clientlist:
+				clientlist += " "
+			channeluser = self._root.protocol.clientFromSession(session_id)
+			assert(channeluser)
+			clientlist += channeluser.username
+		client.Send('CLIENTS %s %s' % (self.name, clientlist))
+
+		bridgedClientList = ""
+		for bridged_id in self.bridged_users:
+			if clientlist:
+				clientlist += " "
+			bridgedClient = self._root.protocol.bridgedClientFromID(bridged_id)
+			assert(bridgedClient)
+			bridgedClientList += bridgedClient.username
+		if client.compat['u']:
+			client.Send('CLIENTSFROM %s %s' % (self.name, bridgedClientList))
+		
+		topic = self.topic
+		if topic:
+			if client.compat['et']:
+				topictime = int(topic['time'])
+			else:
+				topictime = int(topic['time'])*1000
+			try:
+				top = topic['text']
+			except:
+				top = "Invalid unicode-encoding (should be utf-8)"
+				logging.info("%s for channel topic: %s" %(top, self.name))
+			client.Send('CHANNELTOPIC %s %s %s %s'%(self.name, topic['user'], topictime, top))
+		elif client.compat['et']: # supports sendEmptyTopic
+			client.Send('NOCHANNELTOPIC %s' % self.name)
 
 	def removeUser(self, client, reason=None):
 		if self.name in client.channels:
@@ -51,9 +88,10 @@ class Channel():
 			return
 		self.users.remove(client.session_id)
 		if reason and len(reason) > 0:
-			self.broadcast('LEFT %s %s %s' % (self.name, client.username, reason))
+			self.broadcast('LEFT %s %s %s' % (self.name, client.username, reason))		
 		else:
 			self.broadcast('LEFT %s %s' % (self.name, client.username))
+		client.Send('LEFT %s %s' % (self.name, client.username))
 	
 	def addBridgedUser(self, client, bridgedClient):
 		bridged_id = bridgedClient.bridged_id
@@ -123,16 +161,19 @@ class Channel():
 		if key in ('*', None):
 			if self.key:
 				self.key = None
-				self.channelMessage('<%s> unlocked this channel' % client.username)
+				self.channelMessage('<%s> removed the password of this %s' % (client.username, self.identity))
 		else:
 			self.key = key
-			self.channelMessage('<%s> locked this channel with a password' % client.username)
+			self.channelMessage('<%s> set a new password for this %s' % (client.username, self.identity))
 
+	def hasKey(self):
+		return not key in ('*', None)
+		
 	def setFounder(self, client, target):
 		if not target:
 			return
 		self.owner_user_id = target.user_id
-		self.channelMessage("<%s> has been set as this channel's founder by <%s>" % (target.username, client.username))
+		self.channelMessage("<%s> has been set as this %s's founder by <%s>" % (target.username, self.identity, client.username))
 
 	def opUser(self, client, target):
 		if not target:
@@ -140,7 +181,7 @@ class Channel():
 		if target.user_id in self.operators:
 			return
 		self.operators.add(target.user_id)
-		self.channelMessage("<%s> has been added to this channel's operator list by <%s>" % (target.username, client.username))
+		self.channelMessage("<%s> has been added to this %s's operator list by <%s>" % (target.username, self.identity, client.username))
 
 	def deopUser(self, client, target):
 		if not target:
@@ -148,7 +189,7 @@ class Channel():
 		if not target.user_id in self.operators:
 			return
 		self.operators.remove(target.user_id)
-		self.channelMessage("<%s> has been removed from this channel's operator list by <%s>" % (target.username, client.username))
+		self.channelMessage("<%s> has been removed from this %s's operator list by <%s>" % (target.username, self.identity, client.username))
 
 	def banUser(self, client, target, reason=''):
 		if self.isFounder(target): return
@@ -158,7 +199,7 @@ class Channel():
 			return
 		self.ban[target.user_id] = reason
 		self.removeUser(client, target, reason)
-		self.channelMessage('<%s> has been removed from this channel by <%s>' % (target.username, client.username))
+		self.channelMessage('<%s> has been removed from this %s by <%s>' % (target.username, self.identity, client.username))
 
 	def unbanUser(self, client, target):
 		if not target:
@@ -188,7 +229,7 @@ class Channel():
 			return
 		if self.isFounder(target): 
 			return
-		if client.db_id in self.mutelist:
+		if client.user_id in self.mutelist:
 			return
 		try:
 			duration = float(duration)

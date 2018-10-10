@@ -5,7 +5,7 @@ import SQLUsers
 import ChanServ
 import ip2country
 import datetime
-from protocol import Protocol, Channel
+from protocol import Protocol, Channel, Battle
 
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -64,11 +64,11 @@ class DataHandler:
 		self.cert = None
 		
 		# lists of online stuff
-		self.channels = {}
-		self.usernames = {}
-		self.clients = {}
-		self.user_ids = {} 
-		self.battles = {}
+		self.channels = {} #channame->channel/battle
+		self.battles = {} #battle_id->battle
+		self.usernames = {} #username->client
+		self.user_ids = {} #user_id->client
+		self.clients = {} #session_id->client
 		
 		self.bridge_location_bots = {}		
 		
@@ -106,45 +106,46 @@ class DataHandler:
 		self.verificationdb = SQLUsers.VerificationsHandler(self, self.engine)
 		self.bandb = SQLUsers.BansHandler(self, self.engine)
 		
+		self.parseFiles()
+		self.protocol = Protocol.Protocol(self)
+
 		self.channeldb = SQLUsers.ChannelsHandler(self, self.engine)
 		channels = self.channeldb.all_channels()
 		operators = self.channeldb.all_operators()
 
+		# set up channels/battles from db
 		for name in channels:
-			channel = channels[name]
-
-			owner_user_id = None
-			client = self.userdb.clientFromID(channel['owner_user_id'])
-			if client and client.id: 
-				owner_user_id = client.id
-
 			assert(name not in self.channels)
-			newchan = Channel.Channel(self, name)
-			newchan.chanserv = bool(owner_user_id)
-			newchan.id = channel['id']
-			newchan.owner_user_id = owner_user_id
-			newchan.operators = set()
-			if channel['key'] in ('', None, '*'):
-				newchan.key=None
-			else:
-				newchan.key = channel['key']
-			newchan.antispam = channel['antispam']
-			topic_client = self.userdb.clientFromID(channel['topic_user_id'])
+			dbchannel = channels[name]
+			channel = Channel.Channel(self, name)
+			if name.startswith('__battle__'):
+				channel = Battle.Battle(self, name)
+			
+			owner = self.userdb.clientFromID(dbchannel['owner_user_id'])
+			if owner: 
+				channel.owner_user_id = owner.id
+			
+			channel.chanserv = True
+			channel.antispam = dbchannel['antispam']
+			channel.store_history = dbchannel['store_history']
+			channel.id = dbchannel['id']
+			channel.key = dbchannel['key']
+			if channel.key in ('', None, '*'):
+				channel.key = None
+			
+			channel.topic_user_id = dbchannel['topic_user_id']
+			topic_client = self.userdb.clientFromID(dbchannel['topic_user_id'])
 			topic_name = 'ChanServ'
 			if topic_client:
 				topic_name = topic_client.username
-			newchan.topic={'user':topic_name, 'text':channel['topic'], 'time':int(time.time())}
-			newchan.store_history = channel['store_history']
-			self.channels[name] = newchan
-
+			channel.topic={'user':topic_name, 'text':dbchannel['topic'], 'time':int(time.time())}
+			self.channels[name] = channel
+ 
 		for op in operators:
 			dbchannel = self.channeldb.channel_from_id(op['channel_id'])
 			if dbchannel:
-				self.channels[dbchannel.name].operators.add(op['user_id']) 
-
-		self.parseFiles()
-		self.protocol = Protocol.Protocol(self)
-				
+				self.channels[dbchannel.name].operators.add(op['user_id'])
+			
 		self.chanserv = ChanServ.ChanServClient(self, (self.online_ip, 0), self.session_id)
 		for name in channels:
 			self.chanserv.HandleProtocolCommand("JOIN %s" %(name))

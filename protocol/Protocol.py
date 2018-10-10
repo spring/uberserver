@@ -202,6 +202,7 @@ flag_map = {
 	'p':  'agreementPlain',  # AGREEMENT is plaintext
 	'a':  'accountIDs',      # deprecated / replaced by 'l'
 	'm':  'matchmaking',     # deprecated / not used any more (keept to avoid sending errors to clients)
+	'u':  'say2',            # use SAY(EX) to speak in battles, support SAYFROM
 }
 
 class Protocol:
@@ -233,11 +234,11 @@ class Protocol:
 			self.in_UNBRIDGECLIENTFROM(client, bridgedClient.location, bridgedClient.external_id)	
 		for location in client.bridged_locations:
 			del self._root.bridge_location_bots[location]	
+		if client.current_battle:
+			self.in_LEAVEBATTLE(client)
 		for chan in list(client.channels):
 			channel = self._root.channels[chan]
 			self.in_LEAVE(client, chan, reason)
-		if client.current_battle:
-			self.in_LEAVEBATTLE(client)
 		for battle_id, battle in self._root.battles.items():
 			if client.session_id in battle.pending_users:
 				battle.pending_users.remove(client.session_id)
@@ -429,14 +430,6 @@ class Protocol:
 		status = self._bin2dec('%s%s%s%s%s%s%s'%(bot, access, rank1, rank2, rank3, away, ingame))
 		client.status = status
 
-	def _calc_battlestatus(self, client):
-		battlestatus = client.battlestatus
-		status = self._bin2dec('0000%s%s0000%s%s%s%s%s0'%(battlestatus['side'],
-								battlestatus['sync'], battlestatus['handicap'],
-								battlestatus['mode'], battlestatus['ally'],
-								battlestatus['id'], battlestatus['ready']))
-		return status
-
 	def _time_format(self, seconds):
 		'given a duration in seconds, returns a human-readable relative time'
 		minutesleft = float(seconds) / 60
@@ -614,28 +607,6 @@ class Protocol:
 			res += key + "=" + dictionary[key]
 		return res
 
-	def _canForceBattle(self, client):
-		' returns true when client can force sth. to a battle / username in current battle (=client is host & username is in battle)'
-		battle = self.getCurrentBattle(client)
-		if not battle:
-			return False
-		if not client.session_id == battle.host:
-			return False
-		return battle
-
-	def _canForceBattleUser(self, client, username):
-		'returns the user when client is allowed to force a command on it, false if not'
-		battle = self._canForceBattle(client)
-		if not battle:
-			return False
-		user=self.clientFromUsername(username)
-		if not user:
-			return False
-		if not user.session_id in battle.users:
-			return False
-		return user
-
-
 	def _informErrors(self, client):
 		if client.lobby_id in ("SpringLobby 0.188 (win x32)", "SpringLobby 0.200 (win x32)"):
 			client.Send("SAYPRIVATE ChanServ The autoupdater of SpringLobby 0.188 is broken, please manually update: https://springrts.com/phpbb/viewtopic.php?f=64&t=31224")
@@ -676,7 +647,6 @@ class Protocol:
 		bridge_user_id = self._root.bridge_location_bots.get(location)
 		if not bridge_user_id: 
 			return None
-		print(location, external_id, bridge_user_id)
 		client = self.clientFromID(bridge_user_id)
 		bridged_id = external_id + '@' + location
 		bridgedClient = client.bridged_clients.get(bridged_id)
@@ -698,12 +668,6 @@ class Protocol:
 		bridgedClient = client.bridged_clients.get(bridged_id)
 		return bridgedClient
 		
-	def hasBotflag(self, battle):
-		host = self.clientFromSession(battle.host)
-		if not host:
-			return False
-		return host.bot
-	
 	def clientFromUsername(self, username, fromdb = False):
 		'given a username, returns a client object from memory or the database'
 		client = self._root.clientFromUsername(username)
@@ -720,7 +684,7 @@ class Protocol:
 
 	def broadcast_RemoveBattle(self, battle):
 		for cid, client in self._root.usernames.items():
-			client.Send('BATTLECLOSED %s' % battle.id)
+			client.Send('BATTLECLOSED %s' % battle.battle_id)
 
 	# the sourceClient is only sent for SAY*, and RING commands
 	def broadcast_SendBattle(self, battle, data, sourceClient=None):
@@ -783,14 +747,14 @@ class Protocol:
 		battle.ip = translated_ip
 		battle.host = host.session_id # session_id -> username
 		if client.compat['cl']: #supports cleanupBattles
-			return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s\t%s\t%s' %(battle.id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded, battle.rank, battle.maphash, battle.engine, battle.version, battle.map, battle.title, battle.modname)
+			return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s\t%s\t%s' %(battle.battle_id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded(), battle.rank, battle.maphash, battle.engine, battle.version, battle.map, battle.title, battle.modname)
 
 		# give client without version support a hint, that this battle is incompatible to his version
 		if not (battle.engine == 'spring' and (battle.version == self._root.min_spring_version or battle.version == self._root.min_spring_version + '.0')):
 			title =  'Incompatible (%s %s) %s' %(battle.engine, battle.version, battle.title)
 		else:
 			title = battle.title
-		return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' % (battle.id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded, battle.rank, battle.maphash, battle.map, title, battle.modname)
+		return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' % (battle.battle_id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded(), battle.rank, battle.maphash, battle.map, title, battle.modname)
 
 	def is_ignored(self, client, ignoredClient):
 		# verify that this is an online client (only those have an .ignored attr)
@@ -922,17 +886,11 @@ class Protocol:
 		@optional.ip local_ip: LAN IP address, sent to clients when they have the same WAN IP as host
 		@optional.sentence.str lobby_id: Lobby name and version
 		@optional.sentence.int user_id: User ID provided by lobby
-		@optional.sentence.str compat_flags: Compatibility flags, sent in space-separated form, as follows:
+		@optional.sentence.str compat_flags: Compatibility flags, sent in space-separated form, see lobby protocol docs for details
 
-		flag: description
-		-----------------
-		a: Send account IDs as an additional parameter to ADDUSER. Account IDs persist across renames.
-		b: If client is hosting a battle, prompts them with JOINBATTLEREQUEST when a user tries to join their battle
-		sp: If client is hosting a battle, sends them other clients' script passwords as an additional argument to JOINEDBATTLE.
-		et: When client joins a channel, sends NOCHANNELTOPIC if the channel has no topic.
-		'''
 		assert(type(password) == str)
-
+		'''
+		
 		good, reason = self._validUsernameSyntax(username)
 
 		if (not good):
@@ -950,7 +908,7 @@ class Protocol:
 			return
 
 		user_id = 0
-		## represents <client> after logging in
+		# represents <client> after logging in
 		user_or_error = None
 
 
@@ -970,7 +928,7 @@ class Protocol:
 						flags.add('b')
 					else:
 						flags.add(flag)
-
+				
 				unsupported = ""
 				for flag in flags:
 					client.compat[flag] = True
@@ -1074,11 +1032,11 @@ class Protocol:
 
 		for battleid, battle in self._root.battles.items():
 			client.RealSend(self.client_AddBattle(client, battle))
-			client.RealSend('UPDATEBATTLEINFO %s %i %i %s %s' % (battle.id, battle.spectators, battle.locked, battle.maphash, battle.map))
+			client.RealSend('UPDATEBATTLEINFO %s %i %i %s %s' % (battle.battle_id, battle.spectators, battle.locked, battle.maphash, battle.map))
 			for session_id in battle.users:
 				battleclient = self.clientFromSession(session_id)
 				if not battleclient.session_id == battle.host:
-					client.RealSend('JOINEDBATTLE %s %s' % (battle.id, battleclient.username))
+					client.RealSend('JOINEDBATTLE %s %s' % (battle.battle_id, battleclient.username))
 
 		# client status is sent last, so battle status is calculated correctly updated at clients
 		for sessid, addclient in self._root.clients.items():
@@ -1124,24 +1082,28 @@ class Protocol:
 		if not msg: return
 		if not chan in self._root.channels:
 			return
-
 		channel = self._root.channels[chan]
 
 		if not client.session_id in channel.users:
 			self.out_FAILED(client, "SAY", "Not present in channel", True)
 			return
-
 		msg = self.SayHooks.hook_SAY(self, client, channel, msg)
 		if not msg or not msg.strip(): return
-
 		if channel.isMuted(client):
 			client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 			return
-
-		self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client)
 		if channel.store_history:
 			self.userdb.add_channel_message(channel.id, client.user_id, msg)
-
+		
+		if not client.compat['u']:
+			if hasattr(client, 'current_battle') and client.current_battle:
+				battle = self._root.battles[client.current_battle]
+				if battle.name==chan:
+					self.broadcast_SendBattle(battle, 'SAIDBATTLE %s %s' % (client.username, msg), client)
+				return 
+		
+		self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client)
+	
 	def in_SAYEX(self, client, chan, msg):
 		'''
 		Send an action to all users in specified channel.
@@ -1156,6 +1118,7 @@ class Protocol:
 			return
 		if not chan in self._root.channels:
 			return
+			
 		channel = self._root.channels[chan]
 		user  = client.username
 		msg = self.SayHooks.hook_SAY(self, client, channel, msg)
@@ -1163,10 +1126,18 @@ class Protocol:
 		if client.session_id in channel.users:
 			if channel.isMuted(client):
 				client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
-			else:
-				self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, set([]), client)
+				return
 		if channel.store_history:
 			self.userdb.add_channel_message(channel.id, client.user_id, msg)
+			
+		if not client.compat['u']:
+			if hasattr(client, 'current_battle'):
+				battle = self._root.battles[client.current_battle]
+				if battle.name==chan:
+					self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg), client)
+				return
+		
+		self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, set([]), client)
 
 	def in_SAYPRIVATE(self, client, user, msg):
 		'''
@@ -1302,6 +1273,8 @@ class Protocol:
 
 	def in_JOINFROM(self, client, chan, location, external_id):
 		# bridged client joins a channel
+		if not client.compat['u']:
+			return
 		if not chan in self._root.channels:
 			return
 		channel = self._root.channels[chan]
@@ -1316,6 +1289,8 @@ class Protocol:
 		
 	def in_LEAVEFROM(self, client, chan, location, external_id):
 		# bridged client leaves a channel
+		if not client.compat['u']:
+			return
 		if not chan in self._root.channels:
 			return
 		channel = self._root.channels[chan]
@@ -1333,10 +1308,14 @@ class Protocol:
 		channel = self._root.channels[chan]
 		bridgedClient = self.getBridgedClient(location, external_id)
 		if not bridgedClient or bridgedClient.bridge_user_id != client.user_id:
-			return 
+			return 	
+		if not client.compat['u']:
+			msg = '<' + bridgedClient.username + '> ' + msg
+			self.in_SAY(client, chan, msg)
+			return
 		if not bridgedClient.bridged_id in channel.bridged_users:
 			self.out_FAILED(client, "SAYFROM", "Bridged user not present in channel", True)
-			return		
+			return
 		self._root.broadcast('SAIDFROM %s %s %s' % (chan, bridgedClient.username, msg), chan, set([]), client)
 	
 	def in_IGNORE(self, client, tags):
@@ -1544,7 +1523,7 @@ class Protocol:
 
 	def in_JOIN(self, client, chan, key=None):
 		'''
-		Attempt to join target channel.
+		Attempt to join target channel. 
 
 		@required.str channel: The target channel.
 		@optional.str password: The password to use for joining if channel is locked.
@@ -1554,9 +1533,8 @@ class Protocol:
 		if not ok:
 			client.Send('JOINFAILED %s' % reason)
 			return
-
+			
 		user = client.username
-
 		# FIXME: unhardcode this
 		if (client.bot or client.lobby_id.startswith("SPADS")) and chan in ("newbies") and client.username != "ChanServ":
 			#client.Send('JOINFAILED %s No bots allowed in #%s!' %(chan, chan))
@@ -1564,18 +1542,23 @@ class Protocol:
 		if chan == 'moderator' and not 'mod' in client.accesslevels:
 			self.out_FAILED(client, "JOIN", "Only moderators allowed in this channel! access=%s" %(client.access), True)
 			return
-
 		if not chan:
-			self.out_FAILED(client, "JOIN", 'Invalid channel: %s' %(chan), True)
+			self.out_FAILED(client, 'JOIN', 'Invalid channel: %s' %(chan), True)
 			return
 		if not chan in self._root.channels:
-			channel = Channel.Channel(self._root, chan)
+			if chan.startswith('__battle__'):
+				client.Send('JOINFAILED cannot create channel %s with prefix __battle__, these names are reserved for battles' % chan)
+				return
+			channel = Channel.Channel(self._root, chan) 
 			self._root.channels[chan] = channel
 		else:
 			channel = self._root.channels[chan]
 		if client.session_id in channel.users:
 			# https://github.com/springlobby/springlobby/issues/782
 			#self.out_FAILED(client, "JOIN", 'Already in channel %s' %(chan), True)
+			return
+		if channel.identity=='battle' and client.username!='ChanServ' and not client.bot:
+			client.Send('JOINFAILED %s is a battle, please use JOINBATTLE to access it' % chan)
 			return
 		if not channel.isFounder(client) and not 'mod' in client.accesslevels:
 			if client.user_id in channel.ban:
@@ -1585,55 +1568,12 @@ class Protocol:
 				client.Send('JOINFAILED %s Invalid key' % chan)
 				return
 		assert(chan not in client.channels)
-		client.channels.add(chan)
-		client.Send('JOIN %s'%chan)
-		channel.addUser(client)
-		assert(client.session_id in channel.users)
 		
-		clientlist = ""
-		for session_id in channel.users:
-			if clientlist:
-				clientlist += " "
-			channeluser = self.clientFromSession(session_id)
-			assert(channeluser)
-			clientlist += channeluser.username
-		client.Send('CLIENTS %s %s' % (chan, clientlist))
-
-		bridgedClientList = ""
-		for bridged_id in channel.bridged_users:
-			if clientlist:
-				clientlist += " "
-			bridgedClient = self.bridgedClientFromID(bridged_id)
-			assert(bridgedClient)
-			bridgedClientList += bridgedClient.username
-		client.Send('BRIDGEDCLIENTS %s %s' % (chan, bridgedClientList))
-		
-		topic = channel.topic
-		if topic:
-			if client.compat['et']:
-				topictime = int(topic['time'])
-			else:
-				topictime = int(topic['time'])*1000
-			try:
-				top = topic['text']
-			except:
-				top = "Invalid unicode-encoding (should be utf-8)"
-				logging.info("%s for channel topic: %s" %(top, chan))
-			client.Send('CHANNELTOPIC %s %s %s %s'%(chan, topic['user'], topictime, top))
-		elif client.compat['et']: # supports sendEmptyTopic
-			client.Send('NOCHANNELTOPIC %s' % chan)
+		channel.addUser(client) 
 
 	def in_SETCHANNELKEY(self, client, chan, key='*'):
-		'''
-		Lock target channel with a password, or unlocks target channel.
-
-		@required.str channel: The target channel.
-		@optional.str password: The password to set. To unlock a channel, leave this blank or set to '*'.
-		'''
-		if chan in self._root.channels:
-			channel = self._root.channels[chan]
-			if channel.isOp(client):
-				channel.setKey(client, key)
+		# deprecated
+		self.in_SAYPRIVATE(client, 'ChanServ !setkey #' + chan + ' ' + key)
 
 	def in_LEAVE(self, client, chan, reason=None):
 		'''
@@ -1644,12 +1584,18 @@ class Protocol:
 		if not chan in self._root.channels:
 			return
 		channel = self._root.channels[chan]
+		if channel.identity=='battle' and client.username!='ChanServ' and not client.bot:
+			self.out_FAILED(client, 'LEAVE', '%s is a battle, use LEAVEBATTLE to leave it' % chan, True)
+			return
+		if not client.user_id in channel.users:
+			self.out_FAILED(client, 'LEAVE', 'not in channel %s' % chan, True)
+			return
 		channel.removeUser(client, reason)
 		assert(not client.session_id in channel.users)
 		if len(self._root.channels[chan].users) == 0:
 			del self._root.channels[chan]
 
-	def in_OPENBATTLE(self, client, type, natType, password, port, maxplayers, hashcode, rank, maphash, sentence_args):
+	def in_OPENBATTLE(self, client, type, natType, key, port, maxplayers, hashcode, rank, maphash, sentence_args):
 		'''
 		Host a new battle with the arguments specified.
 
@@ -1662,7 +1608,7 @@ class Protocol:
 		#1: Hole punching
 		#2: Fixed source ports
 
-		@required.str password: The password to use, or "*" to use no password.
+		@required.str key: The password to use, or "*" to use no password.
 		@required.int port:
 		@required.int maxplayers:
 		@required.sint modhash: Mod hash, as returned by unitsync.dll.
@@ -1714,23 +1660,18 @@ class Protocol:
 
 		battle_id = self._getNextBattleId()
 
-		if password == '*':
-			passworded = 0
-		else:
-			passworded = 1
-
 		try:
 			battle_id = int(battle_id)
 			type = int(type)
 			natType = int(natType)
-			passworded = int(passworded)
+			key = str(key)
 			port = int(port)
 			maphash = int32(maphash)
 			hashcode = int32(hashcode)
 			maxplayers = int32(maxplayers)
 		except Exception as e:
-			self.out_OPENBATTLEFAILED(client, 'Invalid argument type, send this to your lobby dev: id=%s type=%s natType=%s passworded=%s port=%s maphash=%s gamehash=%s - %s' %
-						(battle_id, type, natType, passworded, port, maphash, hashcode, str(e).replace("\n", "")))
+			self.out_OPENBATTLEFAILED(client, 'Invalid argument type, send this to your lobby dev: id=%s type=%s natType=%s key=%s port=%s maphash=%s gamehash=%s - %s' %
+						(battle_id, type, natType, key, port, maphash, hashcode, str(e).replace("\n", "")))
 			return False
 
 		if port < 1 or port > 65535:
@@ -1742,98 +1683,50 @@ class Protocol:
 			return
 		if maxplayers > 10 and not client.bot:
 			maxplayers = 10
-			self.out_SERVERMSG(client, "Without botflag its not allowed to host battles with > 10 players. Your battle was restricted to 10 players")
+			self.out_SERVERMSG(client, "A botflag is required to host battles with > 10 players. Your battle was restricted to 10 players")
 
-		client.current_battle = battle_id
-
-		battle = Battle.Battle(
-						root=self._root, id=battle_id, type=type, natType=int(natType),
-						password=password, port=port, maxplayers=maxplayers, hashcode=hashcode,
-						rank=rank, maphash=maphash, map=map, title=title, modname=modname,
-						passworded=passworded, host=client.session_id, users={client.session_id})
+		battle_name = '__battle__' + str(client.user_id)
+		if battle_name in self._root.channels:
+			battle = self._root.channels[battle_name]
+		else:
+			battle = Battle.Battle(self._root, battle_name)
+			self._root.channels[battle_name] = battle
+		
+		battle.battle_id = battle_id
+		battle.host = client.session_id
+		battle.key = key
+		battle.type = type
+		battle.natType = natType
+		battle.port = port
+		battle.title = title
+		battle.map = map
+		battle.maphash = maphash
+		battle.modname = modname
+		battle.hashcode = hashcode
 		battle.engine=engine
 		battle.version=version
-
-		self._root.battles[battle_id] = battle
+		battle.rank = rank
+		battle.maxplayers = maxplayers
+		
+		self._root.battles[battle.battle_id] = battle 
 		self.broadcast_AddBattle(battle)
-		client.Send('OPENBATTLE %s' % battle_id)
-		client.Send('JOINBATTLE %s %s' % (battle_id, hashcode))
+		
+		battle.joinBattle(client)
+		client.Send('OPENBATTLE %s' % battle.battle_id)
+		client.Send('JOINBATTLE %s %s' % (battle.battle_id, hashcode))
 		client.Send('REQUESTBATTLESTATUS')
 
 	def in_SAYBATTLE(self, client, msg):
-		'''
-		Send a message to all users in your current battle.
-
-		@required.str message: The message to send.
-		'''
-		if not msg: return
+		# deprecated, see 'u' compat flag
 		battle = self.getCurrentBattle(client)
-		if not battle:
-			return
-		user = client.username
-		self.broadcast_SendBattle(battle, 'SAIDBATTLE %s %s' % (user, msg), client)
+		if not battle: return
+		self.in_SAY(client, battle.name, msg)
 
 	def in_SAYBATTLEEX(self, client, msg):
-		'''
-		Send an action to all users in your current battle.
-
-		@required.str message: The action to send.
-		'''
+		# deprecated, see 'u' compat flag
 		battle = self.getCurrentBattle(client)
-		if not battle:
-			return
-		self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg), client)
-
-	def _joinBattle(self, client, battle):
-		'''
-		Makes a client join a battle / updates changes / sends to all clients
-		'''
-		battle_users = battle.users
-		battle_bots = battle.bots
-		startrects = battle.startrects
-		client.Send('JOINBATTLE %s %s' % (battle.id, battle.hashcode))
-		battle.users.add(client.session_id)
-		scripttags = []
-		for tag, val in battle.script_tags.items():
-			scripttags.append('%s=%s'%(tag, val))
-		client.Send('SETSCRIPTTAGS %s'%'\t'.join(scripttags))
-		if battle.disabled_units:
-			client.Send('DISABLEUNITS %s' % ' '.join(battle.disabled_units))
-		self._root.broadcast('JOINEDBATTLE %s %s' % (battle.id, client.username), ignore=set([battle.host, client.session_id]))
-
-		scriptPassword = client.scriptPassword
-		host = self.clientFromSession(battle.host)
-		if host.compat['sp'] and scriptPassword: # supports scriptPassword
-			host.Send('JOINEDBATTLE %s %s %s' % (battle.id, client.username, scriptPassword))
-			client.Send('JOINEDBATTLE %s %s %s' % (battle.id, client.username, scriptPassword))
-		else:
-			host.Send('JOINEDBATTLE %s %s' % (battle.id, client.username))
-			client.Send('JOINEDBATTLE %s %s' % (battle.id, client.username))
-
-		if battle.natType > 0:
-			if battle.host == client.session_id:
-				raise NameError('%s is having an identity crisis' % (client.name))
-			if client.udpport:
-				self._root.usernames[host].Send('CLIENTIPPORT %s %s %s' % (username, client.ip_address, client.udpport))
-
-		specs = 0
-		for sessionid in battle.users:
-			battle_client = self.clientFromSession(sessionid)
-			if battle_client and battle_client.battlestatus['mode'] == '0':
-				specs += 1
-			battlestatus = self._calc_battlestatus(battle_client)
-			client.Send('CLIENTBATTLESTATUS %s %s %s' % (battle_client.username, battlestatus, battle_client.teamcolor))
-
-		for iter in battle_bots:
-			bot = battle_bots[iter]
-			client.Send('ADDBOT %s %s' % (battle.id, iter)+' %(owner)s %(battlestatus)s %(teamcolor)s %(AIDLL)s' % (bot))
-		for allyno in startrects:
-			rect = startrects[allyno]
-			client.Send('ADDSTARTRECT %s' % (allyno)+' %(left)s %(top)s %(right)s %(bottom)s' % (rect))
-		client.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
-		client.teamcolor = '0'
-		client.current_battle = battle.id
-		client.Send('REQUESTBATTLESTATUS')
+		if not battle: return
+		self.in_SAYEX(client, battle.name, msg)
 
 	def in_JOINBATTLEACCEPT(self, client, username):
 		'''
@@ -1842,12 +1735,11 @@ class Protocol:
 
 		@required.str username: The user to allow into your battle.
 		'''
-		battle_id = client.current_battle
 		user = self.clientFromUsername(username)
 		if not user:
 			self.out_FAILED(client, 'JOINBATTLEACCEPT', "Couldn't find user %s" %(username), True)
 			return
-		battle = self._root.battles[battle_id]
+		battle = self.getCurrentBattle(client)
 		if not client.session_id == battle.host:
 			self.out_FAILED(client, 'JOINBATTLEACCEPT', "client isn't the specified host %s vs %s" %(client.session_id, battle.host), True)
 			return
@@ -1855,7 +1747,7 @@ class Protocol:
 			self.out_FAILED(client, 'JOINBATTLEACCEPT', "client isn't in pending users %s %s" %(client.username, username), True)
 			return
 		battle.pending_users.remove(user.session_id)
-		self._joinBattle(user, battle)
+		battle.joinBattle(user)
 
 	def in_JOINBATTLEDENY(self, client, username, reason=None):
 		'''
@@ -1868,19 +1760,18 @@ class Protocol:
 		user = self.clientFromUsername(username)
 		if not user:
 			return
-		battle_id = client.current_battle
-		battle = self._root.battles[battle_id]
+		battle = self.getCurrentBattle(client)
 		if not client.username == battle.host: return
 		if user.session_id in battle.pending_users:
 			battle.pending_users.remove(user.session_id)
 			user.Send('JOINBATTLEFAILED %s%s' % ('Denied by host', (' ('+reason+')' if reason else '')))
 
-	def in_JOINBATTLE(self, client, battle_id, password=None, scriptPassword=None):
+	def in_JOINBATTLE(self, client, battle_id, key=None, scriptPassword=None):
 		'''
 		Attempt to join target battle.
 
 		@required.int battleID: The ID of the battle to join.
-		@optional.str password: The password to use if the battle requires one.
+		@optional.str key: The password to use if the battle requires one.
 		@optional.str scriptPassword: A password unique to your user, to verify users connecting to the actual game.
 		'''
 		if scriptPassword: client.scriptPassword = scriptPassword
@@ -1893,24 +1784,28 @@ class Protocol:
 
 		username = client.username
 		if client.current_battle in self._root.battles:
-			client.Send('JOINBATTLEFAILED You are already in a battle.')
+			client.Send('JOINBATTLEFAILED You are already in a battle')
 			return
 
 		if battle_id not in self._root.battles:
-			client.Send('JOINBATTLEFAILED Battle does not exist.')
+			client.Send('JOINBATTLEFAILED Battle does not exist')
 			return
 		battle = self._root.battles[battle_id]
 		if client.session_id in battle.users: # user is already in battle
 			client.Send('JOINBATTLEFAILED Client is already in battle')
 			return
 		host = self.clientFromSession(battle.host)
-		if battle.passworded == 1 and not battle.password == password:
-			client.Send('JOINBATTLEFAILED Incorrect password.')
-			return
-		if battle.locked:
-			client.Send('JOINBATTLEFAILED Battle is locked.')
-			return
-		if host.compat['b'] and not (host.bot and 'mod' in client.accesslevels): # supports battleAuth
+		if not battle.isFounder(client) and not 'mod' in client.accesslevels:
+			if not battle.key in ('*', None) and not battle.key == key:
+				client.Send('JOINBATTLEFAILED Incorrect password')
+				return
+			if client.user_id in battle.ban:
+				client.Send('JOINBATTLEFAILED You are banned from the battle')
+				return
+			if battle.locked:
+				client.Send('JOINBATTLEFAILED Battle is locked')
+				return
+		if host.compat['b'] and not (battle.hasBotflag() and 'mod' in client.accesslevels): # supports battleAuth
 			if client.session_id in battle.pending_users:
 				client.Send('JOINBATTLEFAILED waiting for JOINBATTLEACCEPT/JOINBATTLEDENIED from host')
 			else:
@@ -1921,7 +1816,7 @@ class Protocol:
 				client_ip = client.ip_address
 			host.Send('JOINBATTLEREQUEST %s %s' % (username, client_ip))
 			return
-		self._joinBattle(client, battle)
+		battle.joinBattle(client)
 
 	def in_SETSCRIPTTAGS(self, client, scripttags):
 		'''
@@ -1930,9 +1825,9 @@ class Protocol:
 		@required.str scriptTags: A tab-separated list of key=value pairs.
 		'''
 
-		battle = self._canForceBattle(client)
-		if not battle:
-			self.out_FAILED(client, "SETSCRIPTTAGS", "You are not allowed to change settings as client in a game!", True)
+		battle = self.getCurrentBattle(client)
+		if not battle or not battle.canChangeSettings(client):
+			self.out_FAILED(client, "SETSCRIPTTAGS", "You are not allowed to change settings in this battle", True)
 			return
 
 		setscripttags = self._parseTags(scripttags)
@@ -1950,8 +1845,9 @@ class Protocol:
 
 		@required.str tags: A space-separated list of tags.
 		'''
-		battle = self._canForceBattle(client)
-		if not battle:
+		battle = self.getCurrentBattle(client)
+		if not battle or not battle.canChangeSettings(client):
+			self.out_FAILED(client, "REMOVESCRIPTTAGS", "You are not allowed to change settings in this battle", True)
 			return
 
 		rem = set()
@@ -1970,43 +1866,17 @@ class Protocol:
 		'''
 		Leave current battle.
 		'''
-		client.scriptPassword = None
-
-		username = client.username
-		battle_id = client.current_battle
-		client.current_battle = None
-		client.hostport = None
-		if not battle_id:
+		battle = self.getCurrentBattle(client)
+		if not battle:
 			self.out_FAILED(client, "LEAVEBATTLE", "not in battle")
 			return
-		if not battle_id in self._root.battles:
+		if not battle.battle_id in self._root.battles:
 			self.out_FAILED(client, "LEAVEBATTLE", "couldn't find battle")
-			return
-		battle = self._root.battles[battle_id]
+			return		
+		battle.leaveBattle(client)
 		if battle.host == client.session_id:
 			self.broadcast_RemoveBattle(battle)
-			del self._root.battles[battle_id]
-			return
-		battle.users.remove(client.session_id)
-
-		for bot in list(client.battle_bots):
-			del client.battle_bots[bot]
-			if bot in battle.bots:
-				del battle.bots[bot]
-				self._root.broadcast_battle('REMOVEBOT %s %s' % (battle_id, bot), battle_id)
-		self._root.broadcast('LEFTBATTLE %s %s'%(battle_id, client.username))
-
-		oldspecs = battle.spectators
-
-		specs = 0
-		for session_id in battle.users:
-			user = self.clientFromSession(session_id)
-			if user and user.battlestatus['mode'] == '0':
-				specs += 1
-
-		battle.spectators = specs
-		if oldspecs != specs:
-			self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' % (battle.id, battle.spectators, battle.locked, battle.maphash, battle.map))
+			del self._root.battles[battle.battle_id]
 
 	def in_MYBATTLESTATUS(self, client, _battlestatus, _myteamcolor):
 		'''
@@ -2051,7 +1921,7 @@ class Protocol:
 		elif mode == '0':
 			spectators += 1
 
-		oldstatus = self._calc_battlestatus(client)
+		oldstatus = battle.calc_battlestatus(client)
 		oldcolor = client.teamcolor
 		client.battlestatus.update({'ready':ready, 'id':id1+id2+id3+id4, 'ally':ally1+ally2+ally3+ally4, 'mode':mode, 'sync':sync1+sync2, 'side':side1+side2+side3+side4})
 		client.teamcolor = myteamcolor
@@ -2060,14 +1930,14 @@ class Protocol:
 		battle.spectators = spectators
 
 		if oldspecs != spectators:
-			self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' % (battle.id, battle.spectators, battle.locked, battle.maphash, battle.map))
+			self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' % (battle.battle_id, battle.spectators, battle.locked, battle.maphash, battle.map))
 
-		newstatus = self._calc_battlestatus(client)
+		newstatus = battle.calc_battlestatus(client)
 		statuscmd = 'CLIENTBATTLESTATUS %s %s %s'%(client.username, newstatus, myteamcolor)
 		if oldstatus == newstatus and client.teamcolor == oldcolor: #nothing changed, just send back to client
 			client.Send(statuscmd)
 			return
-		self._root.broadcast_battle(statuscmd, battle.id)
+		self._root.broadcast_battle(statuscmd, battle.battle_id)
 
 	def in_UPDATEBATTLEINFO(self, client, SpectatorCount, locked, maphash, mapname):
 		'''
@@ -2094,11 +1964,11 @@ class Protocol:
 				self.out_SERVERMSG(client, "UPDATEBATTLEINFO failed - invalid mapname send: %s" %(str(mapname)), True)
 				return
 
-			oldstr = 'UPDATEBATTLEINFO %s %i %i %s %s' % (battle.id, battle.spectators, battle.locked, battle.maphash, battle.map)
+			oldstr = 'UPDATEBATTLEINFO %s %i %i %s %s' % (battle.battle_id, battle.spectators, battle.locked, battle.maphash, battle.map)
 			battle.locked = int(locked)
 			battle.maphash = maphash
 			battle.map = mapname
-			newstr = 'UPDATEBATTLEINFO %s %i %i %s %s' % (battle.id, battle.spectators, battle.locked, battle.maphash, battle.map)
+			newstr = 'UPDATEBATTLEINFO %s %i %i %s %s' % (battle.battle_id, battle.spectators, battle.locked, battle.maphash, battle.map)
 			if oldstr != newstr:
 				self._root.broadcast(newstr)
 
@@ -2127,7 +1997,7 @@ class Protocol:
 				client.went_ingame = None
 			if client.session_id == battle.host:
 				if client.hostport:
-					self._root.broadcast_battle('HOSTPORT %i' % client.hostport, battle_id, host)
+					self._root.broadcast_battle('HOSTPORT %i' % client.hostport, battle.battle_id, host)
 		elif was_ingame and not client.is_ingame and client.went_ingame:
 			ingame_time = (time.time() - client.went_ingame) / 60
 			if ingame_time >= 1:
@@ -2170,9 +2040,10 @@ class Protocol:
 		@required.str lastid: messages to get since this id
 		'''
 		if not chan in self._root.channels:
-			return
-
+			return		
 		channel = self._root.channels[chan]
+		if channel.id == 0:
+			return # unregistered channels use id 0
 		if not client.session_id in channel.users:
 			self.out_FAILED(client, "GETCHANNELMESSAGES", "Can't get channel messages when not joined", True)
 			return
@@ -2237,9 +2108,9 @@ class Protocol:
 		@required.float right: The right side of the rectangle.
 		@required.float bottom: The bottom side of the rectangle.
 		'''
-		battle = self._canForceBattle(client)
-		if not battle:
-			return
+		battle = self.getCurrentBattle(client)
+		if not battle or not battle.canChangeSettings(client):
+			return		
 		try:
 			allyno = int32(allyno)
 			rect = {
@@ -2261,8 +2132,8 @@ class Protocol:
 
 		@required.int allyno: The ally number for the rectangle.
 		'''
-		battle = self._canForceBattle(client)
-		if not battle:
+		battle = self.getCurrentBattle(client)
+		if not battle or not battle.canChangeSettings(client):
 			return
 		allyno = int32(allyno)
 		try:
@@ -2279,9 +2150,9 @@ class Protocol:
 
 		@required.str units: A string-separated list of unit names to disable.
 		'''
-		battle = self._canForceBattle(client)
-		if not battle:
-			return
+		battle = self.getCurrentBattle(client)
+		if not battle or not battle.canChangeSettings(client):
+			return			
 		units = units.split(' ')
 		disabled_units = []
 		for unit in units:
@@ -2299,8 +2170,8 @@ class Protocol:
 
 		@required.str units: A string-separated list of unit names to enable.
 		'''
-		battle = self._canForceBattle(client)
-		if not battle:
+		battle = self.getCurrentBattle(client)
+		if not battle or not battle.canChangeSettings(client):
 			return
 		units = units.split(' ')
 		enabled_units = []
@@ -2317,9 +2188,10 @@ class Protocol:
 		Enable all units.
 		[host]
 		'''
-		battle = self._canForceBattle(client)
-		if not battle:
+		battle = self.getCurrentBattle(client)
+		if not battle or not battle.canChangeSettings(client):
 			return
+			
 		battle.disabled_units = []
 		self._root.broadcast_battle('ENABLEALLUNITS', client.current_battle)
 
@@ -2331,15 +2203,18 @@ class Protocol:
 		@required.str username: The player to handicap.
 		@required.int handicap: The percentage of handicap to give (1-100).
 		'''
-		user = self._canForceBattleUser(client, username)
-		if not user:
+		battle = self.getCurrentBattle(client)
+		if not battle or not battle.canChangeSettings(client):
+			return
+		user = self.clientFromUsername(username)
+		if not user or not user.session_id in battle.users:
 			return
 
 		if not value.isdigit() or not int(value) in range(0, 101):
 			return
-
 		user.battlestatus['handicap'] = self._dec2bin(value, 7)
-		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(user), user.teamcolor), user.current_battle)
+		battle = self.getCurrentBattle(client)
+		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, battle.calc_battlestatus(user), user.teamcolor), user.current_battle)
 
 	def in_KICKFROMBATTLE(self, client, username):
 		'''
@@ -2348,13 +2223,15 @@ class Protocol:
 
 		@required.str username: The player to kick.
 		'''
-		user = self._canForceBattleUser(client, username)
-		if not user:
+		battle = self.getCurrentBattle(client)
+		if not battle or not battle.canChangeSettings(client):
 			return
-
-		if client.bot and 'mod' in user.accesslevels: # disallow kicking mods from bot hosted battles
+		user = self.clientFromUsername(username)
+		if not user or not user.session_id in battle.users:
 			return
-
+		if 'mod' in user.accesslevels: 
+			return
+			
 		user.Send('FORCEQUITBATTLE %s' %(client.username))
 		self.in_LEAVEBATTLE(user)
 
@@ -2367,11 +2244,17 @@ class Protocol:
 		@required.str username: The target player.
 		@required.int teamno: The team to assign them.
 		'''
-		user = self._canForceBattleUser(client, username)
-		if not user:
+		battle = self.getCurrentBattle(client)
+		if not battle or not battle.canChangeSettings(client):
 			return
+		user = self.clientFromUsername(username)
+		if not user or not user.session_id in battle.users:
+			return
+		
 		user.battlestatus['id'] = self._dec2bin(teamno, 4)
-		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(user), user.teamcolor), user.current_battle)
+		battle = self.getCurrentBattle(client)
+		if not battle: return
+		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, battle.calc_battlestatus(user), user.teamcolor), user.current_battle)
 
 	def in_FORCEALLYNO(self, client, username, allyno):
 		'''
@@ -2381,11 +2264,17 @@ class Protocol:
 		@required.str username: The target player.
 		@required.int teamno: The ally team to assign them.
 		'''
-		user = self._canForceBattleUser(client, username)
-		if not user:
+		battle = self.getCurrentBattle(client)
+		if not battle or not battle.canChangeSettings(client):
 			return
+		user = self.clientFromUsername(username)
+		if not user or not user.session_id in battle.users:
+			return
+
 		user.battlestatus['ally'] = self._dec2bin(allyno, 4)
-		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(user), user.teamcolor), user.current_battle)
+		battle = self.getCurrentBattle(client)
+		if not battle: return
+		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, battle.calc_battlestatus(user), user.teamcolor), user.current_battle)
 
 	def in_FORCETEAMCOLOR(self, client, username, teamcolor):
 		'''
@@ -2396,12 +2285,17 @@ class Protocol:
 		@required.sint teamcolor: The color to assign, represented with hex 0xBBGGRR as a signed integer.
 		'''
 
-		user = self._canForceBattleUser(client, username)
-		if not user:
+		battle = self.getCurrentBattle(client)
+		if not battle or not battle.canChangeSettings(client):
 			return
-
+		user = self.clientFromUsername(username)
+		if not user or not user.session_id in battle.users:
+			return
+		
 		user.teamcolor = teamcolor
-		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(user), user.teamcolor), user.current_battle)
+		battle = self.getCurrentBattle(client)
+		if not battle: return
+		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, battle.calc_battlestatus(user), user.teamcolor), user.current_battle)
 
 	def in_FORCESPECTATORMODE(self, client, username):
 		'''
@@ -2411,20 +2305,22 @@ class Protocol:
 		@required.str username: The target player.
 		'''
 
-		user = self._canForceBattleUser(client, username)
-		if not user:
+		battle = self.getCurrentBattle(client)
+		if not battle or not battle.canChangeSettings(client):
+			return
+		user = self.clientFromUsername(username)
+		if not user or not user.session_id in battle.users:
 			return
 
-		if not user.battlestatus['mode'] == '1':
+		if not user.battlestatus['mode'] == '1': # ??!
 			return
 		battle = self.getCurrentBattle(user)
 		if not battle:
 			return
-
 		battle.spectators += 1
 		user.battlestatus['mode'] = '0'
-		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, self._calc_battlestatus(user), user.teamcolor), user.current_battle)
-		self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' %(battle.id, battle.spectators, battle.locked, battle.maphash, battle.map))
+		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, battle.calc_battlestatus(user), user.teamcolor), user.current_battle)
+		self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' %(battle.battle_id, battle.spectators, battle.locked, battle.maphash, battle.map))
 
 	def in_ADDBOT(self, client, name, battlestatus, teamcolor, AIDLL):
 		'''
@@ -2444,9 +2340,9 @@ class Protocol:
 		if name in battle.bots:
 			self.out_FAILED(client, "ADDBOT", "Bot already exists!", True)
 			return
-		client.battle_bots[name] = battle.id
+		client.battle_bots[name] = battle.battle_id
 		battle.bots[name] = {'owner':client.username, 'battlestatus':battlestatus, 'teamcolor':teamcolor, 'AIDLL':AIDLL}
-		self._root.broadcast_battle('ADDBOT %s %s %s %s %s %s'%(battle.id, name, client.username, battlestatus, teamcolor, AIDLL), battle.id)
+		self._root.broadcast_battle('ADDBOT %s %s %s %s %s %s'%(battle.battle_id, name, client.username, battlestatus, teamcolor, AIDLL), battle.battle_id)
 
 	def in_UPDATEBOT(self, client, name, battlestatus, teamcolor):
 		'''
@@ -2464,10 +2360,7 @@ class Protocol:
 		if name in battle.bots:
 			if client.username == battle.bots[name]['owner'] or client.session_id == battle.host:
 				battle.bots[name].update({'battlestatus':battlestatus, 'teamcolor':teamcolor})
-				self._root.broadcast_battle('UPDATEBOT %s %s %s %s'%(battle.id, name, battlestatus, teamcolor), battle.id)
-
-
-
+				self._root.broadcast_battle('UPDATEBOT %s %s %s %s'%(battle.battle_id, name, battlestatus, teamcolor), battle.battle_id)
 
 	def in_REMOVEBOT(self, client, name):
 		'''
@@ -2484,7 +2377,7 @@ class Protocol:
 			if client.username == battle.bots[name]['owner'] or client.session_id == battle.host:
 				del self._root.usernames[battle.bots[name]['owner']].battle_bots[name]
 				del battle.bots[name]
-				self._root.broadcast_battle('REMOVEBOT %s %s'%(battle.id, name), battle.id)
+				self._root.broadcast_battle('REMOVEBOT %s %s'%(battle.battle_id, name), battle.battle_id)
 
 	def in_GETINGAMETIME(self, client, username=None):
 		'''
@@ -2770,7 +2663,7 @@ class Protocol:
 		
 		legacyBattleIds = []
 		for battleId, battle in self._root.battles.items():
-			if self.hasBotflag(battle) and not self._validEngineVersion(battle.engine, battle.version):
+			if battle.hasBotflag() and not self._validEngineVersion(battle.engine, battle.version):
 				legacyBattleIds.append(battleId)
 				host = self.clientFromSession(battle.host)
 				self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s -- This battle will close -- %s %s or later is now required by the server. Please join a battle with the new Spring version!' % (host.username, 'Spring', version))
@@ -3113,40 +3006,8 @@ class Protocol:
 			battle = self.getCurrentBattle(client)
 			if not battle: #needs to be in battle
 				return
-			data = {"PROMOTE": {"battleid": battle.id}}
+			data = {"PROMOTE": {"battleid": battle.battle_id}}
 			self._root.broadcast('JSON ' + json.dumps(data, separators=(',', ':')))
-			return
-
-		if "BATTLEMUTE" in cmd:
-			params = cmd["BATTLEMUTE"]
-			if not "mod" in client.accesslevels:
-				self.out_JSON(client, "FAILED", {"msg": "Moderator permissions needed: %s" %(client.access)})
-				return
-			if not "username" in cmd["BATTLEMUTE"]:
-				return
-
-			username = cmd["BATTLEMUTE"]["username"]
-			badclient = self.clientFromUsername(username)
-			if not badclient:
-				self.out_JSON(client, "FAILED", {"msg": 'Client not found'})
-
-			duration = 60 #minutes
-			if "duration" in params:
-				try:
-					duration = int(duration)
-				except:
-					self.out_JSON(client, "FAILED", {"msg": 'Duration must be a int (the ban duration in minutes)'})
-					return
-
-			battle = self.getCurrentBattle(badclient)
-			if not bad_client.user_id in battle.mutelist:
-				battle.mutelist[bad_client.user_id] = datetime.datetime.now()
-
-			battle.mutelist[bad_client.user_id] += datetime.delta(minutes=duration)
-			enddate = battle.mutelist[bad_client.user_id]
-
-			self.broadcast_SendBattle(battle, 'SAIDBATTLE %s <%s> was muted until %s by %s.' % (battle.host.username, baduser.username, enddate, client.username), client)
-
 			return
 
 		self.out_JSON(client, "FAILED", {"msg": "Unknown command: %s" %(rawcmd)})
