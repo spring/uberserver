@@ -89,10 +89,6 @@ class ChanServClient(Client):
 		if cmd == 'help':
 			return 'Hello, %s!\nI am an automated channel service bot from uberserver,\nfor the full list of commands, see https://springrts.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
 		
-		if not chan in self._root.channels:
-			return "Channel %s does not exist!"
-		channel = self._root.channels[chan]
-		
 		if cmd == 'register': 
 			if not client.isMod():
 				return '#%s: You must contact one of the server moderators to register a channel' % chan
@@ -102,6 +98,9 @@ class ChanServClient(Client):
 			target = self._root.protocol.clientFromUsername(args, True)
 			if not target:
 				return '#%s: User <%s> does not exist.' % (chan, args)
+			if not chan in self._root.channels:
+				return "Channel %s does not exist!"
+			channel = self._root.channels[chan]
 			channel = self._root.channels[chan]
 			channel.register(client, target)
 			self.db().register(channel, target) # register channel in db
@@ -135,6 +134,10 @@ class ChanServClient(Client):
 			self.Respond('JOIN %s' % chan)
 			return '#%s: Successfully registered to <%s>' % (chan, args.split(' ',1)[0])		
 
+		if not chan in self._root.channels:
+			return "Channel %s does not exist!"
+		channel = self._root.channels[chan]
+		
 		if cmd == 'unregister':
 			if not access in ['mod', 'founder']:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to unregister a channel' % chan
