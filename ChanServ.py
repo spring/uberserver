@@ -38,6 +38,12 @@ class ChanServClient(Client):
 			if cmd == 'SAIDPRIVATE':
 				user, msg = args.split(' ', 1)
 				self.HandleMessage(None, user, msg)
+			if cmd == 'SAIDBATTLE': #legacy compat, if clients lacks 'u'
+				user, msg = args.split(' ', 1)
+				client = self._root.protocol.clientFromUsername(user)
+				battle = self._root.protocol.getCurrentBattle(client)
+				chan = battle.name
+				self.HandleMessage(chan, user, msg)				
 		except:
 			logging.error(traceback.format_exc())
 
@@ -48,6 +54,7 @@ class ChanServClient(Client):
 		self._root.protocol._handle(self, msg)
 
 	def HandleMessage(self, chan, user, msg):
+		print(chan, user, msg, msg[0]!='!',len(msg)<=0)
 		if len(msg) <= 0:
 			return
 		if msg[0] != "!":
@@ -71,133 +78,81 @@ class ChanServClient(Client):
 				cmd, args = splitmsg
 		else: # case cmd
 			cmd = msg
+		print(0)
 		response = self.HandleCommand(chan, user, cmd, args)
 		if response:
 			for s in response.split('\n'):
 				self.Respond('SAYPRIVATE %s %s'%(user, s))
-
-						
-	#FIXME: chanserv has no mute command
-	#FIXME: accept ymdhs durations for mutes/bans
-	#FIXME: ban should interact with ip & email ?
-	
+					
 	def HandleCommand(self, chan, user, cmd, args=None):
 		client = self._root.protocol.clientFromUsername(user)
-		access = channel.getAccess(client) #todo: cleaner code for access controls
 		cmd = cmd.lower()
-
+		print(chan, user, cmd, args)
+		
 		if cmd == 'help':
 			return 'Hello, %s!\nI am an automated channel service bot from uberserver,\nfor the full list of commands, see https://springrts.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
 		
 		if cmd == 'register': 
 			if not client.isMod():
 				return '#%s: You must contact one of the server moderators to register a channel' % chan
-			if chan.startwith('__battle__'):
-				return "#%s: This channel is part of a battle, please use !registerbattle instead" % chan
+			if not chan:
+				return 'Channel not found (missing #?)'
 			if not args: args = user
 			target = self._root.protocol.clientFromUsername(args, True)
 			if not target:
 				return '#%s: User <%s> does not exist.' % (chan, args)
 			if not chan in self._root.channels:
-				return "Channel %s does not exist!"
-			channel = self._root.channels[chan]
+				return 'Channel %s does not exist' % chan
 			channel = self._root.channels[chan]
 			channel.register(client, target)
 			self.db().register(channel, target) # register channel in db
 			self.Respond('JOIN %s' % chan)
 			return '#%s: Successfully registered to <%s>' % (chan, args.split(' ',1)[0])
 			
-		if cmd == 'registerbattle': 
-			if client.isMod():
-				return '#%s: You must contact one of the server moderators to register a battle' % chan
-			if args.count(' '):
-				battle_username, target_username = args.split(' ', 1)
-			else:
-				battle_username = args
-				target_username = user
-			target_user = self._root.protocol.clientFromUsername(target_username, True)
-			if not target_user:					
-				return 'User %s does not exist' % target_username			
-			battle_user = self._root.protocol.clientFromUsername(battle_username, True)
-			if not battle_user:
-				return 'User %s does not exist' % battle_username
-			if not self._root.protocol.getCurrentBattle(battle_user):
-				return 'User %s is not hosting a battle right now' % battle_username
-			chan = '__battle__' + str(battle_user.user_id)
-			if not chan in self._root.channels:
-				return 'Channel for battle %s hosted by user_id %i does not exist, this is bug, please tell someone!' % (chan, user.user_id)
-			channel = self._root.channels[chan]
-			if not target:
-				return '#%s: User <%s> does not exist.' % (chan, args)
-			channel.register(client, target)
-			self.db().register(channel, target) # register channel in db
-			self.Respond('JOIN %s' % chan)
-			return '#%s: Successfully registered to <%s>' % (chan, args.split(' ',1)[0])		
-
+		if cmd == 'battlename':
+			host = self._root.protocol.clientFromUsername(args, True)
+			if not host:
+				return "User %s does not exist" % args
+			battle = self._root.protocol.getCurrentBattle(host)
+			if not battle or battle.host != host.session_id:
+				return "User %s is not hosting a battle" % args
+			return battle.name
+		
 		if not chan in self._root.channels:
-			return "Channel %s does not exist!"
+			return "Channel %s does not exist!" % chan
 		channel = self._root.channels[chan]
+		access = channel.getAccess(client) #todo: cleaner code for access controls
 		
 		if cmd == 'unregister':
 			if not access in ['mod', 'founder']:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to unregister a channel' % chan
+			channel.ChanServ = False
 			channel.owner_user_id = None
 			channel.operators = set()
 			channel.channelMessage('#%s has been unregistered'%chan)
 			self.db().unRegister(client, channel)
 			self.Respond('LEAVE %s' % chan)
 			return '#%s: Successfully unregistered.' % chan
-
-		if cmd == 'info':
-			antispam = 'on' if channel.antispam else 'off'
-			founder = 'No founder is registered'				
-			if channel.owner_user_id:
-				founder = self._root.protocol.clientFromID(channel.owner_user_id, True)
-				if founder: founder = 'Founder is <%s>' % founder.username
-			operators = channel.operators
-			op_list = "operator list is "
-			separator = '['
-			for op_user_id in operators:
-				op_entry = self._root.protocol.clientFromID(op_user_id, True)
-				if op_entry:
-					op_list += separator + op_entry.username
-					if separator == '[': separator = ' '
-				if separator == ' ': op_list += ']'
-			if separator!=' ': op_list += 'empty'						
-			users = channel.users
-			if len(users) == 1: users = '1 user is'
-			else: users = '%i users are currently in the channel' % len(users)
-			return '#%s info: Anti-spam protection is %s. %s, %s. %s. ' % (chan, antispam, founder, op_list, users)
 		
-		if cmd == 'topic':
-			if not access in ['mod', 'founder', 'op']:
-				return '#%s: You do not have permission to set the topic' % chan
-			args = args or ''
-			channel.setTopic(client, args)
-			self.db().setTopic(channel, args, client) 
-			return '#%s: Topic changed' % chan
-
-		if cmd == 'changefounder':
+		if cmd == 'setkey': 
 			if not access in ['mod', 'founder']:
-				return '#%s: You must contact one of the server moderators or the owner of the channel to change the founder' % chan
-			if not args: return '#%s: You must specify a new founder' % chan
-			target = self._root.protocol.clientFromUsername(args, True)
-			if not target: return '#%s: cannot assign founder status to a user who does not exist'
-			channel.setFounder(client, target)
-			channel.channelMessage('%s Founder has been changed to <%s>' % (chan, args))
-			self.db().setFounder(channel, target)
-			return '#%s: Successfully changed founder to <%s>' % (chan, args)
+				return '#%s: You do not have permission to change the channel password' % chan
+			if not args: 
+				return '#%s: You must specify a key for the channel' % chan
+			if channel.identity=='battle': 
+				return 'This is not currently possible, instead you can close and re-open the battle with a new password!'
+			channel.setKey(client, args)
+			self.db().setKey(channel, args)
+			return '#%s: Set key' % chan
 		
-		if cmd == 'spamprotection':
+		if cmd == 'removekey': 
 			if not access in ['mod', 'founder']:
-				return '#%s: You must contact one of the server moderators or the owner of the channel to change the antispam settings' % chan
-			if args == 'on':
-				channel.antispam = True
-				channel.channelMessage('%s Anti-spam protection was enabled by <%s>' % (chan, user))
-				return '#%s: Anti-spam protection is on.' % chan
-			channel.antispam = False
-			channel.channelMessage('%s Anti-spam protection was disabled by <%s>' % (chan, user))
-			return '#%s: Anti-spam protection is off.' % chan
+				return '#%s: You do not have permission to unlock the channel' % chan
+			if channel.identity=='battle': 
+				return 'This is not currently possible, instead you can close and re-open the battle without a password!'
+			channel.setKey(client, '*')
+			self.db().setKey(channel, '*')
+			return '#%s: Removed key' % chan
 		
 		if cmd == 'op':
 			if not access in ['mod', 'founder']:
@@ -227,28 +182,24 @@ class ChanServClient(Client):
 			self.db().deopUser(channel, target)
 			return '#%s: Successfully removed <%s> from operator list' % (chan, args)
 
-		if cmd == 'setkey': 
-			if access in ['mod', 'founder', 'op']:
-				if not args: 
-					return '#%s: You must specify a key for the channel' % chan
-				if channel.identity=='battle': 
-					return 'This is not currently possible, instead you can close and re-open the battle with a new password!'
-				channel.setKey(client, args)
-				self.db().setKey(channel, args)
-				return '#%s: Set key' % chan
-			else:
-				return '#%s: You do not have permission to lock the channel' % chan
+		if cmd == 'changefounder':
+			if not access in ['mod', 'founder']:
+				return '#%s: You must contact one of the server moderators or the owner of the channel to change the founder' % chan
+			if not args: return '#%s: You must specify a new founder' % chan
+			target = self._root.protocol.clientFromUsername(args, True)
+			if not target: return '#%s: cannot assign founder status to a user who does not exist'
+			channel.setFounder(client, target)
+			channel.channelMessage('%s Founder has been changed to <%s>' % (chan, args))
+			self.db().setFounder(channel, target)
+			return '#%s: Successfully changed founder to <%s>' % (chan, args)
+
+		if cmd == 'mute':
+			pass #FIXME
 		
-		if cmd == 'removekey': 
-			if not access in ['mod', 'founder', 'op']:
-				return '#%s: You do not have permission to unlock the channel' % chan
-			if channel.identity=='battle': 
-				return 'This is not currently possible, instead you can close and re-open the battle without a password!'
-			channel.setKey(client, '*')
-			self.db().setKey(channel, '*')
-			return '#%s: Removed key' % chan
+		if cmd == 'unmute':
+			pass #FIXME
 		
-		if cmd == 'kick':
+		if cmd == 'kick': #FIXME: maybe its better just to have ban (+autokick)?
 			if not access in ['mod', 'founder', 'op']:
 				return '#%s: You do not have permission to kick users from the channel' % chan
 			if not args: 
@@ -264,19 +215,7 @@ class ChanServClient(Client):
 			channel.kickUser(client, target, reason)
 			return '#%s: <%s> kicked' % (chan, target.username)
 		
-		if cmd == 'history': #FIXME: limit battles to a short history
-			if not access in ['mod', 'founder', 'op']:
-				return '#%s: You do not have permission to change history setting in the channel' % chan
-			enable = not channel.store_history
-			if self.db().setHistory(channel, enable):
-				channel.store_history = enable
-				msg = '#%s: history enabled=%s' % (chan, str(enable))
-			else:
-				msg = '#%s: history not enabled, register it first!' % (chan)
-			channel.channelMessage(msg)
-			return msg
-		
-		if cmd == 'ban':
+		if cmd == 'ban': #FIXME: handle dyhm, interact with ip/email
 			if not access in ['mod', 'founder', 'op']:
 				return '#%s: You do not have permission to ban users from this channel' % chan					
 			if not args: return '#%s: You must specify a user to ban from the channel' % chan					
@@ -317,6 +256,60 @@ class ChanServClient(Client):
 					channel.unbanBridgedUser(client, target)
 					return '#%s: <%s> unbanned' % (chan, target.username)
 			return '#%s: user <%s> not found in banlist' % (chan, target_username)
+		
+		
+		if cmd == 'topic':
+			if not access in ['mod', 'founder', 'op']:
+				return '#%s: You do not have permission to set the topic' % chan
+			args = args or ''
+			channel.setTopic(client, args)
+			self.db().setTopic(channel, args, client) 
+			return '#%s: Topic changed' % chan
+	
+		if cmd == 'spamprotection':
+			if not access in ['mod', 'founder', 'op']:
+				return '#%s: You must contact one of the server moderators or the owner of the channel to change the antispam settings' % chan
+			if args == 'on':
+				channel.antispam = True
+				channel.channelMessage('%s Anti-spam protection was enabled by <%s>' % (chan, user))
+				return '#%s: Anti-spam protection is on.' % chan
+			channel.antispam = False
+			channel.channelMessage('%s Anti-spam protection was disabled by <%s>' % (chan, user))
+			return '#%s: Anti-spam protection is off.' % chan
+		
+		if cmd == 'info':
+			antispam = 'on' if channel.antispam else 'off'
+			founder = 'No founder is registered'				
+			if channel.owner_user_id:
+				founder = self._root.protocol.clientFromID(channel.owner_user_id, True)
+				if founder: founder = 'Founder is <%s>' % founder.username
+			operators = channel.operators
+			op_list = "operator list is "
+			separator = '['
+			for op_user_id in operators:
+				op_entry = self._root.protocol.clientFromID(op_user_id, True)
+				if op_entry:
+					op_list += separator + op_entry.username
+					if separator == '[': separator = ' '
+				if separator == ' ': op_list += ']'
+			if separator!=' ': op_list += 'empty'						
+			users = channel.users
+			if len(users) == 1: users = '1 user is'
+			else: users = '%i users are currently in the channel' % len(users)
+			return '#%s info: Anti-spam protection is %s. %s, %s. %s. ' % (chan, antispam, founder, op_list, users)
+		
+		if cmd == 'history': #FIXME: limit battles to a short history
+			if not access in ['mod', 'founder', 'op']:
+				return '#%s: You do not have permission to change history setting in the channel' % chan
+			enable = not channel.store_history
+			if self.db().setHistory(channel, enable):
+				channel.store_history = enable
+				msg = '#%s: history enabled=%s' % (chan, str(enable))
+			else:
+				msg = '#%s: history not enabled, register it first!' % (chan)
+			channel.channelMessage(msg)
+			return msg
+		
 		
 		if cmd == 'lock' or cmd == 'unlock':
 			return 'This command no longer exists, use !setkey/!removekey'
