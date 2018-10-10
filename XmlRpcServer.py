@@ -15,7 +15,7 @@ import traceback
 import dbconfig
 from logging.handlers import TimedRotatingFileHandler
 
-from SQLUsers import User, Rename, Login, BanUser
+from SQLUsers import User, Rename, Login, Ban
 import SQLUsers
 import sqlalchemy
 import datetime
@@ -40,9 +40,11 @@ xmlport = 8300
 engine = sqlalchemy.create_engine(sqlurl, echo=False)
 userdb = SQLUsers.UsersHandler(None, engine)
 
+
 class RequestHandler(SimpleXMLRPCRequestHandler):
 	def log_message(self, format, *args):
 		logger.info(format % args)
+
 
 class XmlRpcServer(SimpleXMLRPCServer):
 	"""
@@ -56,7 +58,6 @@ class XmlRpcServer(SimpleXMLRPCServer):
 		self.serve_forever()
 
 
-
 def validateLogin(username, password):
 
 	session = userdb.sessionmaker()
@@ -67,7 +68,7 @@ def validateLogin(username, password):
 		logger.warning("User not found: %s" %(username))
 		return {"status": 1}
 
-	if not db_user.password == b64encode(md5(password.encode()).digest()).decode():
+	if password is not None and not db_user.password == b64encode(md5(password.encode()).digest()).decode():
 		session.close()
 		logger.error("Invalid password: %s" %(username))
 		return {"status": 1}
@@ -77,16 +78,17 @@ def validateLogin(username, password):
 		logger.error("User has no access: <%s> %s" %(username, db_user.access))
 		return {"status": 1}
 
-	banned = session.query(BanUser.reason).filter(BanUser.user_id == db_user.id, datetime.datetime.now() <= BanUser.end_time).first()
+	banned = session.query(Ban.reason).filter(Ban.user_id == db_user.id, datetime.datetime.now() <= Ban.end_time).first()
 	if banned:
 		session.close()
 		logger.warning("User is banned: %s" %(username, banned.reason))
 		return {"status": 1}
 
 	renames = session.query(Rename.original).distinct(Rename.original).filter(Rename.user_id == db_user.id).all()
-	renames = [ r[0] for r in renames]
+	renames = [r[0] for r in renames]
 
-	country = session.query(Login.country).filter(Login.user_dbid == db_user.id).filter(sqlalchemy.and_(Login.country != '??', Login.country != None, Login.country != '')).first()
+	country = session.query(Login.country).filter(Login.user_dbid == db_user.id).filter(
+		sqlalchemy.and_(Login.country != '??', Login.country is not None, Login.country != '')).first()
 	result = {"status": 0, "accountid": int(db_user.id), "username": str(db_user.username),
 			"ingame_time": int(db_user.ingame_time), "email": str(db_user.email),
 			"aliases": renames,
@@ -96,12 +98,13 @@ def validateLogin(username, password):
 	logger.info("validation success: %s" % (username))
 	return result
 
+
 class _RpcFuncs(object):
 	"""
 		All methods of this class will be exposed via XMLRPC.
 	"""
 
-	def get_account_info(self, username, password):
+	def get_account_info(self, username, password=None):
 		try:
 			return validateLogin(username, password)
 		except Exception as e:
