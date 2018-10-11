@@ -1190,7 +1190,7 @@ class Protocol:
 			channel = self._root.channels[chan]
 			if channel.isOp(client):
 				target = self.clientFromUsername(user)
-				if target:
+				if target and not channel.isOp(target):
 					channel.muteUser(client, target, duration)
 
 	def in_UNMUTE(self, client, chan, user):
@@ -1204,12 +1204,10 @@ class Protocol:
 		if not chan in self._root.channels:
 			self.out_FAILED(client, "UNMUTE", "Unknown channel: %s"%(chan))
 			return
-
 		channel = self._root.channels[chan]
 		if not channel.isOp(client):
 			self.out_FAILED(client, "UNMUTE", "Missing permissions for chan %s"%(chan))
 			return
-
 		target = self.clientFromUsername(user)
 		if not target:
 			self.out_FAILED(client, "UNMUTE", "User not found: %s"%(user))

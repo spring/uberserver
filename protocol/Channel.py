@@ -133,17 +133,6 @@ class Channel():
 	def isMuted(self, client):
 		return client.user_id in self.mutelist
 
-	def getMuteMessage(self, client):
-		if self.isMuted(client):
-			m = self.mutelist[client.user_id]
-			if m['expires'] == 0:
-				return 'muted forever'
-			else:
-				 # TODO: move format_time, bin2dec, etc to a utilities class or module
-				return 'muted for the next %s.' % (self._root.protocol._time_until(m['expires']))
-		else:
-			return 'not muted'
-
 	def setTopic(self, client, topic):
 		self.topic = topic
 
@@ -191,14 +180,23 @@ class Channel():
 		self.operators.remove(target.user_id)
 		self.channelMessage("<%s> has been removed from this %s's operator list by <%s>" % (target.username, self.identity, client.username))
 
-	def banUser(self, client, target, reason=''):
+	def kickUser(self, client, target):
+		if not target:
+			return
+		if not target.user_id in self.operators:
+			return
+		self.removeUser(client, target)
+		self.channelMessage('<%s> has been kicked from this %s by <%s>' % (target.username, self.identity, client.username))
+	
+	def banUser(self, client, target, duration, reason):
+		#FIXME: handle duration
 		if self.isFounder(target): return
 		if not target:
 			 return
 		if not target.user_id in self.ban:
 			return
 		self.ban[target.user_id] = reason
-		self.removeUser(client, target, reason)
+		self.removeUser(client, target)
 		self.channelMessage('<%s> has been removed from this %s by <%s>' % (target.username, self.identity, client.username))
 
 	def unbanUser(self, client, target):
@@ -208,7 +206,8 @@ class Channel():
 			return
 		del self.ban[target.user_id]
 
-	def banBridgedUser(self, client, target, reason=''):
+	def banBridgedUser(self, client, target, duration, reason):
+		#FIXME: handle duration
 		if not target:
 			return
 		if target.bridged_id in self.bridged_ban:
@@ -224,10 +223,17 @@ class Channel():
 			return
 		del self.bridged_ban[target.bridged_id]
 	
-	def muteUser(self, client, target, duration=0):
+	def getMuteMessage(self, client):
+		if self.isMuted(client):
+			m = self.mutelist[client.user_id]
+			if m['expires'] == 0:
+				return 'muted forever'
+			else:
+				return 'muted for the next %s.' % (self._root.protocol._time_until(m['expires']))
+		return 'not muted'
+
+	def muteUser(self, client, target, duration=0, reason=''):
 		if not target:
-			return
-		if self.isFounder(target): 
 			return
 		if client.user_id in self.mutelist:
 			return
@@ -242,7 +248,7 @@ class Channel():
 			self.channelMessage('<%s> has muted <%s> for %s minutes' % (client.username, target.username, duration))				
 			duration = duration * 60 #convert to seconds
 			duration = time.time() + duration
-		self.mutelist[target.user_id] = {'expires':duration }
+		self.mutelist[target.user_id] = {'expires':duration, 'reason':reason}
 
 	def unmuteUser(self, client, target):
 		if not target:

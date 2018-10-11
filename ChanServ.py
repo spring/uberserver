@@ -54,7 +54,6 @@ class ChanServClient(Client):
 		self._root.protocol._handle(self, msg)
 
 	def HandleMessage(self, chan, user, msg):
-		print(chan, user, msg, msg[0]!='!',len(msg)<=0)
 		if len(msg) <= 0:
 			return
 		if msg[0] != "!":
@@ -87,28 +86,10 @@ class ChanServClient(Client):
 	def HandleCommand(self, chan, user, cmd, args=None):
 		client = self._root.protocol.clientFromUsername(user)
 		cmd = cmd.lower()
-		print(chan, user, cmd, args)
 		
 		if cmd == 'help':
 			return 'Hello, %s!\nI am an automated channel service bot from uberserver,\nfor the full list of commands, see https://springrts.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
 		
-		if cmd == 'register': 
-			if not client.isMod():
-				return '#%s: You must contact one of the server moderators to register a channel' % chan
-			if not chan:
-				return 'Channel not found (missing #?)'
-			if not args: args = user
-			target = self._root.protocol.clientFromUsername(args, True)
-			if not target:
-				return '#%s: User <%s> does not exist.' % (chan, args)
-			if not chan in self._root.channels:
-				return 'Channel %s does not exist' % chan
-			channel = self._root.channels[chan]
-			channel.register(client, target)
-			self.db().register(channel, target) # register channel in db
-			self.Respond('JOIN %s' % chan)
-			return '#%s: Successfully registered to <%s>' % (chan, args.split(' ',1)[0])
-			
 		if cmd == 'battlename':
 			host = self._root.protocol.clientFromUsername(args, True)
 			if not host:
@@ -118,10 +99,29 @@ class ChanServClient(Client):
 				return "User %s is not hosting a battle" % args
 			return battle.name
 		
+		if cmd == 'register': 
+			if not client.isMod():
+				return '#%s: You must contact one of the server moderators to register a channel' % chan
+			if not chan:
+				return 'Channel not found (missing #?)'
+			if not args: args = user
+			target = self._root.protocol.clientFromUsername(args, True)
+			if not target:
+				return '#%s: User <%s> not found' % (chan, args)
+			if not chan in self._root.channels:
+				return 'Channel %s does not exist' % chan
+			channel = self._root.channels[chan]
+			channel.register(client, target)
+			self.db().register(channel, target) # register channel in db
+			self.Respond('JOIN %s' % chan)
+			return '#%s: Successfully registered to <%s>' % (chan, args.split(' ',1)[0])		
+		
+
 		if not chan in self._root.channels:
 			return "Channel %s does not exist!" % chan
 		channel = self._root.channels[chan]
 		access = channel.getAccess(client) #todo: cleaner code for access controls
+		
 		
 		if cmd == 'unregister':
 			if not access in ['mod', 'founder']:
@@ -138,21 +138,12 @@ class ChanServClient(Client):
 			if not access in ['mod', 'founder']:
 				return '#%s: You do not have permission to change the channel password' % chan
 			if not args: 
-				return '#%s: You must specify a key for the channel' % chan
+				return "#%s: You must specify a password for the channel (use '*' for no password)" % chan
 			if channel.identity=='battle': 
 				return 'This is not currently possible, instead you can close and re-open the battle with a new password!'
 			channel.setKey(client, args)
 			self.db().setKey(channel, args)
 			return '#%s: Set key' % chan
-		
-		if cmd == 'removekey': 
-			if not access in ['mod', 'founder']:
-				return '#%s: You do not have permission to unlock the channel' % chan
-			if channel.identity=='battle': 
-				return 'This is not currently possible, instead you can close and re-open the battle without a password!'
-			channel.setKey(client, '*')
-			self.db().setKey(channel, '*')
-			return '#%s: Removed key' % chan
 		
 		if cmd == 'op':
 			if not access in ['mod', 'founder']:
@@ -161,12 +152,12 @@ class ChanServClient(Client):
 				return '#%s: You must specify a user to op' % chan
 			target = self._root.protocol.clientFromUsername(args, True)
 			if not target: 
-				return '#%s: cannot assign operator status, user does not exist' 
-			if target and channel.isOp(target): 
+				return '#%s: User <%s> not found' % (chan, args)
+			if channel.isOp(target): 
 				return '#%s: <%s> was already an op' % (chan, args)
 			channel.opUser(client, target)
 			self.db().opUser(channel, target)
-			return '#%s: Successfully added <%s> to operator list' % (chan, args)
+			return '#%s: added <%s> to operator list' % (chan, args)
 		
 		if cmd == 'deop':
 			if not access in ['mod', 'founder']:
@@ -175,87 +166,112 @@ class ChanServClient(Client):
 				return '#%s: You must specify a user to deop' % chan
 			target = self._root.protocol.clientFromUsername(args, True)
 			if not target: 
-				return '#%s: cannot remove operator status, user does not exist'
-			if target.user_id==channel.owner_user_id: return '#%s: cannot remove operator status from channel founder'
-			if target and not channel.isOp(target): return '#%s: <%s> was not an op' % (chan, args)
+				return '#%s: User <%s> not found' % (chan, args)
+			if target.user_id==channel.owner_user_id: 
+				return '#%s: Cannot remove operator status from channel founder' % chan
+			if target and not channel.isOp(target): 
+				return '#%s: <%s> was not an op' % (chan, args)
 			channel.deopUser(client, target)
 			self.db().deopUser(channel, target)
-			return '#%s: Successfully removed <%s> from operator list' % (chan, args)
+			return '#%s: removed <%s> from operator list' % (chan, args)
 
 		if cmd == 'changefounder':
 			if not access in ['mod', 'founder']:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to change the founder' % chan
-			if not args: return '#%s: You must specify a new founder' % chan
+			if not args: 
+				return '#%s: You must specify a new founder' % chan
 			target = self._root.protocol.clientFromUsername(args, True)
-			if not target: return '#%s: cannot assign founder status to a user who does not exist'
+			if not target: 
+				return '#%s: Cannot assign founder status to a user who does not exist'
 			channel.setFounder(client, target)
-			channel.channelMessage('%s Founder has been changed to <%s>' % (chan, args))
+			channel.channelMessage('%s Founder has been changed to <%s>' % (chan, target.username))
 			self.db().setFounder(channel, target)
-			return '#%s: Successfully changed founder to <%s>' % (chan, args)
+			return '#%s: changed founder to <%s>' % (chan, args)
 
-		if cmd == 'mute':
-			pass #FIXME
+		
+		if cmd == 'mute': #FIXME: parse duration
+			if not access in ['mod', 'founder', 'op']:
+				return '#%s: You do not have permission to mute users in this channel' % chan
+			if args.count(' ') >= 2:
+				target_username, duration, reason = args.split(' ', 2) 
+			if args.count(' ') < 2 or not target_username or not duration or not reason:
+				return "#%s: Please specify a target username, a duration, and a reason (in that order)"
+			if '@' in target_username:
+				return '#%s: For bridged users, use !ban to remove a bridged user from the channel bridge (and then their chat will not be forwarded to #%s)' % (chan, chan)
+			target = self._root.protocol.clientFromUsername(target_username, True)			
+			if not target:
+				return '#%s: User <%s> not found' % (chan, target_username)
+			if channel.isOp(target):
+				return '#%s: Cannot mute <%s>, user has operator status' % (chan, target.username)	
+			channel.muteUser(client, target, duration, reason)
+			return '#%s: muted <%s> for %s' % (chan, target.username, duration)
 		
 		if cmd == 'unmute':
-			pass #FIXME
+			if not access in ['mod', 'founder', 'op']:
+				return '#%s: You do not have permission to unmute users in this channel' % chan					
+			target_username = args
+			if not target_username: 
+				return '#%s: You must specify a user to unmute' % chan					
+			if '@' in target_username:
+				return '#%s: For bridged users, use !ban/!unban' % (chan, chan)
+			target = self._root.protocol.clientFromUsername(target_username, True)			
+			if not target:
+				return '#%s: User <%s> not found' % (chan, target)
+			channel.unmuteUser(client, target)
+			return '#%s: unmuted <%s>' % (chan, target.username)
 		
-		if cmd == 'kick': #FIXME: maybe its better just to have ban (+autokick)?
+		if cmd == 'kick': 
 			if not access in ['mod', 'founder', 'op']:
 				return '#%s: You do not have permission to kick users from the channel' % chan
-			if not args: 
+			target_username = args
+			if not target_username: 
 				return '#%s: You must specify a user to kick from the channel' % chan
-			if args.count(' '):
-				target, reason = args.split(' ', 1)
-			else:
-				target = args
-				reason = None						
-			if not target in channel.users:
-				return '#%s: user <%s> not found' % (chan, target)
-			target = self._root.protocol.clientFromUsername(target, True)
+			target = self._root.protocol.clientFromUsername(args, True)
+			if not target or not target.session_id in channel.users:
+				return '#%s: User <%s> not found' % (chan, target_username)
+			if channel.isOp(target):
+				return '#%s: Cannot kick <%s>, user has operator status' % (chan, target.username)	
 			channel.kickUser(client, target, reason)
-			return '#%s: <%s> kicked' % (chan, target.username)
+			return '#%s: kicked <%s>' % (chan, target.username)
 		
-		if cmd == 'ban': #FIXME: handle dyhm, interact with ip/email
+		if cmd == 'ban': #FIXME: parse duration
 			if not access in ['mod', 'founder', 'op']:
-				return '#%s: You do not have permission to ban users from this channel' % chan					
-			if not args: return '#%s: You must specify a user to ban from the channel' % chan					
-			if args.count(' '):
-				target_username, reason = args.split(' ', 1)
-			else:
-				target_username = args
-				reason = None
-			if not '@' in target_username:
-				target = self._root.protocol.clientFromUsername(target_username, True)
-				if target:
-					channel.banUser(client, target, reason)
-					return '#%s: <%s> banned' % (chan, target.username)
-			elif '@' in target_username:
+				return '#%s: You do not have permission to ban users from this channel' % chan
+			if args.count(' ') >= 2:
+				target_username, duration, reason = args.split(' ', 2) 
+			if args.count(' ') < 2 or not target_username or not duration or not reason:
+				return "#%s: Please specify a target username, a duration, and a reason (in that order)"
+			if '@' in target_username:
 				target = self._root.protocol.bridgedClientFromUsername(target_username)
-				if target:
-					channel.banBridgedUser(client, target, reason)
-					return '#%s: <%s> banned' % (chan, target.username)
-				return '#%s: user <%s> not found' % (chan, target_username)						
-		
+				if not target:
+					return '#%s: User <%s> not found' % (chan, target_username)						
+				channel.banBridgedUser(client, target, duration, reason)
+				return '#%s: banned <%s> from the bridge for %s' % (chan, target.username, duration)
+			target = self._root.protocol.clientFromUsername(target_username, True)
+			if not target:
+				return '#%s: User <%s> not found' % (chan, target_username)	
+			if channel.isOp(target):
+				return '#%s: Cannot ban <%s>, user has operator status' % (chan, target.username)	
+			channel.banUser(client, target, duration, reason)
+			return '#%s: banned <%s> for %s' % (chan, target.username, duration)
+			
 		if cmd == 'unban':
 			if not access in ['mod', 'founder', 'op']:
 				return '#%s: You do not have permission to ban users from this channel' % chan	
-			if not args: return '#%s: You must specify a user to unban from the channel' % chan					
-			if args.count(' '):
-				target_username, reason = args.split(' ', 1)
-			else:
-				target_username = args
-				reason = None
-			if not '@' in target_username:
-				target = self._root.protocol.clientFromUsername(target_username, True)
-				if target and target_username in channel.ban:
-					channel.unbanUser(client, target, reason)
-					return '#%s: <%s> unbanned' % (chan, target.username)
-			elif '@' in target_username:
+			if not args: 
+				return '#%s: You must specify a user to unban from the channel' % chan					
+			target_username = args
+			if '@' in target_username:
 				target = self._root.protocol.bridgedClientFromUsername(target_username)
-				if target and target.bridged_id in channel.bridged_ban:
-					channel.unbanBridgedUser(client, target)
-					return '#%s: <%s> unbanned' % (chan, target.username)
-			return '#%s: user <%s> not found in banlist' % (chan, target_username)
+				if not target or not target.bridged_id in channel.bridged_ban:
+					return '#%s: User <%s> not found in bridged banlist' % (chan, target_username)
+				channel.unbanBridgedUser(client, target)
+				return '#%s: <%s> unbanned' % (chan, target.username)
+			target = self._root.protocol.clientFromUsername(target_username, True)
+			if not target or not target_username in channel.ban:
+				return '#%s: User <%s> not found in banlist' % (chan, target_username)
+			channel.unbanUser(client, target, reason)
+			return '#%s: <%s> unbanned' % (chan, target.username)
 		
 		
 		if cmd == 'topic':
@@ -276,6 +292,7 @@ class ChanServClient(Client):
 			channel.antispam = False
 			channel.channelMessage('%s Anti-spam protection was disabled by <%s>' % (chan, user))
 			return '#%s: Anti-spam protection is off.' % chan
+		
 		
 		if cmd == 'info':
 			antispam = 'on' if channel.antispam else 'off'
@@ -298,7 +315,7 @@ class ChanServClient(Client):
 			else: users = '%i users are currently in the channel' % len(users)
 			return '#%s info: Anti-spam protection is %s. %s, %s. %s. ' % (chan, antispam, founder, op_list, users)
 		
-		if cmd == 'history': #FIXME: limit battles to a short history
+		if cmd == 'history': 
 			if not access in ['mod', 'founder', 'op']:
 				return '#%s: You do not have permission to change history setting in the channel' % chan
 			enable = not channel.store_history
@@ -312,7 +329,7 @@ class ChanServClient(Client):
 		
 		
 		if cmd == 'lock' or cmd == 'unlock':
-			return 'This command no longer exists, use !setkey/!removekey'
+			return 'This command no longer exists, use !setkey'
 		
 		return 'command "%s" not found, use "!help" to get help!' %(cmd) #todo: better cmd list + split into functions
 	
