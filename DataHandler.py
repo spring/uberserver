@@ -334,26 +334,36 @@ class DataHandler:
 		while self.running:
 			now = time.time()
 			try:
-				if now - lastmute >= 1: #FIXME: reenable after twisted switch
+				if now - lastmute >= 1: 
 					lastmute = now
-					self.mute_timeout_step(now)
+					self.mute_ban_timeout_step(now) 
 			except:
 				logging.error(traceback.format_exc())
 			time.sleep(max(0.1, 1 - (now - self.start_time)))
 
-	def mute_timeout_step(self, now):
+	def mute_ban_timeout_step(self, now):
+		# remove expired channel/battle mutes/bans
 		try:
 			channels = self.channels
 			for chan in channels:
 				channel = channels[chan]
-				mutelist = channel.mutelist
-				for user_id in mutelist:
+				for user_id in channel.mutelist:
 					expiretime = mutelist[user_id]['expires']
 					if 0 < expiretime and expiretime < now:
 						del channel.mutelist[user_id]
 						client = self.clientFromID(user_id)
 						if client:
 							channel.channelMessage('<%s> has been unmuted (mute expired).' % client.username)
+				for user_id in channel.ban:
+					expiretime = channel.ban[user_id]['expires']
+					if 0 < expiretime and expiretime < now:
+						del channel.ban[user_id]
+						client = self.clientFromID(user_id)
+				for bridged_id in channel.bridged_ban:
+					expiretime = channel.bridged_ban[user_id]['expires']
+					if 0 < expiretime and expiretime < now:
+						del channel.bridged_ban[user_id]
+						client = self.clientFromID(user_id)
 		except:
 			logging.error(traceback.format_exc())
 

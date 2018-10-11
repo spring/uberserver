@@ -196,13 +196,12 @@ class Channel():
 		self.channelMessage('<%s> has been kicked from this %s by <%s>' % (target.username, self.identity, client.username))
 	
 	def banUser(self, client, target, duration, reason):
-		#FIXME: handle duration
 		if self.isFounder(target): return
 		if not target:
 			 return
 		if not target.user_id in self.ban:
 			return
-		self.ban[target.user_id] = reason
+		self.ban[target.user_id] = {'expires':duration, 'reason':reason}
 		self.removeUser(client, target)
 		self.channelMessage('<%s> has been removed from this %s by <%s>' % (target.username, self.identity, client.username))
 
@@ -219,7 +218,7 @@ class Channel():
 			return
 		if target.bridged_id in self.bridged_ban:
 			return
-		self.bridged_ban[target.bridged_id] = reason
+		self.bridged_ban[target.bridged_id] = {'expires':duration, 'reason':reason, 'issuer_user_id':client.user_id}
 		self.removeBridgedUser(client, target)
 		self.channelMessage('<%s> has been removed from this channel by <%s>' % (target.username, client.username))
 	
@@ -255,7 +254,7 @@ class Channel():
 			self.channelMessage('<%s> has muted <%s> for %s minutes' % (client.username, target.username, duration))				
 			duration = duration * 60 #convert to seconds
 			duration = time.time() + duration
-		self.mutelist[target.user_id] = {'expires':duration, 'reason':reason}
+		self.mutelist[target.user_id] = {'expires':duration, 'reason':reason, 'issuer_user_id':client.user_id}
 
 	def unmuteUser(self, client, target):
 		if not target:
