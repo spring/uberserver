@@ -2029,7 +2029,7 @@ class Protocol:
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			if channel.isOp(client):
-				channel.setTopic(client, topic)
+				channel.setTopic(client, topic) 
 
 	def in_GETCHANNELMESSAGES(self, client, chan, lastid):
 		'''

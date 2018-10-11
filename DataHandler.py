@@ -358,7 +358,7 @@ class DataHandler:
 			logging.error(traceback.format_exc())
 
 	# the sourceClient is only sent for SAY*, and RING commands
-	def multicast(self, session_ids, msg, ignore=(), sourceClient=None):
+	def multicast(self, session_ids, msg, ignore=(), sourceClient=None, flag=None):
 		assert(type(ignore) == set)
 		static = []
 		for session_id in session_ids:
@@ -369,10 +369,11 @@ class DataHandler:
 				continue
 			if client.session_id in ignore:
 				continue
-
 			if sourceClient and sourceClient.user_id in client.ignored:
 				continue
-
+			if flag and not flag in client.compat_flags:
+				continue
+				
 			if client.static:
 				static.append(client)
 			else:
@@ -383,7 +384,7 @@ class DataHandler:
 			client.Send(msg)
 
 	# the sourceClient is only sent for SAY*, and RING commands
-	def broadcast(self, msg, chan=None, ignore=set(), sourceClient=None):
+	def broadcast(self, msg, chan=None, ignore=set(), sourceClient=None, flag=None):
 		assert(type(ignore) == set)
 		try:
 			if not chan in self.channels:
@@ -395,7 +396,7 @@ class DataHandler:
 			logging.error(traceback.format_exc())
 
 	# the sourceClient is only sent for SAY*, and RING commands
-	def broadcast_battle(self, msg, battle_id, ignore=set(), sourceClient=None):
+	def broadcast_battle(self, msg, battle_id, ignore=set(), sourceClient=None, flag=None):
 		assert(type(ignore) == set)
 		assert(type(battle_id) == int)
 		if not battle_id in self.battles:

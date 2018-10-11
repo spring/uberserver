@@ -77,7 +77,6 @@ class ChanServClient(Client):
 				cmd, args = splitmsg
 		else: # case cmd
 			cmd = msg
-		print(0)
 		response = self.HandleCommand(chan, user, cmd, args)
 		if response:
 			for s in response.split('\n'):
@@ -184,7 +183,6 @@ class ChanServClient(Client):
 			if not target: 
 				return '#%s: Cannot assign founder status to a user who does not exist'
 			channel.setFounder(client, target)
-			channel.channelMessage('%s Founder has been changed to <%s>' % (chan, target.username))
 			self.db().setFounder(channel, target)
 			return '#%s: changed founder to <%s>' % (chan, args)
 

@@ -46,6 +46,7 @@ class Battle(Channel):
 		else:
 			client.Send('JOINBATTLE %s %s' % (self.battle_id, self.hashcode)) 
 			self.users.add(client.session_id)
+			client.channels.add(self.name)
 		
 		scriptPassword = client.scriptPassword
 		host = self._root.protocol.clientFromSession(self.host)
