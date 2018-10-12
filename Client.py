@@ -128,7 +128,6 @@ class Client(BaseClient):
 			msg_limits = self.floodlimit[self.access]
 		else:
 			msg_limits = self.floodlimit['user']
-		print("< " + data)
 
 		now = int(time.time())
 		self.lastdata = now # data received, store time to detect disconnects
@@ -225,7 +224,6 @@ class Client(BaseClient):
 		## don't append new data to buffer when client gets removed
 		if not data:
 			return
-		print("> " + data)
 		self.transport.write(data.encode("utf-8") + b"\n")
 
 	def Send(self, data):
