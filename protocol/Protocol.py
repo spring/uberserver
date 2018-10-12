@@ -929,6 +929,7 @@ class Protocol:
 					else:
 						flags.add(flag)
 				
+				flags.add('u')
 				unsupported = ""
 				for flag in flags:
 					client.compat[flag] = True
@@ -1186,6 +1187,14 @@ class Protocol:
 		@required.str user: The user to mute.
 		@optional.float duration: The duration for which to mute the user. Defaults to forever.
 		'''
+		try:
+			duration = float(duration)
+		except:
+			duration = 0
+		if duration < 1:
+			duration = 0
+		else:
+			duration = duration * 60 #convert to seconds
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			if channel.isOp(client):

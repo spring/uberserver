@@ -1,4 +1,6 @@
 import time
+from datetime import datetime
+from datetime import timedelta
 
 class Channel():
 	def __init__(self, root, name):
@@ -188,21 +190,22 @@ class Channel():
 		self.channelMessage("<%s> has been removed from this %s's operator list by <%s>" % (target.username, self.identity, client.username))
 
 	def kickUser(self, client, target):
-		if not target:
+		if target.user_id in self.operators:
 			return
-		if not target.user_id in self.operators:
+		if not hasattr(target, "session_id") or target.session_id in self.users:
 			return
 		self.removeUser(client, target)
 		self.channelMessage('<%s> has been kicked from this %s by <%s>' % (target.username, self.identity, client.username))
 	
 	def banUser(self, client, target, duration, reason):
-		if self.isFounder(target): return
 		if not target:
 			 return
-		if not target.user_id in self.ban:
-			return
-		self.ban[target.user_id] = {'expires':duration, 'reason':reason}
-		self.removeUser(client, target)
+		if duration == 0:
+			expires = 0
+		else:
+			expires = datetime.now() + duration
+		self.ban[target.user_id] = {'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
+		self.kickUser(client, target)
 		self.channelMessage('<%s> has been removed from this %s by <%s>' % (target.username, self.identity, client.username))
 
 	def unbanUser(self, client, target):
@@ -213,13 +216,16 @@ class Channel():
 		del self.ban[target.user_id]
 
 	def banBridgedUser(self, client, target, duration, reason):
-		#FIXME: handle duration
 		if not target:
 			return
 		if target.bridged_id in self.bridged_ban:
 			return
-		self.bridged_ban[target.bridged_id] = {'expires':duration, 'reason':reason, 'issuer_user_id':client.user_id}
-		self.removeBridgedUser(client, target)
+		if duration == 0: #FIXME
+			expires = 0
+		else:
+			expires = datetime.now() + duration
+		self.bridged_ban[target.bridged_id] = {'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
+		self.kickUser(client, target)
 		self.channelMessage('<%s> has been removed from this channel by <%s>' % (target.username, client.username))
 	
 	def unbanBridgedUser(self, client, target):
@@ -233,7 +239,7 @@ class Channel():
 		if self.isMuted(client):
 			m = self.mutelist[client.user_id]
 			if m['expires'] == 0:
-				return 'muted forever'
+				return 'muted for ever'
 			else:
 				return 'muted for the next %s.' % (self._root.protocol._time_until(m['expires']))
 		return 'not muted'
@@ -241,19 +247,13 @@ class Channel():
 	def muteUser(self, client, target, duration=0, reason=''):
 		if not target:
 			return
-		if client.user_id in self.mutelist:
-			return
-		try:
-			duration = float(duration)
-		except:
-			duration = 0
-		if duration < 1:
-			duration = 0
-			self.channelMessage('<%s> has muted <%s>' % (client.username, target.username))
+		if duration == timedelta(minutes=0): #FIXME
+			expires = 0
+			duration_str = ''
 		else:
-			self.channelMessage('<%s> has muted <%s> for %s minutes' % (client.username, target.username, duration))				
-			duration = duration * 60 #convert to seconds
-			duration = time.time() + duration
+			expires = datetime.now() + duration
+			duration_str = 'for ' + str(duration)
+		self.channelMessage('<%s> has muted by <%s> %s' % (client.username, target.username, duration_str))				
 		self.mutelist[target.user_id] = {'expires':duration, 'reason':reason, 'issuer_user_id':client.user_id}
 
 	def unmuteUser(self, client, target):
@@ -264,3 +264,17 @@ class Channel():
 		del self.mutelist[target.user_id]
 		self.channelMessage('<%s> has unmuted <%s>' % (client.username, target.username))
 
+	def list_mutes(self, client):
+		client.Send(" -- Mutelist for %s -- " % self.name)
+		for user_id in self.mutelist:
+			mute = self.mutelist[user_id]
+			target = self._root.protocol.clientFromID(user_id)
+			if not target:
+				continue
+			issuer = self._root.protocol.clientFromID(mute.issuer_user_id)
+			issuer_name_str = "unknown"
+			if issuer:
+				issuer_name_str = issuer.name
+			client.Send("%s :: %s :: ends %s (%s)" % (target.usernname, mute.reason, mute.expires, issuer_name_str))
+		client.Send(" -- End Mutelist -- ")
+	

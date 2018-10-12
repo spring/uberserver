@@ -343,6 +343,7 @@ class DataHandler:
 
 	def mute_ban_timeout_step(self, now):
 		# remove expired channel/battle mutes/bans
+		#FIXME: check that this works!
 		try:
 			channels = self.channels
 			for chan in channels:
