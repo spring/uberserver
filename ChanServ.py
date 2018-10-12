@@ -1,4 +1,5 @@
 import time, traceback, logging
+from datetime import timedelta
 from Client import Client
 
 class ChanServClient(Client):
@@ -26,7 +27,25 @@ class ChanServClient(Client):
 
 	def db(self):
 		return self._root.channeldb
-
+		
+	def parse_duration(self, duration):
+		try:
+			num = int(duration)
+			return timedelta(minutes=num)
+		except:
+			pass
+		try:
+			num = int(duration[:-1])
+		except:
+			return
+		if duration.endswith('m'):
+			return timedelta(minutes=num)
+		elif duration.endswith('h'):
+			return timedelta(hours=num)
+		elif duration.endswith('d'):
+			return timedelta(days=num)	
+		return
+		
 	def Handle(self, msg):
 		try:
 			if not msg.count(' '):
@@ -187,15 +206,18 @@ class ChanServClient(Client):
 			return '#%s: changed founder to <%s>' % (chan, args)
 
 		
-		if cmd == 'mute': #FIXME: parse duration
+		if cmd == 'mute': 
 			if not access in ['mod', 'founder', 'op']:
 				return '#%s: You do not have permission to mute users in this channel' % chan
 			if args.count(' ') >= 2:
-				target_username, duration, reason = args.split(' ', 2) 
-			if args.count(' ') < 2 or not target_username or not duration or not reason:
+				target_username, duration_str, reason = args.split(' ', 2) 
+			if args.count(' ') < 2 or not target_username or not duration_str or not reason:
 				return "#%s: Please specify a target username, a duration, and a reason (in that order)"
+			duration = self.parse_duration(duration_str)
+			if duration == None:
+				return "#%s: Could not parse duration %s, please enter a number of minutes or specify a time unit e.g. '10m', '2h', or '3d'" % (chan, duration_str)
 			if '@' in target_username:
-				return '#%s: For bridged users, use !ban to remove a bridged user from the channel bridge (and then their chat will not be forwarded to #%s)' % (chan, chan)
+				return '#%s: Use !ban to remove a bridged user from the channel bridge (then, their chat will not be forwarded to #%s)' % (chan, chan)
 			target = self._root.protocol.clientFromUsername(target_username, True)			
 			if not target:
 				return '#%s: User <%s> not found' % (chan, target_username)
@@ -218,33 +240,39 @@ class ChanServClient(Client):
 			channel.unmuteUser(client, target)
 			return '#%s: unmuted <%s>' % (chan, target.username)
 		
-		if cmd == 'kick': 
+		if cmd == 'listmutes':
 			if not access in ['mod', 'founder', 'op']:
-				return '#%s: You do not have permission to kick users from the channel' % chan
-			target_username = args
-			if not target_username: 
-				return '#%s: You must specify a user to kick from the channel' % chan
-			target = self._root.protocol.clientFromUsername(args, True)
-			if not target or not target.session_id in channel.users:
-				return '#%s: User <%s> not found' % (chan, target_username)
-			if channel.isOp(target):
-				return '#%s: Cannot kick <%s>, user has operator status' % (chan, target.username)	
-			channel.kickUser(client, target, reason)
-			return '#%s: kicked <%s>' % (chan, target.username)
+				return '#%s: You do not have permission to execute this command' % chan	
+			mutelist_str = " -- Mutelist for %s -- " % chan
+			for user_id in channel.mutelist:
+				mute = channel.mutelist[user_id]
+				target = self._root.protocol.clientFromID(user_id, True)
+				if not target:
+					continue
+				issuer = self._root.protocol.clientFromID(mute['issuer_user_id'], True)
+				issuer_name_str = "unknown"
+				if issuer:
+					issuer_name_str = issuer.username
+				mutelist_str += "\n" + "%s :: %s :: ends %s (%s)" % (target.username, mute['reason'], mute['expires'].strftime("%Y-%m-%d %H:%M:%S"), issuer_name_str)
+			mutelist_str += "\n" + " -- End Mutelist -- " 
+			return mutelist_str
 		
-		if cmd == 'ban': #FIXME: parse duration
+		if cmd == 'ban':
 			if not access in ['mod', 'founder', 'op']:
 				return '#%s: You do not have permission to ban users from this channel' % chan
 			if args.count(' ') >= 2:
-				target_username, duration, reason = args.split(' ', 2) 
-			if args.count(' ') < 2 or not target_username or not duration or not reason:
+				target_username, duration_str, reason = args.split(' ', 2) 
+			if args.count(' ') < 2 or not target_username or not duration_str or not reason:
 				return "#%s: Please specify a target username, a duration, and a reason (in that order)"
+			duration = self.parse_duration(duration_str)
+			if duration == None:
+				return "#%s: Could not parse duration %s, please enter a number of minutes or specify a time unit e.g. '10m', '2h', or '3d'" % (chan, duration_str)
 			if '@' in target_username:
 				target = self._root.protocol.bridgedClientFromUsername(target_username)
 				if not target:
-					return '#%s: User <%s> not found' % (chan, target_username)						
+					return '#%s: Bridged user <%s> not found' % (chan, target_username)						
 				channel.banBridgedUser(client, target, duration, reason)
-				return '#%s: banned <%s> from the bridge for %s' % (chan, target.username, duration)
+				return '#%s: banned <%s> from %s' % (chan, target.username, duration)
 			target = self._root.protocol.clientFromUsername(target_username, True)
 			if not target:
 				return '#%s: User <%s> not found' % (chan, target_username)	
@@ -255,7 +283,7 @@ class ChanServClient(Client):
 			
 		if cmd == 'unban':
 			if not access in ['mod', 'founder', 'op']:
-				return '#%s: You do not have permission to ban users from this channel' % chan	
+				return '#%s: You do not have permission to unban users from this channel' % chan	
 			if not args: 
 				return '#%s: You must specify a user to unban from the channel' % chan					
 			target_username = args
@@ -271,6 +299,46 @@ class ChanServClient(Client):
 			channel.unbanUser(client, target, reason)
 			return '#%s: <%s> unbanned' % (chan, target.username)
 		
+		if cmd == 'listbans':
+			if not access in ['mod', 'founder', 'op']:
+				return '#%s: You do not have permission to execute this command' % chan	
+			banlist_str = " -- Banlist for %s -- " % chan
+			for user_id in channel.ban:
+				ban = channel.ban[user_id]
+				target = self._root.protocol.clientFromID(user_id, True)
+				if not target:
+					continue
+				issuer = self._root.protocol.clientFromID(ban['issuer_user_id'], True)
+				issuer_name_str = "unknown"
+				if issuer:
+					issuer_name_str = issuer.username
+				banlist_str += "\n" + "%s :: %s :: ends %s (%s)" % (target.username, ban['reason'], ban['expires'].strftime("%Y-%m-%d %H:%M:%S"), issuer_name_str)
+			for user_id in channel.bridged_ban:
+				ban = channel.bridged_ban[user_id]
+				target = self._root.protocol.clientFromID(user_id)
+				if not target:
+					continue
+				issuer = self._root.protocol.clientFromID(ban['issuer_user_id'])
+				issuer_name_str = "unknown"
+				if issuer:
+					issuer_name_str = issuer.username
+				banlist_str += "\n" + "%s :: %s :: ends %s (%s)" % (target.username, ban['reason'], ban['expires'].strftime("%Y-%m-%d %H:%M:%S"), issuer_name_str)
+			banlist_str += "\n" + " -- End Banlist -- "
+			return banlist_str
+		
+		if cmd == 'kick': 
+			if not access in ['mod', 'founder', 'op']:
+				return '#%s: You do not have permission to kick users from the channel' % chan
+			target_username = args
+			if not target_username: 
+				return '#%s: You must specify a user to kick from the channel' % chan
+			target = self._root.protocol.clientFromUsername(args, True)
+			if not target or not target.session_id in channel.users:
+				return '#%s: User <%s> not found' % (chan, target_username)
+			if channel.isOp(target):
+				return '#%s: Cannot kick <%s>, user has operator status' % (chan, target.username)	
+			channel.kickUser(client, target, reason)
+			return '#%s: kicked <%s>' % (chan, target.username)
 		
 		if cmd == 'topic':
 			if not access in ['mod', 'founder', 'op']:
