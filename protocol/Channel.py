@@ -197,13 +197,13 @@ class Channel():
 		self.removeUser(client, target)
 		self.channelMessage('<%s> has been kicked from this %s by <%s>' % (target.username, self.identity, client.username))
 	
-	def banUser(self, client, target, duration, reason):
+	def banUser(self, client, target, duration=timedelta.max, reason=''):
 		if not target:
 			 return
-		if duration == 0:
-			expires = 0
-		else:
+		try: 
 			expires = datetime.now() + duration
+		except:
+			expires = datetime.max
 		self.ban[target.user_id] = {'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
 		self.kickUser(client, target)
 		self.channelMessage('<%s> has been removed from this %s by <%s>' % (target.username, self.identity, client.username))
@@ -215,15 +215,15 @@ class Channel():
 			return
 		del self.ban[target.user_id]
 
-	def banBridgedUser(self, client, target, duration, reason):
+	def banBridgedUser(self, client, target, duration=timedelta.max, reason=''):
 		if not target:
 			return
 		if target.bridged_id in self.bridged_ban:
 			return
-		if duration == 0: #FIXME
-			expires = 0
-		else:
+		try: 
 			expires = datetime.now() + duration
+		except:
+			expires = datetime.max
 		self.bridged_ban[target.bridged_id] = {'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
 		self.kickUser(client, target)
 		self.channelMessage('<%s> has been removed from this channel by <%s>' % (target.username, client.username))
@@ -237,24 +237,19 @@ class Channel():
 	
 	def getMuteMessage(self, client):
 		if self.isMuted(client):
-			m = self.mutelist[client.user_id]
-			if m['expires'] == 0:
-				return 'muted for ever'
-			else:
-				return 'muted for the next %s.' % (self._root.protocol._time_until(m['expires']))
+			mute = self.mutelist[client.user_id]
+			return 'muted ' + self._root.protocol.ppretty_duration_until(mute.expires)
 		return 'not muted'
 
-	def muteUser(self, client, target, duration=0, reason=''):
+	def muteUser(self, client, target, duration=timedelta.max, reason=''):
 		if not target:
 			return
-		if duration == timedelta(minutes=0): #FIXME
-			expires = 0
-			duration_str = ''
-		else:
+		try: 
 			expires = datetime.now() + duration
-			duration_str = 'for ' + str(duration)
-		self.channelMessage('<%s> has muted by <%s> %s' % (client.username, target.username, duration_str))				
-		self.mutelist[target.user_id] = {'expires':duration, 'reason':reason, 'issuer_user_id':client.user_id}
+		except:
+			expires = datetime.max
+		self.channelMessage('<%s> has been muted by <%s> %s' % (client.username, target.username, self._root.protocol.pretty_time_delta(duration)))				
+		self.mutelist[target.user_id] = {'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
 
 	def unmuteUser(self, client, target):
 		if not target:

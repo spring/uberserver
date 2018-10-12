@@ -468,6 +468,23 @@ class Protocol:
 		seconds = time.time() - timestamp
 		return self._time_format(seconds)
 
+	def pretty_time_delta(self, duration):
+		days = duration.days
+		hours, remainder = divmod(duration.seconds, 3600)
+		minutes, seconds = divmod(remainder, 60)		
+		if days > 365*200:
+			return ''
+		pretty = 'for'
+		if days > 0:
+			pretty += ' %d days' % (days)
+		if (days>0 and minutes>0) or hours > 0:
+			pretty += ' %d hours' % (hours)
+		if (days>0 and hours>0) or minutes > 0:
+			pretty += ' %d minutes' % (minutes)		
+		if days == 0 and hours == 0 and minutes == 0:
+			pretty += ' %d seconds' % (seconds)
+		return pretty
+
 	def _get_motd_string(self, client):
 		motd_string = ""
 		replace_vars = {
@@ -1190,11 +1207,11 @@ class Protocol:
 		try:
 			duration = float(duration)
 		except:
-			duration = 0
+			duration = timedelta.max
 		if duration < 1:
-			duration = 0
+			duration = timedelta.max
 		else:
-			duration = duration * 60 #convert to seconds
+			duration = timdelta(minutes=duration)
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			if channel.isOp(client):

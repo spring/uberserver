@@ -1,5 +1,6 @@
 import time, traceback, logging
 from datetime import timedelta
+from datetime import datetime
 from Client import Client
 
 class ChanServClient(Client):
@@ -31,11 +32,13 @@ class ChanServClient(Client):
 	def parse_duration(self, duration):
 		try:
 			num = int(duration)
+			if num <= 0: return timedelta.max
 			return timedelta(minutes=num)
 		except:
 			pass
 		try:
 			num = int(duration[:-1])
+			if num <= 0: return timedelta.max
 		except:
 			return
 		if duration.endswith('m'):
@@ -224,7 +227,7 @@ class ChanServClient(Client):
 			if channel.isOp(target):
 				return '#%s: Cannot mute <%s>, user has operator status' % (chan, target.username)	
 			channel.muteUser(client, target, duration, reason)
-			return '#%s: muted <%s> for %s' % (chan, target.username, duration)
+			return '#%s: muted <%s> %s' % (chan, target.username, self._root.protocol.pretty_time_delta(duration))
 		
 		if cmd == 'unmute':
 			if not access in ['mod', 'founder', 'op']:
@@ -235,14 +238,16 @@ class ChanServClient(Client):
 			if '@' in target_username:
 				return '#%s: For bridged users, use !ban/!unban' % (chan, chan)
 			target = self._root.protocol.clientFromUsername(target_username, True)			
-			if not target:
-				return '#%s: User <%s> not found' % (chan, target)
+			if not target or not target.user_id in channel.mutelist:
+				return '#%s: User <%s> not found in mutelist' % (chan, target)
 			channel.unmuteUser(client, target)
 			return '#%s: unmuted <%s>' % (chan, target.username)
 		
 		if cmd == 'listmutes':
 			if not access in ['mod', 'founder', 'op']:
 				return '#%s: You do not have permission to execute this command' % chan	
+			if len(channel.mutelist) == 0:
+				return "The mutelist is empty."
 			mutelist_str = " -- Mutelist for %s -- " % chan
 			for user_id in channel.mutelist:
 				mute = channel.mutelist[user_id]
@@ -279,7 +284,7 @@ class ChanServClient(Client):
 			if channel.isOp(target):
 				return '#%s: Cannot ban <%s>, user has operator status' % (chan, target.username)	
 			channel.banUser(client, target, duration, reason)
-			return '#%s: banned <%s> for %s' % (chan, target.username, duration)
+			return '#%s: banned <%s> %s' % (chan, target.username, self._root.protocol.pretty_time_delta(duration))
 			
 		if cmd == 'unban':
 			if not access in ['mod', 'founder', 'op']:
@@ -294,14 +299,16 @@ class ChanServClient(Client):
 				channel.unbanBridgedUser(client, target)
 				return '#%s: <%s> unbanned' % (chan, target.username)
 			target = self._root.protocol.clientFromUsername(target_username, True)
-			if not target or not target_username in channel.ban:
+			if not target or not target.user_id in channel.ban:
 				return '#%s: User <%s> not found in banlist' % (chan, target_username)
-			channel.unbanUser(client, target, reason)
+			channel.unbanUser(client, target)
 			return '#%s: <%s> unbanned' % (chan, target.username)
 		
 		if cmd == 'listbans':
 			if not access in ['mod', 'founder', 'op']:
 				return '#%s: You do not have permission to execute this command' % chan	
+			if len(channel.ban) + len(channel.bridged_ban) == 0:
+				return "The banlist is empty."
 			banlist_str = " -- Banlist for %s -- " % chan
 			for user_id in channel.ban:
 				ban = channel.ban[user_id]
