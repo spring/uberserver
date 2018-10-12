@@ -1195,71 +1195,6 @@ class Protocol:
 			if not self.is_ignored(receiver, client):
 				receiver.Send('SAIDPRIVATEEX %s %s' % (client.username, msg))
 
-	def in_MUTE(self, client, chan, user, duration=0):
-		'''
-		Mute target user in target channel.
-		[operator]
-
-		@required.str channel: The target channel.
-		@required.str user: The user to mute.
-		@optional.float duration: The duration for which to mute the user. Defaults to forever.
-		'''
-		try:
-			duration = float(duration)
-		except:
-			duration = timedelta.max
-		if duration < 1:
-			duration = timedelta.max
-		else:
-			duration = timdelta(minutes=duration)
-		if chan in self._root.channels:
-			channel = self._root.channels[chan]
-			if channel.isOp(client):
-				target = self.clientFromUsername(user)
-				if target and not channel.isOp(target):
-					channel.muteUser(client, target, duration)
-
-	def in_UNMUTE(self, client, chan, user):
-		'''
-		Unmute target user in target channel.
-		[operator]
-
-		@required.str channel: The target channel.
-		@required.str user: The user to unmute.
-		'''
-		if not chan in self._root.channels:
-			self.out_FAILED(client, "UNMUTE", "Unknown channel: %s"%(chan))
-			return
-		channel = self._root.channels[chan]
-		if not channel.isOp(client):
-			self.out_FAILED(client, "UNMUTE", "Missing permissions for chan %s"%(chan))
-			return
-		target = self.clientFromUsername(user)
-		if not target:
-			self.out_FAILED(client, "UNMUTE", "User not found: %s"%(user))
-			return
-
-		channel.unmuteUser(client, target)
-
-	def in_MUTELIST(self, client, chan): # maybe restrict to open channels and channels you are in - not locked
-		'''
-		Return the list of muted users in target channel.
-
-		@required.str channel: The target channel.
-		'''
-		if not chan in self._root.channels:
-			return
-		channel = self._root.channels[chan]
-		client.Send('MUTELISTBEGIN %s' % chan)
-		mutelist = channel.mutelist
-		for user in mutelist:
-			m = mutelist[user].copy()
-			message = self._time_until(m['expires'])
-			user = self.clientFromID(user)
-			if user:
-				client.Send('MUTELIST %s, %s' % (user.username, message))
-		client.Send('MUTELISTEND')
-
 	def in_BRIDGECLIENTFROM(self, client, location, external_id, external_username):
 		# tell the server about a new bridged client
 		if not client.bot:
@@ -1595,10 +1530,6 @@ class Protocol:
 		
 		channel.addUser(client) 
 
-	def in_SETCHANNELKEY(self, client, chan, key='*'):
-		# deprecated
-		self.in_SAYPRIVATE(client, 'ChanServ !setkey #' + chan + ' ' + key)
-
 	def in_LEAVE(self, client, chan, reason=None):
 		'''
 		Leave target channel.
@@ -1739,18 +1670,6 @@ class Protocol:
 		client.Send('OPENBATTLE %s' % battle.battle_id)
 		client.Send('JOINBATTLE %s %s' % (battle.battle_id, hashcode))
 		client.Send('REQUESTBATTLESTATUS')
-
-	def in_SAYBATTLE(self, client, msg):
-		# deprecated, see 'u' compat flag
-		battle = self.getCurrentBattle(client)
-		if not battle: return
-		self.in_SAY(client, battle.name, msg)
-
-	def in_SAYBATTLEEX(self, client, msg):
-		# deprecated, see 'u' compat flag
-		battle = self.getCurrentBattle(client)
-		if not battle: return
-		self.in_SAYEX(client, battle.name, msg)
 
 	def in_JOINBATTLEACCEPT(self, client, username):
 		'''
@@ -3005,12 +2924,6 @@ class Protocol:
 			return
 		client.Send("RESENDVERIFICATIONACCEPTED")			
 	
-	def in_STARTTLS(self, client):
-		#deprecated
-		client.StartTLS()
-		client.flushBuffer()
-		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0')))
-
 	def in_STLS(self, client):
 		self.out_OK(client, "STLS")
 		client.StartTLS()
@@ -3036,6 +2949,30 @@ class Protocol:
 
 		self.out_JSON(client, "FAILED", {"msg": "Unknown command: %s" %(rawcmd)})
 
+		
+	# Deprecated protocol section #
+		
+	def in_MUTE(self, client, chan, user, duration=0):
+		self._root.chanserv.Handle("SAIDPRIVATE %s !mute %s %s %s -" % (client.username, chan, user, duration))
+	def in_UNMUTE(self, client, chan, user):
+		self._root.chanserv.Handle("SAIDPRIVATE %s !unmute %s %s" % (client.username, chan, user))
+	def in_MUTELIST(self, client, chan): 
+		self._root.chanserv.Handle("SAIDPRIVATE %s !listmutes %s" % (client.username, chan))
+	def in_STARTTLS(self, client):
+		client.StartTLS()
+		client.flushBuffer()
+		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0')))
+	def in_SETCHANNELKEY(self, client, chan, key='*'):
+		self.in_SAYPRIVATE(client, 'ChanServ !setkey #' + chan + ' ' + key)
+	def in_SAYBATTLE(self, client, msg):
+		battle = self.getCurrentBattle(client)
+		if not battle: return
+		self.in_SAY(client, battle.name, msg)
+	def in_SAYBATTLEEX(self, client, msg):
+		battle = self.getCurrentBattle(client)
+		if not battle: return
+		self.in_SAYEX(client, battle.name, msg)
+	
 	# Begin outgoing protocol section #
 	#
 	# Any function definition beginning with out_ and ending with capital letters

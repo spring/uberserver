@@ -239,7 +239,7 @@ class ChanServClient(Client):
 				return '#%s: For bridged users, use !ban/!unban' % (chan, chan)
 			target = self._root.protocol.clientFromUsername(target_username, True)			
 			if not target or not target.user_id in channel.mutelist:
-				return '#%s: User <%s> not found in mutelist' % (chan, target)
+				return '#%s: User <%s> not found in mutelist' % (chan, target_username)
 			channel.unmuteUser(client, target)
 			return '#%s: unmuted <%s>' % (chan, target.username)
 		
