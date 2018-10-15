@@ -265,6 +265,66 @@ class ChannelOp(object):
 	def __repr__(self):
 		return "<ChannelOp(%s,%s)>" % (self.channel_id, self.user_id)
 mapper(ChannelOp, channelops_table)
+##########################################
+channelbans_table = Table('channel_bans', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True), 
+	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('expires', DateTime),
+	Column('reason', Text)
+	)
+class ChannelBan(object):
+	def __init__(self, channel_id, issuer_user_id, user_id, expires, reason):
+		self.channel_id = channel_id
+		self.issuer_user_id = issuer_user_id
+		self.user_id = user_id
+		self.expires = expires
+		self.reason = reason
+	
+	def __repr__(self):
+		return "<ChannelBan(%s,%s)>" % (self.channel_id, self.user_id)
+mapper(ChannelBan, channelbans_table)
+##########################################
+channelbridgedbans_table = Table('channel_bridged_bans', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True), 
+	Column('bridged_id', String(45)),
+	Column('expires', DateTime),
+	Column('reason', Text)
+	)
+class ChannelBridgedBan(object):
+	def __init__(self, channel_id, issuer_user_id, bridged_id, expires, reason):
+		self.channel_id = channel_id
+		self.issuer_user_id = issuer_user_id
+		self.bridged_id = bridged_id
+		self.expires = expires
+		self.reason = reason
+	
+	def __repr__(self):
+		return "<ChannelBridgedBan(%s,%s)>" % (self.channel_id, self.bridged_id)
+mapper(ChannelBridgedBan, channelbridgedbans_table)
+##########################################
+channelmutes_table = Table('channel_mutes', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True), 
+	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('expires', DateTime),
+	Column('reason', Text)
+	)
+class ChannelMute(object):
+	def __init__(self, channel_id, issuer_user_id, user_id, expires, reason):
+		self.channel_id = channel_id
+		self.issuer_user_id = issuer_user_id
+		self.user_id = user_id
+		self.expires = expires
+		self.reason = reason
+	
+	def __repr__(self):
+		return "<ChannelMute(%s,%s)>" % (self.channel_id, self.user_id)
+mapper(ChannelMute, channelmutes_table)
 
 ##########################################
 ban_table = Table('ban', metadata, # server bans
@@ -1024,6 +1084,45 @@ class ChannelsHandler:
 				})
 		return operators
 
+	def all_bans(self):
+		response = self.sess().query(ChannelBan)
+		bans = []
+		for ban in response:
+			bans.append({
+					'channel_id': ban.channel_id,
+					'issuer_user_id': ban.issuer_user_id,
+					'user_id': ban.user_id,
+					'expires': ban.expires,
+					'reason': ban.reason,
+				})
+		return bans
+	
+	def all_bridged_bans(self):
+		response = self.sess().query(ChannelBridgedBan)
+		bans = []
+		for ban in response:
+			bans.append({
+					'channel_id': ban.channel_id,
+					'bridged_id': ban.bridged_id,
+					'issuer_user_id': ban.issuer_user_id,
+					'expires': ban.expires,
+					'reason': ban.reason,
+				})
+		return bans
+	
+	def all_mutes(self):
+		response = self.sess().query(ChannelMute)
+		mutes = []
+		for mute in response:
+			mutes.append({
+					'channel_id': mute.channel_id,
+					'issuer_user_id': mute.issuer_user_id,
+					'user_id': mute.user_id,
+					'expires': mute.expires,
+					'reason': mute.reason,
+				})
+		return mutes
+	
 	def setTopic(self, chan, topic, target):
 		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()
 		if entry:
@@ -1051,6 +1150,39 @@ class ChannelsHandler:
 	
 	def deopUser(self, chan, target):
 		entry = self.sess().query(ChannelOp).filter(ChannelOp.user_id == target.user_id).filter(ChannelOp.channel_id == chan.id).first()
+		if entry:
+			self.sess().delete(entry)
+			self.sess().commit()
+
+	def banBridgedUser(self, chan, issuer, target, expires, reason):
+		entry = ChannelBridgedBan(chan.id, issuer.user_id, target.bridged_id, expires, reason)
+		self.sess().add(entry)
+		self.sess().commit()
+	
+	def unbanBridgedUser(self, chan, target):
+		entry = self.sess().query(ChannelBridgedBan).filter(ChannelBridgedBan.bridged_id == target.bridged_id).filter(ChannelBridgedBan.channel_id == chan.id).first()
+		if entry:
+			self.sess().delete(entry)
+			self.sess().commit()
+	
+	def banUser(self, chan, issuer, target, expires, reason):
+		entry = ChannelBan(chan.id, issuer.user_id, target.user_id, expires, reason)
+		self.sess().add(entry)
+		self.sess().commit()
+	
+	def unbanUser(self, chan, target):
+		entry = self.sess().query(ChannelBan).filter(ChannelBan.user_id == target.user_id).filter(ChannelBan.channel_id == chan.id).first()
+		if entry:
+			self.sess().delete(entry)
+			self.sess().commit()
+	
+	def muteUser(self, chan, issuer, target, expires, reason):
+		entry = ChannelMute(chan.id, issuer.user_id, target.user_id, expires, reason)
+		self.sess().add(entry)
+		self.sess().commit()
+	
+	def unmuteUser(self, chan, target):
+		entry = self.sess().query(ChannelBan).filter(ChannelMute.user_id == target.user_id).filter(ChannelMute.channel_id == chan.id).first()
 		if entry:
 			self.sess().delete(entry)
 			self.sess().commit()

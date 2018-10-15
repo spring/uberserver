@@ -139,7 +139,7 @@ class ChanServClient(Client):
 		
 
 		if not chan in self._root.channels:
-			return "Channel %s does not exist!" % chan
+			return "Channel %s does not exist (missing #?)" % chan
 		channel = self._root.channels[chan]
 		access = channel.getAccess(client) #todo: cleaner code for access controls
 		
@@ -224,9 +224,20 @@ class ChanServClient(Client):
 			target = self._root.protocol.clientFromUsername(target_username, True)			
 			if not target:
 				return '#%s: User <%s> not found' % (chan, target_username)
+			if target.user_id in channel.mutelist:
+				mute = channel.mutelist[target.user_id]
+				issuer = self._root.protocol.clientFromID(mute['issuer_user_id'])
+				if not issuer:
+					return "#%s: User <%s> is already muted by <unknown user>" % (chan, target.username)
+				return "#%s: User <%s> is already muted by <%s>" % (chan, target.username, issuer.username)
 			if channel.isOp(target):
 				return '#%s: Cannot mute <%s>, user has operator status' % (chan, target.username)	
-			channel.muteUser(client, target, duration, reason)
+			try: 
+				expires = datetime.now() + duration
+			except:
+				expires = datetime.max
+			channel.muteUser(client, target, expires, reason, duration)
+			self.db().muteUser(channel, client, target, expires, reason)
 			return '#%s: muted <%s> %s' % (chan, target.username, self._root.protocol.pretty_time_delta(duration))
 		
 		if cmd == 'unmute':
@@ -241,6 +252,7 @@ class ChanServClient(Client):
 			if not target or not target.user_id in channel.mutelist:
 				return '#%s: User <%s> not found in mutelist' % (chan, target_username)
 			channel.unmuteUser(client, target)
+			self.db().unmuteUser(channel, target)
 			return '#%s: unmuted <%s>' % (chan, target.username)
 		
 		if cmd == 'listmutes':
@@ -252,13 +264,14 @@ class ChanServClient(Client):
 			for user_id in channel.mutelist:
 				mute = channel.mutelist[user_id]
 				target = self._root.protocol.clientFromID(user_id, True)
-				if not target:
-					continue
+				target_username = "id:" + str(user_id)
+				if target:
+					target_username = target.username
 				issuer = self._root.protocol.clientFromID(mute['issuer_user_id'], True)
 				issuer_name_str = "unknown"
 				if issuer:
 					issuer_name_str = issuer.username
-				mutelist_str += "\n" + "%s :: %s :: ends %s (%s)" % (target.username, mute['reason'], mute['expires'].strftime("%Y-%m-%d %H:%M:%S"), issuer_name_str)
+				mutelist_str += "\n" + "%s :: %s :: ends %s (%s)" % (target_username, mute['reason'], mute['expires'].strftime("%Y-%m-%d %H:%M:%S"), issuer_name_str)
 			mutelist_str += "\n" + " -- End Mutelist -- " 
 			return mutelist_str
 		
@@ -276,14 +289,36 @@ class ChanServClient(Client):
 				target = self._root.protocol.bridgedClientFromUsername(target_username)
 				if not target:
 					return '#%s: Bridged user <%s> not found' % (chan, target_username)						
-				channel.banBridgedUser(client, target, duration, reason)
+				if target.bridged_id in channel.bridged_ban:
+					ban = channel.bridged_ban[target.bridged_id]
+					issuer = self._root.protocol.clientFromID(ban['issuer_user_id'])
+					if not issuer:
+						return "#%s: User <%s> is already banned by <unknown user>" % (chan, target.username)
+					return "#%s: User <%s> is already banned by <%s>" % (chan, target.username, issuer.username)
+				try: 
+					expires = datetime.now() + duration
+				except:
+					expires = datetime.max
+				channel.banBridgedUser(client, target, expires, reason, duration)
+				self.db().banBridgedUser(channel, client, target, expires, reason)
 				return '#%s: banned <%s> from %s' % (chan, target.username, duration)
 			target = self._root.protocol.clientFromUsername(target_username, True)
 			if not target:
 				return '#%s: User <%s> not found' % (chan, target_username)	
 			if channel.isOp(target):
-				return '#%s: Cannot ban <%s>, user has operator status' % (chan, target.username)	
-			channel.banUser(client, target, duration, reason)
+				return '#%s: Cannot ban <%s>, user has operator status' % (chan, target.username)
+			if target.user_id in channel.ban:
+				ban = channel.ban[target.user_id]
+				issuer = self._root.protocol.clientFromID(ban['issuer_user_id'])
+				if not issuer:
+					return "#%s: User <%s> is already banned by <unknown user>" % (chan, target.username)
+				return "#%s: User <%s> is already banned by <%s>" % (chan, target.username, issuer.username)
+			try: 
+				expires = datetime.now() + duration
+			except:
+				expires = datetime.max
+			channel.banUser(client, target, expires, reason, duration)
+			self.db().banUser(channel, client, target, expires, reason)
 			return '#%s: banned <%s> %s' % (chan, target.username, self._root.protocol.pretty_time_delta(duration))
 			
 		if cmd == 'unban':
@@ -294,14 +329,18 @@ class ChanServClient(Client):
 			target_username = args
 			if '@' in target_username:
 				target = self._root.protocol.bridgedClientFromUsername(target_username)
-				if not target or not target.bridged_id in channel.bridged_ban:
-					return '#%s: User <%s> not found in bridged banlist' % (chan, target_username)
+				if not target:
+					return '#%s: User <%s> not found on the bridge' % (chan, target_username)
+				if not target.bridged_id in channel.bridged_ban:
+					return '#%s: User <%s> not found in bridged banlist' % (chan, target.username)
 				channel.unbanBridgedUser(client, target)
+				self.db().unbanBridgedUser(channel, target)
 				return '#%s: <%s> unbanned' % (chan, target.username)
 			target = self._root.protocol.clientFromUsername(target_username, True)
 			if not target or not target.user_id in channel.ban:
-				return '#%s: User <%s> not found in banlist' % (chan, target_username)
+				return '#%s: User <%s> not found in banlist' % (chan, target.username)
 			channel.unbanUser(client, target)
+			self.db().unbanUser(channel, target)
 			return '#%s: <%s> unbanned' % (chan, target.username)
 		
 		if cmd == 'listbans':
@@ -314,22 +353,26 @@ class ChanServClient(Client):
 				ban = channel.ban[user_id]
 				target = self._root.protocol.clientFromID(user_id, True)
 				if not target:
-					continue
+					continue 
 				issuer = self._root.protocol.clientFromID(ban['issuer_user_id'], True)
 				issuer_name_str = "unknown"
 				if issuer:
 					issuer_name_str = issuer.username
 				banlist_str += "\n" + "%s :: %s :: ends %s (%s)" % (target.username, ban['reason'], ban['expires'].strftime("%Y-%m-%d %H:%M:%S"), issuer_name_str)
-			for user_id in channel.bridged_ban:
-				ban = channel.bridged_ban[user_id]
-				target = self._root.protocol.clientFromID(user_id)
+			offlineBridged = 0
+			for bridged_id in channel.bridged_ban:
+				ban = channel.bridged_ban[bridged_id]
+				target = self._root.protocol.bridgedClientFromID(bridged_id)
 				if not target:
+					offlineBridged += 1
 					continue
 				issuer = self._root.protocol.clientFromID(ban['issuer_user_id'])
 				issuer_name_str = "unknown"
 				if issuer:
 					issuer_name_str = issuer.username
 				banlist_str += "\n" + "%s :: %s :: ends %s (%s)" % (target.username, ban['reason'], ban['expires'].strftime("%Y-%m-%d %H:%M:%S"), issuer_name_str)
+			if offlineBridged > 0:
+				banlist_str += "\n(%i offline bridged users)" % offlineBridged
 			banlist_str += "\n" + " -- End Banlist -- "
 			return banlist_str
 		

@@ -671,7 +671,7 @@ class Protocol:
 		
 	def bridgedClientFromID(self, bridged_id):
 		external_id, location = bridged_id.split('@',1)
-		return getBridgedClient(external_id, location)
+		return self.getBridgedClient(location, external_id)
 		
 	def bridgedClientFromUsername(self, username):
 		external_username, location = username.split('@',1)
@@ -2826,6 +2826,8 @@ class Protocol:
 				del self._root.channels[channel]
 				logging.error("deleting empty channel %s" % channel)
 				nchan = nchan + 1
+		#todo: clean ops, bans, mutes
+		#todo: create+call channeldb.clean()
 
 		dupcheck = set()
 		todel = []

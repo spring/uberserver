@@ -111,7 +111,6 @@ class DataHandler:
 
 		self.channeldb = SQLUsers.ChannelsHandler(self, self.engine)
 		channels = self.channeldb.all_channels()
-		operators = self.channeldb.all_operators()
 
 		# set up channels/battles from db
 		for name in channels:
@@ -141,14 +140,33 @@ class DataHandler:
 			channel.topic={'user':topic_name, 'text':dbchannel['topic'], 'time':int(time.time())}
 			self.channels[name] = channel
  
+		self.chanserv = ChanServ.ChanServClient(self, (self.online_ip, 0), self.session_id)
+		for name in channels:
+			self.chanserv.HandleProtocolCommand("JOIN %s" %(name))
+
+		operators = self.channeldb.all_operators()
 		for op in operators:
 			dbchannel = self.channeldb.channel_from_id(op['channel_id'])
 			if dbchannel:
 				self.channels[dbchannel.name].operators.add(op['user_id'])
-			
-		self.chanserv = ChanServ.ChanServClient(self, (self.online_ip, 0), self.session_id)
-		for name in channels:
-			self.chanserv.HandleProtocolCommand("JOIN %s" %(name))
+		
+		bans = self.channeldb.all_bans()
+		for ban in bans:
+			dbchannel = self.channeldb.channel_from_id(ban['channel_id'])
+			if dbchannel:
+				self.channels[dbchannel.name].ban[ban['user_id']] = ban
+		
+		bridged_bans = self.channeldb.all_bridged_bans()
+		for ban in bridged_bans:
+			dbchannel = self.channeldb.channel_from_id(ban['channel_id'])
+			if dbchannel:
+				self.channels[dbchannel.name].bridged_ban[ban['bridged_id']]=ban
+		
+		mutes = self.channeldb.all_mutes()
+		for mute in mutes:
+			dbchannel = self.channeldb.channel_from_id(mute['channel_id'])
+			if dbchannel:
+				self.channels[dbchannel.name].mutelist[mute['user_id']] = mute	
 
 	def shutdown(self):
 		self.running = False
@@ -351,6 +369,7 @@ class DataHandler:
 				for user_id in channel.mutelist:
 					expiretime = mutelist[user_id]['expires']
 					if expiretime < now:
+						self.channeldb.unmuteUser(channel.id, user_id)
 						del channel.mutelist[user_id]
 						client = self.clientFromID(user_id)
 						if client:
@@ -358,10 +377,12 @@ class DataHandler:
 				for user_id in channel.ban:
 					expiretime = channel.ban[user_id]['expires']
 					if expiretime < now:
+						self.channeldb.unbanUser(channel.id, user_id)
 						del channel.ban[user_id]
 				for bridged_id in channel.bridged_ban:
 					expiretime = channel.bridged_ban[user_id]['expires']
 					if expiretime < now:
+						self.channeldb.unbanBridgedUser(channel.id, bridged_id)
 						del channel.bridged_ban[user_id]
 		except:
 			logging.error(traceback.format_exc())

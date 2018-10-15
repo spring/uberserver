@@ -108,7 +108,7 @@ class Channel():
 			return
 		self.bridged_users.add(bridged_id)
 		bridgedClient.channels.add(self.name)
-		self.broadcast('JOINEDFROM %s %s' % (self.name, bridgedClient.username), 'u')
+		self.broadcast('JOINEDFROM %s %s' % (self.name, bridgedClient.username), set(), 'u')
 	
 	def removeBridgedUser(self, client, bridgedClient, reason=''):
 		bridged_id = bridgedClient.bridged_id
@@ -116,7 +116,7 @@ class Channel():
 			return
 		self.bridged_users.remove(bridged_id)
 		bridgedClient.channels.remove(self.name)
-		self.broadcast('LEFTFROM %s %s %s' % (self.name, bridgedClient.username, reason), 'u')
+		self.broadcast('LEFTFROM %s %s %s' % (self.name, bridgedClient.username, reason), set(), 'u')
 		
 	def isAdmin(self, client):
 		return client and ('admin' in client.accesslevels)
@@ -197,13 +197,15 @@ class Channel():
 		self.removeUser(client, target)
 		self.channelMessage('<%s> has been kicked from this %s by <%s>' % (target.username, self.identity, client.username))
 	
-	def banUser(self, client, target, duration=timedelta.max, reason=''):
+	def kickBridgedUser(self, client, target):
+		if not target.bridged_id in self.bridged_users:
+			return
+		self.removeBridgedUser(client, target)
+		self.channelMessage('<%s> has been kicked from this %s by <%s>' % (target.username, self.identity, client.username))
+	
+	def banUser(self, client, target, expires, reason='', duration=timedelta.max):
 		if not target:
 			 return
-		try: 
-			expires = datetime.now() + duration
-		except:
-			expires = datetime.max
 		self.ban[target.user_id] = {'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
 		self.kickUser(client, target)
 		self.channelMessage('<%s> has been removed from this %s by <%s>' % (target.username, self.identity, client.username))
@@ -215,7 +217,7 @@ class Channel():
 			return
 		del self.ban[target.user_id]
 
-	def banBridgedUser(self, client, target, duration=timedelta.max, reason=''):
+	def banBridgedUser(self, client, target, expires, reason='', duration=timedelta.max):
 		if not target:
 			return
 		if target.bridged_id in self.bridged_ban:
@@ -225,7 +227,7 @@ class Channel():
 		except:
 			expires = datetime.max
 		self.bridged_ban[target.bridged_id] = {'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
-		self.kickUser(client, target)
+		self.kickBridgedUser(client, target)
 		self.channelMessage('<%s> has been removed from this channel by <%s>' % (target.username, client.username))
 	
 	def unbanBridgedUser(self, client, target):
@@ -241,7 +243,7 @@ class Channel():
 			return 'muted ' + self._root.protocol.ppretty_duration_until(mute.expires)
 		return 'not muted'
 
-	def muteUser(self, client, target, duration=timedelta.max, reason=''):
+	def muteUser(self, client, target, expires, reason='', duration=timedelta.max):
 		if not target:
 			return
 		try: 
