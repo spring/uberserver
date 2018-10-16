@@ -70,7 +70,7 @@ class DataHandler:
 		self.user_ids = {} #user_id->client
 		self.clients = {} #session_id->client
 		
-		self.bridge_location_bots = {}		
+		self.bridge_location_bots = {}				
 		
 	def initlogger(self, filename):
 		# logging
@@ -348,45 +348,54 @@ class DataHandler:
 		if session_id in self.clients: return self.clients[session_id]
 
 	def event_loop(self):
-		#FIXME: does not run
-		print("EVENT LOOP")
-		last_mute_ban_check = self.start_time
-		while self.running:
-			now = time.time()
-			try:
-				if now - last_mute_ban_check >= 1: 
-					last_mute_ban_check = now
-					self.mute_ban_timeout_step() 
-			except:
-				logging.error(traceback.format_exc())
-			time.sleep(max(0.1, 1 - (now - self.start_time)))
+		self.channel_mute_ban_timeout() 
 
-	def mute_ban_timeout_step(self):
+	def channel_mute_ban_timeout(self):
 		# remove expired channel/battle mutes/bans
-		now = datetime.now()
+		now = datetime.datetime.now()
 		chanserv = self.chanserv
 		try:
 			channels = self.channels
 			for chan in channels:
 				channel = channels[chan]
+				to_unmute = []
 				for user_id in channel.mutelist:
-					expiretime = mutelist[user_id]['expires']
+					mute = channel.mutelist[user_id]
+					expiretime = mute['expires']
 					if expiretime < now:
-						self.channeldb.unmuteUser(channel.id, user_id)
-						channel.unmuteUser(chanserv, user_id)
-						client = self.clientFromID(user_id)
-						if client:
-							channel.channelMessage('<%s> has been unmuted (mute expired).' % client.username)
+						to_unmute.append(user_id)
+				for user_id in to_unmute:
+					target = self.protocol.clientFromID(user_id, True)
+					if not target:
+						continue
+					channel.unmuteUser(chanserv, target, 'mute expired')
+					self.channeldb.unmuteUser(channel, target)
+				
+				to_unban = []
 				for user_id in channel.ban:
-					expiretime = channel.ban[user_id]['expires']
+					ban = channel.ban[user_id]
+					expiretime = ban['expires']
 					if expiretime < now:
-						self.channeldb.unbanUser(channel.id, user_id)
-						channel.unbanUser(chanserv, user_id)
+						to_unban.append(user_id)
+				for user_id in to_unban:
+					target = self.protocol.clientFromID(user_id, True) 
+					if not target:
+						continue
+					self.channeldb.unbanUser(channel, target)
+					channel.unbanUser(chanserv, target)
+
+				to_unban_bridged = []
 				for bridged_id in channel.bridged_ban:
-					expiretime = channel.bridged_ban[bridged_id]['expires']
+					ban = channel.bridged_ban[bridged_id]
+					expiretime = ban['expires']
 					if expiretime < now:
-						channel.unbanBridgedUser(chanserv, bridged_id)
-						self.channeldb.unbanBridgedUser(channel.id, bridged_id)
+						to_unban_bridged.append(bridged_id)
+				for bridged_id in to_unban_bridged:
+					target = self.protocol.bridgedClientFromID(bridged_id) 
+					if not target:
+						continue
+					channel.unbanBridgedUser(chanserv, bridged_id)
+					self.channeldb.unbanBridgedUser(channel, bridged_id)
 		except:
 			logging.error(traceback.format_exc())
 

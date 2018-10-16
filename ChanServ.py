@@ -300,6 +300,8 @@ class ChanServClient(Client):
 					expires = datetime.now() + duration
 				except:
 					expires = datetime.max
+				if duration > timedelta(years=1):
+					return "#%s: Bridged users can be banned for a max duration of one year" % chan
 				channel.banBridgedUser(client, target, expires, reason, duration)
 				self.db().banBridgedUser(channel, client, target, expires, reason)
 				return '#%s: banned <%s> from %s' % (chan, target.username, duration)
@@ -334,8 +336,8 @@ class ChanServClient(Client):
 					return '#%s: User <%s> not found on the bridge' % (chan, target_username)
 				if not target.bridged_id in channel.bridged_ban:
 					return '#%s: User <%s> not found in bridged banlist' % (chan, target.username)
-				channel.unbanBridgedUser(client, target)
-				self.db().unbanBridgedUser(channel, target)
+				channel.unbanBridgedUser(client, target.bridged_id)
+				self.db().unbanBridgedUser(channel, target.bridged_id)
 				return '#%s: <%s> unbanned' % (chan, target.username)
 			target = self._root.protocol.clientFromUsername(target_username, True)
 			if not target or not target.user_id in channel.ban:

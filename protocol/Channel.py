@@ -206,36 +206,30 @@ class Channel():
 	def banUser(self, client, target, expires, reason='', duration=timedelta.max):
 		if not target:
 			 return
-		self.ban[target.user_id] = {'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
-		self.kickUser(client, target)
+		self.ban[target.user_id] = {'user_id':target.user_id, 'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
+		self.removeUser(client, target)
 		self.channelMessage('<%s> has been removed from this %s by <%s>' % (target.username, self.identity, client.username))
 
 	def unbanUser(self, client, target):
-		if not target:
-			return
 		if not target.user_id in self.ban:
 			return
 		del self.ban[target.user_id]
 
 	def banBridgedUser(self, client, target, expires, reason='', duration=timedelta.max):
-		if not target:
-			return
 		if target.bridged_id in self.bridged_ban:
 			return
 		try: 
 			expires = datetime.now() + duration
 		except:
 			expires = datetime.max
-		self.bridged_ban[target.bridged_id] = {'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
-		self.kickBridgedUser(client, target)
+		self.bridged_ban[target.bridged_id] = {'bridged_id':target.bridged_id, 'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
+		self.removeBridgedUser(client, target)
 		self.channelMessage('<%s> has been removed from this channel by <%s>' % (target.username, client.username))
 	
-	def unbanBridgedUser(self, client, target):
-		if not target:
+	def unbanBridgedUser(self, client, bridged_id): #bridged_id as arg, because we don't save a global register of bridged users
+		if not bridged_id in self.bridged_ban:
 			return
-		if not target.bridged_id in self.bridged_ban:
-			return
-		del self.bridged_ban[target.bridged_id]
+		del self.bridged_ban[bridged_id]
 	
 	def getMuteMessage(self, client):
 		if self.isMuted(client):
@@ -244,22 +238,21 @@ class Channel():
 		return 'not muted'
 
 	def muteUser(self, client, target, expires, reason='', duration=timedelta.max):
-		if not target:
-			return
 		try: 
 			expires = datetime.now() + duration
 		except:
 			expires = datetime.max
 		self.channelMessage('<%s> has been muted by <%s> %s' % (client.username, target.username, self._root.protocol.pretty_time_delta(duration)))				
-		self.mutelist[target.user_id] = {'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
+		self.mutelist[target.user_id] = {'user_id':target.user_id, 'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
 
-	def unmuteUser(self, client, target):
-		if not target:
-			return
+	def unmuteUser(self, client, target, reason=None):
 		if not target.user_id in self.mutelist:
 			return
 		del self.mutelist[target.user_id]
-		self.channelMessage('<%s> has unmuted <%s>' % (client.username, target.username))
+		if not reason:
+			self.channelMessage('<%s> has been unmuted by <%s>' % (target.username, client.username))
+			return
+		self.channelMessage('<%s> has been unmuted by <%s> (%s)' % (target.username, client.username, reason))
 
 	def list_mutes(self, client):
 		client.Send(" -- Mutelist for %s -- " % self.name)

@@ -1123,66 +1123,66 @@ class ChannelsHandler:
 				})
 		return mutes
 	
-	def setTopic(self, chan, topic, target):
-		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()
+	def setTopic(self, channel, topic, target):
+		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
 		if entry:
 			entry.topic = topic
 			entry.topic_time = datetime.now()
 			entry.topic_user_id = target.user_id
 			self.sess().commit()
 
-	def setKey(self, chan, key):
-		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()
+	def setKey(self, channel, key):
+		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
 		if entry:
 			entry.key = key
 			self.sess().commit()
 
-	def setFounder(self, chan, target):
-		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()
+	def setFounder(self, channel, target):
+		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
 		if entry:
 			entry.owner_user_id = target.user_id
 			self.sess().commit()			
 
-	def opUser(self, chan, target):
-		entry = ChannelOp(chan.id, target.user_id)
+	def opUser(self, channel, target):
+		entry = ChannelOp(channel.id, target.user_id)
 		self.sess().add(entry)
 		self.sess().commit()
 	
-	def deopUser(self, chan, target):
-		entry = self.sess().query(ChannelOp).filter(ChannelOp.user_id == target.user_id).filter(ChannelOp.channel_id == chan.id).first()
+	def deopUser(self, channel, target):
+		entry = self.sess().query(ChannelOp).filter(ChannelOp.user_id == target.user_id).filter(ChannelOp.channel_id == channel.id).first()
 		if entry:
 			self.sess().delete(entry)
 			self.sess().commit()
 
-	def banBridgedUser(self, chan, issuer, target, expires, reason):
+	def banBridgedUser(self, channel, issuer, target, expires, reason):
 		entry = ChannelBridgedBan(chan.id, issuer.user_id, target.bridged_id, expires, reason)
 		self.sess().add(entry)
 		self.sess().commit()
 	
-	def unbanBridgedUser(self, chan, target):
-		entry = self.sess().query(ChannelBridgedBan).filter(ChannelBridgedBan.bridged_id == target.bridged_id).filter(ChannelBridgedBan.channel_id == chan.id).first()
+	def unbanBridgedUser(self, chan, bridged_id):
+		entry = self.sess().query(ChannelBridgedBan).filter(ChannelBridgedBan.bridged_id == bridged_id).filter(ChannelBridgedBan.channel_id == channel.id).first()
 		if entry:
 			self.sess().delete(entry)
 			self.sess().commit()
 	
-	def banUser(self, chan, issuer, target, expires, reason):
-		entry = ChannelBan(chan.id, issuer.user_id, target.user_id, expires, reason)
+	def banUser(self, channel, issuer, target, expires, reason):
+		entry = ChannelBan(channel.id, issuer.user_id, target.user_id, expires, reason)
 		self.sess().add(entry)
 		self.sess().commit()
 	
-	def unbanUser(self, chan, target):
-		entry = self.sess().query(ChannelBan).filter(ChannelBan.user_id == target.user_id).filter(ChannelBan.channel_id == chan.id).first()
+	def unbanUser(self, channel, target):
+		entry = self.sess().query(ChannelBan).filter(ChannelBan.user_id == target.user_id).filter(ChannelBan.channel_id == channel.id).first()
 		if entry:
 			self.sess().delete(entry)
 			self.sess().commit()
 	
-	def muteUser(self, chan, issuer, target, expires, reason):
-		entry = ChannelMute(chan.id, issuer.user_id, target.user_id, expires, reason)
+	def muteUser(self, channel, issuer, target, expires, reason):
+		entry = ChannelMute(channel.id, issuer.user_id, target.user_id, expires, reason)
 		self.sess().add(entry)
 		self.sess().commit()
 	
-	def unmuteUser(self, chan, target):
-		entry = self.sess().query(ChannelMute).filter(ChannelMute.user_id == target.user_id).filter(ChannelMute.channel_id == chan.id).first()
+	def unmuteUser(self, channel, target):
+		entry = self.sess().query(ChannelMute).filter(ChannelMute.user_id == target.user_id).filter(ChannelMute.channel_id == channel.id).first()
 		if entry:
 			self.sess().delete(entry)
 			self.sess().commit()
@@ -1213,6 +1213,14 @@ class ChannelsHandler:
 
 	def unRegister(self, client, channel):
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).delete()
+		self.sess().commit()
+		
+	def clean(self):
+		#delete all expired channel bans/mutes:
+		now = datetime.now()
+		self.sess().query(ChannelMute).filter(ChannelMute.expires < now).delete(synchronize_session=False)
+		self.sess().query(ChannelBan).filter(ChannelBan.expires < now).delete(synchronize_session=False)
+		self.sess().query(ChannelBridgedBan).filter(ChannelBridgedBan.expires < now).delete(synchronize_session=False)
 		self.sess().commit()
 
 if __name__ == '__main__':

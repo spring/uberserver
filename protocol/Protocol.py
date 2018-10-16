@@ -2865,6 +2865,7 @@ class Protocol:
 			logging.error("Deleted username without session: %s" %(u))
 
 		self.userdb.clean()
+		self.channeldb.clean()
 		self.verificationdb.clean()
 		self.bandb.clean()
 
