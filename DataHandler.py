@@ -348,12 +348,14 @@ class DataHandler:
 		if session_id in self.clients: return self.clients[session_id]
 
 	def event_loop(self):
-		lastmute = lastidle = self.start_time
+		#FIXME: does not run
+		print("EVENT LOOP")
+		last_mute_ban_check = self.start_time
 		while self.running:
 			now = time.time()
 			try:
-				if now - lastmute >= 1: 
-					lastmute = now
+				if now - last_mute_ban_check >= 1: 
+					last_mute_ban_check = now
 					self.mute_ban_timeout_step() 
 			except:
 				logging.error(traceback.format_exc())
@@ -362,6 +364,7 @@ class DataHandler:
 	def mute_ban_timeout_step(self):
 		# remove expired channel/battle mutes/bans
 		now = datetime.now()
+		chanserv = self.chanserv
 		try:
 			channels = self.channels
 			for chan in channels:
@@ -370,7 +373,7 @@ class DataHandler:
 					expiretime = mutelist[user_id]['expires']
 					if expiretime < now:
 						self.channeldb.unmuteUser(channel.id, user_id)
-						del channel.mutelist[user_id]
+						channel.unmuteUser(chanserv, user_id)
 						client = self.clientFromID(user_id)
 						if client:
 							channel.channelMessage('<%s> has been unmuted (mute expired).' % client.username)
@@ -378,12 +381,12 @@ class DataHandler:
 					expiretime = channel.ban[user_id]['expires']
 					if expiretime < now:
 						self.channeldb.unbanUser(channel.id, user_id)
-						del channel.ban[user_id]
+						channel.unbanUser(chanserv, user_id)
 				for bridged_id in channel.bridged_ban:
-					expiretime = channel.bridged_ban[user_id]['expires']
+					expiretime = channel.bridged_ban[bridged_id]['expires']
 					if expiretime < now:
+						channel.unbanBridgedUser(chanserv, bridged_id)
 						self.channeldb.unbanBridgedUser(channel.id, bridged_id)
-						del channel.bridged_ban[user_id]
 		except:
 			logging.error(traceback.format_exc())
 

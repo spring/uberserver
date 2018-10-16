@@ -49,8 +49,8 @@ class Channel():
 			return
 		self.users.add(client.session_id)
 		client.channels.add(self.name)
-		client.Send('JOIN %s' % self.name)
-		self.broadcast('JOINED %s %s' % (self.name, client.username), set([client.session_id]))
+		client.Send('JOIN %s' % self.name) #superfluous, could deprecate
+		self.broadcast('JOINED %s %s' % (self.name, client.username))
 		
 		clientlist = ""
 		for session_id in self.users:
@@ -240,7 +240,7 @@ class Channel():
 	def getMuteMessage(self, client):
 		if self.isMuted(client):
 			mute = self.mutelist[client.user_id]
-			return 'muted ' + self._root.protocol.ppretty_duration_until(mute.expires)
+			return 'muted ' + self._root.protocol.pretty_time_delta(mute['expires']-datetime.now())
 		return 'not muted'
 
 	def muteUser(self, client, target, expires, reason='', duration=timedelta.max):

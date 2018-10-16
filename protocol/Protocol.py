@@ -1506,7 +1506,7 @@ class Protocol:
 			return
 		if not chan in self._root.channels:
 			if chan.startswith('__battle__'):
-				client.Send('JOINFAILED cannot create channel %s with prefix __battle__, these names are reserved for battles' % chan)
+				self.out_FAILED(client, 'JOIN', 'cannot create channel %s with prefix __battle__, these names are reserved for battles' % chan, True)
 				return
 			channel = Channel.Channel(self._root, chan) 
 			self._root.channels[chan] = channel
@@ -1542,7 +1542,7 @@ class Protocol:
 		if channel.identity=='battle' and client.username!='ChanServ' and not client.bot:
 			self.out_FAILED(client, 'LEAVE', '%s is a battle, use LEAVEBATTLE to leave it' % chan, True)
 			return
-		if not client.user_id in channel.users:
+		if not client.session_id in channel.users:
 			self.out_FAILED(client, 'LEAVE', 'not in channel %s' % chan, True)
 			return
 		channel.removeUser(client, reason)

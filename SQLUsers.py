@@ -1182,7 +1182,7 @@ class ChannelsHandler:
 		self.sess().commit()
 	
 	def unmuteUser(self, chan, target):
-		entry = self.sess().query(ChannelBan).filter(ChannelMute.user_id == target.user_id).filter(ChannelMute.channel_id == chan.id).first()
+		entry = self.sess().query(ChannelMute).filter(ChannelMute.user_id == target.user_id).filter(ChannelMute.channel_id == chan.id).first()
 		if entry:
 			self.sess().delete(entry)
 			self.sess().commit()
