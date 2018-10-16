@@ -406,9 +406,11 @@ class ChanServClient(Client):
 				return '#%s: You must contact one of the server moderators or the owner of the channel to change the antispam settings' % chan
 			if args == 'on':
 				channel.antispam = True
+				self.db().setAntispam(channel, channel.antispam)
 				channel.channelMessage('%s Anti-spam protection was enabled by <%s>' % (chan, user))
 				return '#%s: Anti-spam protection is on.' % chan
 			channel.antispam = False
+			self.db().setAntispam(channel, channel.antispam)
 			channel.channelMessage('%s Anti-spam protection was disabled by <%s>' % (chan, user))
 			return '#%s: Anti-spam protection is off.' % chan
 		

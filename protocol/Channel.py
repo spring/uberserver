@@ -203,7 +203,7 @@ class Channel():
 		self.removeBridgedUser(client, target)
 		self.channelMessage('<%s> has been kicked from this %s by <%s>' % (target.username, self.identity, client.username))
 	
-	def banUser(self, client, target, expires, reason='', duration=timedelta.max):
+	def banUser(self, client, target, expires, reason, duration):
 		if not target:
 			 return
 		self.ban[target.user_id] = {'user_id':target.user_id, 'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
@@ -215,7 +215,7 @@ class Channel():
 			return
 		del self.ban[target.user_id]
 
-	def banBridgedUser(self, client, target, expires, reason='', duration=timedelta.max):
+	def banBridgedUser(self, client, target, expires, reason, duration):
 		if target.bridged_id in self.bridged_ban:
 			return
 		try: 
@@ -237,7 +237,7 @@ class Channel():
 			return 'muted ' + self._root.protocol.pretty_time_delta(mute['expires']-datetime.now())
 		return 'not muted'
 
-	def muteUser(self, client, target, expires, reason='', duration=timedelta.max):
+	def muteUser(self, client, target, expires, reason, duration):
 		try: 
 			expires = datetime.now() + duration
 		except:

@@ -1143,6 +1143,12 @@ class ChannelsHandler:
 			entry.owner_user_id = target.user_id
 			self.sess().commit()			
 
+	def setAntispam(self, channel, antispam):
+		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
+		if entry:
+			entry.antispam = antispam
+			self.sess().commit()			
+	
 	def opUser(self, channel, target):
 		entry = ChannelOp(channel.id, target.user_id)
 		self.sess().add(entry)
