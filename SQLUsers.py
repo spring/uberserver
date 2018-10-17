@@ -345,7 +345,21 @@ class ChannelMute(object):
 	def __repr__(self):
 		return "<ChannelMute(%s,%s)>" % (self.channel_id, self.user_id)
 mapper(ChannelMute, channelmutes_table)
-
+##########################################
+channelforwards_table = Table('channel_forwards', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('channel_from_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('channel_to_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
+	UniqueConstraint('channel_from_id', 'channel_to_id', name='uix_channelforwards'),
+	)
+class ChannelForward(object):
+	def __init__(self, channel_from_id, channel_to_id):
+		self.channel_from_id = channel_from_id
+		self.channel_to_id = channel_to_id
+	
+	def __repr__(self):
+		return "<ChannelForward(%s,%s)>" % (self.channel_id_from, self.channel_id_to)
+mapper(ChannelForward, channelforwards_table)
 ##########################################
 ban_table = Table('ban', metadata, # server bans
 	Column('id', Integer, primary_key=True),
@@ -1215,6 +1229,16 @@ class ChannelsHandler:
 				})
 		return mutes
 	
+	def all_forwards(self):
+		response = self.sess().query(ChannelForward)
+		forwards = []
+		for forward in response:
+			forwards.append({
+			'channel_from_id': forward.channel_from_id,
+			'channel_to_id': forward.channel_to_id,
+			})
+		return forwards	
+	
 	def setTopic(self, channel, topic, target):
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
 		if entry:
@@ -1293,6 +1317,17 @@ class ChannelsHandler:
 		self.sess().commit()
 		return True
 		
+	def addForward(self, channel_from, channel_to):
+		entry = ChannelForward(channel_from.id, channel_to.id)
+		self.sess().add(entry)
+		self.sess().commit()
+		
+	def removeForward(self, channel_from, channel_to):
+		entry = self.sess().query(ChannelForward).filter(ChannelForward.channel_from_id == channel_from.id).filter(ChannelForward.channel_to_id == channel_to.id).first()
+		if entry:
+			self.sess().delete(entry)
+			self.sess().commit()
+	
 	def register(self, channel, target):
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
 		if not entry:

@@ -148,6 +148,13 @@ class DataHandler:
 		for name in channels:
 			self.chanserv.HandleProtocolCommand("JOIN %s" %(name))
 
+		forwards = self.channeldb.all_forwards()
+		for forward in forwards:
+			dbchannel_from = self.channeldb.channel_from_id(forward['channel_from_id'])
+			dbchannel_to = self.channeldb.channel_from_id(forward['channel_to_id'])
+			if dbchannel_from and dbchannel_to:
+				self.channels[dbchannel_from.name].forwards.add(dbchannel_to.name)
+
 		operators = self.channeldb.all_operators()
 		for op in operators:
 			dbchannel = self.channeldb.channel_from_id(op['channel_id'])

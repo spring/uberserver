@@ -120,11 +120,14 @@ class ChanServClient(Client):
 				return "User %s is not hosting a battle" % args
 			return battle.name
 		
+
+		if not chan:
+			return "Channel not specified (missing #?)"
+
+
 		if cmd == 'register': 
 			if not client.isMod():
 				return '#%s: You must contact one of the server moderators to register a channel' % chan
-			if not chan:
-				return 'Channel not found (missing #?)'
 			if not args: args = user
 			target = self._root.protocol.clientFromUsername(args, True)
 			if not target:
@@ -132,13 +135,13 @@ class ChanServClient(Client):
 			if not chan in self._root.channels:
 				return 'Channel %s does not exist' % chan
 			channel = self._root.channels[chan]
+			channel.chanserv = True
 			channel.register(client, target)
 			self.db().register(channel, target) # register channel in db
 			self.Respond('JOIN %s' % chan)
 			return '#%s: Successfully registered to <%s>' % (chan, args.split(' ',1)[0])		
+				
 		
-		if not chan:
-			return "Channel not specified (missing #?)"
 		if not chan in self._root.channels:
 			return "Channel %s does not exist (missing #?)" % chan
 		channel = self._root.channels[chan]
@@ -148,13 +151,58 @@ class ChanServClient(Client):
 		if cmd == 'unregister':
 			if not access in ['mod', 'founder']:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to unregister a channel' % chan
-			channel.ChanServ = False
+			channel.chanserv = False
 			channel.owner_user_id = None
 			channel.operators = set()
 			channel.channelMessage('#%s has been unregistered'%chan)
 			self.db().unRegister(client, channel)
 			self.Respond('LEAVE %s' % chan)
 			return '#%s: Successfully unregistered.' % chan
+		
+		if cmd == 'forward':
+			if not client.isMod():
+				return '#%s: You must contact one of the server moderators to add mute/ban forwarding to a channel' % chan
+			if not args: 
+				return "#%s: You must specify a channel to forward mutes/bans to" % chan
+			channel_from = channel
+			args = args.lstrip('#')
+			if not args in self._root.channels:
+				return "Channel %s does not exist (missing #?)" % args
+			channel_to = self._root.channels[args]
+			#if channel_from.identity!='channel' or channel_to.identity!='battle': # prevents circular dependencies
+			#	return "#%s: It is only possible to forward mutes/bans from (non-battle) channels into battles" % chan
+			if channel_to.name in channel_from.forwards:
+				return "#%s: Forwarding of mutes/bans already exists to #%s" % (chan, channel_to.name)
+			if not channel_to.chanserv:
+				return "#%s: You must register %s before you can forward mutes/bans to it" % (chan, channel_to.name)			
+			channel_from.addForward(client, channel_to)
+			self.db().addForward(channel_from, channel_to)
+			return "#%s: Successfully added forwarding of mutes/bans to #%s" % (chan, channel_to.name)
+		
+		if cmd == 'unforward':
+			if not client.isMod():
+				return '#%s: You must contact one of the server moderators to remove mute/ban forwarding from a channel' % chan
+			if not args: 
+				return "#%s: You must specify a channel to forward mutes/bans to" % chan
+			channel_from = channel
+			args = args.lstrip('#')
+			if not args in self._root.channels:
+				return "Channel %s does not exist (missing #?)" % args
+			channel_to = self._root.channels[args]
+			if not channel_to.name in channel_from.forwards:
+				return "#%s: Forwarding of mutes/bans to #%s does not exist" % (chan, channel_to.name)
+			channel_from.removeForward(client, channel_to)
+			self.db().removeForward(channel_from, channel_to)
+			return "#%s: Successfully removed forwarding of mutes/bans to #%s" % (chan, channel_to.name)
+		
+		if cmd == 'listforwards':
+			if len(channel.forwards)==0:
+				return "#%s: Not forwarding to anywhere" % chan
+			forwards_str = '#%s: Forwarding to' % chan
+			for forward in channel.forwards:
+				forwards_str += ' #' + forward
+			return forwards_str
+			
 		
 		if cmd == 'setkey': 
 			if not access in ['mod', 'founder']:
