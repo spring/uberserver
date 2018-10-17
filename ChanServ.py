@@ -491,9 +491,6 @@ class ChanServClient(Client):
 			return msg
 		
 		
-		if cmd == 'lock' or cmd == 'unlock':
-			return 'This command no longer exists, use !setkey'
-		
 		return 'command "%s" not found, use "!help" to get help!' %(cmd) #todo: better cmd list + split into functions
 	
 	def Remove(self, reason=None):

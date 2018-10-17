@@ -88,6 +88,7 @@ class DataHandler:
 		self.logger.addHandler(fh)
 
 	def init(self):
+		now = datetime.datetime.now()
 		sqlalchemy = __import__('sqlalchemy')
 		if self.sqlurl.startswith('sqlite'):
 			print('Multiple threads are not supported with sqlite, forcing a single thread')
@@ -159,25 +160,35 @@ class DataHandler:
 		for op in operators:
 			dbchannel = self.channeldb.channel_from_id(op['channel_id'])
 			if dbchannel:
-				self.channels[dbchannel.name].operators.add(op['user_id'])
+				target = self.protocol.clientFromID(op['user_id'], True)
+				self.channels[dbchannel.name].opUser(self.chanserv, target)
 		
 		bans = self.channeldb.all_bans()
 		for ban in bans:
 			dbchannel = self.channeldb.channel_from_id(ban['channel_id'])
 			if dbchannel:
-				self.channels[dbchannel.name].ban[ban['user_id']] = ban
+				target = self.protocol.clientFromID(ban['user_id'], True)
+				issuer = self.protocol.clientFromID(ban['issuer_user_id'], True)
+				duration = ban['expires'] - now
+				self.channels[dbchannel.name].banUser(issuer, target, ban['expires'], ban['reason'], duration)
 		
 		bridged_bans = self.channeldb.all_bridged_bans()
 		for ban in bridged_bans:
 			dbchannel = self.channeldb.channel_from_id(ban['channel_id'])
 			if dbchannel:
-				self.channels[dbchannel.name].bridged_ban[ban['bridged_id']]=ban
+				target = self.bridgedClientFromID(ban['bridged_id'], True)
+				issuer = self.protocol.clientFromID(ban['issuer_user_id'], True)
+				duration = ban['expires'] - now
+				self.channels[dbchannel.name].banBridgedUser(issuer, target, ban['expires'], ban['reason'], duration)
 		
 		mutes = self.channeldb.all_mutes()
 		for mute in mutes:
 			dbchannel = self.channeldb.channel_from_id(mute['channel_id'])
 			if dbchannel:
-				self.channels[dbchannel.name].mutelist[mute['user_id']] = mute	
+				target = self.protocol.clientFromID(mute['user_id'], True)
+				issuer = self.protocol.clientFromID(mute['issuer_user_id'], True)
+				duration = mute['expires'] - now
+				self.channels[dbchannel.name].muteUser(issuer, target, mute['expires'], mute['reason'], duration)
 
 	def shutdown(self):
 		self.running = False

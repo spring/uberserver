@@ -414,6 +414,7 @@ class OfflineClient(BaseClient):
 	def __init__(self, sqluser):
 		self.set_user_pwrd_salt(sqluser.username, (sqluser.password, sqluser.randsalt))
 		self.id = sqluser.id
+		self.user_id = sqluser.id
 		self.ingame_time = sqluser.ingame_time
 		self.bot = sqluser.bot
 		self.last_login = sqluser.last_login
