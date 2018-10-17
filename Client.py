@@ -245,15 +245,4 @@ class Client(BaseClient):
 
 	def isMod(self):
 		return self.isAdmin() or ('mod' in self.accesslevels) # maybe cache these
-
-	def addBridgedClient(self, bridgedClient):
-		self.bridged_ids.insert(bridgedClient.bridged_id)
-		
-	def removeBridgedClient(self, bridgedClient):
-		bridgedClient_channels = bridgedClient.channels.copy() # avoid modifying dict while iterating
-		for channame in bridgedClient_channels:
-			channel = self._root.channels[channame]
-			channel.removeBridgedUser(self, bridgedClient)
-		del self.bridged_client_usernames[bridgedClient.username]
-		del self.bridged_clients[bridgedClient.bridged_id]
 		

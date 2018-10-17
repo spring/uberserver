@@ -15,7 +15,7 @@ import traceback
 
 import Channel
 import Battle
-import BridgedClient
+from BridgedClient import BridgedClient
 
 # see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
 # max. 8 ranks are possible (rank 0 isn't listed)
