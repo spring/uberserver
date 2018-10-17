@@ -66,9 +66,8 @@ class Client(BaseClient):
 		self.lastsaid = {}
 		
 		# for if we are a bridge bot
-		self.bridged_clients = {}
-		self.bridged_locations = set()
-		self.bridged_client_usernames = {}
+		self.bridged_external_ids = {} #external_id->bridged_id
+		self.bridged_locations = {} #location->#brigded_clients 
 
 		# perhaps these are unused?
 		self.cpu = 0
@@ -128,6 +127,7 @@ class Client(BaseClient):
 			msg_limits = self.floodlimit[self.access]
 		else:
 			msg_limits = self.floodlimit['user']
+		print("< " + data)
 
 		now = int(time.time())
 		self.lastdata = now # data received, store time to detect disconnects
@@ -224,6 +224,7 @@ class Client(BaseClient):
 		## don't append new data to buffer when client gets removed
 		if not data:
 			return
+		print("> " + data)
 		self.transport.write(data.encode("utf-8") + b"\n")
 
 	def Send(self, data):
@@ -245,10 +246,8 @@ class Client(BaseClient):
 	def isMod(self):
 		return self.isAdmin() or ('mod' in self.accesslevels) # maybe cache these
 
-	def addBridgedClient(self, location, external_id, external_username):
-		bridgedClient = BridgedClient(self, location, external_id, external_username)
-		self.bridged_clients[bridgedClient.bridged_id] = bridgedClient
-		self.bridged_client_usernames[bridgedClient.username] = bridgedClient.bridged_id
+	def addBridgedClient(self, bridgedClient):
+		self.bridged_ids.insert(bridgedClient.bridged_id)
 		
 	def removeBridgedClient(self, bridgedClient):
 		bridgedClient_channels = bridgedClient.channels.copy() # avoid modifying dict while iterating

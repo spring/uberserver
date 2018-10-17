@@ -39,6 +39,7 @@ class DataHandler:
 		self.sighup = False
 
 		self.userdb = None
+		self.bridgeduserdb = None
 		self.channeldb = None
 		self.verificationdb = None
 		self.bandb = None
@@ -70,7 +71,9 @@ class DataHandler:
 		self.user_ids = {} #user_id->client
 		self.clients = {} #session_id->client
 		
-		self.bridge_location_bots = {}				
+		self.bridged_locations = {} #location->client	
+		self.bridged_ids = {} #bridged_id->bridgedClient
+		self.bridged_usernames = {} #bridgeUsername->bridgedClient
 		
 	def initlogger(self, filename):
 		# logging
@@ -103,6 +106,7 @@ class DataHandler:
 			self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.max_threads * 2, pool_recycle=300)
 
 		self.userdb = SQLUsers.UsersHandler(self, self.engine)
+		self.bridgeduserdb = SQLUsers.BridgedUsersHandler(self, self.engine)
 		self.verificationdb = SQLUsers.VerificationsHandler(self, self.engine)
 		self.bandb = SQLUsers.BansHandler(self, self.engine)
 		
@@ -346,7 +350,33 @@ class DataHandler:
 
 	def clientFromSession(self, session_id):
 		if session_id in self.clients: return self.clients[session_id]
-
+	
+	def bridgedClient(self, location, external_id, fromdb=False):
+		if location in self.bridged_locations:
+			bridge_user_id = self.bridged_locations[location]
+			bridge = self.protocol.clientFromID(bridge_user_id)
+			if external_id in bridge.bridged_external_ids:
+				bridged_id = bridge.bridged_external_ids[external_id]
+				assert(bridged_id in self.bridged_ids)
+				return self.bridged_ids[bridged_id]
+		if not fromdb:
+			return False
+		return self.bridgeduserdb.bridgedClient(location, external_id)		
+	
+	def bridgedClientFromID(self, bridged_id, fromdb=False):
+		if bridged_id in self.bridged_ids: 
+			return self.bridged_ids[bridged_id]
+		if not fromdb:
+			return 
+		return self.bridgeduserdb.bridgedClientFromID(bridged_id)
+	
+	def bridgedClientFromUsername(self, username, fromdb=False):
+		if username in self.bridged_usernames: 
+			return self.bridged_usernames[username]
+		if not fromdb:
+			return 
+		return self.bridgeduserdb.bridgedClientFromUsername(username)
+	
 	def event_loop(self):
 		self.channel_mute_ban_timeout() 
 

@@ -287,7 +287,7 @@ class ChanServClient(Client):
 			if duration == None:
 				return "#%s: Could not parse duration %s, please enter a number of minutes or specify a time unit e.g. '10m', '2h', or '3d'" % (chan, duration_str)
 			if '@' in target_username:
-				target = self._root.protocol.bridgedClientFromUsername(target_username)
+				target = self._root.bridgedClientFromUsername(target_username, True)
 				if not target:
 					return '#%s: Bridged user <%s> not found' % (chan, target_username)						
 				if target.bridged_id in channel.bridged_ban:
@@ -300,11 +300,9 @@ class ChanServClient(Client):
 					expires = datetime.now() + duration
 				except:
 					expires = datetime.max
-				if duration > timedelta(years=1):
-					return "#%s: Bridged users can be banned for a max duration of one year" % chan
 				channel.banBridgedUser(client, target, expires, reason, duration)
 				self.db().banBridgedUser(channel, client, target, expires, reason)
-				return '#%s: banned <%s> from %s' % (chan, target.username, duration)
+				return '#%s: banned <%s> %s' % (chan, target.username, self._root.protocol.pretty_time_delta(duration))
 			target = self._root.protocol.clientFromUsername(target_username, True)
 			if not target:
 				return '#%s: User <%s> not found' % (chan, target_username)	
@@ -331,13 +329,13 @@ class ChanServClient(Client):
 				return '#%s: You must specify a user to unban from the channel' % chan					
 			target_username = args
 			if '@' in target_username:
-				target = self._root.protocol.bridgedClientFromUsername(target_username)
+				target = self._root.bridgedClientFromUsername(target_username, True)
 				if not target:
 					return '#%s: User <%s> not found on the bridge' % (chan, target_username)
 				if not target.bridged_id in channel.bridged_ban:
 					return '#%s: User <%s> not found in bridged banlist' % (chan, target.username)
-				channel.unbanBridgedUser(client, target.bridged_id)
-				self.db().unbanBridgedUser(channel, target.bridged_id)
+				channel.unbanBridgedUser(client, target)
+				self.db().unbanBridgedUser(channel, target)
 				return '#%s: <%s> unbanned' % (chan, target.username)
 			target = self._root.protocol.clientFromUsername(target_username, True)
 			if not target or not target.user_id in channel.ban:
@@ -362,20 +360,16 @@ class ChanServClient(Client):
 				if issuer:
 					issuer_name_str = issuer.username
 				banlist_str += "\n" + "%s :: %s :: ends %s (%s)" % (target.username, ban['reason'], ban['expires'].strftime("%Y-%m-%d %H:%M:%S"), issuer_name_str)
-			offlineBridged = 0
 			for bridged_id in channel.bridged_ban:
 				ban = channel.bridged_ban[bridged_id]
-				target = self._root.protocol.bridgedClientFromID(bridged_id)
+				target = self._root.bridgedClientFromID(bridged_id, True)
 				if not target:
-					offlineBridged += 1
 					continue
 				issuer = self._root.protocol.clientFromID(ban['issuer_user_id'])
 				issuer_name_str = "unknown"
 				if issuer:
 					issuer_name_str = issuer.username
 				banlist_str += "\n" + "%s :: %s :: ends %s (%s)" % (target.username, ban['reason'], ban['expires'].strftime("%Y-%m-%d %H:%M:%S"), issuer_name_str)
-			if offlineBridged > 0:
-				banlist_str += "\n(%i offline bridged users)" % offlineBridged
 			banlist_str += "\n" + " -- End Banlist -- "
 			return banlist_str
 		
@@ -401,7 +395,7 @@ class ChanServClient(Client):
 			self.db().setTopic(channel, args, client) 
 			return '#%s: Topic changed' % chan
 	
-		if cmd == 'spamprotection':
+		if cmd == 'antispam':
 			if not access in ['mod', 'founder', 'op']:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to change the antispam settings' % chan
 			if args == 'on':

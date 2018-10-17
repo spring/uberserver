@@ -1,13 +1,17 @@
 
-class BridgedClient:
+class BridgedClient():
 	'this object represents a user present in an external location, who can speak in (some) channels via a bridging bot'
 	
-	def __init__(self, bridge_client, location, external_id, external_username):
-		self.bridge_user_id = bridge_client.user_id 
-		self.location = location
-		self.external_id = external_id
+	def __init__(self):
 		
-		self.bridged_id = external_id + '@' + location # uniquely identifies the bridged client
-		self.username = external_username + '@' + location
-	
+		#db fields
+		self.bridged_id = -1
+		self.external_id = ''
+		self.location = ''
+		self.external_username = ''
+		self.last_bridged = ''
+		
+		# non-db fields
+		self.username = ''
 		self.channels = set()
+		self.bridge_user_id = -1 # user_id of bridge bot

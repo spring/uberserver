@@ -168,22 +168,16 @@ class Channel():
 		return not key in ('*', None)
 		
 	def setFounder(self, client, target):
-		if not target:
-			return
 		self.owner_user_id = target.user_id
 		self.channelMessage("<%s> has been set as this %s's founder by <%s>" % (target.username, self.identity, client.username))
 
 	def opUser(self, client, target):
-		if not target:
-			return
 		if target.user_id in self.operators:
 			return
 		self.operators.add(target.user_id)
 		self.channelMessage("<%s> has been added to this %s's operator list by <%s>" % (target.username, self.identity, client.username))
 
 	def deopUser(self, client, target):
-		if not target:
-			return
 		if not target.user_id in self.operators:
 			return
 		self.operators.remove(target.user_id)
@@ -204,8 +198,6 @@ class Channel():
 		self.channelMessage('<%s> has been kicked from this %s by <%s>' % (target.username, self.identity, client.username))
 	
 	def banUser(self, client, target, expires, reason, duration):
-		if not target:
-			 return
 		self.ban[target.user_id] = {'user_id':target.user_id, 'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
 		self.removeUser(client, target)
 		self.channelMessage('<%s> has been removed from this %s by <%s>' % (target.username, self.identity, client.username))
@@ -226,10 +218,10 @@ class Channel():
 		self.removeBridgedUser(client, target)
 		self.channelMessage('<%s> has been removed from this channel by <%s>' % (target.username, client.username))
 	
-	def unbanBridgedUser(self, client, bridged_id): #bridged_id as arg, because we don't save a global register of bridged users
-		if not bridged_id in self.bridged_ban:
+	def unbanBridgedUser(self, client, target): 
+		if not target.bridged_id in self.bridged_ban:
 			return
-		del self.bridged_ban[bridged_id]
+		del self.bridged_ban[target.bridged_id]
 	
 	def getMuteMessage(self, client):
 		if self.isMuted(client):

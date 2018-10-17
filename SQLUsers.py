@@ -109,7 +109,27 @@ class Login(object):
 	def __repr__(self):
 		return "<Login('%s', '%s')>" % (self.ip_address, self.time)
 mapper(Login, logins_table)
-
+##########################################
+bridged_users_table = Table('bridged_users', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('external_id', String(20)),
+	Column('location', String(20)), 
+	Column('external_username', String(41), unique=True), 
+	Column('last_bridged', DateTime),
+	UniqueConstraint('external_id', 'location', name='uix_bridged_users_1'),
+	UniqueConstraint('external_username', 'location', name='uix_bridged_users_2'),
+	mysql_charset='utf8',
+	)
+class BridgedUser(object):
+	def __init__(self, location, external_id, external_username, last_bridged):
+		self.location = location
+		self.external_id = external_id
+		self.external_username = external_username
+		self.last_bridged = last_bridged
+	
+	def __repr__(self):
+		return "<BridgedUser('%s', '%s', '%s', '%s')>" % (self.id, self.external_id, self.location, self.last_bridged)
+mapper(BridgedUser, bridged_users_table)
 ##########################################
 renames_table = Table('renames', metadata,
 	Column('id', Integer, primary_key=True),
@@ -290,7 +310,7 @@ channelbridgedbans_table = Table('channel_bridged_bans', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True), 
-	Column('bridged_id', String(45)),
+	Column('bridged_id', Integer, ForeignKey('bridged_users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('expires', DateTime),
 	Column('reason', Text)
 	)
@@ -388,7 +408,6 @@ class OfflineClient(BaseClient):
 		self.access = sqluser.access
 		self.email = sqluser.email
 
-
 class UsersHandler:
 	def __init__(self, root, engine):
 		self._root = root
@@ -411,7 +430,6 @@ class UsersHandler:
 		entry = self.sess().query(User).filter(User.username==username).first()
 		if not entry: return None
 		return OfflineClient(entry)
-
 
 	def legacy_update_user_pwrd(self, db_user, password):
 		assert(db_user.has_legacy_password())
@@ -702,6 +720,82 @@ class UsersHandler:
 			assert(type(msgs[0][2]) == str)
 		return msgs
 
+class OfflineBridgedClient():
+	def __init__(self, sqluser):
+		# db fields
+		self.bridged_id = sqluser.id
+		self.location = sqluser.location
+		self.external_id = sqluser.external_id
+		self.external_username = sqluser.external_username
+		self.last_bridged = sqluser.last_bridged
+
+		# non-db fields
+		self.username = self.external_username + '@' + self.location
+		self.channels = set()
+		self.bridge_user_id = None
+		
+class BridgedUsersHandler:
+	def __init__(self, root, engine):
+		self._root = root
+		metadata.create_all(engine)
+		self.sessionmaker = sessionmaker(bind=engine, autoflush=True)
+		self.session = self.sessionmaker()
+
+	def sess(self):
+		if self.session.is_active:
+			return self.session
+		self.session.rollback()
+		return self.session
+	
+	def bridgedClient(self, location, external_id):
+		entry = self.sess().query(BridgedUser).filter(BridgedUser.external_id == external_id).filter(BridgedUser.location == location).first()
+		if not entry: 
+			return 
+		return OfflineBridgedClient(entry)
+	
+	def bridgedClientFromID(self, bridged_id):
+		entry = self.sess().query(BridgedUser).filter(BridgedUser.id == bridged_id).first()
+		if not entry: 
+			return 
+		return OfflineBridgedClient(entry)
+	
+	def bridgedClientFromUsername(self, username):
+		external_username,location = username.split('@',1)
+		if not external_username or not location: 
+			return
+		entry = self.sess().query(BridgedUser).filter(BridgedUser.external_username == external_username).filter(BridgedUser.location == location).first()
+		if not entry: 
+			return 
+		return OfflineBridgedClient(entry)
+	
+	def new_bridge_user(self, location, external_id, username):
+		now = datetime.now()
+		entry = BridgedUser(location, external_id, username, now)
+		self.sess().add(entry)
+		self.sess().commit()
+		return entry
+	
+	def bridge_user(self, location, external_id, external_username):
+		bridgedUser = self.sess().query(BridgedUser).filter(BridgedUser.external_id == external_id).filter(BridgedUser.location == location).first()
+		entry = self.sess().query(BridgedUser).filter(BridgedUser.external_username == external_username).filter(BridgedUser.location == location).first()
+		if (entry and entry.external_id != external_id):
+			return False, "Another bridged user (external_id '%s') with location '%s' is currently associated to the external username '%s'" % (entry.external_id, location, external_username)
+		if not bridgedUser:
+			entry = self.new_bridge_user(location, external_id, external_username)
+			print("new", entry.id)
+			return True, OfflineBridgedClient(entry)
+		bridgedUser.external_username = external_username
+		bridgedUser.last_bridged = datetime.now()
+		self.sess().commit()
+		print("old", bridgedUser.id)
+		return True, OfflineBridgedClient(bridgedUser)
+		
+	def clean():
+		# remove any bridged user that wasn't seen for a year
+		now = datetime.now()
+		self.sess().query(BridgedUser).filter(BridgedUser.last_login + timedelta(years=1) < now).delete(synchronize_session=False)			
+		self.sess().commit()	
+	
 class BansHandler:
 	def __init__(self, root, engine):
 		self._root = root
@@ -1161,12 +1255,12 @@ class ChannelsHandler:
 			self.sess().commit()
 
 	def banBridgedUser(self, channel, issuer, target, expires, reason):
-		entry = ChannelBridgedBan(chan.id, issuer.user_id, target.bridged_id, expires, reason)
+		entry = ChannelBridgedBan(channel.id, issuer.user_id, target.bridged_id, expires, reason)
 		self.sess().add(entry)
 		self.sess().commit()
 	
-	def unbanBridgedUser(self, chan, bridged_id):
-		entry = self.sess().query(ChannelBridgedBan).filter(ChannelBridgedBan.bridged_id == bridged_id).filter(ChannelBridgedBan.channel_id == channel.id).first()
+	def unbanBridgedUser(self, channel, target):
+		entry = self.sess().query(ChannelBridgedBan).filter(ChannelBridgedBan.bridged_id == target.bridged_id).filter(ChannelBridgedBan.channel_id == channel.id).first()
 		if entry:
 			self.sess().delete(entry)
 			self.sess().commit()

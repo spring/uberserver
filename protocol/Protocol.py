@@ -6,14 +6,16 @@ import time
 import re
 import sys
 import socket
-import Channel
-import Battle
 import importlib
 import logging
 import datetime
 import base64
 import json
 import traceback
+
+import Channel
+import Battle
+import BridgedClient
 
 # see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
 # max. 8 ranks are possible (rank 0 isn't listed)
@@ -229,11 +231,13 @@ class Protocol:
 
 	def _logoutUser(self, client, reason):
 		# remove the client, and all its references 
-		bridged_clients = client.bridged_clients.copy() # avoid modifying dict while iterating
-		for bridged_id, bridgedClient in bridged_clients.items():
+		bridged_clients = client.bridged_external_ids.copy() # avoid modifying dict while iterating
+		for external_id, bridged_id in bridged_clients.items():
+			bridgedClient = self._root.bridgedClientFromID(bridged_id)
 			self.in_UNBRIDGECLIENTFROM(client, bridgedClient.location, bridgedClient.external_id)	
 		for location in client.bridged_locations:
-			del self._root.bridge_location_bots[location]	
+			del self._root.bridged_locations[location]
+			
 		if client.current_battle:
 			self.in_LEAVEBATTLE(client)
 		for chan in list(client.channels):
@@ -635,14 +639,6 @@ class Protocol:
 		id = self._root.nextbattle
 		return id
 
-	def clientFromID(self, user_id, fromdb = False):
-		'given a user database id, returns a client object from memory or the database'
-		assert(isinstance(user_id, int))
-		user = self._root.clientFromID(user_id)
-		if user: return user
-		if not fromdb: return None
-		return self.userdb.clientFromID(user_id)
-		
 	def getCurrentBattle(self, client):
 		if not client.current_battle:
 			return False
@@ -652,6 +648,15 @@ class Protocol:
 			return False
 		return self._root.battles[battle_id]
 
+	def clientFromID(self, user_id, fromdb = False):
+		# todo: merge these into datahandler.py
+		'given a user database id, returns a client object from memory or the database'
+		assert(isinstance(user_id, int))
+		user = self._root.clientFromID(user_id)
+		if user: return user
+		if not fromdb: return None
+		return self.userdb.clientFromID(user_id)
+		
 	def clientFromSession(self, session_id):
 		assert(isinstance(session_id, int))
 		if session_id in self._root.clients:
@@ -660,31 +665,6 @@ class Protocol:
 		self.cleanup()
 		return None
 	
-	def getBridgedClient(self, location, external_id):
-		bridge_user_id = self._root.bridge_location_bots.get(location)
-		if not bridge_user_id: 
-			return None
-		client = self.clientFromID(bridge_user_id)
-		bridged_id = external_id + '@' + location
-		bridgedClient = client.bridged_clients.get(bridged_id)
-		return bridgedClient
-		
-	def bridgedClientFromID(self, bridged_id):
-		external_id, location = bridged_id.split('@',1)
-		return self.getBridgedClient(location, external_id)
-		
-	def bridgedClientFromUsername(self, username):
-		external_username, location = username.split('@',1)
-		bridge_user_id = self._root.bridge_location_bots.get(location)
-		if not bridge_user_id: 
-			return None
-		client = self.clientFromID(bridge_user_id)
-		bridged_id = client.bridged_client_usernames.get(username)
-		if not bridged_id:
-			return None
-		bridgedClient = client.bridged_clients.get(bridged_id)
-		return bridgedClient
-		
 	def clientFromUsername(self, username, fromdb = False):
 		'given a username, returns a client object from memory or the database'
 		client = self._root.clientFromUsername(username)
@@ -1020,17 +1000,18 @@ class Protocol:
 				client.Send("AGREEMENT %s" %(line))
 			client.Send('AGREEMENTEND')
 			return
+			
+		if (client.username in self._root.usernames): # required to avoid problems because of parallel execution
+			self.out_DENIED(client, client.username, 'Already logged in.', False)
+			return
 		self._SendLoginInfo(client)
 
 	def _SendLoginInfo(self, client):
 
-		if (client.username in self._root.usernames): # required to avoid problems because of parallel execution
-			self.out_DENIED(client, client.username, 'Already logged in.', False)
-			return
-
 		self._calc_status(client, 0)
 		client.logged_in = True
 		client.buffersend = True # enqeue all sends to client made from other threads until server state is send
+		
 		self._root.user_ids[client.user_id] = client
 		self._root.usernames[client.username] = client
 
@@ -1196,48 +1177,80 @@ class Protocol:
 				receiver.Send('SAIDPRIVATEEX %s %s' % (client.username, msg))
 
 	def in_BRIDGECLIENTFROM(self, client, location, external_id, external_username):
-		# tell the server about a new bridged client
+		# add external user to the bridge
 		if not client.bot:
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "Only bot users can bridge clients" % reason, True)			
 			return
 		good, reason = self._validBridgeSyntax(location, external_id, external_username)
 		if not good:
 			self.out_FAILED(client, "BRIDGECLIENTFROM", "Invalid syntax: %s" % reason, True)			
 			return
-		if not location in self._root.bridge_location_bots:
-			self._root.bridge_location_bots[location] = client.user_id
-		if self._root.bridge_location_bots[location] != client.user_id:
-			existing_bridge = self.clientFromID(self._root.bridge_location_bots[location])
+		if not location in self._root.bridged_locations:
+			self._root.bridged_locations[location] = client.user_id
+			assert(not location in client.bridged_locations)
+			client.bridged_locations[location] = 0
+			self.out_SERVERMSG(client, "You are now the bridge bot for location '%s'" % location)
+		if self._root.bridged_locations[location] != client.user_id:
+			existing_bridge = self.clientFromID(self._root.bridged_locations[location])
 			client.bridge_locations.add(location)
-			self.out_FAILED(client, "BRIDGECLIENTFROM", "The location %s is already in use by bridge bot %s" % existing_bridge.username, True)		
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "The location '%s' is already in use by bridge bot %s" % existing_bridge.username, True)		
 			return
-		bridgedClient = self.getBridgedClient(location, external_id)
-		bridgedClient2 = self.bridgedClientFromUsername(external_username+'@'+location)
-		if bridgedClient or bridgedClient2:
-			self.out_FAILED(client, "BRIDGECLIENTFROM", "There is already a client from location '%s' matching external_id '%s' and/or username '%s'" % (location, external_id, external_username), True)		
+			
+		good, response = self._root.bridgeduserdb.bridge_user(location, external_id, external_username)
+		if not good:
+			self.out_FAILED(client, "BRIDGECLIENTFROM", response, True)		
 			return
-		client.addBridgedClient(location, external_id, external_username)
-		client.Send("BRIDGEDCLIENTFROM %s %s %s" % (location, external_id, external_username))
+		response
+		if response.bridged_id in self._root.bridged_ids:
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "This client already exists on the bridge (external_id=%s)" % response.external_id, True)		
+			return	
+		
+		# copy db values to our local bridged client
+		bridgedClient = BridgedClient.BridgedClient()
+		bridgedClient.bridged_id = response.bridged_id
+		bridgedClient.external_id = response.external_id
+		bridgedClient.location = response.location
+		bridgedClient.last_bridged = response.last_bridged
+		bridgedClient.username = response.username
+		bridgedClient.external_username = response.external_username
+
+		# non-db values
+		bridgedClient.channels = set()
+		bridgedClient.bridge_user_id = client.user_id
+		
+		client.bridged_locations[location] += 1		
+		client.bridged_external_ids[bridgedClient.external_id] = bridgedClient.bridged_id
+		self._root.bridged_ids[bridgedClient.bridged_id] = bridgedClient
+		self._root.bridged_usernames[bridgedClient.username] = bridgedClient
+		print(bridgedClient.username)
+		client.Send("BRIDGEDCLIENTFROM %s %s %s" % (bridgedClient.location, bridgedClient.external_id, bridgedClient.external_username))
 	
 	def in_UNBRIDGECLIENTFROM(self, client, location, external_id):
 		# tell the server that a currently bridged client is gone
-		bridgedClient = self.getBridgedClient(location, external_id)
+		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient:
 			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client not found", True)			
 			return 
 		if bridgedClient.bridge_user_id != client.user_id:
-			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Huurrr", True)			
+			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client is on a different bridge", True)			
 			return
-		client.removeBridgedClient(bridgedClient)
-		client.Send("UNBRIDGEDCLIENTFROM %s %s" % (location, external_id))
+			
+		del client.bridged_external_ids[external_id]
+		client.bridged_locations[location] -= 1		
+		assert(client.bridged_locations[location] >= 0)
+		del self._root.bridged_ids[bridgedClient.bridged_id]
+		del self._root.bridged_usernames[bridgedClient.username]
+		client.Send("UNBRIDGEDCLIENTFROM %s %s" % (bridgedClient.location, bridgedClient.external_id))
 
 	def in_JOINFROM(self, client, chan, location, external_id):
 		# bridged client joins a channel
 		if not client.compat['u']:
 			return
 		if not chan in self._root.channels:
+			self.out_FAILED(client, "LEAVEFROM", "Channel '%s' not found" % chan, True)			
 			return
 		channel = self._root.channels[chan]
-		bridgedClient = self.getBridgedClient(location, external_id)
+		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient or bridgedClient.bridge_user_id != client.user_id:
 			self.out_FAILED(client, "JOINFROM", "Bridged user not found", True)			
 			return 
@@ -1251,9 +1264,10 @@ class Protocol:
 		if not client.compat['u']:
 			return
 		if not chan in self._root.channels:
+			self.out_FAILED(client, "LEAVEFROM", "Channel '%s' not found" % chan, True)			
 			return
 		channel = self._root.channels[chan]
-		bridgedClient = self.getBridgedClient(location, external_id)
+		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient or bridgedClient.bridge_user_id != client.user_id:
 			self.out_FAILED(client, "LEAVEFROM", "Bridged user not found", True)			
 			return 
@@ -1265,7 +1279,7 @@ class Protocol:
 		if not chan in self._root.channels:
 			return
 		channel = self._root.channels[chan]
-		bridgedClient = self.getBridgedClient(location, external_id)
+		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient or bridgedClient.bridge_user_id != client.user_id:
 			return 	
 		if not client.compat['u']:
@@ -1547,7 +1561,7 @@ class Protocol:
 			return
 		channel.removeUser(client, reason)
 		assert(not client.session_id in channel.users)
-		if len(self._root.channels[chan].users) == 0:
+		if len(self._root.channels[chan].users) == 0 and channel.identity!='battle':
 			del self._root.channels[chan]
 
 	def in_OPENBATTLE(self, client, type, natType, key, port, maxplayers, hashcode, rank, maphash, sentence_args):
@@ -1820,6 +1834,7 @@ class Protocol:
 		if battle.host == client.session_id:
 			self.broadcast_RemoveBattle(battle)
 			del self._root.battles[battle.battle_id]
+			del self._root.channels[battle.name]
 
 	def in_MYBATTLESTATUS(self, client, _battlestatus, _myteamcolor):
 		'''
@@ -2826,8 +2841,7 @@ class Protocol:
 				del self._root.channels[channel]
 				logging.error("deleting empty channel %s" % channel)
 				nchan = nchan + 1
-		#todo: clean ops, bans, mutes
-		#todo: create+call channeldb.clean()
+		#todo: clean bridged users
 
 		dupcheck = set()
 		todel = []
@@ -2865,6 +2879,7 @@ class Protocol:
 			logging.error("Deleted username without session: %s" %(u))
 
 		self.userdb.clean()
+		self.bridgeduserdb.clean()
 		self.channeldb.clean()
 		self.verificationdb.clean()
 		self.bandb.clean()
