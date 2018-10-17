@@ -782,12 +782,10 @@ class BridgedUsersHandler:
 			return False, "Another bridged user (external_id '%s') with location '%s' is currently associated to the external username '%s'" % (entry.external_id, location, external_username)
 		if not bridgedUser:
 			entry = self.new_bridge_user(location, external_id, external_username)
-			print("new", entry.id)
 			return True, OfflineBridgedClient(entry)
 		bridgedUser.external_username = external_username
 		bridgedUser.last_bridged = datetime.now()
 		self.sess().commit()
-		print("old", bridgedUser.id)
 		return True, OfflineBridgedClient(bridgedUser)
 		
 	def clean():
