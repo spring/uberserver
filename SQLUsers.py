@@ -4,7 +4,7 @@
 from datetime import datetime, timedelta
 from BaseClient import BaseClient
 
-import time, random, smtplib, re
+import time, random, smtplib, re, hashlib, base64
 import logging
 
 try:
@@ -71,10 +71,11 @@ verifications_table = Table('verifications', metadata,
 	mysql_charset='utf8',
 	)
 class Verification(object):
-	def __init__(self, user_id, email):
+	def __init__(self, user_id, email, digits):
 		self.user_id = user_id
 		self.email = email
-		self.code = random.randint(1000,9999)
+		assert(digits>=4)
+		self.code = random.randint(10**(digits-1),10**(digits)-1)
 		self.expiry = datetime.now() + timedelta(days=1)
 		self.attempts = 0
 		self.resends = 0
@@ -320,6 +321,7 @@ class OfflineClient(BaseClient):
 	def __init__(self, sqluser):
 		self.set_user_pwrd_salt(sqluser.username, (sqluser.password, sqluser.randsalt))
 		self.id = sqluser.id
+		self.user_id = sqluser.id
 		self.ingame_time = sqluser.ingame_time
 		self.bot = sqluser.bot
 		self.last_login = sqluser.last_login
@@ -428,26 +430,26 @@ class UsersHandler:
 		return True, ""
 
 	# TODO: improve, e.g. also check if ip address is banned when registering account
-	def check_register_user(self, username, password, ip, country, email):
+	def check_register_user(self, username, email=None):
 		assert(type(username) == str)
-		assert(type(password) == str)
 
 		status, reason = self.check_user_name(username)
-		if (not status):
+		if not status:
 			return False, reason
 		dbuser = self.sess().query(User).filter(User.username == username).first()
-		if (dbuser):
+		if dbuser:
 			return False, 'Username already exists.'
-		dbemail = self.sess().query(User).filter(User.email == email).first()
-		#if (dbemail):
-		#	return False, 'Email address already exists.'
+		if email:
+			dbemail = self.sess().query(User).filter(User.email == email).first()
+			if (dbemail):
+				return False, 'Email address already in use.'
 		return True, ""
 
 	def register_user(self, username, password, ip, country, email):
 		# note: password here is BASE64(MD5(...)) and already in unicode
 		# assume check_register_user was already called
 		entry = User(username, password, "", ip, email)
-
+		
 		self.sess().add(entry)
 		self.sess().commit()
 		return True, 'Account registered successfully.'
@@ -487,6 +489,18 @@ class UsersHandler:
 
 		self.sess().commit()
 
+	def get_user_id_with_email(self, email):
+		if email == '':
+			return False, 'Email address is blank'
+		response = self.sess().query(User).filter(User.email == email)
+		dbuser = response.first()
+		if not dbuser:
+			return False, 'No user with email address %s was found' % email
+		for entry in response: # pick oldest, if multiple choices
+			if entry.register_date < dbuser.register_date:
+				db_user = entry
+		return True, dbuser.id
+		
 	def confirm_agreement(self, client):
 		entry = self.sess().query(User).filter(User.username==client.username).first()
 		if entry: entry.access = 'user'
@@ -852,7 +866,7 @@ class VerificationsHandler:
 			return False, "invalid email address"
 		return True, ""
 		
-	def check_and_send(self, user_id, email, reason, wait_duration):
+	def check_and_send(self, user_id, email, reason, wait_duration, digits):
 		# check that we don't already have an active verification, send a new one if not
 		if not self.active():
 			return True, ''
@@ -878,12 +892,12 @@ class VerificationsHandler:
 				return False, 'already sent a verification code, please check your spam filter!'
 		if entry: #expired
 			self.remove(user_id)
-		entry = self.create(user_id, email) 
+		entry = self.create(user_id, email, digits) 
 		self.send(entry, reason, wait_duration)
 		return True, 'verification code sent to %s' % email
 
-	def create(self, user_id, email):
-		entry = Verification(user_id, email)
+	def create(self, user_id, email, digits):
+		entry = Verification(user_id, email, digits)
 		self.sess().add(entry)
 		self.sess().commit()
 		return entry
@@ -959,11 +973,11 @@ If you received this message in error, please contact us at www.springrts.com (d
 			else:
 				entry.attempts += 1
 				self.sess().commit()
-				return False, 'incorrect verification code, %s/3 attempts' % (3-attempts) 
+				return False, 'incorrect verification code, %s/3 attempts remaining' % (3-entry.attempts) 
 		except Exception as e:
 			entry.attempts += 1
 			self.sess().commit()
-			return False, 'incorrect verification code, ' + str(e) + ', %s/3 attempts ' % (3-attempts)
+			return False, 'incorrect verification code, ' + str(e) + ', %s/3 attempts remaining' % (3-entry.attempts)
 		
 	def remove (self, user_id):
 		# remove all entries for user
@@ -975,6 +989,52 @@ If you received this message in error, please contact us at www.springrts.com (d
 		now = datetime.now()
 		self.sess().query(Verification).filter(Verification.expiry < now).delete(synchronize_session=False)			
 		self.sess().commit()
+
+	def reset_password(self, user_id):
+		# reset pw, email to user
+		char_set = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!£$%^&*()@<>?"
+		new_password_raw = ""
+		for i in range(0,10):
+			new_password_raw += random.choice(char_set)
+		hash = hashlib.md5()
+		hash.update(str.encode(new_password_raw))
+		new_password = base64.b64encode(hash.digest()).decode() 
+		assert(self._root.protocol._validPasswordSyntax(new_password))
+		
+		dbuser = self.sess().query(User).filter(User.id == user_id).first()
+		dbuser.password = new_password
+		self.sess().commit()		
+		
+		try:
+			thread.start_new_thread(self._send_reset_password_email, (dbuser.email, dbuser.username, new_password_raw, 0))
+		except NameError:
+			_thread.start_new_thread(self._send_reset_password_email, (dbuser.email, dbuser.username, new_password_raw, 0))
+		except:
+			logging.error('Failed to launch UserHandler._send_recover_account_email: %s' % (dbuser))
+	
+	def _send_reset_password_email (self, email, username, password, wait_duration):
+		if not self.active():
+			return 
+		sent_from = self.mail_user
+		to = email
+		subject = 'SpringRTS account recovery'
+		body = """
+You are recieving this email because you recently requested to recover the account <""" + username + """> at the SpringRTS lobby server.
+Your new password is """ + password + """.
+
+If you received this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)."""
+		message = 'Subject: {}\n\n{}'.format(subject, body)
+
+		time.sleep(wait_duration)
+		try:
+			server = smtplib.SMTP_SSL(self.mail_server, self.mail_server_port)
+			server.ehlo()
+			server.login(self.mail_user, self.mail_password)
+			server.sendmail(sent_from, to, message)
+			server.close()
+		except Exception as e:
+			logging.error('Failed to send account recovery email: %s, %s, %s' % (email, username, str(e)))
+
 		
 class ChannelsHandler:
 	def __init__(self, root, engine):
@@ -1115,7 +1175,7 @@ if __name__ == '__main__':
 	assert(isinstance(client.id, int))
 	
 	# test verification
-	entry = verificationdb.create(client.id, client.email)
+	entry = verificationdb.create(client.id, client.email, 4)
 	verificationdb._send(entry.email, entry.code, entry.expiry, "test", 0) #use main thread, or Python will exit without waiting for the test!
 	verificationdb.verify(client.id, client.email, entry.code)
 	verificationdb.clean()
