@@ -2014,23 +2014,6 @@ class Protocol:
 		for msg in msgs:
 			self.out_JSON(client,  'SAID', {"chanName": chan, "time": str(datetime_totimestamp(msg[0])), "userName": msg[1], "msg": msg[2], "id": msg[3]})
 
-	def in_FORCELEAVECHANNEL(self, client, chan, username, reason=''):
-		'''
-		Kick target user from target channel.
-
-		@required.str channel: The target channel.
-		@required.str username: The target user.
-		@optional.str reason: A reason for kicking the user..
-		'''
-		if not chan in self._root.channels:
-			self.out_SERVERMSG(client, 'channel <%s> does not exist!' % (chan))
-			return
-		target = self.clientFromUsername(username)
-		if not target:
-			self.out_SERVERMSG(client, '<%s> not in channel #%s' % (username, chan))
-			return
-		self.in_LEAVE(target, chan, "was kicked by %s" %(client.username))
-
 	def in_RING(self, client, username):
 		'''
 		Send target user a ringing notification, normally used for idle users in battle.
@@ -2969,17 +2952,14 @@ class Protocol:
 
 		
 	# Deprecated protocol section #
-		
 	def in_MUTE(self, client, chan, user, duration=0):
 		self._root.chanserv.Handle("SAIDPRIVATE %s !mute %s %s %s -" % (client.username, chan, user, duration))
 	def in_UNMUTE(self, client, chan, user):
 		self._root.chanserv.Handle("SAIDPRIVATE %s !unmute %s %s" % (client.username, chan, user))
 	def in_MUTELIST(self, client, chan): 
 		self._root.chanserv.Handle("SAIDPRIVATE %s !listmutes %s" % (client.username, chan))
-	def in_STARTTLS(self, client):
-		client.StartTLS()
-		client.flushBuffer()
-		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0')))
+	def in_FORCELEAVECHANNEL(self, client, chan, user, reason=''):
+		self._root.chanserv.Handle("SAIDPRIVATE %s !kick %s %s" % (client.username, chan, user))
 	def in_SETCHANNELKEY(self, client, chan, key='*'):
 		self.in_SAYPRIVATE(client, 'ChanServ !setkey #' + chan + ' ' + key)
 	def in_SAYBATTLE(self, client, msg):
