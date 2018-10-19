@@ -432,7 +432,7 @@ class ChanServClient(Client):
 				return '#%s: User <%s> not found' % (chan, target_username)
 			if channel.isOp(target):
 				return '#%s: Cannot kick <%s>, user has operator status' % (chan, target.username)	
-			channel.kickUser(client, target, reason)
+			channel.kickUser(client, target)
 			return '#%s: kicked <%s>' % (chan, target.username)
 		
 		if cmd == 'topic':
