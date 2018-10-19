@@ -122,7 +122,6 @@ restricted = {
 	]),
 'mod':set([
 	# users
-	'CHANGEACCOUNTEMAIL',
 	'GETLASTLOGINTIME',
 	'GETLOBBYVERSION',
 	'GETUSERID',
