@@ -47,7 +47,6 @@ restricted = {
 	'CONFIRMAGREEMENT',
 	]),
 'user':set([
-	'SETACCESS',
 	########
 	# battle
 	'ADDBOT',
@@ -2985,8 +2984,8 @@ class Protocol:
 			return
 		newmail = newmail.lower()
 		found,_ = self.userdb.get_user_id_with_email(newmail)
-		if found:
-			client.Send("CHANGEEMAILREQUESTDENIED another user is already registered to this email address")	
+		if found and not client.bot:
+			client.Send("CHANGEEMAILREQUESTDENIED another user is already registered to the email address '%s'" % newmail)			
 			return
 		reason = "requested to change your email address on the SpringRTS lobbyserver (" + client.username + ")"
 		good, reason = self.verificationdb.check_and_send(client.user_id, newmail, reason, 0, 8) 
@@ -3002,8 +3001,8 @@ class Protocol:
 			return
 		newmail = newmail.lower()
 		found,_ = self.userdb.get_user_id_with_email(newmail)
-		if found:
-			client.Send("CHANGEEMAILREQUESTDENIED another user is already registered to this email address")			
+		if found and not client.bot: # bots should share email addr with the bot owner
+			client.Send("CHANGEEMAILDENIED another user is already registered to the email address '%s'" % newmail)			
 			return
 		good, reason = self.verificationdb.verify(client.user_id, newmail, verification_code)
 		if not good:
@@ -3014,21 +3013,6 @@ class Protocol:
 		self.out_SERVERMSG(client, "Your email address has been changed to " + client.email)
 		client.Send("CHANGEEMAILACCEPTED " + newmail)
 			
-	def in_CHANGEACCOUNTEMAIL(self, client, username, newmail):
-		# forcibly change a clients email address
-		user = self.clientFromUsername(username, True)
-		if not user:
-			self.out_SERVERMSG(client,"user not found")
-			return
-		if user.access in ('mod', 'admin') and client.access == 'mod': 
-			self.out_SERVERMSG(client,"access denied")
-			return
-		newmail = newmail.lower()
-		user.email = newmail
-		self.userdb.save_user(user)
-		self.verificationdb.remove(user.user_id)
-		self.out_SERVERMSG(client,"changed <%s> email to %s"%(username, user.email))
-
 	def in_RESETPASSWORDREQUEST(self, client, email):
 		if not self.verificationdb.active():
 			client.Send("RESETPASSWORDREQUESTDENIED email verification is currently turned off, account recovery is disabled")
