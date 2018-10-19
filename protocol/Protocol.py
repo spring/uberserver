@@ -2960,6 +2960,10 @@ class Protocol:
 		self._root.chanserv.Handle("SAIDPRIVATE %s !listmutes %s" % (client.username, chan))
 	def in_FORCELEAVECHANNEL(self, client, chan, user, reason=''):
 		self._root.chanserv.Handle("SAIDPRIVATE %s !kick %s %s" % (client.username, chan, user))
+	def in_STARTTLS(self, client):
+		client.StartTLS()
+		client.flushBuffer()
+		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0')))	
 	def in_SETCHANNELKEY(self, client, chan, key='*'):
 		self.in_SAYPRIVATE(client, 'ChanServ !setkey #' + chan + ' ' + key)
 	def in_SAYBATTLE(self, client, msg):
