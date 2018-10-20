@@ -63,7 +63,7 @@ try:
 	print('  public:  %s:%d' %(_root.online_ip, _root.port))
 	print('  private: %s:%d' %(_root.local_ip, _root.port))
 	event_loop = task.LoopingCall(_root.decrement_recent_registrations)
-	event_loop.start(60*60)
+	event_loop.start(60*20)
 	reactor.run()
 
 except KeyboardInterrupt:
