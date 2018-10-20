@@ -71,6 +71,7 @@ class DataHandler:
 		self.battles = {}
 		
 		self.recent_registrations = {} #ip_address->int
+		self.recent_renames = {} #user_id->int
 		
 	def initlogger(self, filename):
 		# logging
@@ -362,6 +363,15 @@ class DataHandler:
 				self.recent_registrations[ip_address] -= 1
 				if self.recent_registrations[ip_address] <= 0:
 					del self.recent_registrations[ip_address]
+		except:
+			logging.error(traceback.format_exc())
+	
+	def decrement_recent_renames(self):
+		try:
+			for user_id in self.recent_renames:
+				self.recent_renames[user_id] -= 1
+				if self.recent_renames[user_id] <= 0:
+					del self.recent_renames[user_id]
 		except:
 			logging.error(traceback.format_exc())
 	

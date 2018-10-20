@@ -894,7 +894,7 @@ class VerificationsHandler:
 			self.remove(user_id)
 		entry = self.create(user_id, email, digits) 
 		self.send(entry, reason, wait_duration)
-		return True, 'verification code sent to %s' % email
+		return True, ''
 
 	def create(self, user_id, email, digits):
 		entry = Verification(user_id, email, digits)
@@ -917,7 +917,7 @@ class VerificationsHandler:
 		wait_duration = 30
 		reason = "requested your verification code to be re-sent"
 		self.send(entry, reason, 30)		
-		return True, 'verification code sent to %s' % email
+		return True, ''
 	
 	def send(self, entry, reason, wait_duration):
 		try:

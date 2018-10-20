@@ -2590,6 +2590,13 @@ class Protocol:
 
 		@required.str username: The new username to apply.
 		'''
+		
+		recent_renames = self._root.recent_renames.get(client.user_id, 0) 
+		if recent_renames >= 3:
+			self.out_SERVERMSG(client, 'too many recent renames')
+			return 
+		self._root.recent_renames[client.user_id] = recent_renames + 1			
+		
 		good, reason = self._validUsernameSyntax(newname)
 		if not good:
 			self.out_SERVERMSG(client, '%s' %(reason))
