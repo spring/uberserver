@@ -27,13 +27,11 @@ restricted = {
 	'EXIT',
 	'PING',
 	'LISTCOMPFLAGS',
-
 	########
 	# account recovery / etc
 	'RESENDVERIFICATION',
 	'RESETPASSWORD',
 	'RESETPASSWORDREQUEST',
-
 	########
 	# encryption
 	'STARTTLS',
@@ -821,7 +819,13 @@ class Protocol:
 		@required.str username: Username to register
 		@required.str password: Password to use (old-style: BASE64(MD5(PWRD)), new-style: BASE64(PWRD))
 		'''
-		assert(type(password) == str)
+		
+		# rate limit per ip
+		recent_regs = self._root.recent_registrations.get(client.ip_address, 0) 
+		if recent_regs >= 3:
+			client.Send("REGISTRATIONDENIED too many recent registration attempts, please try again later")
+			return 
+		self._root.recent_registrations[client.ip_address] = recent_regs + 1			
 
 		# well formed-ness tests
 		good, reason = self._validUsernameSyntax(username)

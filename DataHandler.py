@@ -70,6 +70,8 @@ class DataHandler:
 		self.user_ids = {} 
 		self.battles = {}
 		
+		self.recent_registrations = {} #ip_address->int
+		
 	def initlogger(self, filename):
 		# logging
 		server_logfile = os.path.join(os.path.dirname(__file__), filename)
@@ -354,6 +356,15 @@ class DataHandler:
 		except:
 			logging.error(traceback.format_exc())
 
+	def decrement_recent_registrations(self):
+		try:
+			for ip_address in self.recent_registrations:
+				self.recent_registrations[ip_address] -= 1
+				if self.recent_registrations[ip_address] <= 0:
+					del self.recent_registrations[ip_address]
+		except:
+			logging.error(traceback.format_exc())
+	
 	# the sourceClient is only sent for SAY*, and RING commands
 	def multicast(self, session_ids, msg, ignore=(), sourceClient=None):
 		assert(type(ignore) == set)
