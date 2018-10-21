@@ -1185,6 +1185,10 @@ class Protocol:
 		if not good:
 			self.out_FAILED(client, "BRIDGECLIENTFROM", "Invalid syntax: %s" % reason, True)			
 			return
+		location_client = self.clientFromUsername(location, True)
+		if location_client and location_client.bot and location != client.username:
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "You cannot bridge a location named after another bot user" % reason, True)			
+			return			
 		if not location in self._root.bridged_locations:
 			self._root.bridged_locations[location] = client.user_id
 			assert(not location in client.bridged_locations)
