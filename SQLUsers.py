@@ -1209,7 +1209,7 @@ if __name__ == '__main__':
 	
 	# test verification
 	entry = verificationdb.create(client.id, client.email, 4, False, "test")
-	verificationdb._send(entry.email, entry.code, entry.reason, entry.use_delay, entry.expiry, "1.2.3.4") #use main thread, or Python will exit without waiting for the test!
+	verificationdb._send_email("test@test.test", "blackhole@blackhole.io", "test", "test") #use main thread, or Python will exit without waiting for the test!
 	verificationdb.verify(client.id, client.email, entry.code)
 	verificationdb.clean()
 
