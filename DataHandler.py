@@ -190,6 +190,16 @@ class DataHandler:
 				duration = mute['expires'] - now
 				self.channels[dbchannel.name].muteUser(issuer, target, mute['expires'], mute['reason'], duration)
 
+	def clean(self):
+		try:
+			self.userdb.clean()
+			self.bridgeduserdb.clean()
+			self.channeldb.clean()
+			self.verificationdb.clean()
+			self.bandb.clean()
+		except:
+			logging.error(traceback.format_exc())
+	
 	def shutdown(self):
 		self.running = False
 

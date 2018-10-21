@@ -803,10 +803,10 @@ class BridgedUsersHandler:
 		self.sess().commit()
 		return True, OfflineBridgedClient(bridgedUser)
 		
-	def clean():
+	def clean(self):
 		# remove any bridged user that wasn't seen for a year
 		now = datetime.now()
-		self.sess().query(BridgedUser).filter(BridgedUser.last_login + timedelta(years=1) < now).delete(synchronize_session=False)			
+		self.sess().query(BridgedUser).filter(BridgedUser.last_bridged + timedelta(days=365) < now).delete(synchronize_session=False)			
 		self.sess().commit()	
 	
 class BansHandler:

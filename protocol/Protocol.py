@@ -2861,12 +2861,7 @@ class Protocol:
 			del self._root.usernames[u]
 			logging.error("Deleted username without session: %s" %(u))
 
-		self.userdb.clean()
-		self.bridgeduserdb.clean()
-		self.channeldb.clean()
-		self.verificationdb.clean()
-		self.bandb.clean()
-
+		self._root.clean()
 		self._root.admin_broadcast("deleted channels: %d battles: %d users: %d" %(nchan, nbattle, nuser))
 
 	def in_CHANGEEMAILREQUEST(self, client, newmail):
