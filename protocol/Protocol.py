@@ -206,12 +206,17 @@ flag_map = {
 class Protocol:
 	def __init__(self, root):
 		self._root = root
+		
 		self.userdb = root.getUserDB() 
 		self.verificationdb = root.getVerificationDB()
 		self.bandb = root.getBanDB()
 		self.SayHooks = root.SayHooks
-		self.stats = {}
-
+		
+		self.command_stats = {}
+		self.flag_stats = {}
+		self.flag_stats['n_samples'] = 0
+	
+		
 	def _new(self, client):
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0'))
 		if self._root.redirect:
@@ -325,10 +330,10 @@ class Protocol:
 		function = getattr(self, 'in_' + command)
 
 		# update statistics
-		if not command in self.stats:
-			self.stats[command] = 1
+		if not command in self.command_stats:
+			self.command_stats[command] = 1
 		else:
-			self.stats[command] += 1
+			self.command_stats[command] += 1
 
 
 		ret_status, fun_args = self.get_function_args(client, command, function, numspaces, args)
@@ -941,6 +946,14 @@ class Protocol:
 
 				if (len(unsupported) > 0):
 					self.out_SERVERMSG(client, 'Unsupported/unknown compatibility flag(s) in LOGIN: %s' % (unsupported), True)
+					
+				# record flag stats
+				self.flag_stats['n_samples'] += 1
+				for flag in flags:
+					if flag in self.flag_stats:
+						self.flag_stats[flag] += 1
+					else:
+						self.flag_stats[flag] = 1					
 			try:
 				client.last_id = uint32(user_id)
 			except:
@@ -2872,7 +2885,7 @@ class Protocol:
 
 		logging.info("Stats of command usage:")
 		for k in restricted_list:
-			count = self.stats[k] if k in self.stats else 0
+			count = self.command_stats[k] if k in self.command_stats else 0
 			logging.info("%s %d" % (k, count))
 
 		try:
