@@ -63,6 +63,16 @@ class DataHandler:
 		self.detectIp()
 		self.cert = None
 		
+		# lists of online stuff
+		self.channels = {}
+		self.usernames = {}
+		self.clients = {}
+		self.user_ids = {} 
+		self.battles = {}
+		
+		# rate limits
+		self.recent_registrations = {} #ip_address->int
+		self.recent_renames = {} #user_id->int
 		self.flood_limits = { 
 			'fresh':{'msglength':1000, 'bytespersecond':1000, 'seconds':2}, # also the default
 			'user':{'msglength':10000, 'bytespersecond':2000, 'seconds':10}, 
@@ -71,15 +81,6 @@ class DataHandler:
 			'admin':{'msglength':10000, 'bytespersecond':2000, 'seconds':10},
 		}
 	
-		# lists of online stuff
-		self.channels = {}
-		self.usernames = {}
-		self.clients = {}
-		self.user_ids = {} 
-		self.battles = {}
-		
-		self.recent_registrations = {} #ip_address->int
-		self.recent_renames = {} #user_id->int
 		
 	def initlogger(self, filename):
 		# logging

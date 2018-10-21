@@ -68,20 +68,24 @@ verifications_table = Table('verifications', metadata,
 	Column('expiry', DateTime),
 	Column('attempts', Integer),
 	Column('resends', Integer),
+	Column('use_delay', Boolean),
+	Column('reason', Text),
 	mysql_charset='utf8',
 	)
 class Verification(object):
-	def __init__(self, user_id, email, digits):
+	def __init__(self, user_id, email, digits, use_delay, reason):
 		self.user_id = user_id
 		self.email = email
 		assert(digits>=4)
 		self.code = random.randint(10**(digits-1),10**(digits)-1)
-		self.expiry = datetime.now() + timedelta(days=1)
+		self.expiry = datetime.now() + timedelta(days=2)
 		self.attempts = 0
 		self.resends = 0
-
+		self.use_delay = use_delay
+		self.reason = reason
+		
 	def __repr__(self):
-		return "<Verification('%s', '%s', '%s', '%s', '%s', %s, %s)>" % (self.id, self.user_id, self.email, self.code, self.expiry, self.attempts, self.resends)
+		return "<Verification('%s', '%s', '%s', '%s', '%s', %i, %i, %r)>" % (self.id, self.user_id, self.email, self.code, self.expiry, self.attempts, self.resends, self.use_delay)
 mapper(Verification, verifications_table)	
 	
 ##########################################
@@ -847,6 +851,17 @@ class VerificationsHandler:
 		except Exception as e:
 			logging.info('Could not load server_email_account.txt, email verification is disabled: %s' %(e))
 		
+		try:
+			with open('server_iphub_xkey.txt') as f:
+				lines = f.readlines()
+			lines = [l.strip() for l in lines]
+			self.iphub_xkey = lines[0]
+			logging.info('Successfully loaded server_iphub_xkey.txt')
+		except Exception as e:
+			self.iphub_xkey = False
+			logging.info('Could not load server_iphub_xkey.txt: %s' %(e))
+	
+	
 	def sess(self):
 		if self.session.is_active:
 			return self.session
@@ -866,7 +881,7 @@ class VerificationsHandler:
 			return False, "invalid email address"
 		return True, ""
 		
-	def check_and_send(self, user_id, email, reason, wait_duration, digits):
+	def check_and_send(self, user_id, email, digits, reason, use_delay, ip_address):
 		# check that we don't already have an active verification, send a new one if not
 		if not self.active():
 			return True, ''
@@ -876,7 +891,8 @@ class VerificationsHandler:
 		dbblacklist = self._root.bandb.check_blacklist(email)
 		if dbblacklist:
 			return False, dbblacklist.domain + " is blacklisted: " + dbblacklist.reason
-		
+		# no need to check if ip is banned, that is done by login!
+			
 		email_entry = self.sess().query(Verification).filter(Verification.email == email).first()
 		if email_entry: 
 			if datetime.now() <= email_entry.expiry:
@@ -892,17 +908,17 @@ class VerificationsHandler:
 				return False, 'already sent a verification code, please check your spam filter!'
 		if entry: #expired
 			self.remove(user_id)
-		entry = self.create(user_id, email, digits) 
-		self.send(entry, reason, wait_duration)
+		entry = self.create(user_id, email, digits, use_delay, reason) 
+		self.send(entry, ip_address)
 		return True, ''
 
-	def create(self, user_id, email, digits):
-		entry = Verification(user_id, email, digits)
+	def create(self, user_id, email, digits, use_delay, reason):
+		entry = Verification(user_id, email, digits, use_delay, reason)
 		self.sess().add(entry)
 		self.sess().commit()
 		return entry
 	
-	def resend(self, user_id, email):
+	def resend(self, user_id, email, ip_address):
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first()
 		if not entry:
 			return False, 'you do not have an active verification code'		
@@ -912,36 +928,52 @@ class VerificationsHandler:
 			return False, 'your verification code for ' + entry.email + ' cannot be re-sent to a different email address, use it or wait for it to expire (up to 24h)'		
 		if entry.resends>=3:
 			return False, 'too many resends, please try again later'
+		if entry.resends==0:
+			entry.reason += " (resend requested)"
 		entry.resends += 1
 		self.sess().commit()
-		wait_duration = 30
-		reason = "requested your verification code to be re-sent"
-		self.send(entry, reason, 30)		
+		self.send(entry, ip_address)		
 		return True, ''
 	
-	def send(self, entry, reason, wait_duration):
+	def send(self, entry, ip_address):
+		if not self.active(): #safety
+			return 
 		try:
-			thread.start_new_thread(self._send, (entry.email, entry.code, entry.expiry, reason, wait_duration))
+			thread.start_new_thread(self._send, (entry.email, entry.code, entry.reason, entry.use_delay, entry.expiry, ip_address))
 		except NameError:
-			_thread.start_new_thread(self._send, (entry.email, entry.code, entry.expiry, reason, wait_duration))
+			_thread.start_new_thread(self._send, (entry.email, entry.code, entry.reason, entry.use_delay, entry.expiry, ip_address))
 		except:
 			logging.error('Failed to launch VerificationHandler._send: %s, %s, %s' % (entry, reason, wait_duration))
 	
-	def _send (self, email, code, expiry, reason, wait_duration):
-		if not self.active():
-			return 
+	def _send (self, email, code, reason, use_delay, expiry, ip_address):
 		sent_from = self.mail_user
 		to = email
 		subject = 'SpringRTS verification code'
+		
+		delay_secs = 60*60*24
+		delay = timedelta(seconds=delay_secs)
+		send_time = datetime.now() + delay
+		if use_delay and not self._check_residential_ip(ip_address):
+			body = """
+You are recieving this email because you recently """ + reason + """.
+
+Your registration attempt was detected as coming from a non-residential IP address.
+To prevent abuse we delay such registrations by 24 hours. 
+Your verification code will be sent on """ + send_time.strftime("%Y-%m-%d") + """ at """ + send_time.strftime("%H:%M") + """.
+Alternatively, you can register a new account from a different IP address."""
+			self._send_email(sent_from, to, subject, body)
+			time.sleep(delay_secs)
+
 		body = """
 You are recieving this email because you recently """ + reason + """.
-Your email verification code is """ + str(code) + """.
+Your email verification code is """ + str(code) + """
 
-It will expire on """ + expiry.strftime("%Y-%m-%d") + """ at """ + expiry.strftime("%H:%M") + """.
-If you received this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)."""
+This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at """ + expiry.strftime("%H:%M") + """."""
+		self._send_email(sent_from, to, subject, body)
+	
+	def _send_email(self, sent_from, to, subject, body):
+		body += "\n\nIf you received this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)."
 		message = 'Subject: {}\n\n{}'.format(subject, body)
-
-		time.sleep(wait_duration)
 		try:
 			server = smtplib.SMTP_SSL(self.mail_server, self.mail_server_port)
 			server.ehlo()
@@ -949,7 +981,20 @@ If you received this message in error, please contact us at www.springrts.com (d
 			server.sendmail(sent_from, to, message)
 			server.close()
 		except Exception as e:
-			logging.error('Failed to email registration code: %s, %s, %s' % (email, code, str(e)))
+			logging.error('Failed to send email from %s to %s' % (sent_from, to))
+	
+	def _check_residential_ip(self, ip_address):
+		if not self.iphub_xkey:
+			return False
+		try:
+			response = urllib.request.Request("http://v2.api.iphub.info/ip/{}".format(ip_address))
+			response.add_header("X-Key", self.iphub_xkey)
+			response = json.loads(urllib.request.urlopen(response).read().decode())
+		except Exception as e:
+			logging.error('Failed to check ip info for %s: %s' % (ip_address, str(e)))
+			return False # In the case of an error, pass all IPs
+		block = response.get("block") 
+		return block == 1 
 	
 	def verify (self, user_id, email, code):
 		if not self.active():
@@ -979,12 +1024,12 @@ If you received this message in error, please contact us at www.springrts.com (d
 			self.sess().commit()
 			return False, 'incorrect verification code, ' + str(e) + ', %s/3 attempts remaining' % (3-entry.attempts)
 		
-	def remove (self, user_id):
+	def remove(self, user_id):
 		# remove all entries for user
 		self.sess().query(Verification).filter(Verification.user_id == user_id).delete(synchronize_session=False)			
 		self.sess().commit()
 		
-	def clean (self):
+	def clean(self):
 		# remove all expired entries
 		now = datetime.now()
 		self.sess().query(Verification).filter(Verification.expiry < now).delete(synchronize_session=False)			
@@ -1006,13 +1051,13 @@ If you received this message in error, please contact us at www.springrts.com (d
 		self.sess().commit()		
 		
 		try:
-			thread.start_new_thread(self._send_reset_password_email, (dbuser.email, dbuser.username, new_password_raw, 0))
+			thread.start_new_thread(self._send_reset_password_email, (dbuser.email, dbuser.username, new_password_raw,))
 		except NameError:
-			_thread.start_new_thread(self._send_reset_password_email, (dbuser.email, dbuser.username, new_password_raw, 0))
+			_thread.start_new_thread(self._send_reset_password_email, (dbuser.email, dbuser.username, new_password_raw))
 		except:
 			logging.error('Failed to launch UserHandler._send_recover_account_email: %s' % (dbuser))
 	
-	def _send_reset_password_email (self, email, username, password, wait_duration):
+	def _send_reset_password_email(self, email, username, password):
 		if not self.active():
 			return 
 		sent_from = self.mail_user
@@ -1020,20 +1065,8 @@ If you received this message in error, please contact us at www.springrts.com (d
 		subject = 'SpringRTS account recovery'
 		body = """
 You are recieving this email because you recently requested to recover the account <""" + username + """> at the SpringRTS lobby server.
-Your new password is """ + password + """.
-
-If you received this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)."""
-		message = 'Subject: {}\n\n{}'.format(subject, body)
-
-		time.sleep(wait_duration)
-		try:
-			server = smtplib.SMTP_SSL(self.mail_server, self.mail_server_port)
-			server.ehlo()
-			server.login(self.mail_user, self.mail_password)
-			server.sendmail(sent_from, to, message)
-			server.close()
-		except Exception as e:
-			logging.error('Failed to send account recovery email: %s, %s, %s' % (email, username, str(e)))
+Your new password is """ + password
+		self._send_email(sent_from, to, subject, body)
 
 		
 class ChannelsHandler:
