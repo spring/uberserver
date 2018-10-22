@@ -553,8 +553,8 @@ class UsersHandler:
 		''' delete old user accounts (very likely unused) '''
 		now = datetime.now()
 		#delete users:
-		# which didn't accept aggreement after one day
-		self.sess().query(User).filter(User.register_date < now - timedelta(days=1)).filter(User.access == "agreement").delete(synchronize_session=False)
+		# which didn't accept agreement after one week
+		self.sess().query(User).filter(User.register_date < now - timedelta(days=7)).filter(User.access == "agreement").delete(synchronize_session=False)
 
 		# which have no ingame time, last login > 30 days and no bot
 		self.sess().query(User).filter(User.ingame_time == 0).filter(User.last_login < now - timedelta(days=30)).filter(User.bot == 0).filter(User.access == "user").delete(synchronize_session=False)
