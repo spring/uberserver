@@ -168,7 +168,9 @@ class DataHandler:
 			dbchannel = self.channeldb.channel_from_id(ban['channel_id'])
 			if dbchannel:
 				target = self.protocol.clientFromID(ban['user_id'], True)
+				if not target: return
 				issuer = self.protocol.clientFromID(ban['issuer_user_id'], True)
+				if not issuer: issuer = self.chanserv
 				duration = ban['expires'] - now
 				self.channels[dbchannel.name].banUser(issuer, target, ban['expires'], ban['reason'], duration)
 		
@@ -177,7 +179,9 @@ class DataHandler:
 			dbchannel = self.channeldb.channel_from_id(ban['channel_id'])
 			if dbchannel:
 				target = self.bridgedClientFromID(ban['bridged_id'], True)
+				if not target: return
 				issuer = self.protocol.clientFromID(ban['issuer_user_id'], True)
+				if not issuer: issuer = self.chanserv
 				duration = ban['expires'] - now
 				self.channels[dbchannel.name].banBridgedUser(issuer, target, ban['expires'], ban['reason'], duration)
 		
@@ -186,11 +190,14 @@ class DataHandler:
 			dbchannel = self.channeldb.channel_from_id(mute['channel_id'])
 			if dbchannel:
 				target = self.protocol.clientFromID(mute['user_id'], True)
+				if not target: return
 				issuer = self.protocol.clientFromID(mute['issuer_user_id'], True)
+				if not issuer: issuer = self.chanserv
 				duration = mute['expires'] - now
 				self.channels[dbchannel.name].muteUser(issuer, target, mute['expires'], mute['reason'], duration)
 
 	def clean(self):
+		logging.info("scheduled clean...")
 		try:
 			self.userdb.clean()
 			self.bridgeduserdb.clean()
@@ -199,6 +206,7 @@ class DataHandler:
 			self.bandb.clean()
 		except:
 			logging.error(traceback.format_exc())
+		logging.info("scheduled clean finished")
 	
 	def shutdown(self):
 		self.running = False
@@ -449,7 +457,7 @@ class DataHandler:
 					if expiretime < now:
 						to_unban_bridged.append(bridged_id)
 				for bridged_id in to_unban_bridged:
-					target = self.protocol.bridgedClientFromID(bridged_id) 
+					target = self.bridgedClientFromID(bridged_id) 
 					if not target:
 						continue
 					channel.unbanBridgedUser(chanserv, bridged_id)

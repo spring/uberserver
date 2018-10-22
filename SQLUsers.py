@@ -104,7 +104,6 @@ class Login(object):
 		self.user_id = user_id
 		self.local_ip = local_ip
 		self.country = country
-		#self.end = 0
 
 	def __repr__(self):
 		return "<Login('%s', '%s')>" % (self.ip_address, self.time)
@@ -122,8 +121,8 @@ bridged_users_table = Table('bridged_users', metadata,
 	)
 class BridgedUser(object):
 	def __init__(self, location, external_id, external_username, last_bridged):
-		self.location = location
 		self.external_id = external_id
+		self.location = location
 		self.external_username = external_username
 		self.last_bridged = last_bridged
 	
@@ -625,20 +624,27 @@ class UsersHandler:
 		return True, 'Success.'
 
 	def clean(self):
-		''' delete old user accounts (very likely unused) '''
 		now = datetime.now()
 		#delete users:
 		# which didn't accept aggreement after one day
-		self.sess().query(User).filter(User.register_date < now - timedelta(days=1)).filter(User.access == "agreement").delete(synchronize_session=False)
+		response = self.sess().query(User).filter(User.register_date < now - timedelta(days=1)).filter(User.access == "agreement")
+		logging.info("deleting %i users who failed to verify registration", response.count())
+		response.delete(synchronize_session=False)			
 
-		# which have no ingame time, last login > 30 days and no bot
-		self.sess().query(User).filter(User.ingame_time == 0).filter(User.last_login < now - timedelta(days=30)).filter(User.bot == 0).filter(User.access == "user").delete(synchronize_session=False)
+		# which have no ingame time, last login > 30 days, not bot, not mod
+		response = self.sess().query(User).filter(User.ingame_time == 0).filter(User.last_login < now - timedelta(days=30)).filter(User.bot == 0).filter(User.access == "user")
+		logging.info("deleting %i inactive users with no ingame time", response.count())
+		response.delete(synchronize_session=False)			
 
-		# last login > 3 years
-		self.sess().query(User).filter(User.last_login < now - timedelta(days=1095)).delete(synchronize_session=False)
+		# last login > 5 years
+		self.sess().query(User).filter(User.last_login < now - timedelta(days=1825)).delete(synchronize_session=False)
+		logging.info("deleting %i very inactive users", response.count())
+		response.delete(synchronize_session=False)			
 
 		# old messages > 2 weeks
 		self.sess().query(ChannelHistory).filter(ChannelHistory.time < now - timedelta(days=14)).delete(synchronize_session=False)
+		logging.info("deleting %i channel history messages", response.count())
+		response.delete(synchronize_session=False)			
 
 		self.sess().commit()
 
@@ -783,11 +789,12 @@ class BridgedUsersHandler:
 			return 
 		return OfflineBridgedClient(entry)
 	
-	def new_bridge_user(self, location, external_id, username):
+	def new_bridge_user(self, location, external_id, external_username):
 		now = datetime.now()
-		entry = BridgedUser(location, external_id, username, now)
+		entry = BridgedUser(location, external_id, external_username, now)
 		self.sess().add(entry)
 		self.sess().commit()
+		bridgedUser = self.sess().query(BridgedUser).filter(BridgedUser.external_id == external_id).filter(BridgedUser.location == location).first()
 		return entry
 	
 	def bridge_user(self, location, external_id, external_username):
@@ -806,8 +813,10 @@ class BridgedUsersHandler:
 	def clean(self):
 		# remove any bridged user that wasn't seen for a year
 		now = datetime.now()
-		self.sess().query(BridgedUser).filter(BridgedUser.last_bridged + timedelta(days=365) < now).delete(synchronize_session=False)			
-		self.sess().commit()	
+		response = self.sess().query(BridgedUser).filter(BridgedUser.last_bridged < now - timedelta(days=365))
+		logging.info("deleting %i bridged users", response.count())
+		response.delete(synchronize_session=False)			
+		self.sess().commit()
 	
 class BansHandler:
 	def __init__(self, root, engine):
@@ -976,7 +985,9 @@ class BansHandler:
 	def clean(self):
 		# remove all expired bans
 		now = datetime.now()
-		self.sess().query(Ban).filter(Ban.end_date < now).delete(synchronize_session=False)			
+		response = self.sess().query(Ban).filter(Ban.end_date < now)
+		logging.info("deleting %i expired bans", response.count())
+		response.delete(synchronize_session=False)			
 		self.sess().commit()	
 	
 class VerificationsHandler:
@@ -1140,7 +1151,9 @@ If you received this message in error, please contact us at www.springrts.com (d
 	def clean (self):
 		# remove all expired entries
 		now = datetime.now()
-		self.sess().query(Verification).filter(Verification.expiry < now).delete(synchronize_session=False)			
+		response = self.sess().query(Verification).filter(Verification.expiry < now)
+		logging.info("deleting %i expired verifications", response.count())
+		response.delete(synchronize_session=False)					
 		self.sess().commit()
 		
 class ChannelsHandler:
@@ -1352,9 +1365,19 @@ class ChannelsHandler:
 	def clean(self):
 		#delete all expired channel bans/mutes:
 		now = datetime.now()
-		self.sess().query(ChannelMute).filter(ChannelMute.expires < now).delete(synchronize_session=False)
-		self.sess().query(ChannelBan).filter(ChannelBan.expires < now).delete(synchronize_session=False)
-		self.sess().query(ChannelBridgedBan).filter(ChannelBridgedBan.expires < now).delete(synchronize_session=False)
+		
+		response = self.sess().query(ChannelMute).filter(ChannelMute.expires < now)
+		logging.info("deleting %i expired channel mutes", response.count())
+		response.delete(synchronize_session=False)			
+		
+		response = self.sess().query(ChannelBan).filter(ChannelBan.expires < now)
+		logging.info("deleting %i expired channel bans", response.count())
+		response.delete(synchronize_session=False)			
+
+		response = self.sess().query(ChannelBridgedBan).filter(ChannelBridgedBan.expires < now)
+		logging.info("deleting %i expired channel bridged bans", response.count())
+		response.delete(synchronize_session=False)			
+		
 		self.sess().commit()
 
 if __name__ == '__main__':

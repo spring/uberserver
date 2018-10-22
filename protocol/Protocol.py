@@ -1204,7 +1204,6 @@ class Protocol:
 		if not good:
 			self.out_FAILED(client, "BRIDGECLIENTFROM", response, True)		
 			return
-		response
 		if response.bridged_id in self._root.bridged_ids:
 			self.out_FAILED(client, "BRIDGECLIENTFROM", "This client already exists on the bridge (external_id=%s)" % response.external_id, True)		
 			return	
@@ -1228,7 +1227,7 @@ class Protocol:
 		self._root.bridged_usernames[bridgedClient.username] = bridgedClient
 		print(bridgedClient.username)
 		client.Send("BRIDGEDCLIENTFROM %s %s %s" % (bridgedClient.location, bridgedClient.external_id, bridgedClient.external_username))
-	
+
 	def in_UNBRIDGECLIENTFROM(self, client, location, external_id):
 		# tell the server that a currently bridged client is gone
 		bridgedClient = self._root.bridgedClient(location, external_id)

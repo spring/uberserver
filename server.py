@@ -66,7 +66,7 @@ try:
 	event_loop = task.LoopingCall(_root.event_loop)
 	event_loop.start(1.0)
 	clean_loop = task.LoopingCall(_root.clean)
-	clean_loop.start(1.0)
+	clean_loop.start(60*60*24)
 	
 	reactor.run()
 
