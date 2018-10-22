@@ -80,8 +80,7 @@ class DataHandler:
 			'mod':{'msglength':10000, 'bytespersecond':2000, 'seconds':10},
 			'admin':{'msglength':10000, 'bytespersecond':2000, 'seconds':10},
 		}
-	
-		
+
 	def initlogger(self, filename):
 		# logging
 		server_logfile = os.path.join(os.path.dirname(__file__), filename)
