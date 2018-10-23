@@ -856,8 +856,7 @@ class Protocol:
 				
 		# rate limit per ip
 		recent_regs = self._root.recent_registrations.get(client.ip_address, 0) 
-		if recent_regs >= 3:
-		
+		if recent_regs >= 3:		
 			client.Send("REGISTRATIONDENIED too many recent registration attempts, please try again later")
 			return 
 		self._root.recent_registrations[client.ip_address] = recent_regs + 1			
@@ -3011,7 +3010,7 @@ class Protocol:
 			client.Send("CHANGEEMAILREQUESTDENIED another user is already registered to the email address '%s'" % newmail)			
 			return
 		reason = "requested to change your email address for the account <%s> on on the SpringRTS lobbyserver" % client.username
-		good, reason = self.verificationdb.check_and_send(client.user_id, newmail, 8, reason, False, client.ip_address) 
+		good, reason = self.verificationdb.check_and_send(client.user_id, newmail, 4, reason, False, client.ip_address) 
 		if not good:
 			client.Send("CHANGEEMAILREQUESTDENIED " + reason)
 			return				
