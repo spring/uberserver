@@ -825,13 +825,6 @@ class Protocol:
 		@required.str password: Password to use (old-style: BASE64(MD5(PWRD)), new-style: BASE64(PWRD))
 		'''
 		
-		# rate limit per ip
-		recent_regs = self._root.recent_registrations.get(client.ip_address, 0) 
-		if recent_regs >= 3:
-			client.Send("REGISTRATIONDENIED too many recent registration attempts, please try again later")
-			return 
-		self._root.recent_registrations[client.ip_address] = recent_regs + 1			
-
 		# well formed-ness tests
 		good, reason = self._validUsernameSyntax(username)
 		if not good:
@@ -861,13 +854,20 @@ class Protocol:
 				client.Send('REGISTRATIONDENIED %s' % reason)
 				return
 				
+		# rate limit per ip
+		recent_regs = self._root.recent_registrations.get(client.ip_address, 0) 
+		if recent_regs >= 3:
+		
+			client.Send("REGISTRATIONDENIED too many recent registration attempts, please try again later")
+			return 
+		self._root.recent_registrations[client.ip_address] = recent_regs + 1			
+
 		#save user to db
 		self.userdb.register_user(username, password, client.ip_address, client.country_code, email)
 		client_fromdb = self.clientFromUsername(username, True)
 
 		# verification	
 		verif_reason = "registered an account on the SpringRTS lobbyserver"
-		wait_duration = 30 # seconds
 		good, reason = self.verificationdb.check_and_send(client_fromdb.user_id, email, 4, verif_reason, True, client.ip_address)
 		if (not good):
 			client.Send("REGISTRATIONDENIED %s" % ("verification failed: " + reason))
