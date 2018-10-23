@@ -988,7 +988,7 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 	
 	def _is_nonresidential_ip(self, ip_address):
 		if not self.active(): #safety
-			return 
+			return False
 		if not self.iphub_xkey:
 			return False
 		try:
@@ -1213,7 +1213,6 @@ if __name__ == '__main__':
 	assert(isinstance(client.id, int))
 	
 	# test verification
-	assert(verificationdb._is_nonresidential_ip("8.8.8.8")) 
 	entry = verificationdb.create(client.id, client.email, 4, False, "test")
 	verificationdb._send_email("test@test.test", "blackhole@blackhole.io", "test", "test") #use main thread, or Python will exit without waiting for the test!
 	verificationdb.verify(client.id, client.email, entry.code)
