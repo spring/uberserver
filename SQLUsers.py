@@ -4,7 +4,8 @@
 from datetime import datetime, timedelta
 from BaseClient import BaseClient
 
-import time, random, smtplib, re, hashlib, base64
+import time, random, smtplib, re, hashlib, base64, json
+import urllib.request
 import logging
 
 try:
@@ -299,7 +300,7 @@ class Ban(object):
 		return "<Ban: %s (%s, %s)>" % (ban_str, self.issuer_user_id, self.end_date)
 mapper(Ban, ban_table)
 ##########################################
-blacklisted_email_domain_table = Table('blacklisted email domains', metadata, # email domains that can't be used for account verification
+blacklisted_email_domain_table = Table('blacklisted_email_domains', metadata, # email domains that can't be used for account verification
 	Column('id', Integer, primary_key=True),
 	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True), # user which set ban
 	Column('domain', String(254), unique=True), 
@@ -953,7 +954,7 @@ class VerificationsHandler:
 		delay_secs = 60*60*24
 		delay = timedelta(seconds=delay_secs)
 		send_time = datetime.now() + delay
-		if use_delay and not self._check_residential_ip(ip_address):
+		if use_delay and self._is_nonresidential_ip(ip_address):
 			body = """
 You are recieving this email because you recently """ + reason + """.
 
@@ -983,7 +984,7 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 		except Exception as e:
 			logging.error('Failed to send email from %s to %s' % (sent_from, to))
 	
-	def _check_residential_ip(self, ip_address):
+	def _is_nonresidential_ip(self, ip_address):
 		if not self.iphub_xkey:
 			return False
 		try:
@@ -1208,6 +1209,7 @@ if __name__ == '__main__':
 	assert(isinstance(client.id, int))
 	
 	# test verification
+	assert(verificationdb._is_nonresidential_ip("8.8.8.8"))
 	entry = verificationdb.create(client.id, client.email, 4, False, "test")
 	verificationdb._send_email("test@test.test", "blackhole@blackhole.io", "test", "test") #use main thread, or Python will exit without waiting for the test!
 	verificationdb.verify(client.id, client.email, entry.code)
