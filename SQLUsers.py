@@ -973,6 +973,8 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 		self._send_email(sent_from, to, subject, body)
 	
 	def _send_email(self, sent_from, to, subject, body):
+		if not self.active(): #safety
+			return 
 		body += "\n\nIf you received this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)."
 		message = 'Subject: {}\n\n{}'.format(subject, body)
 		try:
@@ -985,6 +987,8 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 			logging.error('Failed to send email from %s to %s' % (sent_from, to))
 	
 	def _is_nonresidential_ip(self, ip_address):
+		if not self.active(): #safety
+			return 
 		if not self.iphub_xkey:
 			return False
 		try:
@@ -993,7 +997,7 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 			response = json.loads(urllib.request.urlopen(response).read().decode())
 		except Exception as e:
 			logging.error('Failed to check ip info for %s: %s' % (ip_address, str(e)))
-			return False # In the case of an error, pass all IPs
+			return False # in the case of an error, pass all IPs
 		block = response.get("block") 
 		return block == 1 
 	
@@ -1209,7 +1213,7 @@ if __name__ == '__main__':
 	assert(isinstance(client.id, int))
 	
 	# test verification
-	verificationdb._is_nonresidential_ip("8.8.8.8") # don't assert, the buildbot doesn't have an x-key
+	assert(verificationdb._is_nonresidential_ip("8.8.8.8")) 
 	entry = verificationdb.create(client.id, client.email, 4, False, "test")
 	verificationdb._send_email("test@test.test", "blackhole@blackhole.io", "test", "test") #use main thread, or Python will exit without waiting for the test!
 	verificationdb.verify(client.id, client.email, entry.code)
