@@ -1023,11 +1023,11 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 			else:
 				entry.attempts += 1
 				self.sess().commit()
-				return False, 'incorrect verification code, %s/3 attempts remaining' % (3-entry.attempts) 
+				return False, 'incorrect verification code, %i/3 attempts remaining' % (3-entry.attempts) 
 		except Exception as e:
 			entry.attempts += 1
 			self.sess().commit()
-			return False, 'incorrect verification code, ' + str(e) + ', %s/3 attempts remaining' % (3-entry.attempts)
+			return False, 'incorrect verification code, ' + str(e) + ', %i/3 attempts remaining' % (3-entry.attempts)
 		
 	def remove(self, user_id):
 		# remove all entries for user
