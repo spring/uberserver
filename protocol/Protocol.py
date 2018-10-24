@@ -1789,6 +1789,10 @@ class Protocol:
 			return		
 		battle.leaveBattle(client)
 		if battle.host == client.session_id:
+			to_remove = battle.users.copy()
+			for session_id in to_remove:
+				client_in_battle = self.clientFromSession(session_id)
+				battle.leaveBattle(client_in_battle)
 			self.broadcast_RemoveBattle(battle)
 			del self._root.battles[battle.battle_id]
 			del self._root.channels[battle.name]
