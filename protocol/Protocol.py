@@ -55,8 +55,6 @@ restricted = {
 	'FORCETEAMNO',
 	'HANDICAP',
 	'JOINBATTLE',
-	'JOINBATTLEACCEPT',
-	'JOINBATTLEDENY',
 	'KICKFROMBATTLE',
 	'LEAVEBATTLE',
 	'MYBATTLESTATUS',
@@ -65,8 +63,6 @@ restricted = {
 	'REMOVESCRIPTTAGS',
 	'REMOVESTARTRECT',
 	'RING',
-	'SAYBATTLE',
-	'SAYBATTLEEX',
 	'SETSCRIPTTAGS',
 	'UPDATEBATTLEINFO',
 	'UPDATEBOT',
@@ -76,14 +72,10 @@ restricted = {
 	'CHANNELTOPIC',
 	'JOIN',
 	'LEAVE',
-	'MUTE',
-	'MUTELIST',
 	'SAY',
 	'SAYEX',
 	'SAYPRIVATE',
 	'SAYPRIVATEEX',
-	'SETCHANNELKEY',
-	'UNMUTE',
 	'GETCHANNELMESSAGES',
 	########
 	# account management
@@ -119,6 +111,16 @@ restricted = {
 	'JOINFROM',
 	'LEAVEFROM',
 	'SAYFROM',
+	# deprecated
+	########
+	'MUTE',
+	'MUTELIST',
+	'SETCHANNELKEY',
+	'UNMUTE',
+	'SAYBATTLE',
+	'SAYBATTLEEX',
+	'JOINBATTLEACCEPT',
+	'JOINBATTLEDENY',
 	]),
 'mod':set([
 	# users
@@ -196,15 +198,15 @@ def versiontuple(version):
 
 
 flag_map = {
+	'u':  'say2',            # use SAY(EX) to speak in battles, support SAYFROM
 	'l':  'lobbyIDs',        # send lobby IDs in ADDUSER
-	'b':  'battleAuth',      # JOINBATTLEREQUEST/ACCEPT/DENY
 	'sp': 'scriptPassword',  # scriptPassword in JOINEDBATTLE
 	'et': 'sendEmptyTopic',  # send NOCHANNELTOPIC on join if channel has no topic
 	'cl': 'cleanupBattles',  # BATTLEOPENED / OPENBATTLE with support for engine/version
 	'p':  'agreementPlain',  # AGREEMENT is plaintext
 	'a':  'accountIDs',      # deprecated / replaced by 'l'
-	'm':  'matchmaking',     # deprecated / not used any more (keept to avoid sending errors to clients)
-	'u':  'say2',            # use SAY(EX) to speak in battles, support SAYFROM
+	'm':  'matchmaking',     # deprecated
+	'b':  'battleAuth',      # deprecated
 }
 
 class Protocol:
@@ -644,7 +646,7 @@ class Protocol:
 			return False
 		battle_id = client.current_battle
 		if not battle_id in self._root.battles:
-			logging.error("Invalid battle stored for client %d %s" % (client.session_id, client.username))
+			logging.error("Invalid battle (id %i) stored for client %d %s" % (battle_id, client.session_id, client.username))
 			return False
 		return self._root.battles[battle_id]
 
@@ -1653,9 +1655,10 @@ class Protocol:
 		if hashcode == 0:
 			self.out_OPENBATTLEFAILED(client, 'Invalid game hash 0')
 			return
-		if maxplayers > 10 and not client.bot:
-			maxplayers = 10
-			self.out_SERVERMSG(client, "A botflag is required to host battles with > 10 players. Your battle was restricted to 10 players")
+		noflag_limit = 8
+		if not client.bot and maxplayers > noflag_limit:
+			maxplayers = noflag_limit
+			self.out_SERVERMSG(client, "A botflag is required to host battles with > %i players. Your battle was restricted to %i players" % (noflag_limit, noflag_limit))
 
 		battle_name = '__battle__' + str(client.user_id)
 		if battle_name in self._root.channels:
@@ -1687,44 +1690,6 @@ class Protocol:
 		client.Send('OPENBATTLE %s' % battle.battle_id)
 		client.Send('JOINBATTLE %s %s' % (battle.battle_id, hashcode))
 		client.Send('REQUESTBATTLESTATUS')
-
-	def in_JOINBATTLEACCEPT(self, client, username):
-		'''
-		Allow a user to join your battle, sent as a response to JOINBATTLEREQUEST.
-		[host]
-
-		@required.str username: The user to allow into your battle.
-		'''
-		user = self.clientFromUsername(username)
-		if not user:
-			self.out_FAILED(client, 'JOINBATTLEACCEPT', "Couldn't find user %s" %(username), True)
-			return
-		battle = self.getCurrentBattle(client)
-		if not client.session_id == battle.host:
-			self.out_FAILED(client, 'JOINBATTLEACCEPT', "client isn't the specified host %s vs %s" %(client.session_id, battle.host), True)
-			return
-		if not user.session_id in battle.pending_users:
-			self.out_FAILED(client, 'JOINBATTLEACCEPT', "client isn't in pending users %s %s" %(client.username, username), True)
-			return
-		battle.pending_users.remove(user.session_id)
-		battle.joinBattle(user)
-
-	def in_JOINBATTLEDENY(self, client, username, reason=None):
-		'''
-		Deny a user from joining your battle, sent as a response to JOINBATTLEREQUEST.
-		[host]
-
-		@required.str username: The user to deny from joining your battle.
-		@optional.str reason: The reason to provide to the user.
-		'''
-		user = self.clientFromUsername(username)
-		if not user:
-			return
-		battle = self.getCurrentBattle(client)
-		if not client.username == battle.host: return
-		if user.session_id in battle.pending_users:
-			battle.pending_users.remove(user.session_id)
-			user.Send('JOINBATTLEFAILED %s%s' % ('Denied by host', (' ('+reason+')' if reason else '')))
 
 	def in_JOINBATTLE(self, client, battle_id, key=None, scriptPassword=None):
 		'''
@@ -1765,17 +1730,6 @@ class Protocol:
 			if battle.locked:
 				client.Send('JOINBATTLEFAILED Battle is locked')
 				return
-		if host.compat['b'] and not (battle.hasBotflag() and 'mod' in client.accesslevels): # supports battleAuth
-			if client.session_id in battle.pending_users:
-				client.Send('JOINBATTLEFAILED waiting for JOINBATTLEACCEPT/JOINBATTLEDENIED from host')
-			else:
-				battle.pending_users.add(client.session_id)
-			if client.ip_address in self._root.trusted_proxies:
-				client_ip = client.local_ip
-			else:
-				client_ip = client.ip_address
-			host.Send('JOINBATTLEREQUEST %s %s' % (username, client_ip))
-			return
 		battle.joinBattle(client)
 
 	def in_SETSCRIPTTAGS(self, client, scripttags):
@@ -2869,7 +2823,7 @@ class Protocol:
 
 	def in_CHANGEEMAILREQUEST(self, client, newmail):
 		# request to be sent a verification code for changing email address
-		if not client.compat['cl']:
+		if not client.compat['cl']: #FIXME: remove this, not needed
 			self.out_SERVERMSG(client, "compatibility flag cl needed")
 			return
 		if not self.verificationdb.active():
@@ -2950,6 +2904,7 @@ class Protocol:
 
 		
 	# Deprecated protocol section #
+	#
 	def in_MUTE(self, client, chan, user, duration=0):
 		self._root.chanserv.Handle("SAIDPRIVATE %s !mute %s %s %s -" % (client.username, chan, user, duration))
 	def in_UNMUTE(self, client, chan, user):
@@ -2958,12 +2913,12 @@ class Protocol:
 		self._root.chanserv.Handle("SAIDPRIVATE %s !listmutes %s" % (client.username, chan))
 	def in_FORCELEAVECHANNEL(self, client, chan, user, reason=''):
 		self._root.chanserv.Handle("SAIDPRIVATE %s !kick %s %s" % (client.username, chan, user))
+	def in_SETCHANNELKEY(self, client, chan, key='*'):
+		self._root.chanserv.Handle("SAIDPRIVATE %s !setkey #' + chan + ' ' + key" % (client.username, chan, key))
 	def in_STARTTLS(self, client):
 		client.StartTLS()
 		client.flushBuffer()
 		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0')))	
-	def in_SETCHANNELKEY(self, client, chan, key='*'):
-		self.in_SAYPRIVATE(client, 'ChanServ !setkey #' + chan + ' ' + key)
 	def in_SAYBATTLE(self, client, msg):
 		battle = self.getCurrentBattle(client)
 		if not battle: return
@@ -2972,7 +2927,12 @@ class Protocol:
 		battle = self.getCurrentBattle(client)
 		if not battle: return
 		self.in_SAYEX(client, battle.name, msg)
-	
+	def in_JOINBATTLEACCEPT(self, client, username):
+		return # avoid err msgs with old SPADS versions
+	def in_JOINBATTLEDENY(self, client, username):
+		return
+		
+
 	# Begin outgoing protocol section #
 	#
 	# Any function definition beginning with out_ and ending with capital letters
