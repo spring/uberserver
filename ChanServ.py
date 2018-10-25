@@ -49,6 +49,14 @@ class ChanServClient(Client):
 		if len(msg) <= 0:
 			return
 		if msg[0] != "!":
+			n = msg.find(' ')
+			if n<0: n = len(msg)
+			cmd = msg[:n]
+			if chan == "moderator" and cmd in self._root.protocol.restricted['mod']:
+				# allow some mod commands to be executed by simply typing into #moderator
+				client = self._root.protocol.clientFromUsername(user)
+				if client:
+					self._root.protocol._handle(client, msg)	
 			return
 		msg = msg.lstrip('!')
 		args = None

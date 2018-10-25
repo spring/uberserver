@@ -215,6 +215,9 @@ class Protocol:
 		self.command_stats = {}
 		self.flag_stats = {}
 		self.flag_stats['n_samples'] = 0
+		
+		self.restricted = restricted
+		self.restricted_list = restricted_list
 	
 		
 	def _new(self, client):
@@ -314,12 +317,12 @@ class Protocol:
 		command = command.upper()
 		allowed = False
 
-		if command not in restricted_list:
+		if command not in self.restricted_list:
 			self.out_SERVERMSG(client, '%s failed. Unknown command.' % command, True)
 			return False
 
 		for level in client.accesslevels:
-			if command in restricted[level]:
+			if command in self.restricted[level]:
 				allowed = True
 				break
 
@@ -2883,7 +2886,7 @@ class Protocol:
 			return
 
 		logging.info("Stats of command usage:")
-		for k in restricted_list:
+		for k in self.restricted_list:
 			count = self.command_stats[k] if k in self.command_stats else 0
 			logging.info("%s %d" % (k, count))
 
