@@ -606,8 +606,8 @@ class Protocol:
 		if '@' in external_id:
 			return False, 'Char @ is not allowed in external_id'
 		for char in location:
-			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
-				return False, 'Only ASCII chars, [], _, 0-9 are allowed in location name.'
+			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890.':
+				return False, 'Only ASCII chars, [], _, 0-9 and . are allowed in location name.'
 		if len(external_id)>20 or len(location)>20:
 			return False, 'External_id or location is too long, max is 20 chars.'
 		return True, ''
@@ -2615,7 +2615,7 @@ class Protocol:
 		good, response = self.bandb.ban(client, duration, reason, username)
 		target = self.clientFromUsername(username)
 		if good and target: # is online
-			self.in_KICK(client, target.username, "banned")
+			self.in_KICK(client, target.username, "")
 		if good: self.broadcast_Moderator("%s banned <%s> for %s days (%s)" % (client.username, username, duration, reason))
 		if response: self.out_SERVERMSG(client, '%s' % response)
 
