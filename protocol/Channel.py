@@ -87,7 +87,7 @@ class Channel():
 		for bridged_id in self.bridged_users:
 			if clientlist:
 				clientlist += " "
-			bridgedClient = self._root.protocol.bridgedClientFromID(bridged_id)
+			bridgedClient = self._root.bridgedClientFromID(bridged_id)
 			assert(bridgedClient)
 			bridgedClientList += bridgedClient.username
 		client.Send('CLIENTSFROM %s %s' % (self.name, bridgedClientList))
