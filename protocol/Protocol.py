@@ -1149,13 +1149,11 @@ class Protocol:
 		'''
 		if not msg:
 			return
-
+			
 		receiver = self.clientFromUsername(user)
-
 		if not receiver:
 			logging.info('[%s] <%s>: user to pm is not online: %s' % (client.session_id, client.username, user))
 			return
-
 		client.Send('SAYPRIVATE %s %s' % (user, msg))
 		if not self.is_ignored(receiver, client):
 			receiver.Send('SAIDPRIVATE %s %s' % (client.username, msg))
@@ -1169,12 +1167,10 @@ class Protocol:
 		'''
 		if not msg:
 			return
-
+			
 		receiver = self.clientFromUsername(user)
-
 		if receiver:
 			client.Send('SAYPRIVATEEX %s %s' % (user, msg))
-
 			if not self.is_ignored(receiver, client):
 				receiver.Send('SAIDPRIVATEEX %s %s' % (client.username, msg))
 
@@ -1230,7 +1226,6 @@ class Protocol:
 		client.bridged_external_ids[bridgedClient.external_id] = bridgedClient.bridged_id
 		self._root.bridged_ids[bridgedClient.bridged_id] = bridgedClient
 		self._root.bridged_usernames[bridgedClient.username] = bridgedClient
-		print(bridgedClient.username)
 		client.Send("BRIDGEDCLIENTFROM %s %s %s" % (bridgedClient.location, bridgedClient.external_id, bridgedClient.external_username))
 
 	def in_UNBRIDGECLIENTFROM(self, client, location, external_id):
@@ -1242,7 +1237,7 @@ class Protocol:
 			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client not found", True)			
 			return 
 		if bridgedClient.bridge_user_id != client.user_id:
-			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client is on a different bridge", True)			
+			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client is on a different bridge (got %i, expected %i)" % (bridgedClient.bridge_user_id, client.user_id), True)			
 			return
 			
 		del client.bridged_external_ids[external_id]
@@ -1257,13 +1252,16 @@ class Protocol:
 		if not client.compat['u']:
 			return
 		if not chan in self._root.channels:
-			self.out_FAILED(client, "LEAVEFROM", "Channel '%s' not found" % chan, True)			
+			self.out_FAILED(client, "JOINFROM", "Channel '%s' not found" % chan, True)			
 			return
 		channel = self._root.channels[chan]
 		bridgedClient = self._root.bridgedClient(location, external_id)
-		if not bridgedClient or bridgedClient.bridge_user_id != client.user_id:
+		if not bridgedClient:
 			self.out_FAILED(client, "JOINFROM", "Bridged user not found", True)			
 			return 
+		if bridgedClient.bridge_user_id != client.user_id:
+			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client is on a different bridge (got %i, expected %i)" % (bridgedClient.bridge_user_id, client.user_id), True)			
+			return 			
 		if bridgedClient.bridged_id in channel.bridged_ban:
 			self.out_FAILED(client, "JOINFROM", "Bridged user is banned from channel", True)
 			return		
@@ -1278,9 +1276,12 @@ class Protocol:
 			return
 		channel = self._root.channels[chan]
 		bridgedClient = self._root.bridgedClient(location, external_id)
-		if not bridgedClient or bridgedClient.bridge_user_id != client.user_id:
-			self.out_FAILED(client, "LEAVEFROM", "Bridged user not found", True)			
+		if not bridgedClient:
+			self.out_FAILED(client, "JOINFROM", "Bridged user not found", True)			
 			return 
+		if bridgedClient.bridge_user_id != client.user_id:
+			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client is on a different bridge (got %i, expected %i)" % (bridgedClient.bridge_user_id, client.user_id), True)			
+			return 			
 		channel.removeBridgedUser(client, bridgedClient)		
 		
 	def in_SAYFROM(self, client, chan, location, external_id, msg):
