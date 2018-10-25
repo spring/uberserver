@@ -1180,16 +1180,19 @@ class Protocol:
 
 	def in_BRIDGECLIENTFROM(self, client, location, external_id, external_username):
 		# add external user to the bridge
+		if not client.compat['u']:
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "You need the 'u' compatibility flag to bridge clients", True)			
+			return
 		if not client.bot:
-			self.out_FAILED(client, "BRIDGECLIENTFROM", "Only bot users can bridge clients" % reason, True)			
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "Only bot users can bridge clients", True)			
 			return
 		good, reason = self._validBridgeSyntax(location, external_id, external_username)
 		if not good:
-			self.out_FAILED(client, "BRIDGECLIENTFROM", "Invalid syntax: %s" % reason, True)			
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "Invalid syntax: %s", True)			
 			return
 		location_client = self.clientFromUsername(location, True)
 		if location_client and location_client.bot and location != client.username:
-			self.out_FAILED(client, "BRIDGECLIENTFROM", "You cannot bridge a location named after another bot user" % reason, True)			
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "You cannot bridge a location named after another bot user", True)			
 			return			
 		if not location in self._root.bridged_locations:
 			self._root.bridged_locations[location] = client.user_id
@@ -1232,6 +1235,8 @@ class Protocol:
 
 	def in_UNBRIDGECLIENTFROM(self, client, location, external_id):
 		# tell the server that a currently bridged client is gone
+		if not client.compat['u']:
+			return
 		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient:
 			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client not found", True)			
