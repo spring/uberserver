@@ -434,8 +434,7 @@ class UsersHandler:
 				return False, 'Name failed to pass profanity filter.'
 		return True, ""
 
-	# TODO: improve, e.g. also check if ip address is banned when registering account
-	def check_register_user(self, username, email=None):
+	def check_register_user(self, username, email=None, ip_address=None):
 		assert(type(username) == str)
 
 		status, reason = self.check_user_name(username)
@@ -446,8 +445,12 @@ class UsersHandler:
 			return False, 'Username already exists.'
 		if email:
 			dbemail = self.sess().query(User).filter(User.email == email).first()
-			if (dbemail):
+			if dbemail:
 				return False, 'Email address already in use.'
+		if ip_address:
+			ipban = self._root.bandb.check_ban(None, ip_address)
+			if ipban:
+				return False, 'Account registration failed: %s' % ipban.reason
 		return True, ""
 
 	def register_user(self, username, password, ip, country, email):
@@ -954,6 +957,8 @@ class VerificationsHandler:
 		delay_secs = 60*60*24
 		delay = timedelta(seconds=delay_secs)
 		send_time = datetime.now() + delay
+		if use_delay:
+			time.sleep(20)
 		if use_delay and self._is_nonresidential_ip(ip_address):
 			body = """
 You are recieving this email because you recently """ + reason + """.

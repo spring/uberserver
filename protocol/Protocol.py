@@ -843,7 +843,7 @@ class Protocol:
 			return
 
 		# test if user would be OK on db side (e.g. duplication)
-		good, reason = self.userdb.check_register_user(username, email)
+		good, reason = self.userdb.check_register_user(username, email, client.ip_address)
 		if (not good):
 			logging.info('[%s] Registration failed for user <%s>: %s' % (client.session_id, username, reason))
 			client.Send('REGISTRATIONDENIED %s' % reason)
