@@ -203,16 +203,6 @@ class Channel():
 			if chan in self._root.channels:
 				self._root.channels[chan].kickUser(client, target)
 	
-	def kickBridgedUser(self, client, target):
-		if not target.bridged_id in self.bridged_users:
-			return
-		self.removeBridgedUser(client, target)
-		self.channelMessage('<%s> has been kicked from this %s by <%s>' % (target.username, self.identity, client.username))
-	
-		for chan in self.forwards:
-			if chan in self._root.channels:
-				self._root.channels[chan].kickUser(client, target)
-	
 	def banUser(self, client, target, expires, reason, duration):
 		if target.user_id in self.ban:
 			return
