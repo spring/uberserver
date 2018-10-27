@@ -1546,7 +1546,10 @@ class Protocol:
 			return
 		if not channel.isFounder(client) and not 'mod' in client.accesslevels:
 			if client.user_id in channel.ban:
-				client.Send('JOINFAILED %s You are banned from the channel %s' % (chan, channel.ban[client.user_id]))
+				client.Send('JOINFAILED %s You are banned from the channel (%s)' % (chan, channel.ban[client.user_id].reason))
+				return
+			if client.ip_address in channel.ban:
+				client.Send('JOINFAILED %s Your ip is banned from the channel (%s)' % (chan, channel.ban[client.user_id].reason))
 				return
 			if channel.key and not channel.key in (key, None, '*', ''):
 				client.Send('JOINFAILED %s Invalid key' % chan)

@@ -290,14 +290,16 @@ channelbans_table = Table('channel_bans', metadata,
 	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True), 
 	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('ip_address', String(15)),
 	Column('expires', DateTime),
 	Column('reason', Text)
 	)
 class ChannelBan(object):
-	def __init__(self, channel_id, issuer_user_id, user_id, expires, reason):
+	def __init__(self, channel_id, issuer_user_id, user_id, ip_address, expires, reason):
 		self.channel_id = channel_id
 		self.issuer_user_id = issuer_user_id
 		self.user_id = user_id
+		self.ip_address = ip_address
 		self.expires = expires
 		self.reason = reason
 	
@@ -419,6 +421,7 @@ class OfflineClient(BaseClient):
 		self.last_login = sqluser.last_login
 		self.register_date = sqluser.register_date
 		self.last_id = sqluser.last_id
+		self.last_ip = sqluser.last_ip
 		self.access = sqluser.access
 		self.email = sqluser.email
 
@@ -1212,6 +1215,7 @@ class ChannelsHandler:
 					'channel_id': ban.channel_id,
 					'issuer_user_id': ban.issuer_user_id,
 					'user_id': ban.user_id,
+					'ip_address': ban.ip_address,
 					'expires': ban.expires,
 					'reason': ban.reason,
 				})
@@ -1302,7 +1306,7 @@ class ChannelsHandler:
 			self.sess().commit()
 	
 	def banUser(self, channel, issuer, target, expires, reason):
-		entry = ChannelBan(channel.id, issuer.user_id, target.user_id, expires, reason)
+		entry = ChannelBan(channel.id, issuer.user_id, target.user_id, target.last_ip, expires, reason)
 		self.sess().add(entry)
 		self.sess().commit()
 	

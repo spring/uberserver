@@ -27,7 +27,8 @@ class Channel():
 		self.bridged_users = set() #bridged_ids
 
 		self.mutelist = {} #user_ids
-		self.ban = {} #user_ids
+		self.ban = {} #user_ids -> ban
+		self.ban_ip = {} #ips -> ban
 		self.bridged_ban = {} #bridged_ids
 		
 		self.forwards = set() #channel_names
@@ -213,11 +214,12 @@ class Channel():
 				self._root.channels[chan].kickUser(client, target)
 	
 	def banUser(self, client, target, expires, reason, duration):
-		if target.id in self.ban:
+		if target.user_id in self.ban:
 			return
-		self.ban[target.user_id] = {'user_id':target.user_id, 'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
-		self.channelMessage('<%s> has been removed from this %s by <%s>' % (target.username, self.identity, client.username))
+		self.ban[target.user_id] = {'user_id':target.user_id, 'ip_address':target.last_ip, 'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
+		self.ban_ip[target.last_ip] = self.ban[target.user_id]
 		if hasattr(target, "session_id") and target.session_id in self.users:
+			self.channelMessage('<%s> has been removed from this %s by <%s>' % (target.username, self.identity, client.username))
 			self.removeUser(target)
 
 		for chan in self.forwards:
@@ -225,9 +227,10 @@ class Channel():
 				self._root.channels[chan].banUser(client, target, expires, reason, duration)
 	
 	def unbanUser(self, client, target):
-		if not target.user_id in self.ban:
-			return
-		del self.ban[target.user_id]
+		if target.user_id in self.ban:
+			del self.ban[target.user_id]
+		if target.ip_address in self.ban_ip:
+			del self.ban_ip[target.ip_address]
 		
 		for chan in self.forwards:
 			if chan in self._root.channels:

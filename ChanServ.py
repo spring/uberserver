@@ -47,6 +47,8 @@ class ChanServClient(Client):
 			return timedelta(hours=num)
 		elif duration.endswith('d'):
 			return timedelta(days=num)	
+		elif duration.endswith('w'):
+			return timedelta(weeks=num)	
 		return
 		
 	def Handle(self, msg):
@@ -407,7 +409,7 @@ class ChanServClient(Client):
 				issuer_name_str = "unknown"
 				if issuer:
 					issuer_name_str = issuer.username
-				banlist_str += "\n" + "%s :: %s :: ends %s (%s)" % (target.username, ban['reason'], ban['expires'].strftime("%Y-%m-%d %H:%M:%S"), issuer_name_str)
+				banlist_str += "\n" + "%s :: %s :: %s :: ends %s (%s)" % (target.username, ban['ip_address'], ban['reason'], ban['expires'].strftime("%Y-%m-%d %H:%M:%S"), issuer_name_str)
 			for bridged_id in channel.bridged_ban:
 				ban = channel.bridged_ban[bridged_id]
 				target = self._root.bridgedClientFromID(bridged_id, True)
