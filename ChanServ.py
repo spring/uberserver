@@ -26,9 +26,6 @@ class ChanServClient(Client):
 
 		logging.info('[%s] <%s> logged in (access=ChanServ)'%(session_id, self.username))
 
-	def db(self):
-		return self._root.channeldb
-		
 	def parse_duration(self, duration):
 		try:
 			num = int(duration)
@@ -137,9 +134,7 @@ class ChanServClient(Client):
 			if not chan in self._root.channels:
 				return 'Channel %s does not exist' % chan
 			channel = self._root.channels[chan]
-			channel.chanserv = True
 			channel.register(client, target)
-			self.db().register(channel, target) # register channel in db
 			self.Respond('JOIN %s' % chan)
 			return '#%s: Successfully registered to <%s>' % (chan, args.split(' ',1)[0])		
 				
@@ -153,17 +148,15 @@ class ChanServClient(Client):
 		if cmd == 'unregister':
 			if not access in ['mod', 'founder']:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to unregister a channel' % chan
-			channel.chanserv = False
-			channel.owner_user_id = None
-			channel.operators = set()
-			channel.channelMessage('#%s has been unregistered'%chan)
-			self.db().unRegister(client, channel)
+			if not channel.registered():
+				return "#%s: Not registered" % chan
+			channel.unregister(client)
 			self.Respond('LEAVE %s' % chan)
 			return '#%s: Successfully unregistered.' % chan
 		
 		if cmd == 'forward':
 			if not client.isMod():
-				return '#%s: You must contact one of the server moderators to add mute/ban forwarding to a channel' % chan
+				return '#%s: You must contact one of the server moderators to add mute/ban forwarding' % chan
 			if not args: 
 				return "#%s: You must specify a channel to forward mutes/bans to" % chan
 			channel_from = channel
@@ -171,14 +164,13 @@ class ChanServClient(Client):
 			if not args in self._root.channels:
 				return "Channel %s does not exist (missing #?)" % args
 			channel_to = self._root.channels[args]
-			#if channel_from.identity!='channel' or channel_to.identity!='battle': # prevents circular dependencies
-			#	return "#%s: It is only possible to forward mutes/bans from (non-battle) channels into battles" % chan
+			if channel_from.identity!='channel' or channel_to.identity!='battle': # prevents circular dependencies
+				return "#%s: To avoid circular dependencies, it is only permitted to forward mutes/bans from (non-battle) channels into battles" % chan
 			if channel_to.name in channel_from.forwards:
 				return "#%s: Forwarding of mutes/bans already exists to #%s" % (chan, channel_to.name)
-			if not channel_to.chanserv:
+			if not channel_to.registered():
 				return "#%s: You must register %s before you can forward mutes/bans to it" % (chan, channel_to.name)			
 			channel_from.addForward(client, channel_to)
-			self.db().addForward(channel_from, channel_to)
 			return "#%s: Successfully added forwarding of mutes/bans to #%s" % (chan, channel_to.name)
 		
 		if cmd == 'unforward':
@@ -194,7 +186,6 @@ class ChanServClient(Client):
 			if not channel_to.name in channel_from.forwards:
 				return "#%s: Forwarding of mutes/bans to #%s does not exist" % (chan, channel_to.name)
 			channel_from.removeForward(client, channel_to)
-			self.db().removeForward(channel_from, channel_to)
 			return "#%s: Successfully removed forwarding of mutes/bans to #%s" % (chan, channel_to.name)
 		
 		if cmd == 'listforwards':
@@ -214,7 +205,6 @@ class ChanServClient(Client):
 			if channel.identity=='battle': 
 				return 'This is not currently possible, instead you can close and re-open the battle with a new password!'
 			channel.setKey(client, args)
-			self.db().setKey(channel, args)
 			return '#%s: Set key' % chan
 		
 		if cmd == 'op':
@@ -228,7 +218,6 @@ class ChanServClient(Client):
 			if channel.isOp(target): 
 				return '#%s: <%s> was already an op' % (chan, args)
 			channel.opUser(client, target)
-			self.db().opUser(channel, target)
 			return '#%s: added <%s> to operator list' % (chan, args)
 		
 		if cmd == 'deop':
@@ -244,7 +233,6 @@ class ChanServClient(Client):
 			if target and not channel.isOp(target): 
 				return '#%s: <%s> was not an op' % (chan, args)
 			channel.deopUser(client, target)
-			self.db().deopUser(channel, target)
 			return '#%s: removed <%s> from operator list' % (chan, args)
 
 		if cmd == 'changefounder':
@@ -256,7 +244,6 @@ class ChanServClient(Client):
 			if not target: 
 				return '#%s: Cannot assign founder status to a user who does not exist'
 			channel.setFounder(client, target)
-			self.db().setFounder(channel, target)
 			return '#%s: changed founder to <%s>' % (chan, args)
 
 		
@@ -288,7 +275,6 @@ class ChanServClient(Client):
 			except:
 				expires = datetime.max
 			channel.muteUser(client, target, expires, reason, duration)
-			self.db().muteUser(channel, client, target, expires, reason)
 			return '#%s: muted <%s> %s' % (chan, target.username, self._root.protocol.pretty_time_delta(duration))
 		
 		if cmd == 'unmute':
@@ -303,7 +289,6 @@ class ChanServClient(Client):
 			if not target or not target.user_id in channel.mutelist:
 				return '#%s: User <%s> not found in mutelist' % (chan, target_username)
 			channel.unmuteUser(client, target)
-			self.db().unmuteUser(channel, target)
 			return '#%s: unmuted <%s>' % (chan, target.username)
 		
 		if cmd == 'listmutes':
@@ -351,7 +336,6 @@ class ChanServClient(Client):
 				except:
 					expires = datetime.max
 				channel.banBridgedUser(client, target, expires, reason, duration)
-				self.db().banBridgedUser(channel, client, target, expires, reason)
 				return '#%s: banned <%s> %s' % (chan, target.username, self._root.protocol.pretty_time_delta(duration))
 			target = self._root.protocol.clientFromUsername(target_username, True)
 			if not target:
@@ -369,7 +353,6 @@ class ChanServClient(Client):
 			except:
 				expires = datetime.max
 			channel.banUser(client, target, expires, reason, duration)
-			self.db().banUser(channel, client, target, expires, reason)
 			return '#%s: banned <%s> %s' % (chan, target.username, self._root.protocol.pretty_time_delta(duration))
 			
 		if cmd == 'unban':
@@ -385,13 +368,11 @@ class ChanServClient(Client):
 				if not target.bridged_id in channel.bridged_ban:
 					return '#%s: User <%s> not found in bridged banlist' % (chan, target.username)
 				channel.unbanBridgedUser(client, target)
-				self.db().unbanBridgedUser(channel, target)
 				return '#%s: <%s> unbanned' % (chan, target.username)
 			target = self._root.protocol.clientFromUsername(target_username, True)
 			if not target or not target.user_id in channel.ban:
 				return '#%s: User <%s> not found in banlist' % (chan, target.username)
 			channel.unbanUser(client, target)
-			self.db().unbanUser(channel, target)
 			return '#%s: <%s> unbanned' % (chan, target.username)
 		
 		if cmd == 'listbans':
@@ -442,21 +423,18 @@ class ChanServClient(Client):
 				return '#%s: You do not have permission to set the topic' % chan
 			args = args or ''
 			channel.setTopic(client, args)
-			self.db().setTopic(channel, args, client) 
 			return '#%s: Topic changed' % chan
 	
 		if cmd == 'antispam':
 			if not access in ['mod', 'founder', 'op']:
 				return '#%s: You must contact one of the server moderators or the owner of the channel to change the antispam settings' % chan
 			if args == 'on':
-				channel.antispam = True
-				self.db().setAntispam(channel, channel.antispam)
-				channel.channelMessage('%s Anti-spam protection was enabled by <%s>' % (chan, user))
+				channel.setAntispam(client, True)
 				return '#%s: Anti-spam protection is on.' % chan
-			channel.antispam = False
-			self.db().setAntispam(channel, channel.antispam)
-			channel.channelMessage('%s Anti-spam protection was disabled by <%s>' % (chan, user))
-			return '#%s: Anti-spam protection is off.' % chan
+			if args == 'off':
+				channel.setAntispam(client, False)
+				return '#%s: Anti-spam protection is off.' % chan
+			return '#%s: Unknown value for anti-spam setting (expected: on, off).' % chan
 		
 		
 		if cmd == 'info':
@@ -466,7 +444,7 @@ class ChanServClient(Client):
 				founder = self._root.protocol.clientFromID(channel.owner_user_id, True)
 				if founder: founder = 'Founder is <%s>' % founder.username
 			operators = channel.operators
-			op_list = "operator list is "
+			op_list = "Operator list is "
 			separator = '['
 			for op_user_id in operators:
 				op_entry = self._root.protocol.clientFromID(op_user_id, True)
@@ -476,21 +454,20 @@ class ChanServClient(Client):
 				if separator == ' ': op_list += ']'
 			if separator!=' ': op_list += 'empty'						
 			users = channel.users
-			if len(users) == 1: users = '1 user is'
-			else: users = '%i users are currently in the channel' % len(users)
-			return '#%s info: Anti-spam protection is %s. %s, %s. %s. ' % (chan, antispam, founder, op_list, users)
+			users_str = 'Currently contains 1 user'
+			if len(users)>1: users_str = 'Currently contains %i users' % len(users)
+			return '#%s info: Anti-spam protection is %s. %s, %s. %s. ' % (chan, antispam, founder, op_list, users_str)
 		
 		if cmd == 'history': 
 			if not access in ['mod', 'founder', 'op']:
-				return '#%s: You do not have permission to change history setting in the channel' % chan
-			enable = not channel.store_history
-			if self.db().setHistory(channel, enable):
-				channel.store_history = enable
-				msg = '#%s: history enabled=%s' % (chan, str(enable))
-			else:
-				msg = '#%s: history not enabled, register it first!' % (chan)
-			channel.channelMessage(msg)
-			return msg
+				return '#%s: You do not have permission to change history settings in the channel' % chan
+			if args=='on':
+				channel.setHistory(client, True)
+				return '#%s: History enabled' % (chan, str(enable))
+			if arg=='off':
+				channel.setHistory(client, False)
+				return '#%s: History disabled' % (chan, str(enable))
+			return '#%s: Unknown value for history setting (expected: on, off).' % chan
 		
 		
 		return 'command "%s" not found, use "!help" to get help!' %(cmd) #todo: better cmd list + split into functions

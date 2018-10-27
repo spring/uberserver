@@ -11,7 +11,7 @@ class Channel():
 		self.id = 0 #id 0 is used for all unregistered channels (<-> channel not in db)
 		self.name = name
 		self.key = None 
-		self.owner_user_id = None
+		self.owner_user_id = None # 'founder'
 		self.topic = None
 		self.topic_time = None
 		self.topic_user_id = None
@@ -26,15 +26,17 @@ class Channel():
 		self.users = set() # session_ids
 		self.bridged_users = set() #bridged_ids
 
-		self.mutelist = {} #user_ids
-		self.ban = {} #user_ids -> ban
-		self.ban_ip = {} #ips -> ban
+		self.mutelist = {} #user_id -> mute
+		self.ban = {} #user_id -> ban
+		self.ban_ip = {} #ip -> ban
 		self.bridged_ban = {} #bridged_ids
 		
 		self.forwards = set() #channel_names
+		
 
-		self.chanserv = False
-
+	def db(self):
+		return self._root.channeldb
+	
 	def broadcast(self, message, ignore=set(), flag=None):
 		self._root.broadcast(message, self.name, ignore, None, flag)
 
@@ -46,6 +48,16 @@ class Channel():
 
 	def register(self, client, target): 
 		self.setFounder(client, target)
+		self.db().register(self, target)
+		
+	def unregister(self, client): 
+		self.owner_user_id = None
+		self.operators = set()
+		self.channelMessage('This channel has been unregistered by <%s>' % client.username)
+		self.db().unRegister(client, self)
+	
+	def registered(self):
+		return self.owner_user_id != None
 
 	def addUser(self, client):
 		if client.session_id in self.users:
@@ -151,6 +163,7 @@ class Channel():
 			return
 		topicdict = {'user':client.username, 'text':topic, 'time':time.time()}
 		self.topic = topicdict
+		self.db().setTopic(self, topic, client) 
 		self.channelMessage('Topic changed.')
 		
 		if self.identity == 'battle': #'u' compat
@@ -158,7 +171,23 @@ class Channel():
 			return
 		self.broadcast('CHANNELTOPIC %s %s %s %s'%(self.name, client.username, topicdict['time'], topic), set())  
 	
+	def setFounder(self, client, target):
+		self.owner_user_id = target.user_id
+		self.db().setFounder(self, target)
+		self.channelMessage("<%s> has been set as this %s's founder by <%s>" % (target.username, self.identity, client.username))
+	
+	def setAntispam(self, client, val):
+		self.antispam = val
+		self.db().setAntispam(self, val)
+		self.channelMessage('Anti-spam protection was set to %s by <%s>' % (chan, str(val), user))
+		
+	def setHistory(self, client, val):
+		self.store_history = val
+		self.db().setHistory(self, val)
+		self.channelMessage('History retention was set to %s by <%s>' % (chan, str(val), user))
+	
 	def setKey(self, client, key):
+		self.db().setKey(self.name, key)
 		if key in ('*', None):
 			if self.key:
 				self.key = None
@@ -166,18 +195,15 @@ class Channel():
 		else:
 			self.key = key
 			self.channelMessage('<%s> set a new password for this %s' % (client.username, self.identity))
-
+			
 	def hasKey(self):
-		return not key in ('*', None)
-		
-	def setFounder(self, client, target):
-		self.owner_user_id = target.user_id
-		self.channelMessage("<%s> has been set as this %s's founder by <%s>" % (target.username, self.identity, client.username))
+		return not key in ('*', None)	
 
 	def opUser(self, client, target):
 		if target.user_id in self.operators:
 			return
 		self.operators.add(target.user_id)
+		self.db().opUser(self, target)
 		self.channelMessage("<%s> has been added to this %s's operator list by <%s>" % (target.username, self.identity, client.username))
 
 		for chan in self.forwards:
@@ -188,6 +214,7 @@ class Channel():
 		if not target.user_id in self.operators:
 			return
 		self.operators.remove(target.user_id)
+		self.db().deopUser(self, target)
 		self.channelMessage("<%s> has been removed from this %s's operator list by <%s>" % (target.username, self.identity, client.username))
 
 		for chan in self.forwards:
@@ -208,6 +235,7 @@ class Channel():
 			return
 		self.ban[target.user_id] = {'user_id':target.user_id, 'ip_address':target.last_ip, 'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
 		self.ban_ip[target.last_ip] = self.ban[target.user_id]
+		self.db().banUser(self, client, target, expires, reason)
 		if hasattr(target, "session_id") and target.session_id in self.users:
 			self.channelMessage('<%s> has been removed from this %s by <%s>' % (target.username, self.identity, client.username))
 			self.removeUser(target)
@@ -219,8 +247,9 @@ class Channel():
 	def unbanUser(self, client, target):
 		if target.user_id in self.ban:
 			del self.ban[target.user_id]
-		if target.ip_address in self.ban_ip:
-			del self.ban_ip[target.ip_address]
+		if target.last_ip in self.ban_ip:
+			del self.ban_ip[target.last_ip]
+		self.db().unbanUser(self, target)
 		
 		for chan in self.forwards:
 			if chan in self._root.channels:
@@ -234,8 +263,10 @@ class Channel():
 		except:
 			expires = datetime.max
 		self.bridged_ban[target.bridged_id] = {'bridged_id':target.bridged_id, 'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
+		self.db().banBridgedUser(self, client, target, expires, reason)
 		self.removeBridgedUser(client, target)
-		self.channelMessage('<%s> has been removed from this channel by <%s>' % (target.username, client.username))
+		if target.bridged_id in self.bridged_users:
+			self.channelMessage('<%s> has been removed from this channel by <%s>' % (target.username, client.username))
 	
 		for chan in self.forwards:
 			if chan in self._root.channels:
@@ -245,6 +276,7 @@ class Channel():
 		if not target.bridged_id in self.bridged_ban:
 			return
 		del self.bridged_ban[target.bridged_id]
+		self.db().unbanBridgedUser(self, target)
 	
 		for chan in self.forwards:
 			if chan in self._root.channels:
@@ -263,8 +295,9 @@ class Channel():
 			expires = datetime.now() + duration
 		except:
 			expires = datetime.max
-		self.channelMessage('<%s> has been muted by <%s> %s' % (client.username, target.username, self._root.protocol.pretty_time_delta(duration)))				
 		self.mutelist[target.user_id] = {'user_id':target.user_id, 'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
+		self.db().muteUser(self, client, target, expires, reason)
+		self.channelMessage('<%s> has been muted by <%s> %s' % (client.username, target.username, self._root.protocol.pretty_time_delta(duration)))				
 		
 		for chan in self.forwards:
 			if chan in self._root.channels:
@@ -274,10 +307,8 @@ class Channel():
 		if not target.user_id in self.mutelist:
 			return
 		del self.mutelist[target.user_id]
-		if not reason:
-			self.channelMessage('<%s> has been unmuted by <%s>' % (target.username, client.username))
-			return
-		self.channelMessage('<%s> has been unmuted by <%s> (%s)' % (target.username, client.username, reason))
+		self.db().unmuteUser(self, target)
+		self.channelMessage('<%s> has been unmuted by <%s>' % (target.username, client.username))
 
 		for chan in self.forwards:
 			if chan in self._root.channels:
@@ -285,14 +316,18 @@ class Channel():
 	
 	def addForward(self, client, channel_to):
 		self.forwards.add(channel_to.name)
+		self.db().addForward(self, channel_to)
+		
 		for user_id in self.operators:
 			channel_to.operators.add(user_id)			
-		for mute in self.mutelist:
-			channel_to.mutelist[mute.user_id] = mute
-		for ban in self.ban:
-			channel_to.ban[ban.user_id] = ban
-		for ban in self.bridged_ban:
-			channel_to.ban[ban.user_id] = ban
+		for user_id in self.mutelist:
+			channel_to.mutelist[user_id] = self.mutelist[user_id]
+		for user_id in self.ban:
+			channel_to.ban[user_id] = self.ban[user_id]
+		for ip in self.ban_ip:
+			channel_to.ban_ip[ip] = self.ban_ip[ip]
+		for bridged_id in self.bridged_ban:
+			channel_to.bridged_ban[bridged_id] = self.bridged_ban[bridged_id]
 		self.channelMessage('Forwarding of mutes/bans/etc to #%s added by <%s>' % (channel_to.name, client.username))
 		channel_to.channelMessage('Forwarding of mutes/bans/etc from #%s added by <%s>' % (channel_to.name, client.username))
 
@@ -300,6 +335,7 @@ class Channel():
 		if not channel_to.name in self.forwards:
 			return
 		self.forwards.remove(channel_to.name)
+		self.db().removeForward(self, channel_to)
+		
 		self.channelMessage('Forwarding of mutes/bans/etc to #%s removed by <%s>' % (channel_to.name, client.username))
 		channel_to.channelMessage('Forwarding of mutes/bans/etc from #%s removed by <%s>' % (channel_to.name, client.username))
-		

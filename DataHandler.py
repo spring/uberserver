@@ -129,7 +129,6 @@ class DataHandler:
 			if owner: 
 				channel.owner_user_id = owner.id
 			
-			channel.chanserv = True
 			channel.antispam = dbchannel['antispam']
 			channel.store_history = dbchannel['store_history']
 			channel.id = dbchannel['id']
