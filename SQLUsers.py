@@ -233,19 +233,17 @@ channels_table = Table('channels', metadata,
 	mysql_charset='utf8',
 	)
 class Channel(object):
-	def __init__(self, name,  key='', chanserv=False, owner_user_id=None, topic_time=None, topic='', topic_user_id=None, antispam=False, admins='', autokick='', censor=False, antishock=False, store_history=False):
+	def __init__(self, name,  key='', owner_user_id=None, topic_time=None, topic='', topic_user_id=None, antispam=False, censor=False, store_history=False):
 		self.name = name
 		self.key = key
-		self.chanserv = chanserv
 		self.owner_user_id = owner_user_id
 		self.topic = topic
 		self.topic_time = topic_time or datetime.now()
 		self.topic_user_id = topic_user_id
 		self.antispam = antispam
-		self.admins = admins
-		self.autokick = autokick
+		self.autokick = False
 		self.censor = censor
-		self.antishock = antishock
+		self.antishock = None
 		self.store_history = store_history
 
 	def __repr__(self):
@@ -1311,10 +1309,9 @@ class ChannelsHandler:
 		self.sess().commit()
 	
 	def unbanUser(self, channel, target):
-		entry = self.sess().query(ChannelBan).filter(ChannelBan.user_id == target.user_id).filter(ChannelBan.channel_id == channel.id).first()
-		if entry:
-			self.sess().delete(entry)
-			self.sess().commit()
+		response = self.sess().query(ChannelBan).filter(ChannelBan.user_id == target.user_id).filter(ChannelBan.channel_id == channel.id)
+		response.delete()
+		self.sess().commit()
 	
 	def muteUser(self, channel, issuer, target, expires, reason):
 		entry = ChannelMute(channel.id, issuer.user_id, target.user_id, expires, reason)
@@ -1341,7 +1338,8 @@ class ChannelsHandler:
 		self.sess().commit()
 		
 	def removeForward(self, channel_from, channel_to):
-		entry = self.sess().query(ChannelForward).filter(ChannelForward.channel_from_id == channel_from.id).filter(ChannelForward.channel_to_id == channel_to.id).first()
+		response = self.sess().query(ChannelForward).filter(ChannelForward.channel_from_id == channel_from.id).filter(ChannelForward.channel_to_id == channel_to.id)
+		reseponse
 		if entry:
 			self.sess().delete(entry)
 			self.sess().commit()
@@ -1359,7 +1357,7 @@ class ChannelsHandler:
 			entry.owner_user_id = target.user_id
 			self.sess().add(entry)
 			self.sess().commit()
-			entry = self.sess().query(Channel).filter(Channel.name == channel.name).first() # set db id to runtime object
+			entry = self.sess().query(Channel).filter(Channel.name == channel.name).first() 
 			channel.id = entry.id
 
 	def unRegister(self, client, channel):

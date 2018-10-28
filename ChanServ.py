@@ -194,8 +194,29 @@ class ChanServClient(Client):
 			forwards_str = '#%s: Forwarding to' % chan
 			for forward in channel.forwards:
 				forwards_str += ' #' + forward
-			return forwards_str
-			
+			return forwards_str			
+		
+		if cmd == 'history': 
+			if not access in ['mod', 'founder']:
+				return '#%s: You do not have permission to change history settings in the channel' % chan
+			if args=='on':
+				channel.setHistory(client, True)
+				return '#%s: History enabled' % (chan, str(enable))
+			if arg=='off':
+				channel.setHistory(client, False)
+				return '#%s: History disabled' % (chan, str(enable))
+			return '#%s: Unknown value for history setting (expected: on, off).' % chan
+		
+		if cmd == 'antispam':
+			if not access in ['mod', 'founder']:
+				return '#%s: You must contact one of the server moderators or the owner of the channel to change the antispam settings' % chan
+			if args == 'on':
+				channel.setAntispam(client, True)
+				return '#%s: Anti-spam protection is on.' % chan
+			if args == 'off':
+				channel.setAntispam(client, False)
+				return '#%s: Anti-spam protection is off.' % chan
+			return '#%s: Unknown value for anti-spam setting (expected: on, off).' % chan
 		
 		if cmd == 'setkey': 
 			if not access in ['mod', 'founder']:
@@ -342,12 +363,12 @@ class ChanServClient(Client):
 				return '#%s: User <%s> not found' % (chan, target_username)	
 			if channel.isOp(target):
 				return '#%s: Cannot ban <%s>, user has operator status' % (chan, target.username)
-			if target.user_id in channel.ban:
+			if target.user_id in channel.ban and target.last_ip in channel.ban_ip:
 				ban = channel.ban[target.user_id]
 				issuer = self._root.protocol.clientFromID(ban['issuer_user_id'])
 				if not issuer:
-					return "#%s: User <%s> is already banned by <unknown user>" % (chan, target.username)
-				return "#%s: User <%s> is already banned by <%s>" % (chan, target.username, issuer.username)
+					return "#%s: User <%s, ip %s is already banned by <unknown user>" % (chan, target.username, ban.ip_address)
+				return "#%s: User <%s>, ip %s is already banned by <%s>" % (chan, target.username, ban['ip_address'], issuer.username)
 			try: 
 				expires = datetime.now() + duration
 			except:
@@ -424,21 +445,11 @@ class ChanServClient(Client):
 			args = args or ''
 			channel.setTopic(client, args)
 			return '#%s: Topic changed' % chan
-	
-		if cmd == 'antispam':
-			if not access in ['mod', 'founder', 'op']:
-				return '#%s: You must contact one of the server moderators or the owner of the channel to change the antispam settings' % chan
-			if args == 'on':
-				channel.setAntispam(client, True)
-				return '#%s: Anti-spam protection is on.' % chan
-			if args == 'off':
-				channel.setAntispam(client, False)
-				return '#%s: Anti-spam protection is off.' % chan
-			return '#%s: Unknown value for anti-spam setting (expected: on, off).' % chan
-		
 		
 		if cmd == 'info':
-			antispam = 'on' if channel.antispam else 'off'
+			antispam = "Anti-spam protection is off" 
+			if channel.antispam: 
+				antispam = "Anti-spam protection is on"
 			founder = 'No founder is registered'				
 			if channel.owner_user_id:
 				founder = self._root.protocol.clientFromID(channel.owner_user_id, True)
@@ -455,19 +466,9 @@ class ChanServClient(Client):
 			if separator!=' ': op_list += 'empty'						
 			users = channel.users
 			users_str = 'Currently contains 1 user'
-			if len(users)>1: users_str = 'Currently contains %i users' % len(users)
-			return '#%s info: Anti-spam protection is %s. %s, %s. %s. ' % (chan, antispam, founder, op_list, users_str)
-		
-		if cmd == 'history': 
-			if not access in ['mod', 'founder', 'op']:
-				return '#%s: You do not have permission to change history settings in the channel' % chan
-			if args=='on':
-				channel.setHistory(client, True)
-				return '#%s: History enabled' % (chan, str(enable))
-			if arg=='off':
-				channel.setHistory(client, False)
-				return '#%s: History disabled' % (chan, str(enable))
-			return '#%s: Unknown value for history setting (expected: on, off).' % chan
+			if len(users)>1: 
+				users_str = 'Currently contains %i users' % len(users)
+			return '#%s info: %s. %s, %s. %s. ' % (chan, antispam, founder, op_list, users_str)
 		
 		
 		return 'command "%s" not found, use "!help" to get help!' %(cmd) #todo: better cmd list + split into functions
