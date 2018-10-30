@@ -876,9 +876,13 @@ class Protocol:
 		
 		# declare success
 		client.access = 'agreement'
-		logging.info('[%s] Successfully registered user <%s>.' % (client.session_id, username))
-		self.broadcast_Moderator('New user: %s %s %s %s %s' %(username, email, client.country_code, client.ip_address, client.local_ip))
 		client.Send('REGISTRATIONACCEPTED')
+		
+		logging.info('[%s] Successfully registered user <%s>.' % (client.session_id, username))
+		ip_str = client.ip_address
+		if client.local_ip != client.ip_address:
+			ip_str += " " + client.local_ip
+		self.broadcast_Moderator('New user: %s %s %s %s' %(username, email, ip_str, client.country_code))
 
 
 	def in_LOGIN(self, client, username, password='', cpu='0', local_ip='', sentence_args=''):
@@ -1088,7 +1092,7 @@ class Protocol:
 		self.userdb.save_user(client)
 		self._calc_access_status(client)
 		self._SendLoginInfo(client)
-		self.broadcast_Moderator('Accepted: %s %s %s' %(client.username, client.last_id, client.lobby_id))
+		self.broadcast_Moderator('Accepted: %s %s %s %s' %(client.username, client.ip_address, client.last_id, client.lobby_id))
 
 	def in_CREATEBOTACCOUNT(self, client, username, from_username, founder_username=None):
 		# Create a new botflagged account with the same email & password as from_username
