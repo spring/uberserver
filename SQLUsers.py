@@ -1283,8 +1283,9 @@ class ChannelsHandler:
 	
 	def opUser(self, channel, target):
 		entry = ChannelOp(channel.id, target.user_id)
-		self.sess().add(entry)
-		self.sess().commit()
+		if entry:
+			self.sess().add(entry)
+			self.sess().commit()
 	
 	def deopUser(self, channel, target):
 		entry = self.sess().query(ChannelOp).filter(ChannelOp.user_id == target.user_id).filter(ChannelOp.channel_id == channel.id).first()
@@ -1315,8 +1316,9 @@ class ChannelsHandler:
 	
 	def muteUser(self, channel, issuer, target, expires, reason):
 		entry = ChannelMute(channel.id, issuer.user_id, target.user_id, expires, reason)
-		self.sess().add(entry)
-		self.sess().commit()
+		if entry:
+			self.sess().add(entry)
+			self.sess().commit()
 	
 	def unmuteUser(self, channel, target):
 		entry = self.sess().query(ChannelMute).filter(ChannelMute.user_id == target.user_id).filter(ChannelMute.channel_id == channel.id).first()
@@ -1326,20 +1328,18 @@ class ChannelsHandler:
 
 	def setHistory(self, chan, enable):
 		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()
-		if not entry:
-			return False
-		entry.store_history = enable
-		self.sess().commit()
-		return True
+		if entry:
+			entry.store_history = enable
+			self.sess().commit()
 		
 	def addForward(self, channel_from, channel_to):
 		entry = ChannelForward(channel_from.id, channel_to.id)
-		self.sess().add(entry)
-		self.sess().commit()
+		if entry:
+			self.sess().add(entry)
+			self.sess().commit()
 		
 	def removeForward(self, channel_from, channel_to):
 		response = self.sess().query(ChannelForward).filter(ChannelForward.channel_from_id == channel_from.id).filter(ChannelForward.channel_to_id == channel_to.id)
-		reseponse
 		if entry:
 			self.sess().delete(entry)
 			self.sess().commit()

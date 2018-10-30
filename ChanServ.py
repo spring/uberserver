@@ -140,7 +140,9 @@ class ChanServClient(Client):
 				
 		
 		if not chan in self._root.channels:
-			return "Channel %s does not exist (missing #?)" % chan
+			return "Channel '%s' does not exist (missing #?)" % chan
+		if not chan in self.channels:
+			return "ChanServ is not present in channel '%s' (unregistered?)" % chan
 		channel = self._root.channels[chan]
 		access = channel.getAccess(client) #todo: cleaner code for access controls
 		
@@ -164,7 +166,7 @@ class ChanServClient(Client):
 			if not args in self._root.channels:
 				return "Channel %s does not exist (missing #?)" % args
 			channel_to = self._root.channels[args]
-			if channel_from.identity!='channel' or channel_to.identity!='battle': # prevents circular dependencies
+			if channel_from.identity!='channel' or channel_to.identity!='battle': 
 				return "#%s: To avoid circular dependencies, it is only permitted to forward mutes/bans from (non-battle) channels into battles" % chan
 			if channel_to.name in channel_from.forwards:
 				return "#%s: Forwarding of mutes/bans already exists to #%s" % (chan, channel_to.name)
