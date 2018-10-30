@@ -1283,9 +1283,8 @@ class ChannelsHandler:
 	
 	def opUser(self, channel, target):
 		entry = ChannelOp(channel.id, target.user_id)
-		if entry:
-			self.sess().add(entry)
-			self.sess().commit()
+		self.sess().add(entry)
+		self.sess().commit()
 	
 	def deopUser(self, channel, target):
 		entry = self.sess().query(ChannelOp).filter(ChannelOp.user_id == target.user_id).filter(ChannelOp.channel_id == channel.id).first()
@@ -1299,10 +1298,9 @@ class ChannelsHandler:
 		self.sess().commit()
 	
 	def unbanBridgedUser(self, channel, target):
-		entry = self.sess().query(ChannelBridgedBan).filter(ChannelBridgedBan.bridged_id == target.bridged_id).filter(ChannelBridgedBan.channel_id == channel.id).first()
-		if entry:
-			self.sess().delete(entry)
-			self.sess().commit()
+		response = self.sess().query(ChannelBridgedBan).filter(ChannelBridgedBan.bridged_id == target.bridged_id).filter(ChannelBridgedBan.channel_id == channel.id)
+		response.delete()
+		self.sess().commit()
 	
 	def banUser(self, channel, issuer, target, expires, reason):
 		entry = ChannelBan(channel.id, issuer.user_id, target.user_id, target.last_ip, expires, reason)
@@ -1316,15 +1314,13 @@ class ChannelsHandler:
 	
 	def muteUser(self, channel, issuer, target, expires, reason):
 		entry = ChannelMute(channel.id, issuer.user_id, target.user_id, expires, reason)
-		if entry:
-			self.sess().add(entry)
-			self.sess().commit()
+		self.sess().add(entry)
+		self.sess().commit()
 	
 	def unmuteUser(self, channel, target):
-		entry = self.sess().query(ChannelMute).filter(ChannelMute.user_id == target.user_id).filter(ChannelMute.channel_id == channel.id).first()
-		if entry:
-			self.sess().delete(entry)
-			self.sess().commit()
+		response = self.sess().query(ChannelMute).filter(ChannelMute.user_id == target.user_id).filter(ChannelMute.channel_id == channel.id)
+		response.delete()
+		self.sess().commit()
 
 	def setHistory(self, chan, enable):
 		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()
@@ -1334,12 +1330,11 @@ class ChannelsHandler:
 		
 	def addForward(self, channel_from, channel_to):
 		entry = ChannelForward(channel_from.id, channel_to.id)
-		if entry:
-			self.sess().add(entry)
-			self.sess().commit()
+		self.sess().add(entry)
+		self.sess().commit()
 		
 	def removeForward(self, channel_from, channel_to):
-		response = self.sess().query(ChannelForward).filter(ChannelForward.channel_from_id == channel_from.id).filter(ChannelForward.channel_to_id == channel_to.id)
+		entry = self.sess().query(ChannelForward).filter(ChannelForward.channel_from_id == channel_from.id).filter(ChannelForward.channel_to_id == channel_to.id)
 		if entry:
 			self.sess().delete(entry)
 			self.sess().commit()
@@ -1348,17 +1343,17 @@ class ChannelsHandler:
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
 		if not entry:
 			entry = Channel(channel.name)
-			if channel.topic:
-				entry.topic = channel.topic['text']
-				entry.topic_time =  datetime.fromtimestamp(channel.topic['time'])
-				entry.topic_user_id = target.user_id
-			else:
-				entry.topic_time = datetime.now()
-			entry.owner_user_id = target.user_id
-			self.sess().add(entry)
-			self.sess().commit()
-			entry = self.sess().query(Channel).filter(Channel.name == channel.name).first() 
-			channel.id = entry.id
+		if channel.topic:
+			entry.topic = channel.topic['text']
+			entry.topic_time =  datetime.fromtimestamp(channel.topic['time'])
+			entry.topic_user_id = target.user_id
+		else:
+			entry.topic_time = datetime.now()
+		entry.owner_user_id = target.user_id
+		self.sess().add(entry)
+		self.sess().commit()
+		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first() 
+		channel.id = entry.id
 
 	def unRegister(self, client, channel):
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).delete()
