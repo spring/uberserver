@@ -128,6 +128,12 @@ class Battle(Channel):
 											battlestatus['id'], battlestatus['ready']))
 		return status
 
+		
+	def kickUser(self, client, target):
+		super().kickUser(self, client, target)
+		host = self._root.protocol.clientFromSession(self.host)
+		host.send("KICKFROMBATTLE %s %s" % (self.battle_id, target.username))
+	
 	def hasBotflag(self):
 		host = self._root.protocol.clientFromSession(self.host)
 		return host.bot

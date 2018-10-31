@@ -231,8 +231,15 @@ class Protocol:
 			client.removing = True
 		logging.info('[%s] Client connected from %s:%s' % (client.session_id, client.ip_address, client.port))
 
-	def _logoutUser(self, client, reason):
-		# remove the client, and all its references 
+	def _remove(self, client, reason='Quit'):
+		if client.static: return # static clients don't disconnect
+
+		if not client.logged_in:
+			logging.info('[%s] disconnected from %s: %s'%(client.session_id, client.ip_address, reason))
+			return
+		logging.info('[%s] <%s> disconnected from %s: %s'%(client.session_id, client.username, client.ip_address, reason))
+				
+		# remove all references related to the client
 		bridged_clients = client.bridged_external_ids.copy() # avoid modifying dict while iterating
 		for external_id, bridged_id in bridged_clients.items():
 			bridgedClient = self._root.bridgedClientFromID(bridged_id)
@@ -254,19 +261,12 @@ class Protocol:
 			del self._root.usernames[user]
 		if client.user_id in self._root.user_ids:
 			del self._root.user_ids[client.user_id]
-
-		self.broadcast_RemoveUser(client)
-
-	def _remove(self, client, reason='Quit'):
-		if client.static: return # static clients don't disconnect
-
-		if not client.logged_in:
-			logging.info('[%s] disconnected from %s: %s'%(client.session_id, client.ip_address, reason))
-			return
-
-		logging.info('[%s] <%s> disconnected from %s: %s'%(client.session_id, client.username, client.ip_address, reason))
-		self._logoutUser(client, reason)
+		#TODO: why is self._root.clients[session_id] not removed here?
+			
 		self.userdb.end_session(client.user_id)
+		
+		# inform that the client left
+		self.broadcast_RemoveUser(client)
 
 
 	def get_function_args(self, client, command, function, numspaces, args):
@@ -2582,23 +2582,6 @@ class Protocol:
 			battle = self._root.battles[battleId]
 			self.broadcast_RemoveBattle(battle)
 			del self._root.battles[battleId]
-				
-	def in_KICK(self, client, username, reason=''):
-		'''
-		Kick target user from the server.
-
-		@required.str username: The target user.
-		@optional.str reason: The reason to be shown.
-		'''
-		kickeduser = self.clientFromUsername(username)
-		if kickeduser.access=='admin':
-			return
-		if not kickeduser:
-			self.out_SERVERMSG(client, 'User <%s> was not online' % username)
-			return
-		self.out_SERVERMSG(kickeduser, 'You were kicked from the server (%s)' % (reason))
-		self.out_SERVERMSG(client, 'Kicked <%s> from the server' % username)
-		kickeduser.Remove('was kicked from server by <%s> (%s)' % (client.username, reason))
 
 	def in_EXIT(self, client, reason=('Exiting')):
 		'''
@@ -2618,6 +2601,27 @@ class Protocol:
 			else:
 				flags = flag
 		client.Send("COMPFLAGS %s" %(flags))
+
+	def in_KICK(self, client, username, reason=''):
+		'''
+		Kick target user from the server.
+
+		@required.str username: The target user.
+		@optional.str reason: The reason to be shown.
+		'''
+		kickeduser = self.clientFromUsername(username)
+		if kickeduser.access=='admin':
+			return
+		if not kickeduser:
+			self.out_SERVERMSG(client, 'User <%s> was not online' % username)
+			return
+		battle = self.getCurrentBattle(kickeduser)
+		if battle:
+			host = self.clientFromSession(battle.host)
+			host.Send("KICKFROMBATTLE %s %s" % (battle.battle_id, username))
+		self.out_SERVERMSG(kickeduser, 'You were kicked from the server (%s)' % (reason))
+		self.out_SERVERMSG(client, 'Kicked <%s> from the server' % username)
+		kickeduser.Remove('was kicked from server by <%s> (%s)' % (client.username, reason))
 
 	def in_BAN(self, client, username, duration, reason):
 		# ban target user from the server, also ban their current ip and email

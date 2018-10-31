@@ -40,7 +40,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 			Remove(self, "Error adding client")
 
 	def connectionLost(self, reason):
-		if not hasattr(self, 'session_id'): #not probably connected
+		if not hasattr(self, 'session_id'): # this func is called after a client has dc'ed
 			return
 		self.root.protocol._remove(self, str(reason.value))
 		del self.root.clients[self.session_id]
