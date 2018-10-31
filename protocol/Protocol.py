@@ -261,7 +261,7 @@ class Protocol:
 			del self._root.usernames[user]
 		if client.user_id in self._root.user_ids:
 			del self._root.user_ids[client.user_id]
-		#TODO: why is self._root.clients[session_id] not removed here?
+		#note: self._root.clients is managed by twistedserver.py
 			
 		self.userdb.end_session(client.user_id)
 		
@@ -2620,6 +2620,7 @@ class Protocol:
 			host = self.clientFromSession(battle.host)
 			host.Send("KICKFROMBATTLE %s %s" % (battle.battle_id, username))
 		self.out_SERVERMSG(kickeduser, 'You were kicked from the server (%s)' % (reason))
+		kickeduser.Send('SERVERMSGBOX You were kicked from the server (%s)' % (reason))
 		self.out_SERVERMSG(client, 'Kicked <%s> from the server' % username)
 		kickeduser.Remove('was kicked from server by <%s> (%s)' % (client.username, reason))
 
@@ -2628,7 +2629,7 @@ class Protocol:
 		good, response = self.bandb.ban(client, duration, reason, username)
 		target = self.clientFromUsername(username)
 		if good and target: # is online
-			self.in_KICK(client, target.username, "")
+			self.in_KICK(client, target.username, 'banned')
 		if good: self.broadcast_Moderator("%s banned <%s> for %s days (%s)" % (client.username, username, duration, reason))
 		if response: self.out_SERVERMSG(client, '%s' % response)
 
