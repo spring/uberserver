@@ -2924,15 +2924,15 @@ class Protocol:
 	# Deprecated protocol section #
 	#
 	def in_MUTE(self, client, chan, user, duration=0):
-		self._root.chanserv.Handle("SAIDPRIVATE %s !mute %s %s %s -" % (client.username, chan, user, duration))
+		self._root.chanserv.Handle("SAIDPRIVATE %s :mute %s %s %s -" % (client.username, chan, user, duration))
 	def in_UNMUTE(self, client, chan, user):
-		self._root.chanserv.Handle("SAIDPRIVATE %s !unmute %s %s" % (client.username, chan, user))
+		self._root.chanserv.Handle("SAIDPRIVATE %s :unmute %s %s" % (client.username, chan, user))
 	def in_MUTELIST(self, client, chan): 
-		self._root.chanserv.Handle("SAIDPRIVATE %s !listmutes %s" % (client.username, chan))
+		self._root.chanserv.Handle("SAIDPRIVATE %s :listmutes %s" % (client.username, chan))
 	def in_FORCELEAVECHANNEL(self, client, chan, user, reason=''):
-		self._root.chanserv.Handle("SAIDPRIVATE %s !kick %s %s" % (client.username, chan, user))
+		self._root.chanserv.Handle("SAIDPRIVATE %s :kick %s %s" % (client.username, chan, user))
 	def in_SETCHANNELKEY(self, client, chan, key='*'):
-		self._root.chanserv.Handle("SAIDPRIVATE %s !setkey #' + chan + ' ' + key" % (client.username, chan, key))
+		self._root.chanserv.Handle("SAIDPRIVATE %s :setkey #' + chan + ' ' + key" % (client.username, chan, key))
 	def in_STARTTLS(self, client):
 		client.StartTLS()
 		client.flushBuffer()

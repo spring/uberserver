@@ -187,7 +187,7 @@ class Channel():
 		self.channelMessage('History retention was set to %s by <%s>' % (chan, str(val), user))
 	
 	def setKey(self, client, key):
-		self.db().setKey(self.name, key)
+		self.db().setKey(self, key)
 		if key in ('*', None):
 			if self.key:
 				self.key = None
@@ -207,7 +207,7 @@ class Channel():
 		self.channelMessage("<%s> has been added to this %s's operator list by <%s>" % (target.username, self.identity, client.username))
 
 		for chan in self.forwards:
-			if chan in self._root.channels[chan]:
+			if chan in self._root.channels:
 				self._root.channels[chan].opUser(client, target)
 	
 	def deopUser(self, client, target):
@@ -218,7 +218,7 @@ class Channel():
 		self.channelMessage("<%s> has been removed from this %s's operator list by <%s>" % (target.username, self.identity, client.username))
 
 		for chan in self.forwards:
-			if chan in self._root.channels[chan]:
+			if chan in self._root.channels:
 				self._root.channels[chan].deopUser(client, target)
 	
 	def kickUser(self, client, target):
@@ -237,6 +237,8 @@ class Channel():
 		self.ban[target.user_id] = {'user_id':target.user_id, 'ip_address':target.last_ip, 'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
 		self.ban_ip[target.last_ip] = self.ban[target.user_id]
 		self.db().banUser(self, client, target, expires, reason)
+		if target.session_id in self.users:
+			self.channelMessage('<%s> has been removed from this %s by <%s>' % (target.username, self.identity, client.username))
 		
 		for chan in self.forwards:
 			if chan in self._root.channels:
@@ -264,7 +266,7 @@ class Channel():
 		self.db().banBridgedUser(self, client, target, expires, reason)
 		self.removeBridgedUser(client, target)
 		if target.bridged_id in self.bridged_users:
-			self.channelMessage('<%s> has been removed from this channel by <%s>' % (target.username, client.username))
+			self.channelMessage('<%s> has been removed from this %s by <%s>' % (target.username, self.identity, client.username))
 	
 		for chan in self.forwards:
 			if chan in self._root.channels:
@@ -326,8 +328,8 @@ class Channel():
 			channel_to.ban_ip[ip] = self.ban_ip[ip]
 		for bridged_id in self.bridged_ban:
 			channel_to.bridged_ban[bridged_id] = self.bridged_ban[bridged_id]
-		self.channelMessage('Forwarding of mutes/bans/etc to #%s added by <%s>' % (channel_to.name, client.username))
-		channel_to.channelMessage('Forwarding of mutes/bans/etc from #%s added by <%s>' % (channel_to.name, client.username))
+		self.channelMessage('<%s> added forwarding to #%s' % (client.username, channel_to.name))
+		channel_to.channelMessage('<%s> added forwarding to #%s' % (client.username, channel_to.name))
 
 	def removeForward(self, client, channel_to):
 		if not channel_to.name in self.forwards:
@@ -335,5 +337,5 @@ class Channel():
 		self.forwards.remove(channel_to.name)
 		self.db().removeForward(self, channel_to)
 		
-		self.channelMessage('Forwarding of mutes/bans/etc to #%s removed by <%s>' % (channel_to.name, client.username))
-		channel_to.channelMessage('Forwarding of mutes/bans/etc from #%s removed by <%s>' % (channel_to.name, client.username))
+		self.channelMessage('<%s> removed forwarding to #%s' % (client.username, channel_to.name))
+		channel_to.channelMessage('<%s> removed forwarding to #%s' % (client.username, channel_to.name))

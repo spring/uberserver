@@ -75,40 +75,40 @@ class ChanServClient(Client):
 		self._root.protocol._handle(self, msg)
 
 	def HandleMessage(self, chan, user, msg):
-		if len(msg) <= 0:
+		if user == 'ChanServ': 
+			return # safety, shouldn't be needed
+		if len(msg) <= 0 or msg[0] != ":": 
+			if not chan:
+				self.Respond("SAYPRIVATE %s ChanServ commands must be prefixed by a colon e.g. ':help'"%(user, ))
 			return
-		if msg[0] != "!":
-			return
-		msg = msg.lstrip('!')
+		msg = msg.lstrip(':')
+		
 		args = None
-		if user == 'ChanServ': return # safety, shouldn't be needed
-		if msg.count(' ') >= 2:	# case cmd blah blah+
-			splitmsg = msg.split(' ',2)
-			if splitmsg[1].startswith('#'): # case cmd #chan arg+
-				cmd, chan, args = splitmsg
-				chan = chan.lstrip('#')
-			else: # case cmd arg arg+
-				cmd, args = msg.split(' ',1)
-		elif msg.count(' ') == 1: # case cmd arg
-			splitmsg = msg.split(' ')
-			if splitmsg[1].startswith('#'): # case cmd #chan
-				cmd, chan = splitmsg
-				chan = chan.lstrip('#')
-			else: # case cmd arg
-				cmd, args = splitmsg
-		else: # case cmd
-			cmd = msg
-		response = self.HandleCommand(chan, user, cmd, args)
+		if chan: # message picked up in a channel
+			if ' ' in msg:
+				cmd, args = msg.split(' ', 1)
+			else:
+				cmd = msg
+		else: # message sent via pm
+			n = msg.count(' ')
+			if n >= 2:
+				cmd, chan, args = msg.split(' ', 2)
+			elif n == 1:
+				cmd, chan = msg.split(' ', 1)
+			else:
+				cmd = msg
+		
+		response = self.HandleCommand(user, cmd, chan, args)
 		if response:
 			for s in response.split('\n'):
 				self.Respond('SAYPRIVATE %s %s'%(user, s))
 					
-	def HandleCommand(self, chan, user, cmd, args=None):
+	def HandleCommand(self, user, cmd, chan=None, args=None):
 		client = self._root.protocol.clientFromUsername(user)
 		cmd = cmd.lower()
 		
 		if cmd == 'help':
-			return 'Hello, %s!\nI am an automated channel service bot from uberserver,\nfor the full list of commands, see https://springrts.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
+			return 'Hello, %s!\nI am the server bot.\nFor the full list of my commands, see https://springrts.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
 		
 		if cmd == 'battlename':
 			host = self._root.protocol.clientFromUsername(args, True)
@@ -121,9 +121,11 @@ class ChanServClient(Client):
 		
 
 		if not chan:
-			return "Channel not specified (missing #?)"
+			return "Channel not specified"
+		if chan[0] == '#':
+			return 'ChanServ commands do not permit the # character to prefix channel names, please retry'
 
-
+		
 		if cmd == 'register': 
 			if not client.isMod():
 				return '#%s: You must contact one of the server moderators to register a channel' % chan
@@ -140,7 +142,7 @@ class ChanServClient(Client):
 				
 		
 		if not chan in self._root.channels:
-			return "Channel '%s' does not exist (missing #?)" % chan
+			return "Channel '%s' does not exist" % chan
 		if not chan in self.channels:
 			return "ChanServ is not present in channel '%s' (unregistered?)" % chan
 		channel = self._root.channels[chan]
@@ -473,7 +475,7 @@ class ChanServClient(Client):
 			return '#%s info: %s. %s, %s. %s. ' % (chan, antispam, founder, op_list, users_str)
 		
 		
-		return 'command "%s" not found, use "!help" to get help!' %(cmd) #todo: better cmd list + split into functions
+		return "command '%s' does not exist, try ':help' to get help" %(cmd) #todo: better cmd list + split into functions
 	
 	def Remove(self, reason=None):
 		pass
