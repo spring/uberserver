@@ -55,6 +55,8 @@ restricted = {
 	'FORCETEAMNO',
 	'HANDICAP',
 	'JOINBATTLE',
+	'JOINBATTLEACCEPT',
+	'JOINBATTLEDENY',
 	'KICKFROMBATTLE',
 	'LEAVEBATTLE',
 	'MYBATTLESTATUS',
@@ -119,8 +121,6 @@ restricted = {
 	'UNMUTE',
 	'SAYBATTLE',
 	'SAYBATTLEEX',
-	'JOINBATTLEACCEPT',
-	'JOINBATTLEDENY',
 	]),
 'mod':set([
 	# users
@@ -203,10 +203,10 @@ flag_map = {
 	'sp': 'scriptPassword',  # scriptPassword in JOINEDBATTLE
 	'et': 'sendEmptyTopic',  # send NOCHANNELTOPIC on join if channel has no topic
 	'cl': 'cleanupBattles',  # BATTLEOPENED / OPENBATTLE with support for engine/version
+	'b':  'battleAuth',      # JOINBATTLEACCEPT/JOINBATTLEDENIED
 	'p':  'agreementPlain',  # AGREEMENT is plaintext
 	'a':  'accountIDs',      # deprecated / replaced by 'l'
 	'm':  'matchmaking',     # deprecated
-	'b':  'battleAuth',      # deprecated
 }
 
 class Protocol:
@@ -928,7 +928,6 @@ class Protocol:
 					else:
 						flags.add(flag)
 				
-				flags.add('u')
 				unsupported = ""
 				for flag in flags:
 					client.compat[flag] = True
@@ -1739,8 +1738,75 @@ class Protocol:
 			if battle.locked:
 				client.Send('JOINBATTLEFAILED Battle is locked')
 				return
+		if host.compat['b'] and not 'mod' in client.accesslevels: # supports battleAuth
+			if client.session_id in battle.pending_users:
+				client.Send('JOINBATTLEFAILED waiting for JOINBATTLEACCEPT/JOINBATTLEDENIED from host')
+			else:
+				battle.pending_users.add(client.session_id)
+			if client.ip_address in self._root.trusted_proxies:
+				client_ip = client.local_ip
+			else:
+				client_ip = client.ip_address
+			host.Send('JOINBATTLEREQUEST %s %s' % (username, client_ip))
+			return		
 		battle.joinBattle(client)
 
+	def in_JOINBATTLEACCEPT(self, client, username):
+		'''
+		Allow a user to join your battle, sent as a response to JOINBATTLEREQUEST.
+		[host]
+		@required.str username: The user to allow into your battle.
+		'''
+		user = self.clientFromUsername(username)
+		if not user:
+			self.out_FAILED(client, 'JOINBATTLEACCEPT', "Couldn't find user %s" %(username), True)
+			return
+		battle = self.getCurrentBattle(client)
+		if not client.session_id == battle.host:
+			self.out_FAILED(client, 'JOINBATTLEACCEPT', "client isn't the specified host %s vs %s" %(client.session_id, battle.host), True)
+			return
+		if not user.session_id in battle.pending_users:
+			self.out_FAILED(client, 'JOINBATTLEACCEPT', "client isn't in pending users %s %s" %(client.username, username), True)
+			return
+		battle.pending_users.remove(user.session_id)
+		battle.joinBattle(user)
+		
+	def in_JOINBATTLEDENY(self, client, username, reason=None):
+		'''
+		Deny a user from joining your battle, sent as a response to JOINBATTLEREQUEST.
+		[host]
+		@required.str username: The user to deny from joining your battle.
+		@optional.str reason: The reason to provide to the user.
+		'''
+		user = self.clientFromUsername(username)
+		if not user:
+			return
+		battle = self.getCurrentBattle(client)
+		if not client.session_id == battle.host: 
+			return
+		if user.session_id in battle.pending_users:
+			battle.pending_users.remove(user.session_id)
+			user.Send('JOINBATTLEFAILED %s%s' % ('Access denied by host', (' ('+reason+')' if reason else '')))
+
+	def in_KICKFROMBATTLE(self, client, username):
+		'''
+		Kick a player from their battle.
+		[host]
+
+		@required.str username: The player to kick.
+		'''
+		battle = self.getCurrentBattle(client)
+		if not battle or not battle.canChangeSettings(client):
+			return
+		user = self.clientFromUsername(username)
+		if not user or not user.session_id in battle.users:
+			return
+		if 'mod' in user.accesslevels: 
+			return
+			
+		user.Send('FORCEQUITBATTLE %s' %(client.username))
+		self.in_LEAVEBATTLE(user)
+		
 	def in_SETSCRIPTTAGS(self, client, scripttags):
 		'''
 		Set script tags and send them to all clients in your battle.
@@ -2126,26 +2192,6 @@ class Protocol:
 		user.battlestatus['handicap'] = self._dec2bin(value, 7)
 		battle = self.getCurrentBattle(client)
 		self._root.broadcast_battle('CLIENTBATTLESTATUS %s %s %s'%(username, battle.calc_battlestatus(user), user.teamcolor), user.current_battle)
-
-	def in_KICKFROMBATTLE(self, client, username):
-		'''
-		Kick a player from their battle.
-		[host]
-
-		@required.str username: The player to kick.
-		'''
-		battle = self.getCurrentBattle(client)
-		if not battle or not battle.canChangeSettings(client):
-			return
-		user = self.clientFromUsername(username)
-		if not user or not user.session_id in battle.users:
-			return
-		if 'mod' in user.accesslevels: 
-			return
-			
-		user.Send('FORCEQUITBATTLE %s' %(client.username))
-		self.in_LEAVEBATTLE(user)
-
 
 	def in_FORCETEAMNO(self, client, username, teamno):
 		'''
@@ -2945,10 +2991,6 @@ class Protocol:
 		battle = self.getCurrentBattle(client)
 		if not battle: return
 		self.in_SAYEX(client, battle.name, msg)
-	def in_JOINBATTLEACCEPT(self, client, username):
-		return # avoid err msgs with old SPADS versions
-	def in_JOINBATTLEDENY(self, client, username):
-		return
 		
 
 	# Begin outgoing protocol section #

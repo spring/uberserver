@@ -26,7 +26,7 @@ class Battle(Channel):
 		self.spectators = 0 # duplicated info?
 		self.locked = False
 
-		self.pending_users = set() 
+		self.pending_users = set() # users who asked to join, waiting for hosts response
 		
 		self.bots = {}
 		self.script_tags = {}

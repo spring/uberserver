@@ -237,7 +237,7 @@ class Channel():
 		self.ban[target.user_id] = {'user_id':target.user_id, 'ip_address':target.last_ip, 'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
 		self.ban_ip[target.last_ip] = self.ban[target.user_id]
 		self.db().banUser(self, client, target, expires, reason)
-		if target.session_id in self.users:
+		if hasattr(target, "session_id") and target.session_id in self.users:
 			self.channelMessage('<%s> has been removed from this %s by <%s>' % (target.username, self.identity, client.username))
 		
 		for chan in self.forwards:
