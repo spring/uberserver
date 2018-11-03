@@ -2893,6 +2893,10 @@ class Protocol:
 		for k in self.restricted_list:
 			count = self.command_stats[k] if k in self.command_stats else 0
 			logging.info("%s %d" % (k, count))
+		logging.info("Stats of flag usage:")
+		for k in self.flag_stats:
+			count = self.flag_stats[k] 
+			logging.info("%s %d" % (k, count))
 
 		try:
 			self.broadcast_Moderator('Reload initiated by <%s>' %(client.username))
