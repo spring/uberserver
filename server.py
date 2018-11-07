@@ -9,6 +9,7 @@ except:
 
 import traceback, signal, socket, sys, logging
 from twisted.internet import reactor
+from twisted.internet import task
 
 sys.path.append("protocol")
 sys.path.append(".")
@@ -61,6 +62,10 @@ try:
 	print('Connect the lobby client to')
 	print('  public:  %s:%d' %(_root.online_ip, _root.port))
 	print('  private: %s:%d' %(_root.local_ip, _root.port))
+	recent_registration_loop = task.LoopingCall(_root.decrement_recent_registrations)
+	recent_registration_loop.start(60*20)
+	recent_rename_loop = task.LoopingCall(_root.decrement_recent_renames)
+	recent_rename_loop.start(60*60*24*7)
 	reactor.run()
 
 except KeyboardInterrupt:

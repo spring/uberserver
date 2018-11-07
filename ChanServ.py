@@ -10,7 +10,7 @@ class ChanServClient(Client):
 		self.logged_in = True
 		self.connected = True
 		self.bot = 1
-		self.db_id = None
+		self.user_id = None
 		self.static = True
 
 		self.username = 'ChanServ'
@@ -49,6 +49,14 @@ class ChanServClient(Client):
 		if len(msg) <= 0:
 			return
 		if msg[0] != "!":
+			n = msg.find(' ')
+			if n<0: n = len(msg)
+			cmd = msg[:n]
+			if chan == "moderator" and cmd in self._root.protocol.restricted['mod']:
+				# allow some mod commands to be executed by simply typing into #moderator
+				client = self._root.protocol.clientFromUsername(user)
+				if client:
+					self._root.protocol._handle(client, msg)	
 			return
 		msg = msg.lstrip('!')
 		args = None
@@ -162,7 +170,7 @@ class ChanServClient(Client):
 					if not args: return '#%s: You must specify a user to deop' % chan
 					target = self._root.protocol.clientFromUsername(args, True)
 					if not target: return '#%s: cannot remove operator status, user does not exist'
-					if target.db_id==channel.owner_user_id: return '#%s: cannot remove operator status from channel founder'
+					if target.user_id==channel.owner_user_id: return '#%s: cannot remove operator status from channel founder'
 					if target and not channel.isOp(target): return '#%s: <%s> was not an op' % (chan, args)
 					channel.deopUser(client, target)
 					self.db().deopUser(channel, target)

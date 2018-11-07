@@ -60,14 +60,27 @@ class DataHandler:
 		self.trusted_proxies = []
 
 		self.start_time = time.time()
-		self.channels = {}
-		self.usernames = {}
-		self.clients = {}
-		self.db_ids = {}
-		self.battles = {}
 		self.detectIp()
 		self.cert = None
 		
+		# lists of online stuff
+		self.channels = {}
+		self.usernames = {}
+		self.clients = {}
+		self.user_ids = {} 
+		self.battles = {}
+		
+		# rate limits
+		self.recent_registrations = {} #ip_address->int
+		self.recent_renames = {} #user_id->int
+		self.flood_limits = { 
+			'fresh':{'msglength':1000, 'bytespersecond':1000, 'seconds':2}, # also the default
+			'user':{'msglength':10000, 'bytespersecond':2000, 'seconds':10}, 
+			'bot':{'msglength':10000, 'bytespersecond':50000, 'seconds':10},
+			'mod':{'msglength':10000, 'bytespersecond':2000, 'seconds':10},
+			'admin':{'msglength':10000, 'bytespersecond':2000, 'seconds':10},
+		}
+
 	def initlogger(self, filename):
 		# logging
 		server_logfile = os.path.join(os.path.dirname(__file__), filename)
@@ -315,8 +328,8 @@ class DataHandler:
 	def getBanDB(self):
 		return self.bandb
 
-	def clientFromID(self, db_id):
-		if db_id in self.db_ids: return self.db_ids[db_id]
+	def clientFromID(self, user_id):
+		if user_id in self.user_ids: return self.user_ids[user_id]
 
 	def clientFromUsername(self, username):
 		if username in self.usernames: return self.usernames[username]
@@ -342,16 +355,40 @@ class DataHandler:
 			for chan in channels:
 				channel = channels[chan]
 				mutelist = channel.mutelist
-				for db_id in mutelist:
-					expiretime = mutelist[db_id]['expires']
+				for user_id in mutelist:
+					expiretime = mutelist[user_id]['expires']
 					if 0 < expiretime and expiretime < now:
-						del channel.mutelist[db_id]
-						client = self.clientFromID(db_id)
+						del channel.mutelist[user_id]
+						client = self.clientFromID(user_id)
 						if client:
 							channel.channelMessage('<%s> has been unmuted (mute expired).' % client.username)
 		except:
 			logging.error(traceback.format_exc())
 
+	def decrement_recent_registrations(self):
+		try:
+			to_delete = []
+			for ip_address in self.recent_registrations:
+				self.recent_registrations[ip_address] -= 1
+				if self.recent_registrations[ip_address] <= 0:
+					to_delete.append(ip_address)
+			for ip_address in to_delete:
+				del self.recent_registrations[ip_address]
+		except:
+			logging.error(traceback.format_exc())
+	
+	def decrement_recent_renames(self):
+		try:
+			to_delete = []
+			for user_id in self.recent_renames:
+				self.recent_renames[user_id] -= 1
+				if self.recent_renames[user_id] <= 0:
+					to_delete.append(user_id)
+			for user_id in to_delete:
+				del self.recent_renames[user_id]
+		except:
+			logging.error(traceback.format_exc())
+	
 	# the sourceClient is only sent for SAY*, and RING commands
 	def multicast(self, session_ids, msg, ignore=(), sourceClient=None):
 		assert(type(ignore) == set)
@@ -365,7 +402,7 @@ class DataHandler:
 			if client.session_id in ignore:
 				continue
 
-			if sourceClient and sourceClient.db_id in client.ignored:
+			if sourceClient and sourceClient.user_id in client.ignored:
 				continue
 
 			if client.static:
