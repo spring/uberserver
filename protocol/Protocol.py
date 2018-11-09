@@ -60,6 +60,7 @@ restricted = {
 	'KICKFROMBATTLE',
 	'LEAVEBATTLE',
 	'MYBATTLESTATUS',
+	'BATTLEHOSTMSG',
 	'OPENBATTLE',
 	'REMOVEBOT',
 	'REMOVESCRIPTTAGS',
@@ -1173,6 +1174,27 @@ class Protocol:
 			if not self.is_ignored(receiver, client):
 				receiver.Send('SAIDPRIVATEEX %s %s' % (client.username, msg))
 
+	def in_BATTLEHOSTMSG(self, client, battle_name, username, msg):
+		# battle host sends a 'servermsg' style message, within a battle to a single user
+		battle = self.getCurrentBattle(client)
+		if not battle:
+			return
+		if client.session_id != battle.host:
+			return
+		if battle.name != battle_name:
+			return
+		user = self.clientFromUsername(username)
+		if not user: 
+			return
+		if not user.session_id in battle.users:
+			return
+		if self.is_ignored(user, client) or client.user_id in battle.mutelist:
+			return
+		if not user.compat['u']:
+			user.Send('SAIDBATTLEEX %s %s' % (client.username, msg))
+			return
+		user.Send('SAIDEX %s %s %s' % (battle.name, client.username, msg))
+		
 	def in_BRIDGECLIENTFROM(self, client, location, external_id, external_username):
 		# add external user to the bridge
 		if not client.compat['u']:
@@ -2991,7 +3013,6 @@ class Protocol:
 		battle = self.getCurrentBattle(client)
 		if not battle: return
 		self.in_SAYEX(client, battle.name, msg)
-		
 
 	# Begin outgoing protocol section #
 	#
