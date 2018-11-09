@@ -75,6 +75,17 @@ class DataHandler:
 		self.bridged_ids = {} #bridged_id->bridgedClient
 		self.bridged_usernames = {} #bridgeUsername->bridgedClient
 		
+		# rate limits
+		self.recent_registrations = {} #ip_address->int
+		self.recent_renames = {} #user_id->int
+		self.flood_limits = { 
+			'fresh':{'msglength':1000, 'bytespersecond':1000, 'seconds':2}, # also the default
+			'user':{'msglength':10000, 'bytespersecond':2000, 'seconds':10}, 
+			'bot':{'msglength':10000, 'bytespersecond':50000, 'seconds':10},
+			'mod':{'msglength':10000, 'bytespersecond':2000, 'seconds':10},
+			'admin':{'msglength':10000, 'bytespersecond':2000, 'seconds':10},
+		}
+
 	def initlogger(self, filename):
 		# logging
 		server_logfile = os.path.join(os.path.dirname(__file__), filename)
@@ -464,6 +475,30 @@ class DataHandler:
 		except:
 			logging.error(traceback.format_exc())
 
+	def decrement_recent_registrations(self):
+		try:
+			to_delete = []
+			for ip_address in self.recent_registrations:
+				self.recent_registrations[ip_address] -= 1
+				if self.recent_registrations[ip_address] <= 0:
+					to_delete.append(ip_address)
+			for ip_address in to_delete:
+				del self.recent_registrations[ip_address]
+		except:
+			logging.error(traceback.format_exc())
+	
+	def decrement_recent_renames(self):
+		try:
+			to_delete = []
+			for user_id in self.recent_renames:
+				self.recent_renames[user_id] -= 1
+				if self.recent_renames[user_id] <= 0:
+					to_delete.append(user_id)
+			for user_id in to_delete:
+				del self.recent_renames[user_id]
+		except:
+			logging.error(traceback.format_exc())
+	
 	# the sourceClient is only sent for SAY*, and RING commands
 	def multicast(self, session_ids, msg, ignore=(), sourceClient=None, flag=None):
 		assert(type(ignore) == set)

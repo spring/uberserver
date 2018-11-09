@@ -4,7 +4,8 @@
 from datetime import datetime, timedelta
 from BaseClient import BaseClient
 
-import time, random, smtplib, re
+import time, random, smtplib, re, hashlib, base64, json
+import urllib.request
 import logging
 
 try:
@@ -68,19 +69,24 @@ verifications_table = Table('verifications', metadata,
 	Column('expiry', DateTime),
 	Column('attempts', Integer),
 	Column('resends', Integer),
+	Column('use_delay', Boolean),
+	Column('reason', Text),
 	mysql_charset='utf8',
 	)
 class Verification(object):
-	def __init__(self, user_id, email):
+	def __init__(self, user_id, email, digits, use_delay, reason):
 		self.user_id = user_id
 		self.email = email
-		self.code = random.randint(1000,9999)
-		self.expiry = datetime.now() + timedelta(days=1)
+		assert(digits>=4)
+		self.code = random.randint(10**(digits-1),10**(digits)-1)
+		self.expiry = datetime.now() + timedelta(days=2)
 		self.attempts = 0
 		self.resends = 0
-
+		self.use_delay = use_delay
+		self.reason = reason
+		
 	def __repr__(self):
-		return "<Verification('%s', '%s', '%s', '%s', '%s', %s, %s)>" % (self.id, self.user_id, self.email, self.code, self.expiry, self.attempts, self.resends)
+		return "<Verification('%s', '%s', '%s', '%s', '%s', %i, %i, %r)>" % (self.id, self.user_id, self.email, self.code, self.expiry, self.attempts, self.resends, self.use_delay)
 mapper(Verification, verifications_table)	
 	
 ##########################################
@@ -520,27 +526,30 @@ class UsersHandler:
 				return False, 'Name failed to pass profanity filter.'
 		return True, ""
 
-	# TODO: improve, e.g. also check if ip address is banned when registering account
-	def check_register_user(self, username, password, ip, country, email):
+	def check_register_user(self, username, email=None, ip_address=None):
 		assert(type(username) == str)
-		assert(type(password) == str)
 
 		status, reason = self.check_user_name(username)
-		if (not status):
+		if not status:
 			return False, reason
 		dbuser = self.sess().query(User).filter(User.username == username).first()
-		if (dbuser):
+		if dbuser:
 			return False, 'Username already exists.'
-		dbemail = self.sess().query(User).filter(User.email == email).first()
-		#if (dbemail):
-		#	return False, 'Email address already exists.'
+		if email:
+			dbemail = self.sess().query(User).filter(User.email == email).first()
+			if dbemail:
+				return False, 'Email address already in use.'
+		if ip_address:
+			ipban = self._root.bandb.check_ban(None, ip_address)
+			if ipban:
+				return False, 'Account registration failed: %s' % ipban.reason
 		return True, ""
 
 	def register_user(self, username, password, ip, country, email):
 		# note: password here is BASE64(MD5(...)) and already in unicode
 		# assume check_register_user was already called
 		entry = User(username, password, "", ip, email)
-
+		
 		self.sess().add(entry)
 		self.sess().commit()
 		return True, 'Account registered successfully.'
@@ -580,6 +589,18 @@ class UsersHandler:
 
 		self.sess().commit()
 
+	def get_user_id_with_email(self, email):
+		if email == '':
+			return False, 'Email address is blank'
+		response = self.sess().query(User).filter(User.email == email)
+		dbuser = response.first()
+		if not dbuser:
+			return False, 'No user with email address %s was found' % email
+		for entry in response: # pick oldest, if multiple choices
+			if entry.register_date < dbuser.register_date:
+				db_user = entry
+		return True, dbuser.id
+		
 	def confirm_agreement(self, client):
 		entry = self.sess().query(User).filter(User.username==client.username).first()
 		if entry: entry.access = 'user'
@@ -601,7 +622,7 @@ class UsersHandler:
 		else: return False, 'user not found in database'
 
 	def get_account_access(self, username):
-		entry = selfsession.query(User).filter(User.username==username).first()
+		entry = self.session.query(User).filter(User.username==username).first()
 		if entry:
 			return True, entry.access
 		else: return False, 'user not found in database'
@@ -627,8 +648,8 @@ class UsersHandler:
 	def clean(self):
 		now = datetime.now()
 		#delete users:
-		# which didn't accept aggreement after one day
-		response = self.sess().query(User).filter(User.register_date < now - timedelta(days=1)).filter(User.access == "agreement")
+		# which didn't accept agreement after one week
+		response = self.sess().query(User).filter(User.register_date < now - timedelta(days=7)).filter(User.access == "agreement")
 		logging.info("deleting %i users who failed to verify registration", response.count())
 		response.delete(synchronize_session=False)			
 
@@ -1012,6 +1033,17 @@ class VerificationsHandler:
 		except Exception as e:
 			logging.info('Could not load server_email_account.txt, email verification is disabled: %s' %(e))
 		
+		try:
+			with open('server_iphub_xkey.txt') as f:
+				lines = f.readlines()
+			lines = [l.strip() for l in lines]
+			self.iphub_xkey = lines[0]
+			logging.info('Successfully loaded server_iphub_xkey.txt')
+		except Exception as e:
+			self.iphub_xkey = False
+			logging.info('Could not load server_iphub_xkey.txt: %s' %(e))
+	
+	
 	def sess(self):
 		if self.session.is_active:
 			return self.session
@@ -1031,7 +1063,7 @@ class VerificationsHandler:
 			return False, "invalid email address"
 		return True, ""
 		
-	def check_and_send(self, user_id, email, reason, wait_duration):
+	def check_and_send(self, user_id, email, digits, reason, use_delay, ip_address):
 		# check that we don't already have an active verification, send a new one if not
 		if not self.active():
 			return True, ''
@@ -1041,7 +1073,8 @@ class VerificationsHandler:
 		dbblacklist = self._root.bandb.check_blacklist(email)
 		if dbblacklist:
 			return False, dbblacklist.domain + " is blacklisted: " + dbblacklist.reason
-		
+		# no need to check if ip is banned, that is done by login!
+			
 		email_entry = self.sess().query(Verification).filter(Verification.email == email).first()
 		if email_entry: 
 			if datetime.now() <= email_entry.expiry:
@@ -1057,17 +1090,17 @@ class VerificationsHandler:
 				return False, 'already sent a verification code, please check your spam filter!'
 		if entry: #expired
 			self.remove(user_id)
-		entry = self.create(user_id, email) 
-		self.send(entry, reason, wait_duration)
-		return True, 'verification code sent to %s' % email
+		entry = self.create(user_id, email, digits, use_delay, reason) 
+		self.send(entry, ip_address)
+		return True, ''
 
-	def create(self, user_id, email):
-		entry = Verification(user_id, email)
+	def create(self, user_id, email, digits, use_delay, reason):
+		entry = Verification(user_id, email, digits, use_delay, reason)
 		self.sess().add(entry)
 		self.sess().commit()
 		return entry
 	
-	def resend(self, user_id, email):
+	def resend(self, user_id, email, ip_address):
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first()
 		if not entry:
 			return False, 'you do not have an active verification code'		
@@ -1077,36 +1110,56 @@ class VerificationsHandler:
 			return False, 'your verification code for ' + entry.email + ' cannot be re-sent to a different email address, use it or wait for it to expire (up to 24h)'		
 		if entry.resends>=3:
 			return False, 'too many resends, please try again later'
+		if entry.resends==0:
+			entry.reason += " (resend requested)"
 		entry.resends += 1
 		self.sess().commit()
-		wait_duration = 30
-		reason = "requested your verification code to be re-sent"
-		self.send(entry, reason, 30)		
-		return True, 'verification code sent to %s' % email
+		self.send(entry, ip_address)		
+		return True, ''
 	
-	def send(self, entry, reason, wait_duration):
+	def send(self, entry, ip_address):
+		if not self.active(): #safety
+			return 
 		try:
-			thread.start_new_thread(self._send, (entry.email, entry.code, entry.expiry, reason, wait_duration))
+			thread.start_new_thread(self._send, (entry.email, entry.code, entry.reason, entry.use_delay, entry.expiry, ip_address))
 		except NameError:
-			_thread.start_new_thread(self._send, (entry.email, entry.code, entry.expiry, reason, wait_duration))
+			_thread.start_new_thread(self._send, (entry.email, entry.code, entry.reason, entry.use_delay, entry.expiry, ip_address))
 		except:
 			logging.error('Failed to launch VerificationHandler._send: %s, %s, %s' % (entry, reason, wait_duration))
 	
-	def _send (self, email, code, expiry, reason, wait_duration):
-		if not self.active():
-			return 
+	def _send (self, email, code, reason, use_delay, expiry, ip_address):
 		sent_from = self.mail_user
 		to = email
 		subject = 'SpringRTS verification code'
+		
+		delay_secs = 60*60*24
+		delay = timedelta(seconds=delay_secs)
+		send_time = datetime.now() + delay
+		if use_delay:
+			time.sleep(20)
+		if use_delay and self._is_nonresidential_ip(ip_address):
+			body = """
+You are recieving this email because you recently """ + reason + """.
+
+Your registration attempt was detected as coming from a non-residential IP address.
+To prevent abuse we delay such registrations by 24 hours. 
+Your verification code will be sent on """ + send_time.strftime("%Y-%m-%d") + """ at """ + send_time.strftime("%H:%M") + """.
+Alternatively, you can register a new account from a different IP address."""
+			self._send_email(sent_from, to, subject, body)
+			time.sleep(delay_secs)
+
 		body = """
 You are recieving this email because you recently """ + reason + """.
-Your email verification code is """ + str(code) + """.
+Your email verification code is """ + str(code) + """
 
-It will expire on """ + expiry.strftime("%Y-%m-%d") + """ at """ + expiry.strftime("%H:%M") + """.
-If you received this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)."""
+This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at """ + expiry.strftime("%H:%M") + """."""
+		self._send_email(sent_from, to, subject, body)
+	
+	def _send_email(self, sent_from, to, subject, body):
+		if not self.active(): #safety
+			return 
+		body += "\n\nIf you received this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)."
 		message = 'Subject: {}\n\n{}'.format(subject, body)
-
-		time.sleep(wait_duration)
 		try:
 			server = smtplib.SMTP_SSL(self.mail_server, self.mail_server_port)
 			server.ehlo()
@@ -1114,7 +1167,22 @@ If you received this message in error, please contact us at www.springrts.com (d
 			server.sendmail(sent_from, to, message)
 			server.close()
 		except Exception as e:
-			logging.error('Failed to email registration code: %s, %s, %s' % (email, code, str(e)))
+			logging.error('Failed to send email from %s to %s' % (sent_from, to))
+	
+	def _is_nonresidential_ip(self, ip_address):
+		if not self.active(): #safety
+			return False
+		if not self.iphub_xkey:
+			return False
+		try:
+			response = urllib.request.Request("http://v2.api.iphub.info/ip/{}".format(ip_address))
+			response.add_header("X-Key", self.iphub_xkey)
+			response = json.loads(urllib.request.urlopen(response).read().decode())
+		except Exception as e:
+			logging.error('Failed to check ip info for %s: %s' % (ip_address, str(e)))
+			return False # in the case of an error, pass all IPs
+		block = response.get("block") 
+		return block == 1 
 	
 	def verify (self, user_id, email, code):
 		if not self.active():
@@ -1138,24 +1206,58 @@ If you received this message in error, please contact us at www.springrts.com (d
 			else:
 				entry.attempts += 1
 				self.sess().commit()
-				return False, 'incorrect verification code, %s/3 attempts' % (3-attempts) 
+				return False, 'incorrect verification code, %i/3 attempts remaining' % (3-entry.attempts) 
 		except Exception as e:
 			entry.attempts += 1
 			self.sess().commit()
-			return False, 'incorrect verification code, ' + str(e) + ', %s/3 attempts ' % (3-attempts)
+			return False, 'incorrect verification code, ' + str(e) + ', %i/3 attempts remaining' % (3-entry.attempts)
 		
-	def remove (self, user_id):
+	def remove(self, user_id):
 		# remove all entries for user
 		self.sess().query(Verification).filter(Verification.user_id == user_id).delete(synchronize_session=False)			
 		self.sess().commit()
 		
-	def clean (self):
+	def clean(self):
 		# remove all expired entries
 		now = datetime.now()
 		response = self.sess().query(Verification).filter(Verification.expiry < now)
 		logging.info("deleting %i expired verifications", response.count())
 		response.delete(synchronize_session=False)					
 		self.sess().commit()
+
+	def reset_password(self, user_id):
+		# reset pw, email to user
+		char_set = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!£$%^&*()@<>?"
+		new_password_raw = ""
+		for i in range(0,10):
+			new_password_raw += random.choice(char_set)
+		hash = hashlib.md5()
+		hash.update(str.encode(new_password_raw))
+		new_password = base64.b64encode(hash.digest()).decode() 
+		assert(self._root.protocol._validPasswordSyntax(new_password))
+		
+		dbuser = self.sess().query(User).filter(User.id == user_id).first()
+		dbuser.password = new_password
+		self.sess().commit()		
+		
+		try:
+			thread.start_new_thread(self._send_reset_password_email, (dbuser.email, dbuser.username, new_password_raw,))
+		except NameError:
+			_thread.start_new_thread(self._send_reset_password_email, (dbuser.email, dbuser.username, new_password_raw))
+		except:
+			logging.error('Failed to launch UserHandler._send_recover_account_email: %s' % (dbuser))
+	
+	def _send_reset_password_email(self, email, username, password):
+		if not self.active():
+			return 
+		sent_from = self.mail_user
+		to = email
+		subject = 'SpringRTS account recovery'
+		body = """
+You are recieving this email because you recently requested to recover the account <""" + username + """> at the SpringRTS lobby server.
+Your new password is """ + password
+		self._send_email(sent_from, to, subject, body)
+
 		
 class ChannelsHandler:
 	def __init__(self, root, engine):
@@ -1409,8 +1511,8 @@ if __name__ == '__main__':
 	assert(isinstance(client.id, int))
 	
 	# test verification
-	entry = verificationdb.create(client.id, client.email)
-	verificationdb._send(entry.email, entry.code, entry.expiry, "test", 0) #use main thread, or Python will exit without waiting for the test!
+	entry = verificationdb.create(client.id, client.email, 4, False, "test")
+	verificationdb._send_email("test@test.test", "blackhole@blackhole.io", "test", "test") #use main thread, or Python will exit without waiting for the test!
 	verificationdb.verify(client.id, client.email, entry.code)
 	verificationdb.clean()
 

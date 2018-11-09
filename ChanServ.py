@@ -75,11 +75,19 @@ class ChanServClient(Client):
 		self._root.protocol._handle(self, msg)
 
 	def HandleMessage(self, chan, user, msg):
-		if user == 'ChanServ': 
-			return # safety, shouldn't be needed
-		if len(msg) <= 0 or msg[0] != ":": 
-			if not chan:
-				self.Respond("SAYPRIVATE %s ChanServ commands must be prefixed by a colon e.g. ':help'"%(user, ))
+		if len(msg) <= 0:
+			return
+		if msg[0] != ":":
+			n = msg.find(' ')
+			if n<0: n = len(msg)
+			cmd = msg[:n]
+			if chan == "moderator" and cmd in self._root.protocol.restricted['mod']:
+				# allow some mod commands to be executed by simply typing into #moderator
+				client = self._root.protocol.clientFromUsername(user)
+				if client:
+					self._root.protocol._handle(client, msg)	
+			if not chan: #pm to ChanServ
+				self.Respond("SAYPRIVATE %s ChanServ commands must be prefixed by a colon e.g. ':help'" % (user, ))
 			return
 		msg = msg.lstrip(':')
 		
