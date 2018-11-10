@@ -13,9 +13,11 @@ import logging
 import socket
 import traceback
 import dbconfig
+
 from logging.handlers import TimedRotatingFileHandler
 
 from SQLUsers import User, Rename, Login, Ban
+
 import SQLUsers
 import sqlalchemy
 import datetime
@@ -65,23 +67,23 @@ def validateLogin(username, password):
 	db_user = session.query(User.id, User.username, User.ingame_time, User.email, User.password, User.access).filter(User.username == username).first()
 	if not db_user:
 		session.close()
-		logger.warning("User not found: %s" %(username))
+		logger.warning("User not found: {}".format(username))
 		return {"status": 1}
 
 	if not db_user.password == b64encode(md5(password.encode()).digest()).decode():
 		session.close()
-		logger.error("Invalid password: %s" %(username))
+		logger.error("Invalid password: {}".format(username))
 		return {"status": 1}
 
 	if not db_user.access in ['mod', 'user', 'admin']:
 		session.close()
-		logger.error("User has no access: <%s> %s" %(username, db_user.access))
+		logger.error("User has no access: <{}> {}".format(username, db_user.access))
 		return {"status": 1}
 
 	banned = session.query(Ban.reason).filter(Ban.user_id == db_user.id, datetime.datetime.now() <= Ban.end_time).first()
 	if banned:
 		session.close()
-		logger.warning("User is banned: %s" %(username, banned.reason))
+		logger.warning("User is banned: {}".format(username, banned.reason))
 		return {"status": 1}
 
 	renames = session.query(Rename.original).distinct(Rename.original).filter(Rename.user_id == db_user.id).all()
@@ -95,9 +97,14 @@ def validateLogin(username, password):
 			"country": country[0] if country else ''
 		 }
 	session.close()
-	logger.info("validation success: %s" % (username))
+	logger.info("validation success: {}".format(username))
 	return result
 
+
+def user_id(username):
+	session = userdb.sessionmaker()
+	db_user = session.query(User.id).filter(User.username == username).first()
+	return db_user.id
 
 class _RpcFuncs(object):
 	"""
@@ -108,8 +115,17 @@ class _RpcFuncs(object):
 		try:
 			return validateLogin(username, password)
 		except Exception as e:
-			logger.error('Exception: %s: %s' %(str(e), str(traceback.format_exc())))
+			logger.error('Exception: {}: {}'.format(e, traceback.format_exc()))
 			return {"status": 1}
+
+	def get_account_id(self, username):
+		try:
+			return user_id(username)
+		except Exception as e:
+			logger.error('Exception: {}: {}'.format(e, traceback.format_exc()))
+			return None
+
+
 try:
 	xmlrpcserver = XmlRpcServer(xmlhost, xmlport)
 except socket.error:
