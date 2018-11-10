@@ -68,7 +68,7 @@ def validateLogin(username, password):
 		logger.warning("User not found: %s" %(username))
 		return {"status": 1}
 
-	if password is not None and not db_user.password == b64encode(md5(password.encode()).digest()).decode():
+	if not db_user.password == b64encode(md5(password.encode()).digest()).decode():
 		session.close()
 		logger.error("Invalid password: %s" %(username))
 		return {"status": 1}
@@ -104,7 +104,7 @@ class _RpcFuncs(object):
 		All methods of this class will be exposed via XMLRPC.
 	"""
 
-	def get_account_info(self, username, password=None):
+	def get_account_info(self, username, password):
 		try:
 			return validateLogin(username, password)
 		except Exception as e:
