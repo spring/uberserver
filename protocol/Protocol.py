@@ -202,16 +202,17 @@ def versiontuple(version):
 
 
 flag_map = {
-	'u':  'say2',            # use SAY(EX) to speak in battles, support SAYFROM
-	'l':  'lobbyIDs',        # send lobby IDs in ADDUSER
+	'u':  'say2',            # SAYFROM, Battle<->Channel unification
+	'l':  'lobbyIDs',        # send account IDs and lobby IDs in ADDUSER (supersedes 'a')
 	'sp': 'scriptPassword',  # scriptPassword in JOINEDBATTLE
-	'et': 'sendEmptyTopic',  # send NOCHANNELTOPIC on join if channel has no topic
+	'et': 'sendEmptyTopic',  # NOCHANNELTOPIC
 	'cl': 'cleanupBattles',  # BATTLEOPENED / OPENBATTLE with support for engine/version
-	'b':  'battleAuth',      # JOINBATTLEACCEPT/JOINBATTLEDENIED
+	'b':  'battleAuth',      # JOINBATTLEACCEPT/JOINBATTLEDENIED (typically only sent by autohosts)
 	'p':  'agreementPlain',  # AGREEMENT is plaintext
-	'a':  'accountIDs',      # deprecated / replaced by 'l'
-	'm':  'matchmaking',     # deprecated
+	'a':  'accountIDs',      # see 'l'
 }
+optional_flags = ('b')
+deprecated_flags = ('a', 'm')
 
 class Protocol:
 	def __init__(self, root):
@@ -228,8 +229,46 @@ class Protocol:
 		
 		self.restricted = restricted
 		self.restricted_list = restricted_list
-	
 		
+	def _checkCompat(self, client):
+		missing_TLS = not client.TLS
+
+		missing_flags = ""
+		for flag in flag_map:
+			if not flag in optional_flags and not client.compat[flag]:
+				missing_flags += ' ' + flag
+			
+		deprec_flags = ""
+		unknown_flags = ""
+		for flag in client.compat:
+			if flag in deprecated_flags:
+				deprec_flags += ' ' + flag
+				continue
+			if not flag in flag_map:
+				unknown_flags += ' ' + flag
+		
+		error = missing_TLS or len(missing_flags)>0 or len(deprecated_flags)>0 or len(unwanted_flags)>0
+		if not error:
+			return
+
+		client.RealSend("MOTD  -- WARNING --")
+		
+		if missing_TLS:
+			client.RealSend("MOTD Your client did not use TLS. Your connection is not secure.")
+			client.RealSend("MOTD  -- -- - -- --")
+			logging.info('[%s] <%s> client "%s" logged in without TLS')
+		
+		if len(missing_flags)>0 or len(deprecated_flags)>0 or len(unknown_flags)>0:
+			client.RealSend("MOTD Your client has compatibility errors")
+			if len(missing_flags)>0: client.RealSend("MOTD   missing flags:%s" % missing_flags)
+			if len(deprecated_flags)>0: client.RealSend("MOTD   deprecated flags:%s" % deprec_flags)
+			if len(unknown_flags)>0: client.RealSend("MOTD   unknown flags:%s" % unknown_flags)
+			client.RealSend("MOTD  -- -- - -- --")
+			logging.info('[%s] <%s> client "%s" sent incorrect compat flags -- missing:%s, deprecated:%s, unknown:%s'%(client.session_id, client.username, client.lobby_id, missing_flags, deprec_flags, unknown_flags))
+					
+		client.RealSend("MOTD Please update your client / report these issues.")
+		client.RealSend("MOTD  -- -- - -- --")
+
 	def _new(self, client):
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0'))
 		if self._root.redirect:
@@ -531,28 +570,6 @@ class Protocol:
 
 		for line in motd_lines:
 			client.RealSend('MOTD %s' % line)
-
-	def _checkCompat(self, client):
-		missing_flags = ""
-		'check the compatibility flags of client and report possible/upcoming problems to it'
-		if not client.compat['sp']: # blocks protocol increase to 0.37
-			client.RealSend("MOTD Your client doesn't support the 'sp' compatibility flag, please upgrade it!")
-			client.RealSend("MOTD see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.36")
-			missing_flags += ' sp'
-		if not client.compat['cl']: # cl should be used (bugfixed version of eb)
-			client.RealSend("MOTD Your client doesn't support the 'cl' compatibility flag, please upgrade it!")
-			client.RealSend("MOTD see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
-			missing_flags += ' cl'
-		if not client.compat['p']:
-			client.RealSend("MOTD Your client doesn't support the 'p' compatibility flag, please upgrade it!")
-			client.RealSend("MOTD see htpp://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#0.37")
-			missing_flags += ' p'
-		if not client.TLS:
-			missing_flags += ' tls'
-			client.RealSend("MOTD Your client didn't use tls for logging in, please upgrade it!")
-			client.RealSend("MOTD see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#STLS:client")
-		if len(missing_flags) > 0:
-			logging.info('[%s] <%s> client "%s" missing compat flags:%s'%(client.session_id, client.username, client.lobby_id, missing_flags))
 
 	def _validEngineVersion(self, engine, version):
 		if engine != "spring":
@@ -940,30 +957,21 @@ class Protocol:
 				user_id, compFlags = user_id.split('\t', 1)
 
 				flags = set()
-
 				for flag in compFlags.split(' '):
-					if flag in ('ab', 'ba'):
-						flags.add('a')
-						flags.add('b')
+					if flag in ('ab', 'ba'): # why does this check exist?
+						client.compat['a'] = True
+						client.compat['b'] = True
 					else:
-						flags.add(flag)
+						client.compat[flag] = True
 				
-				unsupported = ""
-				for flag in flags:
-					client.compat[flag] = True
-					if not flag in flag_map:
-						unsupported +=	(" " + flag)
-
-				if (len(unsupported) > 0):
-					self.out_SERVERMSG(client, 'Unsupported/unknown compatibility flag(s) in LOGIN: %s' % (unsupported), True)
-					
 				# record flag stats
 				self.flag_stats['n_samples'] += 1
 				for flag in flags:
 					if flag in self.flag_stats:
 						self.flag_stats[flag] += 1
 					else:
-						self.flag_stats[flag] = 1					
+						self.flag_stats[flag] = 1	
+						
 			try:
 				client.last_id = uint32(user_id)
 			except:
@@ -1902,7 +1910,7 @@ class Protocol:
 		@required.str username: The player to kick.
 		'''
 		battle = self.getCurrentBattle(client)
-		if not battle or not battle.isOp(client):
+		if not battle or not battle.canChangeSettings(client): # for use by the (auto-)host; ops have Battle.kickUser()
 			return
 		user = self.clientFromUsername(username)
 		if not user or not user.session_id in battle.users:
