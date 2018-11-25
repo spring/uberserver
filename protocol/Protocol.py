@@ -1902,7 +1902,7 @@ class Protocol:
 		@required.str username: The player to kick.
 		'''
 		battle = self.getCurrentBattle(client)
-		if not battle or not battle.canChangeSettings(client):
+		if not battle or not battle.isOp(client):
 			return
 		user = self.clientFromUsername(username)
 		if not user or not user.session_id in battle.users:
