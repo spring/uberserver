@@ -11,6 +11,7 @@ from OpenSSL import SSL
 
 import traceback, signal, socket, sys, logging
 from twisted.internet import reactor, ssl
+from twisted.internet import task
 
 sys.path.append("protocol")
 sys.path.append(".")
@@ -66,8 +67,6 @@ try:
 	print('Connect the lobby client to')
 	print('  public:  %s:%d' %(_root.online_ip, _root.port))
 	print('  private: %s:%d' %(_root.local_ip, _root.port))
-	print('  public ssl:  %s:%d' %(_root.online_ip, _root.ssl_port))
-	print('  private ssl: %s:%d' %(_root.local_ip, _root.ssl_port))
 	reactor.run()
 
 except KeyboardInterrupt:

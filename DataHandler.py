@@ -32,16 +32,19 @@ class DataHandler:
 		self.port = 8200
 		self.ssl_port = 8243
 		self.natport = self.port + 1
-		self.latestspringversion = '*'
+		self.min_spring_version = '*'
 		self.agreementfile = 'agreement.txt'
 		self.agreement = []
 		self.server = 'TASServer'
 		self.server_version = 0.36
 		self.sighup = False
 
-		self.chanserv = None
 		self.userdb = None
 		self.channeldb = None
+		self.verificationdb = None
+		self.bandb = None
+
+		self.chanserv = None
 		self.engine = None
 		self.updatefile = None
 		self.trusted_proxyfile = None
@@ -58,27 +61,26 @@ class DataHandler:
 		self.trusted_proxies = []
 
 		self.start_time = time.time()
+		self.detectIp()
+		self.cert = None
+		
+		# lists of online stuff
 		self.channels = {}
 		self.usernames = {}
 		self.clients = {}
-		self.db_ids = {}
+		self.user_ids = {} 
 		self.battles = {}
-		self.detectIp()
-		self.cert = None
-
-		self.require_email_verification = False
-		try:
-			with open('server_email_account.txt') as f:
-				lines = f.readlines()
-			lines = [l.strip() for l in lines]
-			self.mail_user = lines[0]
-			self.mail_password = lines[1]
-			self.mail_server = lines[2]
-			self.mail_server_port = int(lines[3])
-			self.require_email_verification = True
-			print('Email verification is enabled, server email account is %s' % self.mail_user)
-		except Exception as e:
-			print('Could not load server_email_account.txt, email verification is disabled: %s' %(e))
+		
+		# rate limits
+		self.recent_registrations = {} #ip_address->int
+		self.recent_renames = {} #user_id->int
+		self.flood_limits = { 
+			'fresh':{'msglength':1000, 'bytespersecond':1000, 'seconds':2}, # also the default
+			'user':{'msglength':10000, 'bytespersecond':2000, 'seconds':10}, 
+			'bot':{'msglength':10000, 'bytespersecond':50000, 'seconds':10},
+			'mod':{'msglength':10000, 'bytespersecond':2000, 'seconds':10},
+			'admin':{'msglength':10000, 'bytespersecond':2000, 'seconds':10},
+		}
 
 	def initlogger(self, filename):
 		# logging
@@ -104,48 +106,56 @@ class DataHandler:
 			def _fk_pragma_on_connect(dbapi_con, con_record):
 				dbapi_con.execute('PRAGMA journal_mode = MEMORY')
 				dbapi_con.execute('PRAGMA synchronous = OFF')
-			## FIXME: "ImportError: cannot import name event"
+				# FIXME: "ImportError: cannot import name event"
 			from sqlalchemy import event
 			event.listen(self.engine, 'connect', _fk_pragma_on_connect)
 		else:
 			self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.max_threads * 2, pool_recycle=300)
 
 		self.userdb = SQLUsers.UsersHandler(self, self.engine)
+		self.verificationdb = SQLUsers.VerificationsHandler(self, self.engine)
+		self.bandb = SQLUsers.BansHandler(self, self.engine)
+		
 		self.channeldb = SQLUsers.ChannelsHandler(self, self.engine)
-
-		channels = self.channeldb.load_channels()
+		channels = self.channeldb.all_channels()
+		operators = self.channeldb.all_operators()
 
 		for name in channels:
 			channel = channels[name]
 
-			owner = None
-			admins = set()
-			client = self.userdb.clientFromUsername(channel['owner'])
-			if client and client.id: owner = client.id
+			owner_user_id = None
+			client = self.userdb.clientFromID(channel['owner_user_id'])
+			if client and client.id: 
+				owner_user_id = client.id
 
-			for user in channel['admins']:
-				client = userdb.clientFromUsername(user)
-				if client and client.id:
-					admins.append(client.id)
 			assert(name not in self.channels)
 			newchan = Channel.Channel(self, name)
-			newchan.chanserv=bool(owner)
+			newchan.chanserv = bool(owner_user_id)
 			newchan.id = channel['id']
-			newchan.owner=owner
-			newchan.admins=admins
+			newchan.owner_user_id = owner_user_id
+			newchan.operators = set()
 			if channel['key'] in ('', None, '*'):
 				newchan.key=None
 			else:
-				newchan.key=channel['key']
-			newchan.antispam=channel['antispam']
-			newchan.topic={'user':'ChanServ', 'text':channel['topic'], 'time':int(time.time())}
+				newchan.key = channel['key']
+			newchan.antispam = channel['antispam']
+			topic_client = self.userdb.clientFromID(channel['topic_user_id'])
+			topic_name = 'ChanServ'
+			if topic_client:
+				topic_name = topic_client.username
+			newchan.topic={'user':topic_name, 'text':channel['topic'], 'time':int(time.time())}
 			newchan.store_history = channel['store_history']
 			self.channels[name] = newchan
 
+		for op in operators:
+			dbchannel = self.channeldb.channel_from_id(op['channel_id'])
+			if dbchannel:
+				self.channels[dbchannel.name].operators.add(op['user_id']) 
+
 		self.parseFiles()
 		self.protocol = Protocol.Protocol(self)
+				
 		self.chanserv = ChanServ.ChanServClient(self, (self.online_ip, 0), self.session_id)
-
 		for name in channels:
 			self.chanserv.HandleProtocolCommand("JOIN %s" %(name))
 
@@ -169,7 +179,7 @@ class DataHandler:
 		print('      { Writes console output to file (for logging) }')
 		print('  -u, --sighup')
 		print('      { Reload the server on SIGHUP (if SIGHUP is supported by OS) }')
-		print('  -v, --latestspringversion version')
+		print('  -v, --min_spring_version version')
 		print('      { Sets latest Spring version to this string. Defaults to "*" }')
 		print('  -s, --sqlurl SQLURL')
 		print('      { Uses SQL database at the specified sqlurl for user, channel, and ban storage. }')
@@ -245,9 +255,11 @@ class DataHandler:
 				except: print('Error specifying log location')
 			elif arg in ['u', 'sighup']:
 				self.sighup = True
-			elif arg in ['v', 'latestspringversion']:
-				try: self.latestspringversion = argp[0] # ' '.join(argp) # shouldn't have spaces
-				except: print('Error specifying latest spring version')
+			elif arg in ['v', 'min_spring_version']:
+				try: 
+					self.min_spring_version = argp[0] # ' '.join(argp) # shouldn't have spaces
+				except Exception as e: 
+					print('Error specifying spring version: ' + str(e))
 			elif arg in ['s', 'sqlurl']:
 				try:
 					self.sqlurl = argp[0]
@@ -311,8 +323,14 @@ class DataHandler:
 	def getUserDB(self):
 		return self.userdb
 
-	def clientFromID(self, db_id):
-		if db_id in self.db_ids: return self.db_ids[db_id]
+	def getVerificationDB(self):
+		return self.verificationdb
+
+	def getBanDB(self):
+		return self.bandb
+
+	def clientFromID(self, user_id):
+		if user_id in self.user_ids: return self.user_ids[user_id]
 
 	def clientFromUsername(self, username):
 		if username in self.usernames: return self.usernames[username]
@@ -338,16 +356,40 @@ class DataHandler:
 			for chan in channels:
 				channel = channels[chan]
 				mutelist = channel.mutelist
-				for db_id in mutelist:
-					expiretime = mutelist[db_id]['expires']
+				for user_id in mutelist:
+					expiretime = mutelist[user_id]['expires']
 					if 0 < expiretime and expiretime < now:
-						del channel.mutelist[db_id]
-						client = self.clientFromID(db_id)
+						del channel.mutelist[user_id]
+						client = self.clientFromID(user_id)
 						if client:
 							channel.channelMessage('<%s> has been unmuted (mute expired).' % client.username)
 		except:
 			logging.error(traceback.format_exc())
 
+	def decrement_recent_registrations(self):
+		try:
+			to_delete = []
+			for ip_address in self.recent_registrations:
+				self.recent_registrations[ip_address] -= 1
+				if self.recent_registrations[ip_address] <= 0:
+					to_delete.append(ip_address)
+			for ip_address in to_delete:
+				del self.recent_registrations[ip_address]
+		except:
+			logging.error(traceback.format_exc())
+	
+	def decrement_recent_renames(self):
+		try:
+			to_delete = []
+			for user_id in self.recent_renames:
+				self.recent_renames[user_id] -= 1
+				if self.recent_renames[user_id] <= 0:
+					to_delete.append(user_id)
+			for user_id in to_delete:
+				del self.recent_renames[user_id]
+		except:
+			logging.error(traceback.format_exc())
+	
 	# the sourceClient is only sent for SAY*, and RING commands
 	def multicast(self, session_ids, msg, ignore=(), sourceClient=None):
 		assert(type(ignore) == set)
@@ -361,7 +403,7 @@ class DataHandler:
 			if client.session_id in ignore:
 				continue
 
-			if sourceClient and sourceClient.db_id in client.ignored:
+			if sourceClient and sourceClient.user_id in client.ignored:
 				continue
 
 			if client.static:

@@ -10,7 +10,7 @@ class ChanServClient(Client):
 		self.logged_in = True
 		self.connected = True
 		self.bot = 1
-		self.db_id = None
+		self.user_id = None
 		self.static = True
 
 		self.username = 'ChanServ'
@@ -24,7 +24,7 @@ class ChanServClient(Client):
 
 	def db(self):
 		return self._root.channeldb
-	
+
 	def Handle(self, msg):
 		try:
 			if not msg.count(' '):
@@ -49,6 +49,14 @@ class ChanServClient(Client):
 		if len(msg) <= 0:
 			return
 		if msg[0] != "!":
+			n = msg.find(' ')
+			if n<0: n = len(msg)
+			cmd = msg[:n]
+			if chan == "moderator" and cmd in self._root.protocol.restricted['mod']:
+				# allow some mod commands to be executed by simply typing into #moderator
+				client = self._root.protocol.clientFromUsername(user)
+				if client:
+					self._root.protocol._handle(client, msg)	
 			return
 		msg = msg.lstrip('!')
 		args = None
@@ -85,33 +93,38 @@ class ChanServClient(Client):
 			channel = self._root.channels[chan]
 			access = channel.getAccess(client)
 			if cmd == 'info':
-				founder = self._root.protocol.clientFromID(channel.owner, True)
-				if founder: founder = 'Founder is <%s>' % founder.username
-				else: founder = 'No founder is registered'
-				admins = []
-				for admin in channel.admins:
-					client = self._root.protocol.clientFromID(admin)
-					if client: admins.append(client.username)
-				users = channel.users
 				antispam = 'on' if channel.antispam else 'off'
-				if not admins: mods = 'no operators are registered'
-				else: mods = '%i registered operator(s) are <%s>' % (len(admins), '>, <'.join(admins))
+				founder = 'No founder is registered'				
+				if channel.owner_user_id:
+					founder = self._root.protocol.clientFromID(channel.owner_user_id, True)
+					if founder: founder = 'Founder is <%s>' % founder.username
+				operators = channel.operators
+				op_list = "operator list is "
+				separator = '['
+				for op_user_id in operators:
+					op_entry = self._root.protocol.clientFromID(op_user_id, True)
+					if op_entry:
+						op_list += separator + op_entry.username
+						if separator == '[': separator = ' '
+					if separator == ' ': op_list += ']'
+				if separator!=' ': op_list += 'empty'						
+				users = channel.users
 				if len(users) == 1: users = '1 user is'
-				else: users = '%i users are' % len(users)
-				return '#%s info: Anti-spam protection is %s. %s, %s. %s currently in the channel.' % (chan, antispam, founder, mods, users)
+				else: users = '%i users are currently in the channel' % len(users)
+				return '#%s info: Anti-spam protection is %s. %s, %s. %s. ' % (chan, antispam, founder, op_list, users)
 			elif cmd == 'topic':
 				if access in ['mod', 'founder', 'op']:
 					args = args or ''
 					channel.setTopic(client, args)
-					self.db().setTopic(client.username, channel, args) # update topic in db
+					self.db().setTopic(channel, args, client) 
 					return '#%s: Topic changed' % chan
 				else:
 					return '#%s: You do not have permission to set the topic' % chan
 			elif cmd == 'unregister':
 				if access in ['mod', 'founder']:
-					channel.owner = ''
+					channel.owner_user_id = None
+					channel.operators = set()
 					channel.channelMessage('#%s has been unregistered'%chan)
-					self.Send('LEAVE %s' % chan)
 					self.db().unRegister(client, channel)
 					return '#%s: Successfully unregistered.' % chan
 				else:
@@ -119,10 +132,11 @@ class ChanServClient(Client):
 			elif cmd == 'changefounder':
 				if access in ['mod', 'founder']:
 					if not args: return '#%s: You must specify a new founder' % chan
-					target = self._root.clientFromUsername(args)
+					target = self._root.protocol.clientFromUsername(args, True)
 					if not target: return '#%s: cannot assign founder status to a user who does not exist'
 					channel.setFounder(client, target)
 					channel.channelMessage('%s Founder has been changed to <%s>' % (chan, args))
+					self.db().setFounder(channel, target)
 					return '#%s: Successfully changed founder to <%s>' % (chan, args)
 				else:
 					return '#%s: You must contact one of the server moderators or the owner of the channel to change the founder' % chan
@@ -143,17 +157,24 @@ class ChanServClient(Client):
 			elif cmd == 'op':
 				if access in ['mod', 'founder']:
 					if not args: return '#%s: You must specify a user to op' % chan
-					target = self._root.clientFromUsername(args)
+					target = self._root.protocol.clientFromUsername(args, True)
+					if not target: return '#%s: cannot assign operator status, user does not exist' 
 					if target and channel.isOp(target): return '#%s: <%s> was already an op' % (chan, args)
 					channel.opUser(client, target)
+					self.db().opUser(channel, target)
+					return '#%s: Successfully added <%s> to operator list' % (chan, args)
 				else:
 					return '#%s: You do not have permission to op users' % chan
 			elif cmd == 'deop':
 				if access in ['mod', 'founder']:
 					if not args: return '#%s: You must specify a user to deop' % chan
-					target = self._root.clientFromUsername(args)
+					target = self._root.protocol.clientFromUsername(args, True)
+					if not target: return '#%s: cannot remove operator status, user does not exist'
+					if target.user_id==channel.owner_user_id: return '#%s: cannot remove operator status from channel founder'
 					if target and not channel.isOp(target): return '#%s: <%s> was not an op' % (chan, args)
 					channel.deopUser(client, target)
+					self.db().deopUser(channel, target)
+					return '#%s: Successfully removed <%s> from operator list' % (chan, args)
 				else:
 					return '#%s: You do not have permission to deop users' % chan
 			elif cmd == 'lock':
@@ -208,7 +229,7 @@ class ChanServClient(Client):
 				if not chan in self._root.channels:
 					return '# Channel %s does not exist.' % (chan)
 				channel = self._root.channels[chan]
-				target = self._root.clientFromUsername(args)
+				target = self._root.protocol.clientFromUsername(args, True)
 				if target:
 					channel.setFounder(client, target)
 					self.db().register(channel, target) # register channel in db
