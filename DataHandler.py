@@ -171,7 +171,8 @@ class DataHandler:
 			dbchannel = self.channeldb.channel_from_id(op['channel_id'])
 			if dbchannel:
 				target = self.protocol.clientFromID(op['user_id'], True)
-				self.channels[dbchannel.name].opUser(self.chanserv, target)
+				if target:
+					self.channels[dbchannel.name].opUser(self.chanserv, target)
 		
 		bans = self.channeldb.all_bans()
 		for ban in bans:
