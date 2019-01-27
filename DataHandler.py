@@ -171,15 +171,15 @@ class DataHandler:
 			dbchannel = self.channeldb.channel_from_id(op['channel_id'])
 			if dbchannel:
 				target = self.protocol.clientFromID(op['user_id'], True)
-				if target:
-					self.channels[dbchannel.name].opUser(self.chanserv, target)
+				if not target: continue
+				self.channels[dbchannel.name].opUser(self.chanserv, target)
 		
 		bans = self.channeldb.all_bans()
 		for ban in bans:
 			dbchannel = self.channeldb.channel_from_id(ban['channel_id'])
 			if dbchannel:
 				target = self.protocol.clientFromID(ban['user_id'], True)
-				if not target: return
+				if not target: continue
 				issuer = self.protocol.clientFromID(ban['issuer_user_id'], True)
 				if not issuer: issuer = self.chanserv
 				duration = ban['expires'] - now
@@ -190,7 +190,7 @@ class DataHandler:
 			dbchannel = self.channeldb.channel_from_id(ban['channel_id'])
 			if dbchannel:
 				target = self.bridgedClientFromID(ban['bridged_id'], True)
-				if not target: return
+				if not target: continue
 				issuer = self.protocol.clientFromID(ban['issuer_user_id'], True)
 				if not issuer: issuer = self.chanserv
 				duration = ban['expires'] - now
@@ -201,7 +201,7 @@ class DataHandler:
 			dbchannel = self.channeldb.channel_from_id(mute['channel_id'])
 			if dbchannel:
 				target = self.protocol.clientFromID(mute['user_id'], True)
-				if not target: return
+				if not target: continue
 				issuer = self.protocol.clientFromID(mute['issuer_user_id'], True)
 				if not issuer: issuer = self.chanserv
 				duration = mute['expires'] - now
