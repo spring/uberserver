@@ -105,7 +105,7 @@ class Battle(Channel):
 			del client.battle_bots[bot]
 			if bot in self.bots:
 				del self.bots[bot]
-				self._root.broadcast_battle('REMOVEBOT %s %s' % (self.battle_id, bot), battle.id)
+				self._root.broadcast_battle('REMOVEBOT %s %s' % (self.battle_id, bot), self.id)
 		self._root.broadcast('LEFTBATTLE %s %s'%(self.battle_id, client.username))
 		if client.session_id == self.host:
 			return 
