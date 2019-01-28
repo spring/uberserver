@@ -196,8 +196,8 @@ class Client(BaseClient):
 	def ReportFloodBreach(self, type, bytes):
 		if hasattr("username"):
 			username = self.username
-                else:
-		    username = "session_id: %i" % self.session_id
+		else:
+			username = "session_id: %i" % self.session_id
 		err_msg = "%s for '%s' breached by %s (had %i bytes)" % (type, self.access, username, bytes)
 		self._root.protocol.broadcast_Moderator(err_msg)
 		logging.info(err_msg)
