@@ -2759,8 +2759,6 @@ class Protocol:
 		@optional.str reason: The reason to be shown.
 		'''
 		kickeduser = self.clientFromUsername(username)
-		if kickeduser.access=='admin':
-			return
 		if not kickeduser:
 			self.out_SERVERMSG(client, 'User <%s> was not online' % username)
 			return
