@@ -8,11 +8,7 @@ import time, random, smtplib, re, hashlib, base64, json
 import urllib.request
 import logging
 
-try:
-	import thread
-except:
-	# thread was renamed to _thread in python 3
-	import _thread
+import _thread as thread
 
 try:
 	from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean, Text, DateTime, ForeignKeyConstraint, UniqueConstraint
@@ -944,8 +940,6 @@ class VerificationsHandler:
 			return
 		try:
 			thread.start_new_thread(self._send, (entry.email, entry.code, entry.reason, entry.use_delay, entry.expiry, ip_address))
-		except NameError:
-			_thread.start_new_thread(self._send, (entry.email, entry.code, entry.reason, entry.use_delay, entry.expiry, ip_address))
 		except:
 			logging.error('Failed to launch VerificationHandler._send: %s, %s, %s' % (entry, reason, wait_duration))
 
@@ -1062,8 +1056,6 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 
 		try:
 			thread.start_new_thread(self._send_reset_password_email, (dbuser.email, dbuser.username, new_password_raw,))
-		except NameError:
-			_thread.start_new_thread(self._send_reset_password_email, (dbuser.email, dbuser.username, new_password_raw))
 		except:
 			logging.error('Failed to launch UserHandler._send_recover_account_email: %s' % (dbuser))
 
