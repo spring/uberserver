@@ -148,7 +148,7 @@ class Channel():
 	def muteUser(self, client, target, duration=0):
 		if not target:
 			return
-		if self.isFounder(target): 
+		if self.isFounder(target):
 			return
 		if client.db_id in self.mutelist:
 			return
@@ -160,7 +160,7 @@ class Channel():
 			duration = 0
 			self.channelMessage('<%s> has muted <%s>' % (client.username, target.username))
 		else:
-			self.channelMessage('<%s> has muted <%s> for %s minutes' % (client.username, target.username, duration))				
+			self.channelMessage('<%s> has muted <%s> for %s minutes' % (client.username, target.username, duration))
 			duration = duration * 60 #convert to seconds
 			duration = time.time() + duration
 		self.mutelist[target.user_id] = {'expires':duration }

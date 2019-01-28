@@ -117,7 +117,7 @@ def _spam_enum(client, chan):
 				bonus += 1 # something was said
 				already.append(message)
 		else: del client.lastsaid[chan][when]
-	
+
 	times.sort()
 	last_time = None
 	for t in times:
@@ -126,7 +126,7 @@ def _spam_enum(client, chan):
 			if diff < 1:
 				bonus += (1 - diff) * 1.5
 		last_time = t
-	
+
 	if bonus > 7: return True
 	else: return False
 
@@ -140,7 +140,7 @@ def _spam_rec(client, chan, msg):
 
 def hook_SAY(self, client, channel, msg):
 	username = client.username
-	
+
 	if channel.isMuted(client): return msg # client is muted, no use doing anything else
 	if channel.antispam and not channel.isOp(client): # don't apply antispam to ops
 		_spam_rec(client, channel.name, msg)

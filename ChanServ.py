@@ -56,7 +56,7 @@ class ChanServClient(Client):
 				# allow some mod commands to be executed by simply typing into #moderator
 				client = self._root.protocol.clientFromUsername(user)
 				if client:
-					self._root.protocol._handle(client, msg)	
+					self._root.protocol._handle(client, msg)
 			return
 		msg = msg.lstrip('!')
 		args = None
@@ -94,7 +94,7 @@ class ChanServClient(Client):
 			access = channel.getAccess(client)
 			if cmd == 'info':
 				antispam = 'on' if channel.antispam else 'off'
-				founder = 'No founder is registered'				
+				founder = 'No founder is registered'
 				if channel.owner_user_id:
 					founder = self._root.protocol.clientFromID(channel.owner_user_id, True)
 					if founder: founder = 'Founder is <%s>' % founder.username
@@ -107,7 +107,7 @@ class ChanServClient(Client):
 						op_list += separator + op_entry.username
 						if separator == '[': separator = ' '
 					if separator == ' ': op_list += ']'
-				if separator!=' ': op_list += 'empty'						
+				if separator!=' ': op_list += 'empty'
 				users = channel.users
 				if len(users) == 1: users = '1 user is'
 				else: users = '%i users are currently in the channel' % len(users)
@@ -116,7 +116,7 @@ class ChanServClient(Client):
 				if access in ['mod', 'founder', 'op']:
 					args = args or ''
 					channel.setTopic(client, args)
-					self.db().setTopic(channel, args, client) 
+					self.db().setTopic(channel, args, client)
 					return '#%s: Topic changed' % chan
 				else:
 					return '#%s: You do not have permission to set the topic' % chan
@@ -150,7 +150,7 @@ class ChanServClient(Client):
 						channel.antispam = False
 						channel.channelMessage('%s Anti-spam protection was disabled by <%s>' % (chan, user))
 						return '#%s: Anti-spam protection is off.' % chan
-				
+
 				status = 'off'
 				if channel.antispam: status = 'on'
 				return '#%s: Anti-spam protection is %s' % (chan, status)
@@ -158,7 +158,7 @@ class ChanServClient(Client):
 				if access in ['mod', 'founder']:
 					if not args: return '#%s: You must specify a user to op' % chan
 					target = self._root.protocol.clientFromUsername(args, True)
-					if not target: return '#%s: cannot assign operator status, user does not exist' 
+					if not target: return '#%s: cannot assign operator status, user does not exist'
 					if target and channel.isOp(target): return '#%s: <%s> was already an op' % (chan, args)
 					channel.opUser(client, target)
 					self.db().opUser(channel, target)
@@ -196,13 +196,13 @@ class ChanServClient(Client):
 			elif cmd == 'kick':
 				if access in ['mod', 'founder', 'op']:
 					if not args: return '#%s: You must specify a user to kick from the channel' % chan
-					
+
 					if args.count(' '):
 						target, reason = args.split(' ', 1)
 					else:
 						target = args
 						reason = None
-						
+
 					if target in channel.users:
 						target = self._root.clientFromUsername(target)
 						channel.kickUser(client, target, reason)
@@ -240,7 +240,7 @@ class ChanServClient(Client):
 				return '#%s: You must contact one of the server moderators or the owner of the channel to register a channel' % chan
 		if not chan:
 			return 'command "%s" not found, use "!help" to get help!' %(cmd)
-	
+
 	def Remove(self, reason=None):
 		pass
 

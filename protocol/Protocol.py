@@ -206,20 +206,20 @@ flag_map = {
 class Protocol:
 	def __init__(self, root):
 		self._root = root
-		
-		self.userdb = root.getUserDB() 
+
+		self.userdb = root.getUserDB()
 		self.verificationdb = root.getVerificationDB()
 		self.bandb = root.getBanDB()
 		self.SayHooks = root.SayHooks
-		
+
 		self.command_stats = {}
 		self.flag_stats = {}
 		self.flag_stats['n_samples'] = 0
-		
+
 		self.restricted = restricted
 		self.restricted_list = restricted_list
-	
-		
+
+
 	def _new(self, client):
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0'))
 		if self._root.redirect:
@@ -662,13 +662,13 @@ class Protocol:
 		logging.error("Couldn't get client from session_id: %d %s"% (session_id, traceback.format_exc()))
 		self.cleanup()
 		return None
-	
+
 	def hasBotflag(self, battle):
 		host = self.clientFromSession(battle.host)
 		if not host:
 			return False
 		return host.bot
-	
+
 	def clientFromUsername(self, username, fromdb = False):
 		'given a username, returns a client object from memory or the database'
 		client = self._root.clientFromUsername(username)
@@ -828,7 +828,7 @@ class Protocol:
 		@required.str username: Username to register
 		@required.str password: Password to use (old-style: BASE64(MD5(PWRD)), new-style: BASE64(PWRD))
 		'''
-		
+
 		# well formed-ness tests
 		good, reason = self._validUsernameSyntax(username)
 		if not good:
@@ -850,35 +850,35 @@ class Protocol:
 			client.Send('REGISTRATIONDENIED %s' % reason)
 			return
 
-		# require a valid looking email address, if we are going to require verification	
+		# require a valid looking email address, if we are going to require verification
 		if self.verificationdb.active():
 			good, reason = self.verificationdb.valid_email_addr(email)
 			if not good:
 				if email=='': reason += " -- if you were not asked to enter one, please update your lobby client!"
 				client.Send('REGISTRATIONDENIED %s' % reason)
 				return
-				
+
 		# rate limit per ip
-		recent_regs = self._root.recent_registrations.get(client.ip_address, 0) 
-		if recent_regs >= 3:		
+		recent_regs = self._root.recent_registrations.get(client.ip_address, 0)
+		if recent_regs >= 3:
 			client.Send("REGISTRATIONDENIED too many recent registration attempts, please try again later")
-			return 
-		self._root.recent_registrations[client.ip_address] = recent_regs + 1			
+			return
+		self._root.recent_registrations[client.ip_address] = recent_regs + 1
 
 		#save user to db
 		self.userdb.register_user(username, password, client.ip_address, client.country_code, email)
 		client_fromdb = self.clientFromUsername(username, True)
 
-		# verification	
+		# verification
 		verif_reason = "registered an account on the SpringRTS lobbyserver"
 		good, reason = self.verificationdb.check_and_send(client_fromdb.user_id, email, 4, verif_reason, True, client.ip_address)
 		if (not good):
 			client.Send("REGISTRATIONDENIED %s" % ("verification failed: " + reason))
-		
+
 		# declare success
 		client.access = 'agreement'
 		client.Send('REGISTRATIONACCEPTED')
-		
+
 		logging.info('[%s] Successfully registered user <%s>.' % (client.session_id, username))
 		ip_str = client.ip_address
 		if client.local_ip != client.ip_address:
@@ -953,14 +953,14 @@ class Protocol:
 
 				if (len(unsupported) > 0):
 					self.out_SERVERMSG(client, 'Unsupported/unknown compatibility flag(s) in LOGIN: %s' % (unsupported), True)
-					
+
 				# record flag stats
 				self.flag_stats['n_samples'] += 1
 				for flag in flags:
 					if flag in self.flag_stats:
 						self.flag_stats[flag] += 1
 					else:
-						self.flag_stats[flag] = 1					
+						self.flag_stats[flag] = 1
 			try:
 				client.last_id = uint32(user_id)
 			except:
@@ -1019,7 +1019,7 @@ class Protocol:
 
 		if (client.access == 'agreement'):
 			logging.info('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
-			if self.verificationdb.active():			
+			if self.verificationdb.active():
 				client.Send("AGREEMENT A verification code has been sent to your email address. Please read our terms of service and then enter your four digit code below.")
 				client.Send("AGREEMENT ")
 			for line in self._root.agreement:
@@ -1085,10 +1085,10 @@ class Protocol:
 		# Verify the users verification code.
 		if client.access != 'agreement':
 			return
-		good, reason = self.verificationdb.verify(client.user_id, client.email, verification_code) 
+		good, reason = self.verificationdb.verify(client.user_id, client.email, verification_code)
 		if not good:
 			self.out_DENIED(client, client.username, reason)
-			return		
+			return
 		client.access = 'user'
 		self.userdb.save_user(client)
 		self._calc_access_status(client)
@@ -1106,29 +1106,29 @@ class Protocol:
 		from_client = self.clientFromUsername(from_username, True)
 		if not from_client:
 			self.out_FAILED(client, "CREATEBOTACCOUNT", "User does not exist '%s'" % from_username, True)
-			return 
+			return
 		password = from_client.password
 		ip_address = from_client.ip_address
 		country_code = from_client.country_code
 		email = from_client.email
-		
+
 		good, reason = self.verificationdb.valid_email_addr(email)
 		if not good:
 			self.out_FAILED(client, "CREATEBOTACCOUNT", "Client <%s> has invalid email address '%s'" % (from_client.username, email), True)
 			return
-		
+
 		good, reason = self.userdb.check_register_user(username)
 		if (not good):
 			self.out_FAILED(client, "CREATEBOTACCOUNT", reason, True)
 			return
-		
+
 		#save user to db
 		self.userdb.register_user(username, password, ip_address, country_code, email)
 		bot_client = self.clientFromUsername(username, True)
 		bot_client.access = 'user'
 		bot_client.bot = True
 		self.userdb.save_user(bot_client)
-		
+
 		# set founder, if wanted
 		founder = None
 		if founder_username:
@@ -1140,18 +1140,18 @@ class Protocol:
 			channel = Channel.Channel(self._root, chan)
 			self._root.channels[chan] = channel
 			self._root.chanserv.Handle("SAIDPRIVATE %s !register %s %s" % (client.username, chan, founder.username))
-			del self._root.channels[chan]		
-		
+			del self._root.channels[chan]
+
 		# declare success
 		self.broadcast_Moderator('New bot: <%s> created by <%s> from <%s>' %(username, client.username, from_client.username))
 		msg = "A new bot account <%s> has been created, with the same password and email address as <%s>" % (bot_client.username, from_client.username)
 		if founder:
-			msg += ", and battle founder <%s>" % founder.username			
+			msg += ", and battle founder <%s>" % founder.username
 		self.out_SERVERMSG(client, msg)
 		if client != from_client:
 			self.out_SERVERMSG(from_client, msg)
-	
-	
+
+
 	def in_SAY(self, client, chan, msg):
 		'''
 		Send a message to all users in specified channel.
@@ -2610,13 +2610,13 @@ class Protocol:
 
 		@required.str username: The new username to apply.
 		'''
-		
-		recent_renames = self._root.recent_renames.get(client.user_id, 0) 
+
+		recent_renames = self._root.recent_renames.get(client.user_id, 0)
 		if recent_renames >= 3:
 			self.out_SERVERMSG(client, 'too many recent renames')
-			return 
-		self._root.recent_renames[client.user_id] = recent_renames + 1			
-		
+			return
+		self._root.recent_renames[client.user_id] = recent_renames + 1
+
 		good, reason = self._validUsernameSyntax(newname)
 		if not good:
 			self.out_SERVERMSG(client, '%s' %(reason))
@@ -2700,13 +2700,13 @@ class Protocol:
 		if online:
 			self._calc_status(client, client.status)
 			self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status))
-			
+
 		self.out_SERVERMSG(client, 'Botmode for <%s> successfully changed to %s' % (username, bot))
 		if bot:
 			self.broadcast_Moderator('New bot: <%s> created by <%s>' % (username, client.username))
 		else:
 			self.broadcast_Moderator('User <%s> had botflag removed by <%s>' % (username, client.username))
-			
+
 	def in_BROADCAST(self, client, msg):
 		'''
 		Broadcast a message.
@@ -2739,7 +2739,7 @@ class Protocol:
 		'''
 		self._root.min_spring_version = version
 		self.in_BROADCAST(client, 'New engine version: Spring %s' % version)
-		
+
 		legacyBattleIds = []
 		for battleId, battle in self._root.battles.items():
 			if self.hasBotflag(battle) and not self._validEngineVersion(battle.engine, battle.version):
@@ -2750,7 +2750,7 @@ class Protocol:
 			battle = self._root.battles[battleId]
 			self.broadcast_RemoveBattle(battle)
 			del self._root.battles[battleId]
-				
+
 	def in_KICK(self, client, username, reason=''):
 		'''
 		Kick target user from the server.
@@ -2821,14 +2821,14 @@ class Protocol:
 		if response: self.out_SERVERMSG(client, '%s' % response)
 
 	def in_LISTBANS(self, client):
-		# send the banlist 
+		# send the banlist
 		banlist = self.bandb.list_bans()
 		if banlist:
 			self.out_SERVERMSG(client, '-- Banlist --')
 			for entry in banlist:
 				self.out_SERVERMSG(client, "%s, %s, %s :: '%s' :: ends %s (%s)" % (entry['username'], entry['ip'], entry['email'], entry['reason'], entry['end_date'], entry['issuer']))
 			self.out_SERVERMSG(client, '-- End Banlist --')
-			return 
+			return
 		self.out_SERVERMSG(client, 'Banlist is empty')
 
 	def in_LISTBLACKLIST(self, client):
@@ -2841,7 +2841,7 @@ class Protocol:
 			self.out_SERVERMSG(client, '-- End Blacklist--')
 			return
 		self.out_SERVERMSG(client, 'Blacklist is empty')
-		
+
 	def in_SETACCESS(self, client, username, access):
 		'''
 		Set the access level of target user.
@@ -2896,7 +2896,7 @@ class Protocol:
 			logging.info("%s %d" % (k, count))
 		logging.info("Stats of flag usage:")
 		for k in self.flag_stats:
-			count = self.flag_stats[k] 
+			count = self.flag_stats[k]
 			logging.info("%s %d" % (k, count))
 
 		try:
@@ -3019,13 +3019,13 @@ class Protocol:
 		newmail = newmail.lower()
 		found,_ = self.userdb.get_user_id_with_email(newmail)
 		if found and not client.bot:
-			client.Send("CHANGEEMAILREQUESTDENIED another user is already registered to the email address '%s'" % newmail)			
+			client.Send("CHANGEEMAILREQUESTDENIED another user is already registered to the email address '%s'" % newmail)
 			return
 		reason = "requested to change your email address for the account <%s> on on the SpringRTS lobbyserver" % client.username
-		good, reason = self.verificationdb.check_and_send(client.user_id, newmail, 4, reason, False, client.ip_address) 
+		good, reason = self.verificationdb.check_and_send(client.user_id, newmail, 4, reason, False, client.ip_address)
 		if not good:
 			client.Send("CHANGEEMAILREQUESTDENIED " + reason)
-			return				
+			return
 		client.Send("CHANGEEMAILREQUESTACCEPTED")
 
 	def in_CHANGEEMAIL(self, client, newmail, verification_code=""):
@@ -3036,7 +3036,7 @@ class Protocol:
 		newmail = newmail.lower()
 		found,_ = self.userdb.get_user_id_with_email(newmail)
 		if found and not client.bot: # bots should share email addr with the bot owner
-			client.Send("CHANGEEMAILDENIED another user is already registered to the email address '%s'" % newmail)			
+			client.Send("CHANGEEMAILDENIED another user is already registered to the email address '%s'" % newmail)
 			return
 		good, reason = self.verificationdb.verify(client.user_id, newmail, verification_code)
 		if not good:
@@ -3046,28 +3046,28 @@ class Protocol:
 		self.userdb.save_user(client)
 		self.out_SERVERMSG(client, "Your email address has been changed to " + client.email)
 		client.Send("CHANGEEMAILACCEPTED " + newmail)
-			
+
 	def in_RESETPASSWORDREQUEST(self, client, email):
 		if not self.verificationdb.active():
 			client.Send("RESETPASSWORDREQUESTDENIED email verification is currently turned off, account recovery is disabled")
 			return
 		email = email.lower()
-		reason = "requested to recover your account <" + client.username + "> on the SpringRTS lobbyserver" 
+		reason = "requested to recover your account <" + client.username + "> on the SpringRTS lobbyserver"
 		good, response = self.userdb.get_user_id_with_email(email)
 		if not good:
 			client.Send("RESETPASSWORDREQUESTDENIED " + response)
 			return
 		recover_client = self.clientFromID(response, True) # can't assume that the user is logged in, or even genuinely the client
-		good, reason = self.verificationdb.check_and_send(recover_client.user_id, email, 8, reason, False, client.ip_address) 
+		good, reason = self.verificationdb.check_and_send(recover_client.user_id, email, 8, reason, False, client.ip_address)
 		if not good:
 			client.Send("RESETPASSWORDREQUESTDENIED " + reason)
-			return				
+			return
 		client.Send("RESETPASSWORDREQUESTACCEPTED %s" % recover_client.email)
-	
+
 	def in_RESETPASSWORD(self, client, email, verification_code):
 		if not self.verificationdb.active():
 			client.Send("RESETPASSWORDDENIED email verification is currently turned off, account recovery is disabled")
-			return						
+			return
 
 		email = email.lower()
 		good, response = self.userdb.get_user_id_with_email(email)
@@ -3078,23 +3078,23 @@ class Protocol:
 		good, reason = self.verificationdb.verify(recover_client.user_id, email, verification_code)
 		if not good:
 			client.Send("RESETPASSWORDDENIED " + reason)
-			return	
-		
+			return
+
 		self.verificationdb.reset_password(recover_client.user_id)
 		client.Send("RESETPASSWORDACCEPTED %s %s" % (recover_client.email, recover_client.username))
 		self.out_SERVERMSG(client, "Your password has been reset. Please check your email account." + client.email)
 		client.Remove("")
-	
+
 	def in_RESENDVERIFICATION(self, client, newmail):
 		if not self.verificationdb.active():
 			client.Send("RESENDVERIFICATIONDENIED email verification is currently turned off, you do not need a verification code!")
 			return
 		good, reason = self.verificationdb.resend(client.user_id, newmail, client.ip_address)
 		if not good:
-			client.Send("RESENDVERIFICATIONDENIED %s" % reason)			
+			client.Send("RESENDVERIFICATIONDENIED %s" % reason)
 			return
-		client.Send("RESENDVERIFICATIONACCEPTED")			
-	
+		client.Send("RESENDVERIFICATIONACCEPTED")
+
 	def in_STARTTLS(self, client):
 		#deprecated
 		client.StartTLS()
@@ -3164,7 +3164,7 @@ class Protocol:
 	# is a definition of an outgoing command.
 	#
 	# Most outgoing commands are sent directly via client.Send within an in_ command
-	
+
 	def out_DENIED(self, client, username, reason, inc = True):
 		'''
 			response to LOGIN
