@@ -1043,7 +1043,6 @@ class Protocol:
 		self._SendLoginInfo(client)
 
 	def _SendLoginInfo(self, client):
-
 		self._calc_status(client, 0)
 		client.logged_in = True
 		client.buffersend = True # enqeue all sends to client made from other threads until server state is send

@@ -13,7 +13,7 @@ class ChanServClient(Client):
 		self.accesslevels = ['admin', 'mod', 'user', 'everyone']
 		self.logged_in = True
 		self.connected = True
-		self.bot = 1
+		self.bot = True
 		self.user_id = None
 		self.static = True
 
@@ -24,6 +24,7 @@ class ChanServClient(Client):
 		self._root.clients[session_id] = self
 		self._root = root
 
+		self._root.protocol._calc_status(self, self.status)
 		logging.info('[%s] <%s> logged in (access=ChanServ)'%(session_id, self.username))
 
 	def parse_duration(self, duration):

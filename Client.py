@@ -33,7 +33,7 @@ class Client(BaseClient):
 		self.ingame_time = 0
 		self.access = 'fresh'
 		self.email = ''
-		self.bot = 0
+		self.bot = False
 
 		# session
 		self.session_id = session_id
