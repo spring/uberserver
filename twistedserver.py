@@ -37,7 +37,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 			self.root.protocol._new(self)
 		except Exception as e:
 			logging.error("Error in adding client: %s %s %s" %(str(e), self.transport.getPeer().host, str(traceback.format_exc())))
-			Remove(self, "Error adding client")
+			self.transport.abortConnection()
 
 	def connectionLost(self, reason):
 		if not hasattr(self, 'session_id'): # this func is called after a client has dc'ed

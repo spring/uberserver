@@ -70,11 +70,11 @@ class DataHandler:
 		self.usernames = {} #username->client
 		self.user_ids = {} #user_id->client
 		self.clients = {} #session_id->client
-		
-		self.bridged_locations = {} #location->client	
+
+		self.bridged_locations = {} #location->client
 		self.bridged_ids = {} #bridged_id->bridgedClient
 		self.bridged_usernames = {} #bridgeUsername->bridgedClient
-		
+
 		# rate limits
 		self.recent_registrations = {} #ip_address->int
 		self.recent_renames = {} #user_id->int
@@ -140,18 +140,18 @@ class DataHandler:
 			channel = Channel.Channel(self, name)
 			if name.startswith('__battle__'):
 				channel = Battle.Battle(self, name)
-			
+
 			owner = self.userdb.clientFromID(dbchannel['owner_user_id'])
-			if owner: 
+			if owner:
 				channel.owner_user_id = owner.id
-			
+
 			channel.antispam = dbchannel['antispam']
 			channel.store_history = dbchannel['store_history']
 			channel.id = dbchannel['id']
 			channel.key = dbchannel['key']
 			if channel.key in ('', None, '*'):
 				channel.key = None
-			
+
 			channel.topic_user_id = dbchannel['topic_user_id']
 			topic_client = self.userdb.clientFromID(dbchannel['topic_user_id'])
 			topic_name = 'ChanServ'
@@ -159,7 +159,7 @@ class DataHandler:
 				topic_name = topic_client.username
 			channel.topic={'user':topic_name, 'text':dbchannel['topic'], 'time':int(time.time())}
 			self.channels[name] = channel
- 
+
 		self.chanserv = ChanServ.ChanServClient(self, (self.online_ip, 0), self.session_id)
 		for name in channels:
 			self.chanserv.HandleProtocolCommand("JOIN %s" %(name))
@@ -178,7 +178,7 @@ class DataHandler:
 				target = self.protocol.clientFromID(op['user_id'], True)
 				if not target: continue
 				self.channels[dbchannel.name].opUser(self.chanserv, target)
-		
+
 		bans = self.channeldb.all_bans()
 		for ban in bans:
 			dbchannel = self.channeldb.channel_from_id(ban['channel_id'])
@@ -189,7 +189,7 @@ class DataHandler:
 				if not issuer: issuer = self.chanserv
 				duration = ban['expires'] - now
 				self.channels[dbchannel.name].banUser(issuer, target, ban['expires'], ban['reason'], duration)
-		
+
 		bridged_bans = self.channeldb.all_bridged_bans()
 		for ban in bridged_bans:
 			dbchannel = self.channeldb.channel_from_id(ban['channel_id'])
@@ -200,7 +200,7 @@ class DataHandler:
 				if not issuer: issuer = self.chanserv
 				duration = ban['expires'] - now
 				self.channels[dbchannel.name].banBridgedUser(issuer, target, ban['expires'], ban['reason'], duration)
-		
+
 		mutes = self.channeldb.all_mutes()
 		for mute in mutes:
 			dbchannel = self.channeldb.channel_from_id(mute['channel_id'])
@@ -223,7 +223,7 @@ class DataHandler:
 		except:
 			logging.error(traceback.format_exc())
 		logging.info("scheduled clean finished")
-	
+
 	def shutdown(self):
 		self.running = False
 
@@ -402,7 +402,7 @@ class DataHandler:
 
 	def clientFromSession(self, session_id):
 		if session_id in self.clients: return self.clients[session_id]
-	
+
 	def bridgedClient(self, location, external_id, fromdb=False):
 		if location in self.bridged_locations:
 			bridge_user_id = self.bridged_locations[location]
@@ -413,24 +413,24 @@ class DataHandler:
 				return self.bridged_ids[bridged_id]
 		if not fromdb:
 			return False
-		return self.bridgeduserdb.bridgedClient(location, external_id)		
-	
+		return self.bridgeduserdb.bridgedClient(location, external_id)
+
 	def bridgedClientFromID(self, bridged_id, fromdb=False):
-		if bridged_id in self.bridged_ids: 
+		if bridged_id in self.bridged_ids:
 			return self.bridged_ids[bridged_id]
 		if not fromdb:
-			return 
+			return
 		return self.bridgeduserdb.bridgedClientFromID(bridged_id)
-	
+
 	def bridgedClientFromUsername(self, username, fromdb=False):
-		if username in self.bridged_usernames: 
+		if username in self.bridged_usernames:
 			return self.bridged_usernames[username]
 		if not fromdb:
-			return 
+			return
 		return self.bridgeduserdb.bridgedClientFromUsername(username)
-	
+
 	def event_loop(self):
-		self.channel_mute_ban_timeout() 
+		self.channel_mute_ban_timeout()
 
 	def channel_mute_ban_timeout(self):
 		# remove expired channel/battle mutes/bans
@@ -452,7 +452,7 @@ class DataHandler:
 						continue
 					channel.unmuteUser(chanserv, target, 'mute expired')
 					self.channeldb.unmuteUser(channel, target)
-				
+
 				to_unban = []
 				for user_id in channel.ban:
 					ban = channel.ban[user_id]
@@ -460,7 +460,7 @@ class DataHandler:
 					if expiretime < now:
 						to_unban.append(user_id)
 				for user_id in to_unban:
-					target = self.protocol.clientFromID(user_id, True) 
+					target = self.protocol.clientFromID(user_id, True)
 					if not target:
 						continue
 					self.channeldb.unbanUser(channel, target)
@@ -473,7 +473,7 @@ class DataHandler:
 					if expiretime < now:
 						to_unban_bridged.append(bridged_id)
 				for bridged_id in to_unban_bridged:
-					target = self.bridgedClientFromID(bridged_id) 
+					target = self.bridgedClientFromID(bridged_id)
 					if not target:
 						continue
 					channel.unbanBridgedUser(chanserv, bridged_id)
@@ -521,7 +521,7 @@ class DataHandler:
 				continue
 			if flag and not flag in client.compat_flags:
 				continue
-				
+
 			if client.static:
 				static.append(client)
 			else:

@@ -98,6 +98,7 @@ logins_table = Table('logins', metadata,
 	Column('user_id', String(128)),
 	mysql_charset='utf8',
 	)
+
 class Login(object):
 	def __init__(self, now, ip_address, lobby_id, user_id, local_ip, country):
 		self.time = now
@@ -114,8 +115,8 @@ mapper(Login, logins_table)
 bridged_users_table = Table('bridged_users', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('external_id', String(20)),
-	Column('location', String(20)), 
-	Column('external_username', String(20)), 
+	Column('location', String(20)),
+	Column('external_username', String(20)),
 	Column('last_bridged', DateTime),
 	UniqueConstraint('external_id', 'location', name='uix_bridged_users_1'),
 	UniqueConstraint('external_username', 'location', name='uix_bridged_users_2'),
@@ -127,7 +128,7 @@ class BridgedUser(object):
 		self.location = location
 		self.external_username = external_username
 		self.last_bridged = last_bridged
-	
+
 	def __repr__(self):
 		return "<BridgedUser('%s', '%s', '%s', '%s')>" % (self.id, self.external_id, self.location, self.last_bridged)
 mapper(BridgedUser, bridged_users_table)
@@ -288,7 +289,7 @@ mapper(ChannelOp, channelops_table)
 channelbans_table = Table('channel_bans', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
-	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True), 
+	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True),
 	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('ip_address', String(15)),
 	Column('expires', DateTime),
@@ -302,7 +303,7 @@ class ChannelBan(object):
 		self.ip_address = ip_address
 		self.expires = expires
 		self.reason = reason
-	
+
 	def __repr__(self):
 		return "<ChannelBan(%s,%s)>" % (self.channel_id, self.user_id)
 mapper(ChannelBan, channelbans_table)
@@ -310,7 +311,7 @@ mapper(ChannelBan, channelbans_table)
 channelbridgedbans_table = Table('channel_bridged_bans', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
-	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True), 
+	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True),
 	Column('bridged_id', Integer, ForeignKey('bridged_users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('expires', DateTime),
 	Column('reason', Text)
@@ -322,7 +323,7 @@ class ChannelBridgedBan(object):
 		self.bridged_id = bridged_id
 		self.expires = expires
 		self.reason = reason
-	
+
 	def __repr__(self):
 		return "<ChannelBridgedBan(%s,%s)>" % (self.channel_id, self.bridged_id)
 mapper(ChannelBridgedBan, channelbridgedbans_table)
@@ -330,7 +331,7 @@ mapper(ChannelBridgedBan, channelbridgedbans_table)
 channelmutes_table = Table('channel_mutes', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
-	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True), 
+	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True),
 	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('expires', DateTime),
 	Column('reason', Text)
@@ -342,7 +343,7 @@ class ChannelMute(object):
 		self.user_id = user_id
 		self.expires = expires
 		self.reason = reason
-	
+
 	def __repr__(self):
 		return "<ChannelMute(%s,%s)>" % (self.channel_id, self.user_id)
 mapper(ChannelMute, channelmutes_table)
@@ -357,7 +358,7 @@ class ChannelForward(object):
 	def __init__(self, channel_from_id, channel_to_id):
 		self.channel_from_id = channel_from_id
 		self.channel_to_id = channel_to_id
-	
+
 	def __repr__(self):
 		return "<ChannelForward(%s,%s)>" % (self.channel_id_from, self.channel_id_to)
 mapper(ChannelForward, channelforwards_table)
@@ -647,22 +648,22 @@ class UsersHandler:
 		# which didn't accept agreement after one week
 		response = self.sess().query(User).filter(User.register_date < now - timedelta(days=7)).filter(User.access == "agreement")
 		logging.info("deleting %i users who failed to verify registration", response.count())
-		response.delete(synchronize_session=False)			
+		response.delete(synchronize_session=False)
 
 		# which have no ingame time, last login > 30 days, not bot, not mod
 		response = self.sess().query(User).filter(User.ingame_time == 0).filter(User.last_login < now - timedelta(days=30)).filter(User.bot == 0).filter(User.access == "user")
 		logging.info("deleting %i inactive users with no ingame time", response.count())
-		response.delete(synchronize_session=False)			
+		response.delete(synchronize_session=False)
 
 		# last login > 5 years
 		self.sess().query(User).filter(User.last_login < now - timedelta(days=1825)).delete(synchronize_session=False)
 		logging.info("deleting %i very inactive users", response.count())
-		response.delete(synchronize_session=False)			
+		response.delete(synchronize_session=False)
 
 		# old messages > 2 weeks
 		self.sess().query(ChannelHistory).filter(ChannelHistory.time < now - timedelta(days=14)).delete(synchronize_session=False)
 		logging.info("deleting %i channel history messages", response.count())
-		response.delete(synchronize_session=False)			
+		response.delete(synchronize_session=False)
 
 		self.sess().commit()
 
@@ -772,7 +773,7 @@ class OfflineBridgedClient():
 		self.username = self.external_username + '@' + self.location
 		self.channels = set()
 		self.bridge_user_id = None
-		
+
 class BridgedUsersHandler:
 	def __init__(self, root, engine):
 		self._root = root
@@ -785,28 +786,28 @@ class BridgedUsersHandler:
 			return self.session
 		self.session.rollback()
 		return self.session
-	
+
 	def bridgedClient(self, location, external_id):
 		entry = self.sess().query(BridgedUser).filter(BridgedUser.external_id == external_id).filter(BridgedUser.location == location).first()
-		if not entry: 
-			return 
+		if not entry:
+			return
 		return OfflineBridgedClient(entry)
-	
+
 	def bridgedClientFromID(self, bridged_id):
 		entry = self.sess().query(BridgedUser).filter(BridgedUser.id == bridged_id).first()
-		if not entry: 
-			return 
+		if not entry:
+			return
 		return OfflineBridgedClient(entry)
-	
+
 	def bridgedClientFromUsername(self, username):
 		external_username,location = username.split('@',1)
-		if not external_username or not location: 
+		if not external_username or not location:
 			return
 		entry = self.sess().query(BridgedUser).filter(BridgedUser.external_username == external_username).filter(BridgedUser.location == location).first()
-		if not entry: 
-			return 
+		if not entry:
+			return
 		return OfflineBridgedClient(entry)
-	
+
 	def new_bridge_user(self, location, external_id, external_username):
 		now = datetime.now()
 		entry = BridgedUser(location, external_id, external_username, now)
@@ -814,7 +815,7 @@ class BridgedUsersHandler:
 		self.sess().commit()
 		bridgedUser = self.sess().query(BridgedUser).filter(BridgedUser.external_id == external_id).filter(BridgedUser.location == location).first()
 		return entry
-	
+
 	def bridge_user(self, location, external_id, external_username):
 		bridgedUser = self.sess().query(BridgedUser).filter(BridgedUser.external_id == external_id).filter(BridgedUser.location == location).first()
 		entry = self.sess().query(BridgedUser).filter(BridgedUser.external_username == external_username).filter(BridgedUser.location == location).first()
@@ -827,15 +828,15 @@ class BridgedUsersHandler:
 		bridgedUser.last_bridged = datetime.now()
 		self.sess().commit()
 		return True, OfflineBridgedClient(bridgedUser)
-		
+
 	def clean(self):
 		# remove any bridged user that wasn't seen for a year
 		now = datetime.now()
 		response = self.sess().query(BridgedUser).filter(BridgedUser.last_bridged < now - timedelta(days=365))
 		logging.info("deleting %i bridged users", response.count())
-		response.delete(synchronize_session=False)			
+		response.delete(synchronize_session=False)
 		self.sess().commit()
-	
+
 class BansHandler:
 	def __init__(self, root, engine):
 		self._root = root
@@ -1008,7 +1009,7 @@ class BansHandler:
 		response.delete(synchronize_session=False)
 		self.sess().commit()
 
-    class VerificationsHandler:
+class VerificationsHandler:
 	def __init__ (self, root, engine):
 		self._root = root
 		metadata.create_all(engine)
@@ -1312,7 +1313,7 @@ class ChannelsHandler:
 					'reason': ban.reason,
 				})
 		return bans
-	
+
 	def all_bridged_bans(self):
 		response = self.sess().query(ChannelBridgedBan)
 		bans = []
@@ -1325,7 +1326,7 @@ class ChannelsHandler:
 					'reason': ban.reason,
 				})
 		return bans
-	
+
 	def all_mutes(self):
 		response = self.sess().query(ChannelMute)
 		mutes = []
@@ -1338,7 +1339,7 @@ class ChannelsHandler:
 					'reason': mute.reason,
 				})
 		return mutes
-	
+
 	def all_forwards(self):
 		response = self.sess().query(ChannelForward)
 		forwards = []
@@ -1347,8 +1348,8 @@ class ChannelsHandler:
 			'channel_from_id': forward.channel_from_id,
 			'channel_to_id': forward.channel_to_id,
 			})
-		return forwards	
-	
+		return forwards
+
 	def setTopic(self, channel, topic, target):
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
 		if entry:
@@ -1373,13 +1374,13 @@ class ChannelsHandler:
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
 		if entry:
 			entry.antispam = antispam
-			self.sess().commit()			
-	
+			self.sess().commit()
+
 	def opUser(self, channel, target):
 		entry = ChannelOp(channel.id, target.user_id)
 		self.sess().add(entry)
 		self.sess().commit()
-	
+
 	def deopUser(self, channel, target):
 		entry = self.sess().query(ChannelOp).filter(ChannelOp.user_id == target.user_id).filter(ChannelOp.channel_id == channel.id).first()
 		if entry:
@@ -1390,27 +1391,27 @@ class ChannelsHandler:
 		entry = ChannelBridgedBan(channel.id, issuer.user_id, target.bridged_id, expires, reason)
 		self.sess().add(entry)
 		self.sess().commit()
-	
+
 	def unbanBridgedUser(self, channel, target):
 		response = self.sess().query(ChannelBridgedBan).filter(ChannelBridgedBan.bridged_id == target.bridged_id).filter(ChannelBridgedBan.channel_id == channel.id)
 		response.delete()
 		self.sess().commit()
-	
+
 	def banUser(self, channel, issuer, target, expires, reason):
 		entry = ChannelBan(channel.id, issuer.user_id, target.user_id, target.last_ip, expires, reason)
 		self.sess().add(entry)
 		self.sess().commit()
-	
+
 	def unbanUser(self, channel, target):
 		response = self.sess().query(ChannelBan).filter(ChannelBan.user_id == target.user_id).filter(ChannelBan.channel_id == channel.id)
 		response.delete()
 		self.sess().commit()
-	
+
 	def muteUser(self, channel, issuer, target, expires, reason):
 		entry = ChannelMute(channel.id, issuer.user_id, target.user_id, expires, reason)
 		self.sess().add(entry)
 		self.sess().commit()
-	
+
 	def unmuteUser(self, channel, target):
 		response = self.sess().query(ChannelMute).filter(ChannelMute.user_id == target.user_id).filter(ChannelMute.channel_id == channel.id)
 		response.delete()
@@ -1421,19 +1422,19 @@ class ChannelsHandler:
 		if entry:
 			entry.store_history = enable
 			self.sess().commit()
-		
+
 	def addForward(self, channel_from, channel_to):
 		entry = ChannelForward(channel_from.id, channel_to.id)
 		self.sess().add(entry)
 		self.sess().commit()
-  
+
 	def removeForward(self, channel_from, channel_to):
 		entry = self.sess().query(ChannelForward).filter(ChannelForward.channel_from_id == channel_from.id).filter(ChannelForward.channel_to_id == channel_to.id)
 		if entry:
 			self.sess().delete(entry)
 			self.sess().commit()
-	
-  def register(self, channel, target):
+
+	def register(self, channel, target):
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
 		if not entry:
 			entry = Channel(channel.name)
@@ -1446,29 +1447,29 @@ class ChannelsHandler:
 		entry.owner_user_id = target.user_id
 		self.sess().add(entry)
 		self.sess().commit()
-		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first() 
+		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
 		channel.id = entry.id
 
 	def unRegister(self, client, channel):
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).delete()
 		self.sess().commit()
-		
+
 	def clean(self):
 		#delete all expired channel bans/mutes:
 		now = datetime.now()
-		
+
 		response = self.sess().query(ChannelMute).filter(ChannelMute.expires < now)
 		logging.info("deleting %i expired channel mutes", response.count())
-		response.delete(synchronize_session=False)			
-		
+		response.delete(synchronize_session=False)
+
 		response = self.sess().query(ChannelBan).filter(ChannelBan.expires < now)
 		logging.info("deleting %i expired channel bans", response.count())
-		response.delete(synchronize_session=False)			
+		response.delete(synchronize_session=False)
 
 		response = self.sess().query(ChannelBridgedBan).filter(ChannelBridgedBan.expires < now)
 		logging.info("deleting %i expired channel bridged bans", response.count())
-		response.delete(synchronize_session=False)			
-		
+		response.delete(synchronize_session=False)
+
 		self.sess().commit()
 
 if __name__ == '__main__':

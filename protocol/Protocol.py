@@ -229,7 +229,7 @@ class Protocol:
 
 		self.restricted = restricted
 		self.restricted_list = restricted_list
-		
+
 	def _checkCompat(self, client):
 		missing_TLS = not client.TLS
 
@@ -237,7 +237,7 @@ class Protocol:
 		for flag in flag_map:
 			if not flag in optional_flags and not client.compat[flag]:
 				missing_flags += ' ' + flag
-			
+
 		deprec_flags = ""
 		unknown_flags = ""
 		for flag in client.compat:
@@ -246,18 +246,18 @@ class Protocol:
 				continue
 			if not flag in flag_map:
 				unknown_flags += ' ' + flag
-		
+
 		error = missing_TLS or len(missing_flags)>0 or len(deprecated_flags)>0 or len(unwanted_flags)>0
 		if not error:
 			return
 
 		client.RealSend("MOTD  -- WARNING --")
-		
+
 		if missing_TLS:
 			client.RealSend("MOTD Your client did not use TLS. Your connection is not secure.")
 			client.RealSend("MOTD  -- -- - -- --")
 			logging.info('[%s] <%s> client "%s" logged in without TLS')
-		
+
 		if len(missing_flags)>0 or len(deprecated_flags)>0 or len(unknown_flags)>0:
 			client.RealSend("MOTD Your client has compatibility errors")
 			if len(missing_flags)>0: client.RealSend("MOTD   missing flags:%s" % missing_flags)
@@ -265,7 +265,7 @@ class Protocol:
 			if len(unknown_flags)>0: client.RealSend("MOTD   unknown flags:%s" % unknown_flags)
 			client.RealSend("MOTD  -- -- - -- --")
 			logging.info('[%s] <%s> client "%s" sent incorrect compat flags -- missing:%s, deprecated:%s, unknown:%s'%(client.session_id, client.username, client.lobby_id, missing_flags, deprec_flags, unknown_flags))
-					
+
 		client.RealSend("MOTD Please update your client / report these issues.")
 		client.RealSend("MOTD  -- -- - -- --")
 
@@ -289,15 +289,15 @@ class Protocol:
 			logging.info('[%s] disconnected from %s: %s'%(client.session_id, client.ip_address, reason))
 			return
 		logging.info('[%s] <%s> disconnected from %s: %s'%(client.session_id, client.username, client.ip_address, reason))
-				
+
 		# remove all references related to the client
 		bridged_clients = client.bridged_external_ids.copy() # avoid modifying dict while iterating
 		for external_id, bridged_id in bridged_clients.items():
 			bridgedClient = self._root.bridgedClientFromID(bridged_id)
-			self.in_UNBRIDGECLIENTFROM(client, bridgedClient.location, bridgedClient.external_id)	
+			self.in_UNBRIDGECLIENTFROM(client, bridgedClient.location, bridgedClient.external_id)
 		for location in client.bridged_locations:
 			del self._root.bridged_locations[location]
-			
+
 		if client.current_battle:
 			self.in_LEAVEBATTLE(client)
 		for chan in list(client.channels):
@@ -313,9 +313,9 @@ class Protocol:
 		if client.user_id in self._root.user_ids:
 			del self._root.user_ids[client.user_id]
 		#note: self._root.clients is managed by twistedserver.py
-			
+
 		self.userdb.end_session(client.user_id)
-		
+
 		# inform that the client left
 		self.broadcast_RemoveUser(client)
 
@@ -528,7 +528,7 @@ class Protocol:
 	def pretty_time_delta(self, duration):
 		days = duration.days
 		hours, remainder = divmod(duration.seconds, 3600)
-		minutes, seconds = divmod(remainder, 60)		
+		minutes, seconds = divmod(remainder, 60)
 		if days > 365*200:
 			return ''
 		pretty = 'for'
@@ -537,7 +537,7 @@ class Protocol:
 		if (days>0 and minutes>0) or hours > 0:
 			pretty += ' %d hours' % (hours)
 		if (days>0 and hours>0) or minutes > 0:
-			pretty += ' %d minutes' % (minutes)		
+			pretty += ' %d minutes' % (minutes)
 		if days == 0 and hours == 0 and minutes == 0:
 			pretty += ' %d seconds' % (seconds)
 		return pretty
@@ -639,7 +639,7 @@ class Protocol:
 		if len(external_id)>20 or len(location)>20:
 			return False, 'External_id or location is too long, max is 20 chars.'
 		return True, ''
-	
+
 	def _parseTags(self, tagstring):
 		'parses tags to a dict, for example user=bla\tcolor=123'
 		tags = {}
@@ -686,7 +686,7 @@ class Protocol:
 		if user: return user
 		if not fromdb: return None
 		return self.userdb.clientFromID(user_id)
-		
+
 	def clientFromSession(self, session_id):
 		assert(isinstance(session_id, int))
 		if session_id in self._root.clients:
@@ -926,7 +926,7 @@ class Protocol:
 
 		assert(type(password) == str)
 		'''
-		
+
 		good, reason = self._validUsernameSyntax(username)
 
 		if (not good):
@@ -969,8 +969,8 @@ class Protocol:
 					if flag in self.flag_stats:
 						self.flag_stats[flag] += 1
 					else:
-						self.flag_stats[flag] = 1	
-						
+						self.flag_stats[flag] = 1
+
 			try:
 				client.last_id = uint32(user_id)
 			except:
@@ -1036,7 +1036,7 @@ class Protocol:
 				client.Send("AGREEMENT %s" %(line))
 			client.Send('AGREEMENTEND')
 			return
-			
+
 		if (client.username in self._root.usernames): # required to avoid problems because of parallel execution
 			self.out_DENIED(client, client.username, 'Already logged in.', False)
 			return
@@ -1047,7 +1047,7 @@ class Protocol:
 		self._calc_status(client, 0)
 		client.logged_in = True
 		client.buffersend = True # enqeue all sends to client made from other threads until server state is send
-		
+
 		self._root.user_ids[client.user_id] = client
 		self._root.usernames[client.username] = client
 
@@ -1186,16 +1186,16 @@ class Protocol:
 			return
 		if channel.store_history:
 			self.userdb.add_channel_message(channel.id, client.user_id, msg)
-		
+
 		if not client.compat['u']:
 			if hasattr(client, 'current_battle') and client.current_battle:
 				battle = self._root.battles[client.current_battle]
 				if battle.name==chan:
 					self.broadcast_SendBattle(battle, 'SAIDBATTLE %s %s' % (client.username, msg), client)
-				return 
-		
+				return
+
 		self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client)
-	
+
 	def in_SAYEX(self, client, chan, msg):
 		'''
 		Send an action to all users in specified channel.
@@ -1210,7 +1210,7 @@ class Protocol:
 			return
 		if not chan in self._root.channels:
 			return
-			
+
 		channel = self._root.channels[chan]
 		user  = client.username
 		msg = self.SayHooks.hook_SAY(self, client, channel, msg)
@@ -1221,14 +1221,14 @@ class Protocol:
 				return
 		if channel.store_history:
 			self.userdb.add_channel_message(channel.id, client.user_id, msg)
-			
+
 		if not client.compat['u']:
 			if hasattr(client, 'current_battle'):
 				battle = self._root.battles[client.current_battle]
 				if battle.name==chan:
 					self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg), client)
 				return
-		
+
 		self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, set([]), client)
 
 	def in_SAYPRIVATE(self, client, user, msg):
@@ -1240,7 +1240,7 @@ class Protocol:
 		'''
 		if not msg:
 			return
-			
+
 		receiver = self.clientFromUsername(user)
 		if not receiver:
 			logging.info('[%s] <%s>: user to pm is not online: %s' % (client.session_id, client.username, user))
@@ -1258,7 +1258,7 @@ class Protocol:
 		'''
 		if not msg:
 			return
-			
+
 		receiver = self.clientFromUsername(user)
 		if receiver:
 			client.Send('SAYPRIVATEEX %s %s' % (user, msg))
@@ -1275,7 +1275,7 @@ class Protocol:
 		if battle.name != battle_name:
 			return
 		user = self.clientFromUsername(username)
-		if not user: 
+		if not user:
 			return
 		if not user.session_id in battle.users:
 			return
@@ -1285,23 +1285,23 @@ class Protocol:
 			user.Send('SAIDBATTLEEX %s %s' % (client.username, msg))
 			return
 		user.Send('SAIDEX %s %s %s' % (battle.name, client.username, msg))
-		
+
 	def in_BRIDGECLIENTFROM(self, client, location, external_id, external_username):
 		# add external user to the bridge
 		if not client.compat['u']:
-			self.out_FAILED(client, "BRIDGECLIENTFROM", "You need the 'u' compatibility flag to bridge clients", True)			
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "You need the 'u' compatibility flag to bridge clients", True)
 			return
 		if not client.bot:
-			self.out_FAILED(client, "BRIDGECLIENTFROM", "Only bot users can bridge clients", True)			
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "Only bot users can bridge clients", True)
 			return
 		good, reason = self._validBridgeSyntax(location, external_id, external_username)
 		if not good:
-			self.out_FAILED(client, "BRIDGECLIENTFROM", "Invalid syntax: %s", True)			
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "Invalid syntax: %s", True)
 			return
 		location_client = self.clientFromUsername(location, True)
 		if location_client and location_client.bot and location != client.username:
-			self.out_FAILED(client, "BRIDGECLIENTFROM", "You cannot bridge a location named after another bot user", True)			
-			return			
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "You cannot bridge a location named after another bot user", True)
+			return
 		if not location in self._root.bridged_locations:
 			self._root.bridged_locations[location] = client.user_id
 			assert(not location in client.bridged_locations)
@@ -1310,17 +1310,17 @@ class Protocol:
 		if self._root.bridged_locations[location] != client.user_id:
 			existing_bridge = self.clientFromID(self._root.bridged_locations[location])
 			client.bridge_locations.add(location)
-			self.out_FAILED(client, "BRIDGECLIENTFROM", "The location '%s' is already in use by bridge bot %s" % existing_bridge.username, True)		
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "The location '%s' is already in use by bridge bot %s" % existing_bridge.username, True)
 			return
-			
+
 		good, response = self._root.bridgeduserdb.bridge_user(location, external_id, external_username)
 		if not good:
-			self.out_FAILED(client, "BRIDGECLIENTFROM", response, True)		
+			self.out_FAILED(client, "BRIDGECLIENTFROM", response, True)
 			return
 		if response.bridged_id in self._root.bridged_ids:
-			self.out_FAILED(client, "BRIDGECLIENTFROM", "This client already exists on the bridge (external_id=%s)" % response.external_id, True)		
-			return	
-		
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "This client already exists on the bridge (external_id=%s)" % response.external_id, True)
+			return
+
 		# copy db values to our local bridged client
 		bridgedClient = BridgedClient.BridgedClient()
 		bridgedClient.bridged_id = response.bridged_id
@@ -1333,8 +1333,8 @@ class Protocol:
 		# non-db values
 		bridgedClient.channels = set()
 		bridgedClient.bridge_user_id = client.user_id
-		
-		client.bridged_locations[location] += 1		
+
+		client.bridged_locations[location] += 1
 		client.bridged_external_ids[bridgedClient.external_id] = bridgedClient.bridged_id
 		self._root.bridged_ids[bridgedClient.bridged_id] = bridgedClient
 		self._root.bridged_usernames[bridgedClient.username] = bridgedClient
@@ -1346,14 +1346,14 @@ class Protocol:
 			return
 		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient:
-			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client not found", True)			
-			return 
-		if bridgedClient.bridge_user_id != client.user_id:
-			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client is on a different bridge (got %i, expected %i)" % (bridgedClient.bridge_user_id, client.user_id), True)			
+			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client not found", True)
 			return
-			
+		if bridgedClient.bridge_user_id != client.user_id:
+			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client is on a different bridge (got %i, expected %i)" % (bridgedClient.bridge_user_id, client.user_id), True)
+			return
+
 		del client.bridged_external_ids[external_id]
-		client.bridged_locations[location] -= 1		
+		client.bridged_locations[location] -= 1
 		assert(client.bridged_locations[location] >= 0)
 		del self._root.bridged_ids[bridgedClient.bridged_id]
 		del self._root.bridged_usernames[bridgedClient.username]
@@ -1364,38 +1364,38 @@ class Protocol:
 		if not client.compat['u']:
 			return
 		if not chan in self._root.channels:
-			self.out_FAILED(client, "JOINFROM", "Channel '%s' not found" % chan, True)			
+			self.out_FAILED(client, "JOINFROM", "Channel '%s' not found" % chan, True)
 			return
 		channel = self._root.channels[chan]
 		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient:
-			self.out_FAILED(client, "JOINFROM", "Bridged user not found", True)			
-			return 
+			self.out_FAILED(client, "JOINFROM", "Bridged user not found", True)
+			return
 		if bridgedClient.bridge_user_id != client.user_id:
-			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client is on a different bridge (got %i, expected %i)" % (bridgedClient.bridge_user_id, client.user_id), True)			
-			return 			
+			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client is on a different bridge (got %i, expected %i)" % (bridgedClient.bridge_user_id, client.user_id), True)
+			return
 		if bridgedClient.bridged_id in channel.bridged_ban:
 			self.out_FAILED(client, "JOINFROM", "Bridged user is banned from channel", True)
-			return		
+			return
 		channel.addBridgedUser(client, bridgedClient)
-		
+
 	def in_LEAVEFROM(self, client, chan, location, external_id):
 		# bridged client leaves a channel
 		if not client.compat['u']:
 			return
 		if not chan in self._root.channels:
-			self.out_FAILED(client, "LEAVEFROM", "Channel '%s' not found" % chan, True)			
+			self.out_FAILED(client, "LEAVEFROM", "Channel '%s' not found" % chan, True)
 			return
 		channel = self._root.channels[chan]
 		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient:
-			self.out_FAILED(client, "JOINFROM", "Bridged user not found", True)			
-			return 
+			self.out_FAILED(client, "JOINFROM", "Bridged user not found", True)
+			return
 		if bridgedClient.bridge_user_id != client.user_id:
-			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client is on a different bridge (got %i, expected %i)" % (bridgedClient.bridge_user_id, client.user_id), True)			
-			return 			
-		channel.removeBridgedUser(client, bridgedClient)		
-		
+			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client is on a different bridge (got %i, expected %i)" % (bridgedClient.bridge_user_id, client.user_id), True)
+			return
+		channel.removeBridgedUser(client, bridgedClient)
+
 	def in_SAYFROM(self, client, chan, location, external_id, msg):
 		# bridged client speaks in a channel
 		if not msg: return
@@ -1404,7 +1404,7 @@ class Protocol:
 		channel = self._root.channels[chan]
 		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient or bridgedClient.bridge_user_id != client.user_id:
-			return 	
+			return
 		if not client.compat['u']:
 			msg = '<' + bridgedClient.username + '> ' + msg
 			self.in_SAY(client, chan, msg)
@@ -1413,7 +1413,7 @@ class Protocol:
 			self.out_FAILED(client, "SAYFROM", "Bridged user not present in channel", True)
 			return
 		self._root.broadcast('SAIDFROM %s %s %s' % (chan, bridgedClient.username, msg), chan, set([]), client)
-	
+
 	def in_IGNORE(self, client, tags):
 		'''
 		Tells the server to add the user to the client's ignore list. Doing this will prevent any SAID*, SAYPRIVATE and RING commands to be received from the ignored user.
@@ -1619,7 +1619,7 @@ class Protocol:
 
 	def in_JOIN(self, client, chan, key=None):
 		'''
-		Attempt to join target channel. 
+		Attempt to join target channel.
 
 		@required.str channel: The target channel.
 		@optional.str password: The password to use for joining if channel is locked.
@@ -1629,7 +1629,7 @@ class Protocol:
 		if not ok:
 			client.Send('JOINFAILED %s' % reason)
 			return
-			
+
 		user = client.username
 		# FIXME: unhardcode this
 		if (client.bot or client.lobby_id.startswith("SPADS")) and chan in ("newbies") and client.username != "ChanServ":
@@ -1645,7 +1645,7 @@ class Protocol:
 			if chan.startswith('__battle__'):
 				self.out_FAILED(client, 'JOIN', 'cannot create channel %s with prefix __battle__, these names are reserved for battles' % chan, True)
 				return
-			channel = Channel.Channel(self._root, chan) 
+			channel = Channel.Channel(self._root, chan)
 			self._root.channels[chan] = channel
 		else:
 			channel = self._root.channels[chan]
@@ -1667,8 +1667,8 @@ class Protocol:
 				client.Send('JOINFAILED %s Invalid key' % chan)
 				return
 		assert(chan not in client.channels)
-		
-		channel.addUser(client) 
+
+		channel.addUser(client)
 
 	def in_LEAVE(self, client, chan, reason=None):
 		'''
@@ -1787,7 +1787,7 @@ class Protocol:
 		else:
 			battle = Battle.Battle(self._root, battle_name)
 			self._root.channels[battle_name] = battle
-		
+
 		battle.battle_id = battle_id
 		battle.host = client.session_id
 		battle.key = key
@@ -1803,10 +1803,10 @@ class Protocol:
 		battle.version=version
 		battle.rank = rank
 		battle.maxplayers = maxplayers
-		
-		self._root.battles[battle.battle_id] = battle 
+
+		self._root.battles[battle.battle_id] = battle
 		self.broadcast_AddBattle(battle)
-		
+
 		battle.joinBattle(client)
 		client.Send('OPENBATTLE %s' % battle.battle_id)
 		client.Send('JOINBATTLE %s %s' % (battle.battle_id, hashcode))
@@ -1861,7 +1861,7 @@ class Protocol:
 			else:
 				client_ip = client.ip_address
 			host.Send('JOINBATTLEREQUEST %s %s' % (username, client_ip))
-			return		
+			return
 		battle.joinBattle(client)
 
 	def in_JOINBATTLEACCEPT(self, client, username):
@@ -1883,7 +1883,7 @@ class Protocol:
 			return
 		battle.pending_users.remove(user.session_id)
 		battle.joinBattle(user)
-		
+
 	def in_JOINBATTLEDENY(self, client, username, reason=None):
 		'''
 		Deny a user from joining your battle, sent as a response to JOINBATTLEREQUEST.
@@ -1895,7 +1895,7 @@ class Protocol:
 		if not user:
 			return
 		battle = self.getCurrentBattle(client)
-		if not client.session_id == battle.host: 
+		if not client.session_id == battle.host:
 			return
 		if user.session_id in battle.pending_users:
 			battle.pending_users.remove(user.session_id)
@@ -1914,12 +1914,12 @@ class Protocol:
 		user = self.clientFromUsername(username)
 		if not user or not user.session_id in battle.users:
 			return
-		if 'mod' in user.accesslevels: 
+		if 'mod' in user.accesslevels:
 			return
-			
+
 		user.Send('FORCEQUITBATTLE %s' %(client.username))
 		self.in_LEAVEBATTLE(user)
-		
+
 	def in_SETSCRIPTTAGS(self, client, scripttags):
 		'''
 		Set script tags and send them to all clients in your battle.
@@ -1974,7 +1974,7 @@ class Protocol:
 			return
 		if not battle.battle_id in self._root.battles:
 			self.out_FAILED(client, "LEAVEBATTLE", "couldn't find battle")
-			return		
+			return
 		battle.leaveBattle(client)
 		if battle.host == client.session_id:
 			to_remove = battle.users.copy()
@@ -2138,7 +2138,7 @@ class Protocol:
 		if chan in self._root.channels:
 			channel = self._root.channels[chan]
 			if channel.isOp(client):
-				channel.setTopic(client, topic) 
+				channel.setTopic(client, topic)
 
 	def in_GETCHANNELMESSAGES(self, client, chan, lastid):
 		'''
@@ -2147,7 +2147,7 @@ class Protocol:
 		@required.str lastid: messages to get since this id
 		'''
 		if not chan in self._root.channels:
-			return		
+			return
 		channel = self._root.channels[chan]
 		if channel.id == 0:
 			return # unregistered channels use id 0
@@ -2200,7 +2200,7 @@ class Protocol:
 		'''
 		battle = self.getCurrentBattle(client)
 		if not battle or not battle.canChangeSettings(client):
-			return		
+			return
 		try:
 			allyno = int32(allyno)
 			rect = {
@@ -2242,7 +2242,7 @@ class Protocol:
 		'''
 		battle = self.getCurrentBattle(client)
 		if not battle or not battle.canChangeSettings(client):
-			return			
+			return
 		units = units.split(' ')
 		disabled_units = []
 		for unit in units:
@@ -2281,7 +2281,7 @@ class Protocol:
 		battle = self.getCurrentBattle(client)
 		if not battle or not battle.canChangeSettings(client):
 			return
-			
+
 		battle.disabled_units = []
 		self._root.broadcast_battle('ENABLEALLUNITS', client.current_battle)
 
@@ -2320,7 +2320,7 @@ class Protocol:
 		user = self.clientFromUsername(username)
 		if not user or not user.session_id in battle.users:
 			return
-		
+
 		user.battlestatus['id'] = self._dec2bin(teamno, 4)
 		battle = self.getCurrentBattle(client)
 		if not battle: return
@@ -2361,7 +2361,7 @@ class Protocol:
 		user = self.clientFromUsername(username)
 		if not user or not user.session_id in battle.users:
 			return
-		
+
 		user.teamcolor = teamcolor
 		battle = self.getCurrentBattle(client)
 		if not battle: return
@@ -3076,8 +3076,8 @@ class Protocol:
 		if not good:
 			client.Send("RESENDVERIFICATIONDENIED %s" % reason)
 			return
-		client.Send("RESENDVERIFICATIONACCEPTED")			
-	
+		client.Send("RESENDVERIFICATIONACCEPTED")
+
 	def in_STLS(self, client):
 		self.out_OK(client, "STLS")
 		client.StartTLS()
@@ -3103,14 +3103,14 @@ class Protocol:
 
 		self.out_JSON(client, "FAILED", {"msg": "Unknown command: %s" %(rawcmd)})
 
-		
+
 	# Deprecated protocol section #
 	#
 	def in_MUTE(self, client, chan, user, duration=0):
 		self._root.chanserv.Handle("SAIDPRIVATE %s :mute %s %s %s -" % (client.username, chan, user, duration))
 	def in_UNMUTE(self, client, chan, user):
 		self._root.chanserv.Handle("SAIDPRIVATE %s :unmute %s %s" % (client.username, chan, user))
-	def in_MUTELIST(self, client, chan): 
+	def in_MUTELIST(self, client, chan):
 		self._root.chanserv.Handle("SAIDPRIVATE %s :listmutes %s" % (client.username, chan))
 	def in_FORCELEAVECHANNEL(self, client, chan, user, reason=''):
 		self._root.chanserv.Handle("SAIDPRIVATE %s :kick %s %s" % (client.username, chan, user))
@@ -3119,7 +3119,7 @@ class Protocol:
 	def in_STARTTLS(self, client):
 		client.StartTLS()
 		client.flushBuffer()
-		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0')))	
+		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0')))
 	def in_SAYBATTLE(self, client, msg):
 		battle = self.getCurrentBattle(client)
 		if not battle: return
