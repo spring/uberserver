@@ -48,7 +48,6 @@ restricted = {
 'user':set([
 	########
 	# battle
-	'SETACCESS',
 	'ADDBOT',
 	'ADDSTARTRECT',
 	'DISABLEUNITS',
