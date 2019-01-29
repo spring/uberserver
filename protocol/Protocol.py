@@ -2715,21 +2715,6 @@ class Protocol:
 			self.broadcast_RemoveBattle(battle)
 			del self._root.battles[battleId]
 
-	def in_KICK(self, client, username, reason=''):
-		'''
-		Kick target user from the server.
-
-		@required.str username: The target user.
-		@optional.str reason: The reason to be shown.
-		'''
-		kickeduser = self.clientFromUsername(username)
-		if not kickeduser:
-			self.out_SERVERMSG(client, 'User <%s> was not online' % username)
-			return
-		self.out_SERVERMSG(kickeduser, 'You were kicked from the server (%s)' % (reason))
-		self.out_SERVERMSG(client, 'Kicked <%s> from the server' % username)
-		kickeduser.Remove('was kicked from server by <%s> (%s)' % (client.username, reason))
-
 	def in_EXIT(self, client, reason=('Exiting')):
 		'''
 		Disconnect from the server, with an optional reason.
@@ -2757,8 +2742,6 @@ class Protocol:
 		@optional.str reason: The reason to be shown.
 		'''
 		kickeduser = self.clientFromUsername(username)
-		if kickeduser.access=='admin':
-			return
 		if not kickeduser:
 			self.out_SERVERMSG(client, 'User <%s> was not online' % username)
 			return
