@@ -48,6 +48,7 @@ restricted = {
 'user':set([
 	########
 	# battle
+	'SETACCESS',
 	'ADDBOT',
 	'ADDSTARTRECT',
 	'DISABLEUNITS',
@@ -2898,6 +2899,8 @@ class Protocol:
 			self._root.protocol = self
 			self.userdb.session = self.userdb.sessionmaker()
 			self._root.channeldb.session = self._root.channeldb.sessionmaker()
+			self._root.verificationdb.session = self._root.verificationdb.sessionmaker()
+			self._root.bandb.session = self._root.bandb.sessionmaker()
 			self._root.chanserv = chanserv.ChanServClient(self._root, (self._root.online_ip, 0), self._root.chanserv.session_id)
 			self._root.SayHooks = sayhooks
 			importlib.reload(sys.modules['BaseClient'])
