@@ -63,7 +63,7 @@ class DataHandler:
 		self.start_time = time.time()
 		self.detectIp()
 		self.cert = None
-		
+
 		# lists of online stuff
 		self.channels = {} #channame->channel/battle
 		self.battles = {} #battle_id->battle
@@ -78,9 +78,9 @@ class DataHandler:
 		# rate limits
 		self.recent_registrations = {} #ip_address->int
 		self.recent_renames = {} #user_id->int
-		self.flood_limits = { 
+		self.flood_limits = {
 			'fresh':{'msglength':1000, 'bytespersecond':1000, 'seconds':2}, # also the default
-			'user':{'msglength':10000, 'bytespersecond':2000, 'seconds':10}, 
+			'user':{'msglength':10000, 'bytespersecond':2000, 'seconds':10},
 			'bot':{'msglength':10000, 'bytespersecond':50000, 'seconds':10},
 			'mod':{'msglength':10000, 'bytespersecond':2000, 'seconds':10},
 			'admin':{'msglength':10000, 'bytespersecond':2000, 'seconds':10},
@@ -111,7 +111,6 @@ class DataHandler:
 			def _fk_pragma_on_connect(dbapi_con, con_record):
 				dbapi_con.execute('PRAGMA journal_mode = MEMORY')
 				dbapi_con.execute('PRAGMA synchronous = OFF')
-				# FIXME: "ImportError: cannot import name event"
 			from sqlalchemy import event
 			event.listen(self.engine, 'connect', _fk_pragma_on_connect)
 		else:
@@ -121,7 +120,6 @@ class DataHandler:
 		self.bridgeduserdb = SQLUsers.BridgedUsersHandler(self, self.engine)
 		self.verificationdb = SQLUsers.VerificationsHandler(self, self.engine)
 		self.bandb = SQLUsers.BansHandler(self, self.engine)
-		
 		self.parseFiles()
 		self.protocol = Protocol.Protocol(self)
 
@@ -130,6 +128,13 @@ class DataHandler:
 
 		# set up channels/battles from db
 		for name in channels:
+			channel = channels[name]
+
+			owner_user_id = None
+			client = self.userdb.clientFromID(channel['owner_user_id'])
+			if client and client.id:
+				owner_user_id = client.id
+
 			assert(name not in self.channels)
 			dbchannel = channels[name]
 			channel = Channel.Channel(self, name)
@@ -316,9 +321,9 @@ class DataHandler:
 			elif arg in ['u', 'sighup']:
 				self.sighup = True
 			elif arg in ['v', 'min_spring_version']:
-				try: 
+				try:
 					self.min_spring_version = argp[0] # ' '.join(argp) # shouldn't have spaces
-				except Exception as e: 
+				except Exception as e:
 					print('Error specifying spring version: ' + str(e))
 			elif arg in ['s', 'sqlurl']:
 				try:
@@ -487,7 +492,7 @@ class DataHandler:
 				del self.recent_registrations[ip_address]
 		except:
 			logging.error(traceback.format_exc())
-	
+
 	def decrement_recent_renames(self):
 		try:
 			to_delete = []
@@ -499,7 +504,7 @@ class DataHandler:
 				del self.recent_renames[user_id]
 		except:
 			logging.error(traceback.format_exc())
-	
+
 	# the sourceClient is only sent for SAY*, and RING commands
 	def multicast(self, session_ids, msg, ignore=(), sourceClient=None, flag=None):
 		assert(type(ignore) == set)

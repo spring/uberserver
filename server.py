@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 # coding=utf-8
 
-try:
-	import thread
-except:
-	# thread was renamed to _thread in python 3
-	import _thread
+import _thread as thread
 
 import traceback, signal, socket, sys, logging
 from twisted.internet import reactor
@@ -44,10 +40,7 @@ backlog = 100
 
 try:
 	natserver = NATServer(natport)
-	try:
-		thread.start_new_thread(natserver.start,())
-	except NameError:
-		_thread.start_new_thread(natserver.start,())
+	thread.start_new_thread(natserver.start,())
 	natserver.bind(_root)
 except socket.error:
 	print('Error: Could not start NAT server - hole punching will be unavailable.')

@@ -25,8 +25,8 @@ class Client(BaseClient):
 
 		# fields also in user db
 		self.user_id = -1 # db user object has a .id attr instead
-		self.set_user_pwrd_salt("", ("", "")) # inits self.username, self.password self.randsalt 
-		self.register_date = now	
+		self.set_user_pwrd_salt("", ("", "")) # inits self.username, self.password self.randsalt
+		self.register_date = now
 		self.last_login = now
 		self.last_ip = self.ip_address
 		self.last_id = 0
@@ -34,14 +34,14 @@ class Client(BaseClient):
 		self.access = 'fresh'
 		self.email = ''
 		self.bot = 0
-			
+
 		# session
 		self.session_id = session_id
 		self.debug = False
 		self.static = False
 		self.sendError = False
-	
-		self.compat = defaultdict(lambda: False) # holds compatibility flags 
+
+		self.compat = defaultdict(lambda: False) # holds compatibility flags
 
 		self.country_code = '??'
 		self.setFlagByIP(self.ip_address)
@@ -71,7 +71,7 @@ class Client(BaseClient):
 
 		# perhaps these are unused?
 		self.cpu = 0
-		self.data = '' 
+		self.data = ''
 		self.lastdata = now
 
 		# time-stamps for encrypted data
@@ -91,7 +91,7 @@ class Client(BaseClient):
 
 		self.hostport = None
 		self.udpport = 0
-		
+
 	def set_msg_id(self, msg):
 		self.msg_id = ""
 
@@ -143,7 +143,7 @@ class Client(BaseClient):
 		if total > (bytespersecond * seconds):
 			if not self.access in ('admin', 'mod'):
 				self.Send('SERVERMSG No flooding (over %s per second for %s seconds)' % (bytespersecond, seconds))
-				self.Remove('Kicked for flooding (%s)' % (self.access))				
+				self.Remove('Kicked for flooding (%s)' % (self.access))
 				self.ReportFloodBreach("flood limit", total)
 				return
 
@@ -158,7 +158,7 @@ class Client(BaseClient):
 				self.Send('SERVERMSG Max client data cache was exceeded, some of your data was dropped by the server')
 				self.ReportFloodBreach("max client data cache ", len(self.data))
 			return
-			
+
 		self.HandleProtocolCommands(self.data.split("\n"), flood_limits)
 
 	def HandleProtocolCommand(self, cmd):
@@ -170,7 +170,7 @@ class Client(BaseClient):
 	def HandleProtocolCommands(self, split_data, flood_limits):
 		assert(type(split_data) == list)
 		assert(type(split_data[-1]) == str)
-		
+
 		# either a list of commands, or a list of encrypted data
 		# blobs which may contain embedded (post-decryption) NLs
 		# note: will be empty if len(split_data) == 1
@@ -186,7 +186,7 @@ class Client(BaseClient):
 		for raw_data_blob in raw_data_blobs:
 			if (len(raw_data_blob) == 0):
 				continue
-				
+
 			strip_commands = [(raw_data_blob.rstrip('\r')).lstrip(' ')]
 			commands_buffer += strip_commands
 
@@ -204,8 +204,8 @@ class Client(BaseClient):
 		err_msg = "%s for '%s' breached by %s (had %i bytes)" % (type, self.access, username, bytes)
 		self._root.protocol.broadcast_Moderator(err_msg)
 		logging.info(err_msg)
-	
-	
+
+
 	##
 	## send data to client
 	##
