@@ -198,13 +198,13 @@ class Client(BaseClient):
 			self.HandleProtocolCommand(command)
 
 	def ReportFloodBreach(self, type, bytes):
-		username = "session_id: %i" % self.session_id
-		if self.hasattr("username"):
+		if hasattr("username"):
 			username = self.username
+		else:
+			username = "session_id: %i" % self.session_id
 		err_msg = "%s for '%s' breached by %s (had %i bytes)" % (type, self.access, username, bytes)
 		self._root.protocol.broadcast_Moderator(err_msg)
 		logging.info(err_msg)
-
 
 	##
 	## send data to client
