@@ -200,19 +200,24 @@ def versiontuple(version):
 		v+=c
 	return tuple(map(int, (v.split("."))))
 
-
+# supported flags
 flag_map = {
 	'u':  'say2',            # SAYFROM, Battle<->Channel unification
 	'l':  'lobbyIDs',        # send account IDs and lobby IDs in ADDUSER (supersedes 'a')
 	'sp': 'scriptPassword',  # scriptPassword in JOINEDBATTLE
-	'et': 'sendEmptyTopic',  # NOCHANNELTOPIC
 	'cl': 'cleanupBattles',  # BATTLEOPENED / OPENBATTLE with support for engine/version
 	'b':  'battleAuth',      # JOINBATTLEACCEPT/JOINBATTLEDENIED (typically only sent by autohosts)
-	'p':  'agreementPlain',  # AGREEMENT is plaintext
-	'a':  'accountIDs',      # see 'l'
 }
+# optional flags
 optional_flags = ('b')
-deprecated_flags = ('a', 'm')
+
+# flags for functionality that is now either compulsory or was removed
+deprecated_flags = (
+	'a', # superceded by 'l'
+	'm', # matchmaking, removed
+	'p', # plain text user agreement, now mandatory
+	'et', # NOCHANNELTOPIC, removed
+)
 
 class Protocol:
 	def __init__(self, root):
@@ -773,10 +778,10 @@ class Protocol:
 
 		battle.ip = translated_ip
 		battle.host = host.session_id # session_id -> username
-		if client.compat['cl']: #supports cleanupBattles
+		if client.compat['cl']: #supports multi-engine
 			return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s\t%s\t%s' %(battle.battle_id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded(), battle.rank, battle.maphash, battle.engine, battle.version, battle.map, battle.title, battle.modname)
 
-		# give client without version support a hint, that this battle is incompatible to his version
+		# give a legacy client without version support a hint, that this battle might be incompatible to his version
 		if not (battle.engine == 'spring' and (battle.version == self._root.min_spring_version or battle.version == self._root.min_spring_version + '.0')):
 			title =  'Incompatible (%s %s) %s' %(battle.engine, battle.version, battle.title)
 		else:
@@ -1723,16 +1728,12 @@ class Protocol:
 		title = None
 		modname = None
 
-		argcount = sentence_args.count('\t')
-		if client.compat['cl'] and argcount == 4: #supports cleanupBattles
+		tabcount = sentence_args.count('\t')
+		if tabcount == 4:
 			engine, version, map, title, modname = sentence_args.split('\t', 4)
-		elif not client.compat['cl'] and argcount == 2:
-			map, title, modname = sentence_args.split('\t',2)
-			engine = 'spring'
-			version = self._root.min_spring_version
 		else:
-			self.out_OPENBATTLEFAILED(client, 'To few arguments: %d' %(argcount))
-			return False
+			self.out_OPENBATTLEFAILED(client, 'arguments: %d' %(argcount))
+			return
 
 		title = self.SayHooks.hook_OPENBATTLE(self, client, title).strip()
 
@@ -2977,9 +2978,6 @@ class Protocol:
 
 	def in_CHANGEEMAILREQUEST(self, client, newmail):
 		# request to be sent a verification code for changing email address
-		if not client.compat['cl']: #FIXME: remove this, not needed
-			self.out_SERVERMSG(client, "compatibility flag cl needed")
-			return
 		if not self.verificationdb.active():
 			client.Send("CHANGEEMAILREQUESTDENIED email verification is currently turned off, a blank verification code will be accepted!")
 			return
@@ -2997,9 +2995,6 @@ class Protocol:
 
 	def in_CHANGEEMAIL(self, client, newmail, verification_code=""):
 		# client requests to change their own email address, with verification code if necessary
-		if not client.compat['cl']:
-			self.out_SERVERMSG(client, "compatibility flag cl needed")
-			return
 		newmail = newmail.lower()
 		found,_ = self.userdb.get_user_id_with_email(newmail)
 		if found and not client.bot: # bots should share email addr with the bot owner

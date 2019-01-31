@@ -52,6 +52,7 @@ class Channel():
 
 	def unregister(self, client):
 		self.owner_user_id = None
+		self.topic = None
 		self.operators = set()
 		self.channelMessage('This channel has been unregistered by <%s>' % client.username)
 		self.db().unRegister(client, self)
@@ -77,21 +78,15 @@ class Channel():
 		client.Send('CLIENTS %s %s' % (self.name, clientlist))
 
 		topic = self.topic
-		if not topic:
-			if client.compat['et']:
-				client.Send('NOCHANNELTOPIC %s' % self.name)
-			return
-
-		if client.compat['et']:
-			topictime = int(topic['time'])
-		else:
+		if topic:
 			topictime = int(topic['time'])*1000
-		try:
-			top = topic['text']
-		except:
-			top = "Invalid unicode-encoding (should be utf-8)"
-			logging.info("%s for channel topic: %s" %(top, self.name))
-		client.Send('CHANNELTOPIC %s %s %s %s'%(self.name, topic['user'], topictime, top))
+			try:
+				top = topic['text']
+			except:
+				top = "Invalid unicode-encoding (should be utf-8)"
+				logging.info("%s for channel topic: %s" %(top, self.name))
+			if len(top) > 0:
+				client.Send('CHANNELTOPIC %s %s %s %s'%(self.name, topic['user'], topictime, top))
 
 		if not client.compat['u']:
 			return
@@ -157,8 +152,8 @@ class Channel():
 	def setTopic(self, client, topic):
 		if self.topic and topic == self.topic['text']:
 			return
-		if topic in ('*', None):
-			self.topic = {}
+		if topic in ('*', None, ""):
+			self.topic = None
 			self.channelMessage('Topic disabled.')
 			return
 		topicdict = {'user':client.username, 'text':topic, 'time':time.time()}
