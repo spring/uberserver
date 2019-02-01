@@ -914,7 +914,7 @@ class Protocol:
 		ip_str = client.ip_address
 		if client.local_ip != client.ip_address:
 			ip_str += " " + client.local_ip
-		self.broadcast_Moderator('New user: %s %s %s %s' %(username, email, ip_str, client.country_code))
+		self.broadcast_Moderator('New user: %s %s %s %s' %(username, ip_str, client.country_code, email))
 
 
 	def in_LOGIN(self, client, username, password='', cpu='0', local_ip='', sentence_args=''):
