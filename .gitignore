@@ -25,3 +25,7 @@ xmlrpc.log*
 /proxies.txt
 /dbconfig.py
 venv/
+
+*.crt
+
+keys/

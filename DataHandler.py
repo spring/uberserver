@@ -30,6 +30,7 @@ class DataHandler:
 		self.dispatcher = None
 		self.console_buffer = []
 		self.port = 8200
+		self.ssl_port = 8243
 		self.natport = self.port + 1
 		self.min_spring_version = '*'
 		self.agreementfile = 'agreement.txt'

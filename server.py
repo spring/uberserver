@@ -3,8 +3,10 @@
 
 import _thread as thread
 
+from OpenSSL import SSL
+
 import traceback, signal, socket, sys, logging
-from twisted.internet import reactor
+from twisted.internet import reactor, ssl
 from twisted.internet import task
 
 sys.path.append("protocol")
@@ -49,16 +51,15 @@ logging.info('Using %i client handling thread(s).'%_root.max_threads)
 
 _root.init()
 
+
 try:
 	reactor.listenTCP(_root.port, twistedserver.ChatFactory(_root))
+	reactor.listenSSL(_root.ssl_port, twistedserver.ChatFactory(_root),
+                      ssl.DefaultOpenSSLContextFactory('keys/server.key', 'keys/server.crt'))
 	print('Started lobby server!')
 	print('Connect the lobby client to')
 	print('  public:  %s:%d' %(_root.online_ip, _root.port))
 	print('  private: %s:%d' %(_root.local_ip, _root.port))
-	recent_registration_loop = task.LoopingCall(_root.decrement_recent_registrations)
-	recent_registration_loop.start(60*20)
-	recent_rename_loop = task.LoopingCall(_root.decrement_recent_renames)
-	recent_rename_loop.start(60*60*24*7)
 	reactor.run()
 
 except KeyboardInterrupt:
