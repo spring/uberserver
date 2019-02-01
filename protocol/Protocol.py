@@ -1371,12 +1371,14 @@ class Protocol:
 			self.out_FAILED(client, "JOINFROM", "Channel '%s' not found" % chan, True)
 			return
 		channel = self._root.channels[chan]
+		if channel.hasKey():
+			self.out_FAILED(client, "JOINFROM", "Cannot bridge to private channels" % chan, True)			
 		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient:
 			self.out_FAILED(client, "JOINFROM", "Bridged user not found", True)
 			return
 		if bridgedClient.bridge_user_id != client.user_id:
-			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client is on a different bridge (got %i, expected %i)" % (bridgedClient.bridge_user_id, client.user_id), True)
+			self.out_FAILED(client, "JOINFROM", "Bridged client is on a different bridge (got %i, expected %i)" % (bridgedClient.bridge_user_id, client.user_id), True)
 			return
 		if bridgedClient.bridged_id in channel.bridged_ban:
 			self.out_FAILED(client, "JOINFROM", "Bridged user is banned from channel", True)
@@ -1393,10 +1395,10 @@ class Protocol:
 		channel = self._root.channels[chan]
 		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient:
-			self.out_FAILED(client, "JOINFROM", "Bridged user not found", True)
+			self.out_FAILED(client, "LEAVEFROM", "Bridged user not found", True)
 			return
 		if bridgedClient.bridge_user_id != client.user_id:
-			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client is on a different bridge (got %i, expected %i)" % (bridgedClient.bridge_user_id, client.user_id), True)
+			self.out_FAILED(client, "LEAVEFROM", "Bridged client is on a different bridge (got %i, expected %i)" % (bridgedClient.bridge_user_id, client.user_id), True)
 			return
 		channel.removeBridgedUser(client, bridgedClient)
 
