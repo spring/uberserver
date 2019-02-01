@@ -192,7 +192,7 @@ class Channel():
 			self.channelMessage('<%s> set a new password for this %s' % (client.username, self.identity))
 
 	def hasKey(self):
-		return not key in ('*', None)
+		return self.key not in ('*', None)
 
 	def opUser(self, client, target):
 		if target.user_id in self.operators:
