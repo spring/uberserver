@@ -534,8 +534,8 @@ class UsersHandler:
 			return False, 'Username already exists.'
 		if email:
 			dbemail = self.sess().query(User).filter(User.email == email).first()
-			#if dbemail:
-			#	return False, 'Email address already in use.'
+			if dbemail:
+				return False, 'Email address already in use.'
 		if ip_address:
 			ipban = self._root.bandb.check_ban(None, ip_address)
 			if ipban:
@@ -1073,9 +1073,9 @@ class VerificationsHandler:
 		# no need to check if ip is banned, that is done by login!
 
 		email_entry = self.sess().query(Verification).filter(Verification.email == email).first()
-		#if email_entry:
-			#if datetime.now() <= email_entry.expiry:
-				#return False, 'a verification attempt is already active for ' + email + ', use that or wait for it to expire (up to 24h)'
+		if email_entry:
+			if datetime.now() <= email_entry.expiry:
+				return False, 'a verification attempt is already active for ' + email + ', use that or wait for it to expire (up to 24h)'
 		if email_entry: #expired
 			self.remove(email_entry.user_id)
 
@@ -1156,23 +1156,18 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 		body += "\n\nIf you received this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)."
 		message = 'Subject: {}\n\n{}'.format(subject, body)
 		try:
-			logging.error('starting smtp server')
 			server = smtplib.SMTP()
-			logging.error('started smtp server', self.mail_server, self.mail_server=="localhost")
 			if self.mail_server=="localhost":
 				server.connect()
-				logging.error('connected')
 			else:
 				server = smtplib.SMTP_SSL(self.mail_server, self.mail_server_port)
 				server.ehlo()
 				server.login(self.mail_user, self.mail_password)
 			
 			server.set_debuglevel(True) # todo: remove after testing
-			logging.error('debug level')
 			server.sendmail(sent_from, to, message)
-			logging.error('sent mail')
 			server.close()
-			logging.info('Sent verification code to %s' % (sent_from, to))
+			logging.info('Sent verification code to %s' % (to))
 		except Exception as e:
 			logging.error('Failed to send email from %s to %s' % (sent_from, to))
 			logging.error(str(e))
