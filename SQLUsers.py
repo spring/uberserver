@@ -1156,8 +1156,8 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 		body += "\n\nIf you received this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)."
 		message = 'Subject: {}\n\n{}'.format(subject, body)
 		try:
+			logging.error('starting smtp server')
 			server = smtplib.SMTP()
-			server.set_debuglevel(True) # todo: remove after testing
 			logging.error('started smtp server', server.mail_server, server.mail_server=="localhost")
 			if server.mail_server=="localhost":
 				server.connect()
@@ -1167,6 +1167,8 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 				server.ehlo()
 				server.login(self.mail_user, self.mail_password)
 			
+			server.set_debuglevel(True) # todo: remove after testing
+			logging.error('debug level')
 			server.sendmail(sent_from, to, message)
 			logging.error('sent mail')
 			server.close()
