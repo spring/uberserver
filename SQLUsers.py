@@ -1158,8 +1158,8 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 		try:
 			logging.error('starting smtp server')
 			server = smtplib.SMTP()
-			logging.error('started smtp server', server.mail_server, server.mail_server=="localhost")
-			if server.mail_server=="localhost":
+			logging.error('started smtp server', self.mail_server, self.mail_server=="localhost")
+			if self.mail_server=="localhost":
 				server.connect()
 				logging.error('connected')
 			else:
