@@ -1026,7 +1026,7 @@ class VerificationsHandler:
 			self.mail_server = lines[2]
 			self.mail_server_port = int(lines[3])
 			self.require_verification = True
-			logging.info('Email verification is enabled, server email account is %s' % self.mail_user)
+			logging.info('Email verification is enabled, server email account is %s on mail server %s' % (self.mail_user, self.mail_server))
 		except Exception as e:
 			logging.info('Could not load server_email_account.txt, email verification is disabled: %s' %(e))
 
@@ -1158,7 +1158,7 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 		try:
 			server = smtplib.SMTP()
 			server.set_debuglevel(True) # todo: remove after testing
-			logging.error('started smtp server')
+			logging.error('started smtp server', server.mail_server, server.mail_server=="localhost")
 			if server.mail_server=="localhost":
 				server.connect()
 				logging.error('connected')
@@ -1170,6 +1170,7 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 			server.sendmail(sent_from, to, message)
 			logging.error('sent mail')
 			server.close()
+			logging.info('Sent verification code to %s' % (sent_from, to))
 		except Exception as e:
 			logging.error('Failed to send email from %s to %s' % (sent_from, to))
 
