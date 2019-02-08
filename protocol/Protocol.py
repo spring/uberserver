@@ -209,7 +209,10 @@ flag_map = {
 	'b':  'battleAuth',      # JOINBATTLEACCEPT/JOINBATTLEDENIED (typically only sent by autohosts)
 }
 # optional flags
-optional_flags = ('b')
+optional_flags = (
+	'b', # only useful to autohosts -> permanently optional
+	'u', # will become compulsory once clients are ready 
+)
 
 # flags for functionality that is now either compulsory or was removed
 deprecated_flags = (
