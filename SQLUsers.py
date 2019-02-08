@@ -534,8 +534,8 @@ class UsersHandler:
 			return False, 'Username already exists.'
 		if email:
 			dbemail = self.sess().query(User).filter(User.email == email).first()
-			if dbemail:
-				return False, 'Email address already in use.'
+			#if dbemail:
+			#	return False, 'Email address already in use.'
 		if ip_address:
 			ipban = self._root.bandb.check_ban(None, ip_address)
 			if ipban:
@@ -833,7 +833,7 @@ class BridgedUsersHandler:
 		# remove any bridged user that wasn't seen for a year
 		now = datetime.now()
 		response = self.sess().query(BridgedUser).filter(BridgedUser.last_bridged < now - timedelta(days=365))
-		logging.info("deleting %i bridged users", response.count())
+		logging.info("deleting %i inactive bridged users", response.count())
 		response.delete(synchronize_session=False)
 		self.sess().commit()
 
@@ -1122,7 +1122,7 @@ class VerificationsHandler:
 		except:
 			logging.error('Failed to launch VerificationHandler._send: %s, %s, %s' % (entry, reason, wait_duration))
 
-	def _send (self, email, code, reason, use_delay, expiry, ip_address):
+	def _send(self, email, code, reason, use_delay, expiry, ip_address):
 		sent_from = self.mail_user
 		to = email
 		subject = 'SpringRTS verification code'
