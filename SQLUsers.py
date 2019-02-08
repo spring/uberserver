@@ -1138,7 +1138,7 @@ You are recieving this email because you recently """ + reason + """.
 
 Your registration attempt was detected as coming from a non-residential IP address.
 To prevent abuse we delay such registrations by 24 hours.
-Your verification code will be sent on """ + send_time.strftime("%Y-%m-%d") + """ at """ + send_time.strftime("%H:%M") + """.
+Your verification code will be sent on """ + send_time.strftime("%Y-%m-%d") + """ at """ + send_time.strftime("%H:%M") + """ CET.
 Alternatively, you can register a new account from a different IP address."""
 			self._send_email(sent_from, to, subject, body)
 			time.sleep(delay_secs)
@@ -1147,7 +1147,7 @@ Alternatively, you can register a new account from a different IP address."""
 You are recieving this email because you recently """ + reason + """.
 Your email verification code is """ + str(code) + """
 
-This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at """ + expiry.strftime("%H:%M") + """."""
+This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at """ + expiry.strftime("%H:%M") + """ CET."""
 		self._send_email(sent_from, to, subject, body)
 
 	def _send_email(self, sent_from, to, subject, body):
