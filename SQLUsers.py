@@ -1175,6 +1175,7 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 			logging.info('Sent verification code to %s' % (sent_from, to))
 		except Exception as e:
 			logging.error('Failed to send email from %s to %s' % (sent_from, to))
+			logging.error(str(e))
 
 	def _is_nonresidential_ip(self, ip_address):
 		if not self.active(): #safety
