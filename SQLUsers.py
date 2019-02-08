@@ -1157,15 +1157,18 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 		message = 'Subject: {}\n\n{}'.format(subject, body)
 		try:
 			server = smtplib.SMTP()
+			server.set_debuglevel(True) # todo: remove after testing
+			logging.error('started smtp server')
 			if server.mail_server=="localhost":
 				server.connect()
+				logging.error('connected')
 			else:
 				server = smtplib.SMTP_SSL(self.mail_server, self.mail_server_port)
 				server.ehlo()
 				server.login(self.mail_user, self.mail_password)
 			
-			server.set_debuglevel(True) # todo: remove after testing
 			server.sendmail(sent_from, to, message)
+			logging.error('sent mail')
 			server.close()
 		except Exception as e:
 			logging.error('Failed to send email from %s to %s' % (sent_from, to))
