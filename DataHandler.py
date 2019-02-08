@@ -5,7 +5,7 @@ import SQLUsers
 import ChanServ
 import ip2country
 import datetime
-from protocol import Protocol, Channel
+from protocol import Protocol, Channel, Battle
 
 import logging
 from logging.handlers import TimedRotatingFileHandler
@@ -39,6 +39,7 @@ class DataHandler:
 		self.sighup = False
 
 		self.userdb = None
+		self.bridgeduserdb = None
 		self.channeldb = None
 		self.verificationdb = None
 		self.bandb = None
@@ -64,11 +65,15 @@ class DataHandler:
 		self.cert = None
 
 		# lists of online stuff
-		self.channels = {}
-		self.usernames = {}
-		self.clients = {}
-		self.user_ids = {}
-		self.battles = {}
+		self.channels = {} #channame->channel/battle
+		self.battles = {} #battle_id->battle
+		self.usernames = {} #username->client
+		self.user_ids = {} #user_id->client
+		self.clients = {} #session_id->client
+
+		self.bridged_locations = {} #location->client
+		self.bridged_ids = {} #bridged_id->bridgedClient
+		self.bridged_usernames = {} #bridgeUsername->bridgedClient
 
 		# rate limits
 		self.recent_registrations = {} #ip_address->int
@@ -94,6 +99,7 @@ class DataHandler:
 		self.logger.addHandler(fh)
 
 	def init(self):
+		now = datetime.datetime.now()
 		sqlalchemy = __import__('sqlalchemy')
 		if self.sqlurl.startswith('sqlite'):
 			print('Multiple threads are not supported with sqlite, forcing a single thread')
@@ -111,13 +117,16 @@ class DataHandler:
 			self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.max_threads * 2, pool_recycle=300)
 
 		self.userdb = SQLUsers.UsersHandler(self, self.engine)
+		self.bridgeduserdb = SQLUsers.BridgedUsersHandler(self, self.engine)
 		self.verificationdb = SQLUsers.VerificationsHandler(self, self.engine)
 		self.bandb = SQLUsers.BansHandler(self, self.engine)
+		self.parseFiles()
+		self.protocol = Protocol.Protocol(self)
 
 		self.channeldb = SQLUsers.ChannelsHandler(self, self.engine)
 		channels = self.channeldb.all_channels()
-		operators = self.channeldb.all_operators()
 
+		# set up channels/battles from db
 		for name in channels:
 			channel = channels[name]
 
@@ -127,35 +136,93 @@ class DataHandler:
 				owner_user_id = client.id
 
 			assert(name not in self.channels)
-			newchan = Channel.Channel(self, name)
-			newchan.chanserv = bool(owner_user_id)
-			newchan.id = channel['id']
-			newchan.owner_user_id = owner_user_id
-			newchan.operators = set()
-			if channel['key'] in ('', None, '*'):
-				newchan.key=None
-			else:
-				newchan.key = channel['key']
-			newchan.antispam = channel['antispam']
-			topic_client = self.userdb.clientFromID(channel['topic_user_id'])
+			dbchannel = channels[name]
+			channel = Channel.Channel(self, name)
+			if name.startswith('__battle__'):
+				channel = Battle.Battle(self, name)
+
+			owner = self.userdb.clientFromID(dbchannel['owner_user_id'])
+			if owner:
+				channel.owner_user_id = owner.id
+
+			channel.antispam = dbchannel['antispam']
+			channel.store_history = dbchannel['store_history']
+			channel.id = dbchannel['id']
+			channel.key = dbchannel['key']
+			if channel.key in ('', None, '*'):
+				channel.key = None
+
+			channel.topic_user_id = dbchannel['topic_user_id']
+			topic_client = self.userdb.clientFromID(dbchannel['topic_user_id'])
 			topic_name = 'ChanServ'
 			if topic_client:
 				topic_name = topic_client.username
-			newchan.topic={'user':topic_name, 'text':channel['topic'], 'time':int(time.time())}
-			newchan.store_history = channel['store_history']
-			self.channels[name] = newchan
-
-		for op in operators:
-			dbchannel = self.channeldb.channel_from_id(op['channel_id'])
-			if dbchannel:
-				self.channels[dbchannel.name].operators.add(op['user_id'])
-
-		self.parseFiles()
-		self.protocol = Protocol.Protocol(self)
+			channel.topic={'user':topic_name, 'text':dbchannel['topic'], 'time':int(time.time())}
+			self.channels[name] = channel
 
 		self.chanserv = ChanServ.ChanServClient(self, (self.online_ip, 0), self.session_id)
 		for name in channels:
 			self.chanserv.HandleProtocolCommand("JOIN %s" %(name))
+
+		forwards = self.channeldb.all_forwards()
+		for forward in forwards:
+			dbchannel_from = self.channeldb.channel_from_id(forward['channel_from_id'])
+			dbchannel_to = self.channeldb.channel_from_id(forward['channel_to_id'])
+			if dbchannel_from and dbchannel_to:
+				self.channels[dbchannel_from.name].forwards.add(dbchannel_to.name)
+
+		operators = self.channeldb.all_operators()
+		for op in operators:
+			dbchannel = self.channeldb.channel_from_id(op['channel_id'])
+			if dbchannel:
+				target = self.protocol.clientFromID(op['user_id'], True)
+				if not target: continue
+				self.channels[dbchannel.name].opUser(self.chanserv, target)
+
+		bans = self.channeldb.all_bans()
+		for ban in bans:
+			dbchannel = self.channeldb.channel_from_id(ban['channel_id'])
+			if dbchannel:
+				target = self.protocol.clientFromID(ban['user_id'], True)
+				if not target: continue
+				issuer = self.protocol.clientFromID(ban['issuer_user_id'], True)
+				if not issuer: issuer = self.chanserv
+				duration = ban['expires'] - now
+				self.channels[dbchannel.name].banUser(issuer, target, ban['expires'], ban['reason'], duration)
+
+		bridged_bans = self.channeldb.all_bridged_bans()
+		for ban in bridged_bans:
+			dbchannel = self.channeldb.channel_from_id(ban['channel_id'])
+			if dbchannel:
+				target = self.bridgedClientFromID(ban['bridged_id'], True)
+				if not target: continue
+				issuer = self.protocol.clientFromID(ban['issuer_user_id'], True)
+				if not issuer: issuer = self.chanserv
+				duration = ban['expires'] - now
+				self.channels[dbchannel.name].banBridgedUser(issuer, target, ban['expires'], ban['reason'], duration)
+
+		mutes = self.channeldb.all_mutes()
+		for mute in mutes:
+			dbchannel = self.channeldb.channel_from_id(mute['channel_id'])
+			if dbchannel:
+				target = self.protocol.clientFromID(mute['user_id'], True)
+				if not target: continue
+				issuer = self.protocol.clientFromID(mute['issuer_user_id'], True)
+				if not issuer: issuer = self.chanserv
+				duration = mute['expires'] - now
+				self.channels[dbchannel.name].muteUser(issuer, target, mute['expires'], mute['reason'], duration)
+
+	def clean(self):
+		logging.info("scheduled clean...")
+		try:
+			self.userdb.clean()
+			self.bridgeduserdb.clean()
+			self.channeldb.clean()
+			self.verificationdb.clean()
+			self.bandb.clean()
+		except:
+			logging.error(traceback.format_exc())
+		logging.info("scheduled clean finished")
 
 	def shutdown(self):
 		self.running = False
@@ -336,31 +403,81 @@ class DataHandler:
 	def clientFromSession(self, session_id):
 		if session_id in self.clients: return self.clients[session_id]
 
-	def event_loop(self):
-		lastmute = lastidle = self.start_time
-		while self.running:
-			now = time.time()
-			try:
-				if now - lastmute >= 1: #FIXME: reenable after twisted switch
-					lastmute = now
-					self.mute_timeout_step(now)
-			except:
-				logging.error(traceback.format_exc())
-			time.sleep(max(0.1, 1 - (now - self.start_time)))
+	def bridgedClient(self, location, external_id, fromdb=False):
+		if location in self.bridged_locations:
+			bridge_user_id = self.bridged_locations[location]
+			bridge = self.protocol.clientFromID(bridge_user_id)
+			if external_id in bridge.bridged_external_ids:
+				bridged_id = bridge.bridged_external_ids[external_id]
+				assert(bridged_id in self.bridged_ids)
+				return self.bridged_ids[bridged_id]
+		if not fromdb:
+			return False
+		return self.bridgeduserdb.bridgedClient(location, external_id)
 
-	def mute_timeout_step(self, now):
+	def bridgedClientFromID(self, bridged_id, fromdb=False):
+		if bridged_id in self.bridged_ids:
+			return self.bridged_ids[bridged_id]
+		if not fromdb:
+			return
+		return self.bridgeduserdb.bridgedClientFromID(bridged_id)
+
+	def bridgedClientFromUsername(self, username, fromdb=False):
+		if username in self.bridged_usernames:
+			return self.bridged_usernames[username]
+		if not fromdb:
+			return
+		return self.bridgeduserdb.bridgedClientFromUsername(username)
+
+	def event_loop(self):
+		self.channel_mute_ban_timeout()
+
+	def channel_mute_ban_timeout(self):
+		# remove expired channel/battle mutes/bans
+		now = datetime.datetime.now()
+		chanserv = self.chanserv
 		try:
 			channels = self.channels
 			for chan in channels:
 				channel = channels[chan]
-				mutelist = channel.mutelist
-				for user_id in mutelist:
-					expiretime = mutelist[user_id]['expires']
-					if 0 < expiretime and expiretime < now:
-						del channel.mutelist[user_id]
-						client = self.clientFromID(user_id)
-						if client:
-							channel.channelMessage('<%s> has been unmuted (mute expired).' % client.username)
+				to_unmute = []
+				for user_id in channel.mutelist:
+					mute = channel.mutelist[user_id]
+					expiretime = mute['expires']
+					if expiretime < now:
+						to_unmute.append(user_id)
+				for user_id in to_unmute:
+					target = self.protocol.clientFromID(user_id, True)
+					if not target:
+						continue
+					channel.unmuteUser(chanserv, target, 'mute expired')
+					self.channeldb.unmuteUser(channel, target)
+
+				to_unban = []
+				for user_id in channel.ban:
+					ban = channel.ban[user_id]
+					expiretime = ban['expires']
+					if expiretime < now:
+						to_unban.append(user_id)
+				for user_id in to_unban:
+					target = self.protocol.clientFromID(user_id, True)
+					if not target:
+						continue
+					self.channeldb.unbanUser(channel, target)
+					channel.unbanUser(chanserv, target)
+
+				to_unban_bridged = []
+				for bridged_id in channel.bridged_ban:
+					ban = channel.bridged_ban[bridged_id]
+					expiretime = ban['expires']
+					if expiretime < now:
+						to_unban_bridged.append(bridged_id)
+				for bridged_id in to_unban_bridged:
+					target = self.bridgedClientFromID(bridged_id)
+					if not target:
+						continue
+					channel.unbanBridgedUser(chanserv, bridged_id)
+					self.channeldb.unbanBridgedUser(channel, bridged_id)
 		except:
 			logging.error(traceback.format_exc())
 
@@ -389,7 +506,7 @@ class DataHandler:
 			logging.error(traceback.format_exc())
 
 	# the sourceClient is only sent for SAY*, and RING commands
-	def multicast(self, session_ids, msg, ignore=(), sourceClient=None):
+	def multicast(self, session_ids, msg, ignore=(), sourceClient=None, flag=None):
 		assert(type(ignore) == set)
 		static = []
 		for session_id in session_ids:
@@ -400,8 +517,9 @@ class DataHandler:
 				continue
 			if client.session_id in ignore:
 				continue
-
 			if sourceClient and sourceClient.user_id in client.ignored:
+				continue
+			if flag and not flag in client.compat_flags:
 				continue
 
 			if client.static:
@@ -414,7 +532,7 @@ class DataHandler:
 			client.Send(msg)
 
 	# the sourceClient is only sent for SAY*, and RING commands
-	def broadcast(self, msg, chan=None, ignore=set(), sourceClient=None):
+	def broadcast(self, msg, chan=None, ignore=set(), sourceClient=None, flag=None):
 		assert(type(ignore) == set)
 		try:
 			if not chan in self.channels:
@@ -426,7 +544,7 @@ class DataHandler:
 			logging.error(traceback.format_exc())
 
 	# the sourceClient is only sent for SAY*, and RING commands
-	def broadcast_battle(self, msg, battle_id, ignore=set(), sourceClient=None):
+	def broadcast_battle(self, msg, battle_id, ignore=set(), sourceClient=None, flag=None):
 		assert(type(ignore) == set)
 		assert(type(battle_id) == int)
 		if not battle_id in self.battles:

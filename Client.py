@@ -2,6 +2,7 @@ import socket, time, sys, ip2country, errno
 
 from collections import defaultdict
 from BaseClient import BaseClient
+from BridgedClient import BridgedClient
 
 class Client(BaseClient):
 	'this object represents one server-side connected client'
@@ -32,7 +33,7 @@ class Client(BaseClient):
 		self.ingame_time = 0
 		self.access = 'fresh'
 		self.email = ''
-		self.bot = 0
+		self.bot = False
 
 		# session
 		self.session_id = session_id
@@ -63,6 +64,10 @@ class Client(BaseClient):
 		self.channels = set()
 		self.ignored = {}
 		self.lastsaid = {}
+		
+		# for if we are a bridge bot
+		self.bridged_external_ids = {} #external_id->bridged_id
+		self.bridged_locations = {} #location->#brigded_clients 
 
 		# perhaps these are unused?
 		self.cpu = 0
@@ -76,11 +81,9 @@ class Client(BaseClient):
 		# battle stuff
 		self.is_ingame = False
 		self.scriptPassword = None
-		self.scriptPassword = None
 
 		self.battle_bots = {}
 		self.current_battle = None
-		self.battle_bans = []
 		self.went_ingame = 0
 		self.spectator = False
 		self.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
@@ -116,6 +119,7 @@ class Client(BaseClient):
 			flood_limits = self._root.flood_limits[self.access]
 		else:
 			flood_limits = self._root.flood_limits['fresh']
+		#print("< [" + self.username +"] " + data) # uncomment for debugging
 
 		now = int(time.time())
 		self.lastdata = now # data received, store time to detect disconnects
@@ -209,6 +213,7 @@ class Client(BaseClient):
 		## don't append new data to buffer when client gets removed
 		if not data:
 			return
+		#print("> [" + self.username +"] " + data) # uncomment for debugging
 		self.transport.write(data.encode("utf-8") + b"\n")
 
 	def Send(self, data):
@@ -229,4 +234,4 @@ class Client(BaseClient):
 
 	def isMod(self):
 		return self.isAdmin() or ('mod' in self.accesslevels) # maybe cache these
-
+		
