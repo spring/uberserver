@@ -1073,9 +1073,9 @@ class VerificationsHandler:
 		# no need to check if ip is banned, that is done by login!
 
 		email_entry = self.sess().query(Verification).filter(Verification.email == email).first()
-		if email_entry:
-			if datetime.now() <= email_entry.expiry:
-				return False, 'a verification attempt is already active for ' + email + ', use that or wait for it to expire (up to 24h)'
+		#if email_entry:
+			#if datetime.now() <= email_entry.expiry:
+				#return False, 'a verification attempt is already active for ' + email + ', use that or wait for it to expire (up to 24h)'
 		if email_entry: #expired
 			self.remove(email_entry.user_id)
 
