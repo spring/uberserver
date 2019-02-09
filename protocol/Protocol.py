@@ -302,6 +302,9 @@ class Protocol:
 		bridged_clients = client.bridged_external_ids.copy() # avoid modifying dict while iterating
 		for external_id, bridged_id in bridged_clients.items():
 			bridgedClient = self._root.bridgedClientFromID(bridged_id)
+			bridgedClient_channels = bridgedClient.channels.copy()
+			for chan in bridgedClient_channels:
+				self.in_LEAVEFROM(client, chan, bridgedClient.location, bridgedClient.external_id)
 			self.in_UNBRIDGECLIENTFROM(client, bridgedClient.location, bridgedClient.external_id)
 		for location in client.bridged_locations:
 			del self._root.bridged_locations[location]
