@@ -174,12 +174,12 @@ class Channel():
 	def setAntispam(self, client, val):
 		self.antispam = val
 		self.db().setAntispam(self, val)
-		self.channelMessage('Anti-spam protection was set to %s by <%s>' % (chan, str(val), user))
+		self.channelMessage('Anti-spam protection was set to %s by <%s>' % (str(val), client.username))
 
 	def setHistory(self, client, val):
 		self.store_history = val
 		self.db().setHistory(self, val)
-		self.channelMessage('History retention was set to %s by <%s>' % (chan, str(val), user))
+		self.channelMessage('History retention was set to %s by <%s>' % (str(val), client.username))
 
 	def setKey(self, client, key):
 		self.db().setKey(self, key)

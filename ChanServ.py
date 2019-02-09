@@ -215,7 +215,7 @@ class ChanServClient(Client):
 			if args=='on':
 				channel.setHistory(client, True)
 				return '#%s: History enabled' % (chan, str(enable))
-			if arg=='off':
+			if args=='off':
 				channel.setHistory(client, False)
 				return '#%s: History disabled' % (chan, str(enable))
 			return '#%s: Unknown value for history setting (expected: on, off).' % chan
