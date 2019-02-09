@@ -88,7 +88,7 @@ class Channel():
 			if len(top) > 0:
 				client.Send('CHANNELTOPIC %s %s %s %s'%(self.name, topic['user'], topictime, top))
 
-		if not client.compat['u']:
+		if not 'u' in client.compat:
 			return
 
 		bridgedClientList = ""
@@ -161,9 +161,6 @@ class Channel():
 		self.db().setTopic(self, topic, client)
 		self.channelMessage('Topic changed.')
 
-		if self.identity == 'battle': #'u' compat
-			self.broadcast('CHANNELTOPIC %s %s %s %s'%(self.name, client.username, topicdict['time'], topic), set(), 'u')
-			return
 		self.broadcast('CHANNELTOPIC %s %s %s %s'%(self.name, client.username, topicdict['time'], topic), set())
 
 	def setFounder(self, client, target):

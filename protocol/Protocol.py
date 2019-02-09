@@ -781,9 +781,12 @@ class Protocol:
 
 		battle.ip = translated_ip
 		battle.host = host.session_id # session_id -> username
-		if client.compat['cl']: #supports multi-engine
-			return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s\t%s\t%s' %(battle.battle_id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded(), battle.rank, battle.maphash, battle.engine, battle.version, battle.map, battle.title, battle.modname)
+		if 'cl' in client.compat and 'u' in client.compat: #supports multi-engine
+			return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s\t%s\t%s\t%s' %(battle.battle_id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded(), battle.rank, battle.maphash, battle.engine, battle.version, battle.map, battle.title, battle.modname, battle.name)
 
+		#backwards compat
+		if 'cl' in client.compat:
+			return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s\t%s\t%s' %(battle.battle_id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded(), battle.rank, battle.maphash, battle.engine, battle.version, battle.map, battle.title, battle.modname)
 		# give a legacy client without version support a hint, that this battle might be incompatible to his version
 		if not (battle.engine == 'spring' and (battle.version == self._root.min_spring_version or battle.version == self._root.min_spring_version + '.0')):
 			title =  'Incompatible (%s %s) %s' %(battle.engine, battle.version, battle.title)
@@ -1194,7 +1197,7 @@ class Protocol:
 		if channel.store_history:
 			self.userdb.add_channel_message(channel.id, client.user_id, msg)
 
-		if not client.compat['u']:
+		if not 'u' in client.compat:
 			if hasattr(client, 'current_battle') and client.current_battle:
 				battle = self._root.battles[client.current_battle]
 				if battle.name==chan:
@@ -1229,7 +1232,7 @@ class Protocol:
 		if channel.store_history:
 			self.userdb.add_channel_message(channel.id, client.user_id, msg)
 
-		if not client.compat['u']:
+		if not 'u' in client.compat:
 			if hasattr(client, 'current_battle'):
 				battle = self._root.battles[client.current_battle]
 				if battle.name==chan:
@@ -1288,14 +1291,14 @@ class Protocol:
 			return
 		if self.is_ignored(user, client) or client.user_id in battle.mutelist:
 			return
-		if not user.compat['u']:
+		if not 'u' in user.compat:
 			user.Send('SAIDBATTLEEX %s %s' % (client.username, msg))
 			return
 		user.Send('SAIDEX %s %s %s' % (battle.name, client.username, msg))
 
 	def in_BRIDGECLIENTFROM(self, client, location, external_id, external_username):
 		# add external user to the bridge
-		if not client.compat['u']:
+		if not 'u' in client.compat:
 			self.out_FAILED(client, "BRIDGECLIENTFROM", "You need the 'u' compatibility flag to bridge clients", True)
 			return
 		if not client.bot:
@@ -1349,7 +1352,7 @@ class Protocol:
 
 	def in_UNBRIDGECLIENTFROM(self, client, location, external_id):
 		# tell the server that a currently bridged client is gone
-		if not client.compat['u']:
+		if not 'u' in client.compat:
 			return
 		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient:
@@ -1368,7 +1371,7 @@ class Protocol:
 
 	def in_JOINFROM(self, client, chan, location, external_id):
 		# bridged client joins a channel
-		if not client.compat['u']:
+		if not 'u' in client.compat:
 			return
 		if not chan in self._root.channels:
 			self.out_FAILED(client, "JOINFROM", "Channel '%s' not found" % chan, True)
@@ -1390,7 +1393,7 @@ class Protocol:
 
 	def in_LEAVEFROM(self, client, chan, location, external_id):
 		# bridged client leaves a channel
-		if not client.compat['u']:
+		if not 'u' in client.compat:
 			return
 		if not chan in self._root.channels:
 			self.out_FAILED(client, "LEAVEFROM", "Channel '%s' not found" % chan, True)
@@ -1414,15 +1417,16 @@ class Protocol:
 		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient or bridgedClient.bridge_user_id != client.user_id:
 			return
-		if not client.compat['u']:
-			msg = '<' + bridgedClient.username + '> ' + msg
-			self.in_SAY(client, chan, msg)
-			return
 		if not bridgedClient.bridged_id in channel.bridged_users:
 			self.out_FAILED(client, "SAYFROM", "Bridged user not present in channel", True)
 			return
-		self._root.broadcast('SAIDFROM %s %s %s' % (chan, bridgedClient.username, msg), chan, set([]), client)
+		self._root.broadcast('SAIDFROM %s %s %s' % (chan, bridgedClient.username, msg), chan, set([]), client, 'u')
+		
+		# backwards compat
+		msg = '<' + bridgedClient.username + '> ' + msg
+		self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client, None, 'u') 
 
+		
 	def in_IGNORE(self, client, tags):
 		'''
 		Tells the server to add the user to the client's ignore list. Doing this will prevent any SAID*, SAYPRIVATE and RING commands to be received from the ignored user.

@@ -506,7 +506,7 @@ class DataHandler:
 			logging.error(traceback.format_exc())
 
 	# the sourceClient is only sent for SAY*, and RING commands
-	def multicast(self, session_ids, msg, ignore=(), sourceClient=None, flag=None):
+	def multicast(self, session_ids, msg, ignore=(), sourceClient=None, flag=None, not_flag=None):
 		assert(type(ignore) == set)
 		static = []
 		for session_id in session_ids:
@@ -519,7 +519,9 @@ class DataHandler:
 				continue
 			if sourceClient and sourceClient.user_id in client.ignored:
 				continue
-			if flag and not flag in client.compat_flags:
+			if flag and not flag in client.compat: # send to users with compat flag
+				continue
+			if not_flag and not_flag in client.compat: # send to users without compat flag
 				continue
 
 			if client.static:
@@ -532,25 +534,25 @@ class DataHandler:
 			client.Send(msg)
 
 	# the sourceClient is only sent for SAY*, and RING commands
-	def broadcast(self, msg, chan=None, ignore=set(), sourceClient=None, flag=None):
+	def broadcast(self, msg, chan=None, ignore=set(), sourceClient=None, flag=None, not_flag=None):
 		assert(type(ignore) == set)
 		try:
 			if not chan in self.channels:
-				self.multicast(self.clients, msg, ignore, sourceClient)
+				self.multicast(self.clients, msg, ignore, sourceClient, flag, not_flag)
 				return
 			channel = self.channels[chan]
-			self.multicast(channel.users, msg, ignore, sourceClient)
+			self.multicast(channel.users, msg, ignore, sourceClient, flag, not_flag)
 		except:
 			logging.error(traceback.format_exc())
 
 	# the sourceClient is only sent for SAY*, and RING commands
-	def broadcast_battle(self, msg, battle_id, ignore=set(), sourceClient=None, flag=None):
+	def broadcast_battle(self, msg, battle_id, ignore=set(), sourceClient=None, flag=None, not_flag=None):
 		assert(type(ignore) == set)
 		assert(type(battle_id) == int)
 		if not battle_id in self.battles:
 			return
 		battle = self.battles[battle_id]
-		self.multicast(battle.users, msg, ignore, sourceClient)
+		self.multicast(battle.users, msg, ignore, sourceClient, flag, not_flag)
 
 	def admin_broadcast(self, msg):
 		for user in self.usernames:
