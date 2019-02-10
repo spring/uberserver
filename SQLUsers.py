@@ -469,25 +469,26 @@ class UsersHandler:
 			remaining = '%s hours remaining' % (int(timeleft / (60 * 60)))
 		return remaining
 
+	def check_banned(self, username, ip):
+		dbuser = self.sess().query(User).filter(User.username == username).first()
+		now = datetime.now()
+		dbban = self._root.bandb.check_ban(dbuser.id, ip, dbuser.email, now)
+		if dbban and not dbuser.access=='admin':
+			reason = 'You are banned: (%s), ' %(dbban.reason)
+			reason += self.remaining_ban_str(dbban, now)
+			return True, reason
+		return False, ""
+		
 	def login_user(self, username, password, ip, lobby_id, user_id, local_ip, country):
-		if self._root.censor and not self._root.SayHooks._nasty_word_censor(username):
-			return False, 'Name failed to pass profanity filter.'
-
 		# should only ever be one user with each name so we can just grab the first one :)
 		# password here is unicode(BASE64(MD5(...))), matches the register_user DB encoding
 		dbuser = self.sess().query(User).filter(User.username == username).first()
 		if (not dbuser):
 			return False, 'Invalid username or password'
 		if (not self.legacy_test_user_pwrd(dbuser, password)):
-			return False, 'Invalid password'
+			return False, 'Invalid username or password'
 
 		now = datetime.now()
-		dbban = self._root.bandb.check_ban(dbuser.id, ip, dbuser.email, now)
-		if dbban and not dbuser.access=='admin':
-			reason = 'You are banned: (%s), ' %(dbban.reason)
-			reason += self.remaining_ban_str(dbban, now)
-			return False, reason
-
 		dbuser.logins.append(Login(now, ip, lobby_id, user_id, local_ip, country))
 		dbuser.time = now
 		dbuser.last_ip = ip

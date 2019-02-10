@@ -941,15 +941,20 @@ class Protocol:
 		assert(type(password) == str)
 		'''
 
-		good, reason = self._validUsernameSyntax(username)
+		failed_logins = self._root.recent_failed_logins.get(client.ip_address, 0)
+		max_failed_logins = 3
+		if (failed_logins >= max_failed_logins):
+			self.out_DENIED(client, username, "Too many failed logins (%d/3), please try again later." % failed_logins, False)
+			return
 
+		good, reason = self._validUsernameSyntax(username)
 		if (not good):
-			self.out_DENIED(client, username, reason)
+			self.out_DENIED(client, username, reason, False)
 			return
 
 		if self.SayHooks.isNasty(username):
 			logging.error("Invalid nickname %s" %(username))
-			self.out_DENIED(client, username, "invalid nickname")
+			self.out_DENIED(client, username, "invalid nickname", True)
 			return
 
 		# this check is a duplicate: prevents db access
@@ -993,27 +998,33 @@ class Protocol:
 			lobby_id = sentence_args
 
 		if len(lobby_id) > 64:
-			self.out_DENIED(client, username, "lobby_id is to long (max=64 chars)")
+			self.out_DENIED(client, username, "lobby_id is to long (max=64 chars)", False)
 			return
 
 		if self.SayHooks.isNasty(lobby_id):
-			self.out_DENIED(client, username, "invalid lobby_id")
+			self.out_DENIED(client, username, "invalid lobby_id", True)
 			return
 
+		banned, reason = self.userdb.check_banned(username, client.ip_address)
+		if banned:
+			assert (type(reason) == str)
+			self.out_DENIED(client, username, reason, False)
+			return			
+			
 		good, user_or_error = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, local_ip, client.country_code)
-
 		if (not good):
 			assert (type(user_or_error) == str)
 			reason = user_or_error
-			self.out_DENIED(client, username, reason)
+			reason += " (%d/%d)" % (1+failed_logins, max_failed_logins)
+			self.out_DENIED(client, username, reason, True)
 			return
-
-		if (client.failed_logins > 2):
-			self.out_DENIED(client, username, "Too many failed logins.")
-			return
-
+			
 		assert(user_or_error != None)
 		assert(type(user_or_error) != str)
+
+		# login checks complete
+		if client.ip_address in self._root.recent_failed_logins:
+			del self._root.recent_failed_logins[client.ip_address]
 
 		#assert(not client.user_id in self._root.user_ids)
 		#assert(not user_or_error.username in self._root.usernames)
@@ -3127,15 +3138,16 @@ class Protocol:
 	#
 	# Most outgoing commands are sent directly via client.Send within an in_ command
 
-	def out_DENIED(self, client, username, reason, inc = True):
+	def out_DENIED(self, client, username, reason, incr = True):
 		'''
 			response to LOGIN
 		'''
-		if inc:
-			client.failed_logins = client.failed_logins + 1
-
+		if incr:
+			failed_logins = self._root.recent_failed_logins.get(client.ip_address, 0)
+			self._root.recent_failed_logins[client.ip_address] = failed_logins + 1
+			
 		client.Send("DENIED %s" %(reason))
-		logging.info('[%s] Failed to log in user <%s>: %s.'%(client.session_id, username, reason))
+		logging.info('[%s] Failed to log in user <%s>: %s'%(client.session_id, username, reason))
 
 	def out_OPENBATTLEFAILED(self, client, reason):
 		'''

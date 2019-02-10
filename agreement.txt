@@ -29,7 +29,7 @@ Battle hosts listed on our server are typically provided and hosted by our users
 
 We may send automated emails for purposes related to account verification, such as if you request account recovery. We do not engage in targeted advertising and will not send you emails marketing any services or products, including our own. We do not disclose your email address to third parties.
 
-We permit users to connect to our server using external and bespoke client software. Consequently, the operation of such software may be outside of our control and knowledge. In such cases you must refer to your client software data usage policies for information concerning its treatment of the data your provide to it; the data usage policies summarised in this notice ONLY cover our usage of the data that is sent by you or your client software to our server.
+We permit users to connect to our server using external and bespoke client software. Consequently, the operation of such software may be outside of our control and knowledge. In such cases you must refer to your client software data usage policies for information concerning its treatment of the data you provide to it; the data usage policies summarised in this notice ONLY cover our usage of the data that is sent by you or your client software to our server.
 
 While the administrators and moderators of this server will attempt to keep users from violating this agreement, it is impossible for them to maintain order at all times. Therefore you acknowledge that any messages or actions within our server expresses the views and opinions of its author and not those of the administrators and moderators, who will not be held liable for other users actions.
 

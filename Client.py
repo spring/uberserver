@@ -50,7 +50,6 @@ class Client(BaseClient):
 
 		# note: this NEVER becomes false after LOGIN!
 		self.logged_in = False
-		self.failed_logins = 0
 
 		# server<->client comms
 		self.buffersend = False # if True, write all sends to a buffer (must not be used when a client is logging in but didn't yet receive full server state!)

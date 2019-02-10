@@ -77,6 +77,7 @@ class DataHandler:
 
 		# rate limits
 		self.recent_registrations = {} #ip_address->int
+		self.recent_failed_logins = {} #ip_address->int		
 		self.recent_renames = {} #user_id->int
 		self.flood_limits = {
 			'fresh':{'msglength':1000, 'bytespersecond':1000, 'seconds':2}, # also the default
@@ -429,9 +430,6 @@ class DataHandler:
 			return
 		return self.bridgeduserdb.bridgedClientFromUsername(username)
 
-	def event_loop(self):
-		self.channel_mute_ban_timeout()
-
 	def channel_mute_ban_timeout(self):
 		# remove expired channel/battle mutes/bans
 		now = datetime.datetime.now()
@@ -481,30 +479,29 @@ class DataHandler:
 		except:
 			logging.error(traceback.format_exc())
 
-	def decrement_recent_registrations(self):
+			
+	def decrement_dict(self, d):
+		# decrease all values by 1, remove values <=0
 		try:
 			to_delete = []
-			for ip_address in self.recent_registrations:
-				self.recent_registrations[ip_address] -= 1
-				if self.recent_registrations[ip_address] <= 0:
-					to_delete.append(ip_address)
-			for ip_address in to_delete:
-				del self.recent_registrations[ip_address]
+			for i in d:
+				d[i] -= 1
+				if d[i] <= 0:
+					to_delete.append(i)
+			for i in to_delete:
+				del d[i]
 		except:
 			logging.error(traceback.format_exc())
+	
+	def decrement_recent_registrations(self):
+		self.decrement_dict(self.recent_registrations)
 
 	def decrement_recent_renames(self):
-		try:
-			to_delete = []
-			for user_id in self.recent_renames:
-				self.recent_renames[user_id] -= 1
-				if self.recent_renames[user_id] <= 0:
-					to_delete.append(user_id)
-			for user_id in to_delete:
-				del self.recent_renames[user_id]
-		except:
-			logging.error(traceback.format_exc())
+		self.decrement_dict(self.recent_renames)
 
+	def decrement_recent_failed_logins(self):
+		self.decrement_dict(self.recent_failed_logins)
+	
 	# the sourceClient is only sent for SAY*, and RING commands
 	def multicast(self, session_ids, msg, ignore=(), sourceClient=None, flag=None, not_flag=None):
 		assert(type(ignore) == set)
