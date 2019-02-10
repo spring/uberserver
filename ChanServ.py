@@ -145,6 +145,8 @@ class ChanServClient(Client):
 			if not chan in self._root.channels:
 				return 'Channel %s does not exist' % chan
 			channel = self._root.channels[chan]
+			if channel.registered():
+				return "#%s: Already registered" % chan
 			channel.register(client, target)
 			self.Respond('JOIN %s' % chan)
 			return '#%s: Successfully registered to <%s>' % (chan, args.split(' ',1)[0])

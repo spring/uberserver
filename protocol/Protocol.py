@@ -1721,7 +1721,7 @@ class Protocol:
 			return
 		channel.removeUser(client, reason)
 		assert(not client.session_id in channel.users)
-		if not channel.registered() and channel.identity!='battle':
+		if not channel.registered() and len(channel.users)==0 and channel.identity!='battle':
 			del self._root.channels[chan]
 
 	def in_OPENBATTLE(self, client, type, natType, key, port, maxplayers, hashcode, rank, maphash, sentence_args):
