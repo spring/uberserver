@@ -15,7 +15,7 @@ import traceback
 import dbconfig
 from logging.handlers import TimedRotatingFileHandler
 
-from SQLUsers import User, Rename, Login, BanUser
+from SQLUsers import User, Rename, Login, Ban
 import SQLUsers
 import sqlalchemy
 import datetime
@@ -77,7 +77,7 @@ def validateLogin(username, password):
 		logger.error("User has no access: <%s> %s" %(username, db_user.access))
 		return {"status": 1}
 
-	banned = session.query(BanUser.reason).filter(BanUser.user_id == db_user.id, datetime.datetime.now() <= BanUser.end_time).first()
+	banned = session.query(Ban.reason).filter(Ban.user_id == db_user.id, datetime.datetime.now() <= Ban.end_date).first()
 	if banned:
 		session.close()
 		logger.warning("User is banned: %s" %(username, banned.reason))
