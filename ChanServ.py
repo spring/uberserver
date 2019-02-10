@@ -120,12 +120,12 @@ class ChanServClient(Client):
 			return 'Hello, %s!\nI am the server bot.\nFor the full list of my commands, see https://springrts.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
 
 		if cmd == 'battlename':
-			host = self._root.protocol.clientFromUsername(args, True)
+			host = self._root.protocol.clientFromUsername(chan, True)
 			if not host:
-				return "User %s does not exist" % args
+				return "User %s does not exist" % chan
 			battle = self._root.protocol.getCurrentBattle(host)
 			if not battle or battle.host != host.session_id:
-				return "User %s is not hosting a battle" % args
+				return "User %s is not hosting a battle" % chan
 			return battle.name
 
 

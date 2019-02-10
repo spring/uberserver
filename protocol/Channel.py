@@ -41,7 +41,7 @@ class Channel():
 		self._root.broadcast(message, self.name, ignore, None, flag)
 
 	def channelMessage(self, message):
-		if self.identity == 'battle': #'u' compat
+		if self.identity == 'battle': # backwards compat for clients lacking 'u'
 			self.broadcast('CHANNELMESSAGE %s %s' % (self.name, message), set(), 'u')
 			return
 		self.broadcast('CHANNELMESSAGE %s %s' % (self.name, message))
