@@ -725,7 +725,7 @@ class Protocol:
 			client.Send('BATTLECLOSED %s' % battle.battle_id)
 
 	# the sourceClient is only sent for SAY*, and RING commands
-	def broadcast_SendBattle(self, battle, data, sourceClient=None):
+	def broadcast_SendBattle(self, battle, data, sourceClient=None, flag=None, not_flag=None):
 		if sourceClient:
 			dbid = sourceClient.user_id
 			if dbid in battle.mutelist:
@@ -737,6 +737,10 @@ class Protocol:
 
 		for session_id in battle.users:
 			client = self.clientFromSession(session_id)
+			if flag and not flag in client.compat:
+				continue
+			if not_flag and not_flag in client.compat:
+				continue
 			if sourceClient == None or not sourceClient.user_id in client.ignored:
 				client.Send(data)
 
@@ -1197,6 +1201,7 @@ class Protocol:
 		'''
 		if not msg: return
 		if not chan in self._root.channels:
+			self.out_FAILED(client, "SAY", "Channel does not exist", True)
 			return
 		channel = self._root.channels[chan]
 
@@ -1211,14 +1216,16 @@ class Protocol:
 		if channel.store_history:
 			self.userdb.add_channel_message(channel.id, client.user_id, msg)
 
-		if not 'u' in client.compat:
-			if hasattr(client, 'current_battle') and client.current_battle:
-				battle = self._root.battles[client.current_battle]
-				if battle.name==chan:
-					self.broadcast_SendBattle(battle, 'SAIDBATTLE %s %s' % (client.username, msg), client)
-				return
+		self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client, 'u')
+		
+		# backwards compat
+		if hasattr(client, 'current_battle') and client.current_battle:
+			battle = self._root.battles[client.current_battle]
+			if battle.name==chan:
+				self.broadcast_SendBattle(battle, 'SAIDBATTLE %s %s' % (client.username, msg), client, None, 'u')
+			return
+		self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client, None, 'u')
 
-		self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client)
 
 	def in_SAYEX(self, client, chan, msg):
 		'''
@@ -1714,7 +1721,7 @@ class Protocol:
 			return
 		channel.removeUser(client, reason)
 		assert(not client.session_id in channel.users)
-		if len(self._root.channels[chan].users) == 0 and channel.identity!='battle':
+		if not channel.registered() and channel.identity!='battle':
 			del self._root.channels[chan]
 
 	def in_OPENBATTLE(self, client, type, natType, key, port, maxplayers, hashcode, rank, maphash, sentence_args):
@@ -2003,10 +2010,12 @@ class Protocol:
 			to_remove = battle.users.copy()
 			for session_id in to_remove:
 				client_in_battle = self.clientFromSession(session_id)
-				battle.leaveBattle(client_in_battle)
+				if client_in_battle.username!="ChanServ":
+					battle.leaveBattle(client_in_battle)
 			self.broadcast_RemoveBattle(battle)
+			if not battle.registered():
+				del self._root.channels[battle.name]
 			del self._root.battles[battle.battle_id]
-			del self._root.channels[battle.name]
 
 	def in_MYBATTLESTATUS(self, client, _battlestatus, _myteamcolor):
 		'''

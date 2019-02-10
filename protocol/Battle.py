@@ -40,7 +40,7 @@ class Battle(Channel):
 
 	def joinBattle(self, client):
 		# client joins battle + notifies others
-		if client.compat['u']:
+		if 'u' in client.compat:
 			client.Send('JOINBATTLE %s %s %s' % (self.battle_id, self.hashcode, self.name))
 			self.addUser(client) # join the battles channel
 		else:
