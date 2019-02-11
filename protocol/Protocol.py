@@ -1401,7 +1401,7 @@ class Protocol:
 			return
 		channel = self._root.channels[chan]
 		if channel.hasKey():
-			self.out_FAILED(client, "JOINFROM", "Cannot bridge to private channels" % chan, True)			
+			self.out_FAILED(client, "JOINFROM", "Cannot bridge to private channels", True)			
 		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient:
 			self.out_FAILED(client, "JOINFROM", "Bridged user not found", True)
