@@ -255,7 +255,7 @@ class Protocol:
 			if not flag in flag_map:
 				unknown_flags += ' ' + flag
 
-		compat_error = len(missing_flags)>0 or len(deprec_flags)>0 or len(unwanted_flags)>0
+		compat_error = len(missing_flags)>0 or len(deprec_flags)>0 or len(unknown_flags)>0
 		error = missing_TLS or compat_error
 		if not error:
 			return
