@@ -1253,14 +1253,16 @@ class Protocol:
 		if channel.store_history:
 			self.userdb.add_channel_message(channel.id, client.user_id, msg)
 
-		if not 'u' in client.compat:
-			if hasattr(client, 'current_battle'):
-				battle = self._root.battles[client.current_battle]
-				if battle.name==chan:
-					self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg), client)
-				return
+		self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, set([]), client, 'u')
 
-		self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, set([]), client)
+		# backwards compat
+		if hasattr(client, 'current_battle') and client.current_battle:
+			battle = self._root.battles[client.current_battle]
+			if battle.name==chan:
+				self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg), client, None, 'u')
+			return
+		self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, set([]), client, None, 'u')
+
 
 	def in_SAYPRIVATE(self, client, user, msg):
 		'''
