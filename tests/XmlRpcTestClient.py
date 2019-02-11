@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding=utf-8
 # This file is part of the uberserver (GPL v2 or later), see LICENSE
 
