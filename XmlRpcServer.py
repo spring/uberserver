@@ -13,11 +13,9 @@ import logging
 import socket
 import traceback
 import dbconfig
-
 from logging.handlers import TimedRotatingFileHandler
 
 from SQLUsers import User, Rename, Login, Ban
-
 import SQLUsers
 import sqlalchemy
 import datetime
@@ -46,7 +44,6 @@ userdb = SQLUsers.UsersHandler(None, engine)
 class RequestHandler(SimpleXMLRPCRequestHandler):
 	def log_message(self, format, *args):
 		logger.info(format % args)
-
 
 class XmlRpcServer(SimpleXMLRPCServer):
 	"""
@@ -80,7 +77,7 @@ def validateLogin(username, password):
 		logger.error("User has no access: <{}> {}".format(username, db_user.access))
 		return {"status": 1}
 
-	banned = session.query(Ban.reason).filter(Ban.user_id == db_user.id, datetime.datetime.now() <= Ban.end_time).first()
+	banned = session.query(Ban.reason).filter(Ban.user_id == db_user.id, datetime.datetime.now() <= Ban.end_date).first()
 	if banned:
 		session.close()
 		logger.warning("User is banned: {}".format(username, banned.reason))
@@ -89,8 +86,7 @@ def validateLogin(username, password):
 	renames = session.query(Rename.original).distinct(Rename.original).filter(Rename.user_id == db_user.id).all()
 	renames = [r[0] for r in renames]
 
-	country = session.query(Login.country).filter(Login.user_dbid == db_user.id).filter(
-		sqlalchemy.and_(Login.country != '??', Login.country is not None, Login.country != '')).first()
+	country = session.query(Login.country).filter(Login.user_dbid == db_user.id).filter(sqlalchemy.and_(Login.country != '??', Login.country is not None, Login.country != '')).first()
 	result = {"status": 0, "accountid": int(db_user.id), "username": str(db_user.username),
 			"ingame_time": int(db_user.ingame_time), "email": str(db_user.email),
 			"aliases": renames,
