@@ -91,14 +91,17 @@ class Channel():
 		if not 'u' in client.compat:
 			return
 
-		bridgedClientList = ""
+		bridgedClients = {}
 		for bridged_id in self.bridged_users:
-			if clientlist:
-				clientlist += " "
 			bridgedClient = self._root.bridgedClientFromID(bridged_id)
-			assert(bridgedClient)
-			bridgedClientList += bridgedClient.username
-		client.Send('CLIENTSFROM %s %s' % (self.name, bridgedClientList))
+			bridge = self._root.clientFromID(bridgedClient.bridge_user_id) 
+			if not bridge.username in bridgedClients:
+				bridgedClients[bridge.username] = ""
+			if bridgedClients[bridge.username] != "":
+				bridgedClients[bridge.username] += " "
+			bridgedClients[bridge.username] += bridgedClient.username
+		for bridge_username in bridgedClients:
+			client.Send('CLIENTSFROM %s %s %s' % (self.name, bridge_username, bridgedClients[bridge_username]))
 
 	def removeUser(self, client, reason=None):
 		if self.name in client.channels:
@@ -118,7 +121,8 @@ class Channel():
 			return
 		self.bridged_users.add(bridged_id)
 		bridgedClient.channels.add(self.name)
-		self.broadcast('JOINEDFROM %s %s' % (self.name, bridgedClient.username), set(), 'u')
+		bridge = self._root.clientFromID(bridgedClient.bridge_user_id) 
+		self.broadcast('JOINEDFROM %s %s %s' % (self.name, bridge.username, bridgedClient.username), set(), 'u')
 
 	def removeBridgedUser(self, client, bridgedClient, reason=''):
 		bridged_id = bridgedClient.bridged_id
