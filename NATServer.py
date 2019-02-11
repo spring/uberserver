@@ -39,7 +39,7 @@ class NATServer:
 
 	def bind(self, root):
 		self.s.Bind(root)
-	
+
 	def start(self):
 		self.s.serve_forever()
 

@@ -1,4 +1,6 @@
 import inspect, sys, os, types, time, string
+from datetime import datetime
+from datetime import timedelta
 
 bad_word_dict = {}
 bad_site_list = []
@@ -117,7 +119,7 @@ def _spam_enum(client, chan):
 				bonus += 1 # something was said
 				already.append(message)
 		else: del client.lastsaid[chan][when]
-	
+
 	times.sort()
 	last_time = None
 	for t in times:
@@ -126,7 +128,7 @@ def _spam_enum(client, chan):
 			if diff < 1:
 				bonus += (1 - diff) * 1.5
 		last_time = t
-	
+
 	if bonus > 7: return True
 	else: return False
 
@@ -140,18 +142,15 @@ def _spam_rec(client, chan, msg):
 
 def hook_SAY(self, client, channel, msg):
 	username = client.username
-	
+
 	if channel.isMuted(client): return msg # client is muted, no use doing anything else
 	if channel.antispam and not channel.isOp(client): # don't apply antispam to ops
 		_spam_rec(client, channel.name, msg)
+		now = datetime.now()
+		duration = timedelta(minutes=5)
+		expires = now + duration
 		if _spam_enum(client, channel.name):
-			channel.muteUser(self._root.chanserv, client, 15)
-			# this next line is necessary, because users aren't always muted i.e. you can't mute channel founders or moderators
-			if channel.isMuted(client):
-				channel.channelMessage('%s was muted for spamming.' % username)
-				#if quiet: # maybe make quiet a channel-wide setting, so mute/kick/op/etc would be silent
-				#	client.Send('CHANNELMESAGE %s You were quietly muted for spamming.'%chan)
-				return ''
+			channel.muteUser(self._root.chanserv, client, expires, 'spamming', duration)
 	return msg
 
 def hook_OPENBATTLE(self, client, title):

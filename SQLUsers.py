@@ -4,14 +4,11 @@
 from datetime import datetime, timedelta
 from BaseClient import BaseClient
 
-import time, random, smtplib, re
+import time, random, smtplib, re, hashlib, base64, json
+import urllib.request
 import logging
 
-try:
-	import thread
-except:
-	# thread was renamed to _thread in python 3
-	import _thread
+import _thread as thread
 
 try:
 	from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean, Text, DateTime, ForeignKeyConstraint, UniqueConstraint
@@ -68,21 +65,26 @@ verifications_table = Table('verifications', metadata,
 	Column('expiry', DateTime),
 	Column('attempts', Integer),
 	Column('resends', Integer),
+	Column('use_delay', Boolean),
+	Column('reason', Text),
 	mysql_charset='utf8',
 	)
 class Verification(object):
-	def __init__(self, user_id, email):
+	def __init__(self, user_id, email, digits, use_delay, reason):
 		self.user_id = user_id
 		self.email = email
-		self.code = random.randint(1000,9999)
-		self.expiry = datetime.now() + timedelta(days=1)
+		assert(digits>=4)
+		self.code = random.randint(10**(digits-1),10**(digits)-1)
+		self.expiry = datetime.now() + timedelta(days=2)
 		self.attempts = 0
 		self.resends = 0
+		self.use_delay = use_delay
+		self.reason = reason
 
 	def __repr__(self):
-		return "<Verification('%s', '%s', '%s', '%s', '%s', %s, %s)>" % (self.id, self.user_id, self.email, self.code, self.expiry, self.attempts, self.resends)
-mapper(Verification, verifications_table)	
-	
+		return "<Verification('%s', '%s', '%s', '%s', '%s', %i, %i, %r)>" % (self.id, self.user_id, self.email, self.code, self.expiry, self.attempts, self.resends, self.use_delay)
+mapper(Verification, verifications_table)
+
 ##########################################
 logins_table = Table('logins', metadata,
 	Column('id', Integer, primary_key=True),
@@ -96,6 +98,7 @@ logins_table = Table('logins', metadata,
 	Column('user_id', String(128)),
 	mysql_charset='utf8',
 	)
+
 class Login(object):
 	def __init__(self, now, ip_address, lobby_id, user_id, local_ip, country):
 		self.time = now
@@ -104,12 +107,31 @@ class Login(object):
 		self.user_id = user_id
 		self.local_ip = local_ip
 		self.country = country
-		#self.end = 0
 
 	def __repr__(self):
 		return "<Login('%s', '%s')>" % (self.ip_address, self.time)
 mapper(Login, logins_table)
+##########################################
+bridged_users_table = Table('bridged_users', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('external_id', String(20)),
+	Column('location', String(20)),
+	Column('external_username', String(20)),
+	Column('last_bridged', DateTime),
+	UniqueConstraint('external_id', 'location', name='uix_bridged_users_1'),
+	UniqueConstraint('external_username', 'location', name='uix_bridged_users_2'),
+	mysql_charset='utf8',
+	)
+class BridgedUser(object):
+	def __init__(self, location, external_id, external_username, last_bridged):
+		self.external_id = external_id
+		self.location = location
+		self.external_username = external_username
+		self.last_bridged = last_bridged
 
+	def __repr__(self):
+		return "<BridgedUser('%s', '%s', '%s', '%s')>" % (self.id, self.external_id, self.location, self.last_bridged)
+mapper(BridgedUser, bridged_users_table)
 ##########################################
 renames_table = Table('renames', metadata,
 	Column('id', Integer, primary_key=True),
@@ -207,26 +229,24 @@ channels_table = Table('channels', metadata,
 	Column('topic_time', DateTime),
 	Column('topic_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True),
 	Column('antispam', Boolean),
-	Column('autokick', String(5)),
+	Column('autokick', String(5)), #deprecated; todo: remove this
 	Column('censor', Boolean),
-	Column('antishock', Boolean),
+	Column('antishock', Boolean), #deprecated; todo: remove this
 	Column('store_history', Boolean),
 	mysql_charset='utf8',
 	)
 class Channel(object):
-	def __init__(self, name,  key='', chanserv=False, owner_user_id=None, topic_time=None, topic='', topic_user_id=None, antispam=False, admins='', autokick='ban', censor=False, antishock=False, store_history=False):
+	def __init__(self, name,  key='', owner_user_id=None, topic_time=None, topic='', topic_user_id=None, antispam=False, censor=False, store_history=False):
 		self.name = name
 		self.key = key
-		self.chanserv = chanserv
 		self.owner_user_id = owner_user_id
 		self.topic = topic
 		self.topic_time = topic_time or datetime.now()
 		self.topic_user_id = topic_user_id
 		self.antispam = antispam
-		self.admins = admins
-		self.autokick = autokick
+		self.autokick = False
 		self.censor = censor
-		self.antishock = antishock
+		self.antishock = None
 		self.store_history = store_history
 
 	def __repr__(self):
@@ -261,11 +281,87 @@ class ChannelOp(object):
 	def __init__(self, channel_id, user_id):
 		self.channel_id = channel_id
 		self.user_id = user_id
-	
+
 	def __repr__(self):
 		return "<ChannelOp(%s,%s)>" % (self.channel_id, self.user_id)
 mapper(ChannelOp, channelops_table)
+##########################################
+channelbans_table = Table('channel_bans', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True),
+	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('ip_address', String(15)),
+	Column('expires', DateTime),
+	Column('reason', Text)
+	)
+class ChannelBan(object):
+	def __init__(self, channel_id, issuer_user_id, user_id, ip_address, expires, reason):
+		self.channel_id = channel_id
+		self.issuer_user_id = issuer_user_id
+		self.user_id = user_id
+		self.ip_address = ip_address
+		self.expires = expires
+		self.reason = reason
 
+	def __repr__(self):
+		return "<ChannelBan(%s,%s)>" % (self.channel_id, self.user_id)
+mapper(ChannelBan, channelbans_table)
+##########################################
+channelbridgedbans_table = Table('channel_bridged_bans', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True),
+	Column('bridged_id', Integer, ForeignKey('bridged_users.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('expires', DateTime),
+	Column('reason', Text)
+	)
+class ChannelBridgedBan(object):
+	def __init__(self, channel_id, issuer_user_id, bridged_id, expires, reason):
+		self.channel_id = channel_id
+		self.issuer_user_id = issuer_user_id
+		self.bridged_id = bridged_id
+		self.expires = expires
+		self.reason = reason
+
+	def __repr__(self):
+		return "<ChannelBridgedBan(%s,%s)>" % (self.channel_id, self.bridged_id)
+mapper(ChannelBridgedBan, channelbridgedbans_table)
+##########################################
+channelmutes_table = Table('channel_mutes', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True),
+	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('expires', DateTime),
+	Column('reason', Text)
+	)
+class ChannelMute(object):
+	def __init__(self, channel_id, issuer_user_id, user_id, expires, reason):
+		self.channel_id = channel_id
+		self.issuer_user_id = issuer_user_id
+		self.user_id = user_id
+		self.expires = expires
+		self.reason = reason
+
+	def __repr__(self):
+		return "<ChannelMute(%s,%s)>" % (self.channel_id, self.user_id)
+mapper(ChannelMute, channelmutes_table)
+##########################################
+channelforwards_table = Table('channel_forwards', metadata,
+	Column('id', Integer, primary_key=True),
+	Column('channel_from_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('channel_to_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
+	UniqueConstraint('channel_from_id', 'channel_to_id', name='uix_channelforwards'),
+	)
+class ChannelForward(object):
+	def __init__(self, channel_from_id, channel_to_id):
+		self.channel_from_id = channel_from_id
+		self.channel_to_id = channel_to_id
+
+	def __repr__(self):
+		return "<ChannelForward(%s,%s)>" % (self.channel_id_from, self.channel_id_to)
+mapper(ChannelForward, channelforwards_table)
 ##########################################
 ban_table = Table('ban', metadata, # server bans
 	Column('id', Integer, primary_key=True),
@@ -285,7 +381,7 @@ class Ban(object):
 		self.email = email
 		self.reason = reason
 		self.end_date = datetime.now() + timedelta(duration)
-		
+
 	def __repr__(self):
 		user_id_str = str(self.user_id)+', ' if self.user_id else ""
 		ip_str = self.ip+', ' if self.ip else ""
@@ -297,7 +393,7 @@ mapper(Ban, ban_table)
 blacklisted_email_domain_table = Table('blacklisted_email_domains', metadata, # email domains that can't be used for account verification
 	Column('id', Integer, primary_key=True),
 	Column('issuer_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True), # user which set ban
-	Column('domain', String(254), unique=True), 
+	Column('domain', String(254), unique=True),
 	Column('reason', Text),
 	Column('start_time', DateTime),
 	)
@@ -307,7 +403,7 @@ class BlacklistedEmailDomain(object):
 		self.domain = domain
 		self.reason = reason
 		self.start_time = datetime.now()
-		
+
 	def __repr__(self):
 		return "<Domain: %s (%s, since %s)>" % (self.domain, self.issuer_user_id, self.start_time)
 mapper(BlacklistedEmailDomain, blacklisted_email_domain_table)
@@ -320,14 +416,15 @@ class OfflineClient(BaseClient):
 	def __init__(self, sqluser):
 		self.set_user_pwrd_salt(sqluser.username, (sqluser.password, sqluser.randsalt))
 		self.id = sqluser.id
+		self.user_id = sqluser.id
 		self.ingame_time = sqluser.ingame_time
 		self.bot = sqluser.bot
 		self.last_login = sqluser.last_login
 		self.register_date = sqluser.register_date
 		self.last_id = sqluser.last_id
+		self.last_ip = sqluser.last_ip
 		self.access = sqluser.access
 		self.email = sqluser.email
-
 
 class UsersHandler:
 	def __init__(self, root, engine):
@@ -342,8 +439,8 @@ class UsersHandler:
 		self.session.rollback()
 		return self.session
 
-	def clientFromID(self, db_id):
-		entry = self.sess().query(User).filter(User.id==db_id).first()
+	def clientFromID(self, user_id):
+		entry = self.sess().query(User).filter(User.id==user_id).first()
 		if not entry: return None
 		return OfflineClient(entry)
 
@@ -351,7 +448,6 @@ class UsersHandler:
 		entry = self.sess().query(User).filter(User.username==username).first()
 		if not entry: return None
 		return OfflineClient(entry)
-
 
 	def legacy_update_user_pwrd(self, db_user, password):
 		assert(db_user.has_legacy_password())
@@ -361,10 +457,10 @@ class UsersHandler:
 
 	def legacy_test_user_pwrd(self, dbuser, password):
 		return (dbuser.password == password)
-		
+
 	def remaining_ban_str(self, dbban, now):
-		timeleft = int((dbban.end_date - now).total_seconds())	
-		remaining = 'less than one hour remaining'				
+		timeleft = int((dbban.end_date - now).total_seconds())
+		remaining = 'less than one hour remaining'
 		if timeleft > 60*60*24*900:
 			remaining = ''
 		elif timeleft > 60*60*24:
@@ -372,32 +468,33 @@ class UsersHandler:
 		elif timeleft > 60*60:
 			remaining = '%s hours remaining' % (int(timeleft / (60 * 60)))
 		return remaining
-		
-	def login_user(self, username, password, ip, lobby_id, user_id, local_ip, country):
-		if self._root.censor and not self._root.SayHooks._nasty_word_censor(username):
-			return False, 'Name failed to pass profanity filter.'
 
-		## should only ever be one user with each name so we can just grab the first one :)
-		## password here is unicode(BASE64(MD5(...))), matches the register_user DB encoding
+	def check_banned(self, username, ip):
 		dbuser = self.sess().query(User).filter(User.username == username).first()
-		if (not dbuser):
-			return False, 'Invalid username or password'
-		if (not self.legacy_test_user_pwrd(dbuser, password)):
-			return False, 'Invalid password'
-
 		now = datetime.now()
 		dbban = self._root.bandb.check_ban(dbuser.id, ip, dbuser.email, now)
 		if dbban and not dbuser.access=='admin':
 			reason = 'You are banned: (%s), ' %(dbban.reason)
 			reason += self.remaining_ban_str(dbban, now)
-			return False, reason
-			
+			return True, reason
+		return False, ""
+		
+	def login_user(self, username, password, ip, lobby_id, user_id, local_ip, country):
+		# should only ever be one user with each name so we can just grab the first one :)
+		# password here is unicode(BASE64(MD5(...))), matches the register_user DB encoding
+		dbuser = self.sess().query(User).filter(User.username == username).first()
+		if (not dbuser):
+			return False, 'Invalid username or password'
+		if (not self.legacy_test_user_pwrd(dbuser, password)):
+			return False, 'Invalid username or password'
+
+		now = datetime.now()
 		dbuser.logins.append(Login(now, ip, lobby_id, user_id, local_ip, country))
 		dbuser.time = now
 		dbuser.last_ip = ip
 		dbuser.last_id = user_id
 
-		## copy unicode(BASE64(...)) values out of DB, leave them as-is
+		# copy unicode(BASE64(...)) values out of DB, leave them as-is
 		user_copy = User(dbuser.username, dbuser.password, dbuser.randsalt, ip, dbuser.email)
 		user_copy.access = dbuser.access
 		user_copy.id = dbuser.id
@@ -413,8 +510,8 @@ class UsersHandler:
 
 		return True, reason
 
-	def end_session(self, db_id):
-		entry = self.sess().query(User).filter(User.id==db_id).first()
+	def end_session(self, user_id):
+		entry = self.sess().query(User).filter(User.id==user_id).first()
 		if entry and not entry.logins[-1].end:
 			entry.logins[-1].end = datetime.now()
 			entry.last_login = datetime.now() # in real its last online / last seen
@@ -427,20 +524,23 @@ class UsersHandler:
 				return False, 'Name failed to pass profanity filter.'
 		return True, ""
 
-	# TODO: improve, e.g. also check if ip address is banned when registering account
-	def check_register_user(self, username, password, ip, country, email):
+	def check_register_user(self, username, email=None, ip_address=None):
 		assert(type(username) == str)
-		assert(type(password) == str)
 
 		status, reason = self.check_user_name(username)
-		if (not status):
+		if not status:
 			return False, reason
 		dbuser = self.sess().query(User).filter(User.username == username).first()
-		if (dbuser):
+		if dbuser:
 			return False, 'Username already exists.'
-		dbemail = self.sess().query(User).filter(User.email == email).first()
-		#if (dbemail):
-		#	return False, 'Email address already exists.'
+		if email:
+			dbemail = self.sess().query(User).filter(User.email == email).first()
+			if dbemail:
+				return False, 'Email address already in use.'
+		if ip_address:
+			ipban = self._root.bandb.check_ban(None, ip_address)
+			if ipban:
+				return False, 'Account registration failed: %s' % ipban.reason
 		return True, ""
 
 	def register_user(self, username, password, ip, country, email):
@@ -487,6 +587,18 @@ class UsersHandler:
 
 		self.sess().commit()
 
+	def get_user_id_with_email(self, email):
+		if email == '':
+			return False, 'Email address is blank'
+		response = self.sess().query(User).filter(User.email == email)
+		dbuser = response.first()
+		if not dbuser:
+			return False, 'No user with email address %s was found' % email
+		for entry in response: # pick oldest, if multiple choices
+			if entry.register_date < dbuser.register_date:
+				db_user = entry
+		return True, dbuser.id
+
 	def confirm_agreement(self, client):
 		entry = self.sess().query(User).filter(User.username==client.username).first()
 		if entry: entry.access = 'user'
@@ -508,7 +620,7 @@ class UsersHandler:
 		else: return False, 'user not found in database'
 
 	def get_account_access(self, username):
-		entry = selfsession.query(User).filter(User.username==username).first()
+		entry = self.session.query(User).filter(User.username==username).first()
 		if entry:
 			return True, entry.access
 		else: return False, 'user not found in database'
@@ -532,20 +644,27 @@ class UsersHandler:
 		return True, 'Success.'
 
 	def clean(self):
-		''' delete old user accounts (very likely unused) '''
 		now = datetime.now()
 		#delete users:
-		# which didn't accept aggreement after one day
-		self.sess().query(User).filter(User.register_date < now - timedelta(days=1)).filter(User.access == "agreement").delete(synchronize_session=False)
+		# which didn't accept agreement after one week
+		response = self.sess().query(User).filter(User.register_date < now - timedelta(days=7)).filter(User.access == "agreement")
+		logging.info("deleting %i users who failed to verify registration", response.count())
+		response.delete(synchronize_session=False)
 
-		# which have no ingame time, last login > 30 days and no bot
-		self.sess().query(User).filter(User.ingame_time == 0).filter(User.last_login < now - timedelta(days=30)).filter(User.bot == 0).filter(User.access == "user").delete(synchronize_session=False)
+		# which have no ingame time, last login > 30 days, not bot, not mod
+		response = self.sess().query(User).filter(User.ingame_time == 0).filter(User.last_login < now - timedelta(days=30)).filter(User.bot == 0).filter(User.access == "user")
+		logging.info("deleting %i inactive users with no ingame time", response.count())
+		response.delete(synchronize_session=False)
 
-		# last login > 3 years
-		self.sess().query(User).filter(User.last_login < now - timedelta(days=1095)).delete(synchronize_session=False)
+		# last login > 5 years
+		self.sess().query(User).filter(User.last_login < now - timedelta(days=1825)).delete(synchronize_session=False)
+		logging.info("deleting %i very inactive users", response.count())
+		response.delete(synchronize_session=False)
 
 		# old messages > 2 weeks
 		self.sess().query(ChannelHistory).filter(ChannelHistory.time < now - timedelta(days=14)).delete(synchronize_session=False)
+		logging.info("deleting %i channel history messages", response.count())
+		response.delete(synchronize_session=False)
 
 		self.sess().commit()
 
@@ -642,6 +761,83 @@ class UsersHandler:
 			assert(type(msgs[0][2]) == str)
 		return msgs
 
+class OfflineBridgedClient():
+	def __init__(self, sqluser):
+		# db fields
+		self.bridged_id = sqluser.id
+		self.location = sqluser.location
+		self.external_id = sqluser.external_id
+		self.external_username = sqluser.external_username
+		self.last_bridged = sqluser.last_bridged
+
+		# non-db fields
+		self.username = self.external_username + '@' + self.location
+		self.channels = set()
+		self.bridge_user_id = None
+
+class BridgedUsersHandler:
+	def __init__(self, root, engine):
+		self._root = root
+		metadata.create_all(engine)
+		self.sessionmaker = sessionmaker(bind=engine, autoflush=True)
+		self.session = self.sessionmaker()
+
+	def sess(self):
+		if self.session.is_active:
+			return self.session
+		self.session.rollback()
+		return self.session
+
+	def bridgedClient(self, location, external_id):
+		entry = self.sess().query(BridgedUser).filter(BridgedUser.external_id == external_id).filter(BridgedUser.location == location).first()
+		if not entry:
+			return
+		return OfflineBridgedClient(entry)
+
+	def bridgedClientFromID(self, bridged_id):
+		entry = self.sess().query(BridgedUser).filter(BridgedUser.id == bridged_id).first()
+		if not entry:
+			return
+		return OfflineBridgedClient(entry)
+
+	def bridgedClientFromUsername(self, username):
+		external_username,location = username.split('@',1)
+		if not external_username or not location:
+			return
+		entry = self.sess().query(BridgedUser).filter(BridgedUser.external_username == external_username).filter(BridgedUser.location == location).first()
+		if not entry:
+			return
+		return OfflineBridgedClient(entry)
+
+	def new_bridge_user(self, location, external_id, external_username):
+		now = datetime.now()
+		entry = BridgedUser(location, external_id, external_username, now)
+		self.sess().add(entry)
+		self.sess().commit()
+		bridgedUser = self.sess().query(BridgedUser).filter(BridgedUser.external_id == external_id).filter(BridgedUser.location == location).first()
+		return entry
+
+	def bridge_user(self, location, external_id, external_username):
+		bridgedUser = self.sess().query(BridgedUser).filter(BridgedUser.external_id == external_id).filter(BridgedUser.location == location).first()
+		entry = self.sess().query(BridgedUser).filter(BridgedUser.external_username == external_username).filter(BridgedUser.location == location).first()
+		if (entry and entry.external_id != external_id):
+			return False, "Another bridged user (external_id '%s') with location '%s' is currently associated to the external username '%s'" % (entry.external_id, location, external_username)
+		if not bridgedUser:
+			entry = self.new_bridge_user(location, external_id, external_username)
+			return True, OfflineBridgedClient(entry)
+		bridgedUser.external_username = external_username
+		bridgedUser.last_bridged = datetime.now()
+		self.sess().commit()
+		return True, OfflineBridgedClient(bridgedUser)
+
+	def clean(self):
+		# remove any bridged user that wasn't seen for a year
+		now = datetime.now()
+		response = self.sess().query(BridgedUser).filter(BridgedUser.last_bridged < now - timedelta(days=365))
+		logging.info("deleting %i inactive bridged users", response.count())
+		response.delete(synchronize_session=False)
+		self.sess().commit()
+
 class BansHandler:
 	def __init__(self, root, engine):
 		self._root = root
@@ -661,27 +857,27 @@ class BansHandler:
 		if not now:
 			now = datetime.now()
 		userban = self.sess().query(Ban).filter(Ban.user_id == user_id, now <= Ban.end_date).first()
-		if userban: 
+		if userban:
 			return userban
 		ipban = self.sess().query(Ban).filter(Ban.ip == ip, now <= Ban.end_date).first()
-		if ipban: 
+		if ipban:
 			return ipban
 		emailban = self.sess().query(Ban).filter(Ban.email == email, now <= Ban.end_date).first()
-		if emailban: 
+		if emailban:
 			return emailban
 		return None
 
 	def ban(self, issuer, duration, reason, username):
-		# ban the db_id, current ip, and current email, of the target username (as a single ban)
+		# ban the user_id, current ip, and current email, of the target username (as a single ban)
 		try:
 			duration = float(duration)
-		except:	
+		except:
 			return False, 'Duration must be a float, cannot convert %s' % duration
 
 		entry = self.sess().query(User).filter(User.username==username).first()
 		if not entry:
 			return False, "Unable to ban %s, user doesn't exist" % username
-		ban = Ban(issuer.db_id, duration, reason, entry.id, entry.last_ip, entry.email)
+		ban = Ban(issuer.user_id, duration, reason, entry.id, entry.last_ip, entry.email)
 		self.sess().add(ban)
 		self.sess().commit()
 		return True, 'Successfully banned %s, %s, %s for %s days.' % (username, entry.last_ip, entry.email, duration)
@@ -690,18 +886,18 @@ class BansHandler:
 		# arg might be username, ip or email; ban it
 		try:
 			duration = float(duration)
-		except:	
+		except:
 			return False, 'Duration must be a float, cannot convert %s' % duration
 
 		email_match,_ = self._root.verificationdb.valid_email_addr(arg)
 		ip_match = re.match(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", arg)
 		entry = self.sess().query(User).filter(User.username==arg).first()
 		if email_match:
-			ban = Ban(issuer.db_id, duration, reason, None, None, arg)
+			ban = Ban(issuer.user_id, duration, reason, None, None, arg)
 		elif ip_match:
-			ban = Ban(issuer.db_id, duration, reason, None, arg, None)
+			ban = Ban(issuer.user_id, duration, reason, None, arg, None)
 		elif entry:
-			ban = Ban(issuer.db_id, duration, reason, entry.id, None, None)
+			ban = Ban(issuer.user_id, duration, reason, entry.id, None, None)
 		else:
 			return False, "Unable to match '%s' to username/ip/email" % arg
 		self.sess().add(ban)
@@ -747,20 +943,20 @@ class BansHandler:
 		if entry:
 			return entry
 		return None
-		
+
 	def blacklist(self, issuer, domain, reason):
 		if not '.' in domain:
 			return False, "invalid domain '%s', contains no '.'" % domain
 		if 'www' in domain or 'http' in domain or '/' in domain:
-			return False, "invalid domain '%s', do not include www or http(s) part, example: hawtmail.com" % domain	
+			return False, "invalid domain '%s', do not include www or http(s) part, example: hawtmail.com" % domain
 		entry = self.sess().query(BlacklistedEmailDomain).filter(BlacklistedEmailDomain.domain==domain).first()
 		if entry:
 			return False, 'Domain %s is already blacklisted' % domain
-		entry = BlacklistedEmailDomain(issuer.db_id, domain, reason)
+		entry = BlacklistedEmailDomain(issuer.user_id, domain, reason)
 		self.sess().add(entry)
 		self.sess().commit()
 		return True, 'Successfully added %s to blacklist' % domain
-		
+
 	def unblacklist(self, issuer, domain):
 		entry = self.sess().query(BlacklistedEmailDomain).filter(BlacklistedEmailDomain.domain==domain).first()
 		if not entry:
@@ -768,7 +964,7 @@ class BansHandler:
 		self.sess().delete(entry)
 		self.sess().commit()
 		return True, "Sucessfully removed %s from blacklist" % domain
-	
+
 	def list_bans(self):
 		# return a list of all bans
 		banlist = []
@@ -780,7 +976,7 @@ class BansHandler:
 				if entry: username = entry.username
 			if ban.issuer_user_id:
 				issuer =  self.sess().query(User).filter(User.id==ban.issuer_user_id).first()
-				if issuer: issuer_username = issuer.username				
+				if issuer: issuer_username = issuer.username
 			banlist.append({
 				'username': username or "",
 				'id': ban.user_id,
@@ -797,7 +993,7 @@ class BansHandler:
 		blacklist = []
 		for item in self.sess().query(BlacklistedEmailDomain):
 			issuer =  self.sess().query(User).filter(User.id==item.issuer_user_id).first()
-			if issuer: issuer_username = issuer.username				
+			if issuer: issuer_username = issuer.username
 			blacklist.append({
 				'domain': item.domain,
 				'start_time': item.start_time.strftime("%Y-%m-%d %H:%M"),
@@ -805,20 +1001,22 @@ class BansHandler:
 				'issuer': issuer_username
 			})
 		return blacklist
-	
+
 	def clean(self):
 		# remove all expired bans
 		now = datetime.now()
-		self.sess().query(Ban).filter(Ban.end_date < now).delete(synchronize_session=False)			
-		self.sess().commit()	
-	
+		response = self.sess().query(Ban).filter(Ban.end_date < now)
+		logging.info("deleting %i expired bans", response.count())
+		response.delete(synchronize_session=False)
+		self.sess().commit()
+
 class VerificationsHandler:
 	def __init__ (self, root, engine):
 		self._root = root
 		metadata.create_all(engine)
 		self.sessionmaker = sessionmaker(bind=engine, autoflush=True)
 		self.session = self.sessionmaker()
-		
+
 		self.require_verification = False
 		try:
 			with open('server_email_account.txt') as f:
@@ -829,19 +1027,30 @@ class VerificationsHandler:
 			self.mail_server = lines[2]
 			self.mail_server_port = int(lines[3])
 			self.require_verification = True
-			logging.info('Email verification is enabled, server email account is %s' % self.mail_user)
+			logging.info('Email verification is enabled, server email account is %s on mail server %s' % (self.mail_user, self.mail_server))
 		except Exception as e:
 			logging.info('Could not load server_email_account.txt, email verification is disabled: %s' %(e))
-		
+
+		try:
+			with open('server_iphub_xkey.txt') as f:
+				lines = f.readlines()
+			lines = [l.strip() for l in lines]
+			self.iphub_xkey = lines[0]
+			logging.info('Successfully loaded server_iphub_xkey.txt')
+		except Exception as e:
+			self.iphub_xkey = False
+			logging.info('Could not load server_iphub_xkey.txt: %s' %(e))
+
+
 	def sess(self):
 		if self.session.is_active:
 			return self.session
 		self.session.rollback()
 		return self.session
-	
+
 	def active(self):
 		return self.require_verification
-		
+
 	def valid_email_addr(self, email):
 		assert(type(email) == str)
 		if (not email or email==""):
@@ -851,8 +1060,8 @@ class VerificationsHandler:
 		if not re.match(r"[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,6}", email):
 			return False, "invalid email address"
 		return True, ""
-		
-	def check_and_send(self, user_id, email, reason, wait_duration):
+
+	def check_and_send(self, user_id, email, digits, reason, use_delay, ip_address):
 		# check that we don't already have an active verification, send a new one if not
 		if not self.active():
 			return True, ''
@@ -862,14 +1071,15 @@ class VerificationsHandler:
 		dbblacklist = self._root.bandb.check_blacklist(email)
 		if dbblacklist:
 			return False, dbblacklist.domain + " is blacklisted: " + dbblacklist.reason
-		
+		# no need to check if ip is banned, that is done by login!
+
 		email_entry = self.sess().query(Verification).filter(Verification.email == email).first()
-		if email_entry: 
+		if email_entry:
 			if datetime.now() <= email_entry.expiry:
 				return False, 'a verification attempt is already active for ' + email + ', use that or wait for it to expire (up to 24h)'
 		if email_entry: #expired
 			self.remove(email_entry.user_id)
-			
+
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first()
 		if entry:
 			if entry.email != email:
@@ -878,71 +1088,112 @@ class VerificationsHandler:
 				return False, 'already sent a verification code, please check your spam filter!'
 		if entry: #expired
 			self.remove(user_id)
-		entry = self.create(user_id, email) 
-		self.send(entry, reason, wait_duration)
-		return True, 'verification code sent to %s' % email
+		entry = self.create(user_id, email, digits, use_delay, reason)
+		self.send(entry, ip_address)
+		return True, ''
 
-	def create(self, user_id, email):
-		entry = Verification(user_id, email)
+	def create(self, user_id, email, digits, use_delay, reason):
+		entry = Verification(user_id, email, digits, use_delay, reason)
 		self.sess().add(entry)
 		self.sess().commit()
 		return entry
-	
-	def resend(self, user_id, email):
+
+	def resend(self, user_id, email, ip_address):
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first()
 		if not entry:
-			return False, 'you do not have an active verification code'		
+			return False, 'you do not have an active verification code'
 		if entry.expiry <= datetime.now():
 			return False, 'your verification code has expired, please request a new one'
 		if email!=entry.email:
-			return False, 'your verification code for ' + entry.email + ' cannot be re-sent to a different email address, use it or wait for it to expire (up to 24h)'		
+			return False, 'your verification code for ' + entry.email + ' cannot be re-sent to a different email address, use it or wait for it to expire (up to 24h)'
 		if entry.resends>=3:
 			return False, 'too many resends, please try again later'
+		if entry.resends==0:
+			entry.reason += " (resend requested)"
 		entry.resends += 1
 		self.sess().commit()
-		wait_duration = 30
-		reason = "requested your verification code to be re-sent"
-		self.send(entry, reason, 30)		
-		return True, 'verification code sent to %s' % email
-	
-	def send(self, entry, reason, wait_duration):
+		self.send(entry, ip_address)
+		return True, ''
+
+	def send(self, entry, ip_address):
+		if not self.active(): #safety
+			return
 		try:
-			thread.start_new_thread(self._send, (entry.email, entry.code, entry.expiry, reason, wait_duration))
-		except NameError:
-			_thread.start_new_thread(self._send, (entry.email, entry.code, entry.expiry, reason, wait_duration))
+			thread.start_new_thread(self._send, (entry.email, entry.code, entry.reason, entry.use_delay, entry.expiry, ip_address))
 		except:
 			logging.error('Failed to launch VerificationHandler._send: %s, %s, %s' % (entry, reason, wait_duration))
-	
-	def _send (self, email, code, expiry, reason, wait_duration):
-		if not self.active():
-			return 
+
+	def _send(self, email, code, reason, use_delay, expiry, ip_address):
 		sent_from = self.mail_user
 		to = email
 		subject = 'SpringRTS verification code'
+
+		delay_secs = 60*60*24
+		delay = timedelta(seconds=delay_secs)
+		send_time = datetime.now() + delay
+		if use_delay:
+			time.sleep(20)
+		if use_delay and self._is_nonresidential_ip(ip_address):
+			body = """
+You are recieving this email because you recently """ + reason + """.
+
+Your registration attempt was detected as coming from a non-residential IP address.
+To prevent abuse we delay such registrations by 24 hours.
+Your verification code will be sent on """ + send_time.strftime("%Y-%m-%d") + """ at """ + send_time.strftime("%H:%M") + """ CET.
+Alternatively, you can register a new account from a different IP address."""
+			self._send_email(sent_from, to, subject, body)
+			time.sleep(delay_secs)
+
 		body = """
 You are recieving this email because you recently """ + reason + """.
-Your email verification code is """ + str(code) + """.
+Your email verification code is """ + str(code) + """
 
-It will expire on """ + expiry.strftime("%Y-%m-%d") + """ at """ + expiry.strftime("%H:%M") + """.
-If you received this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)."""
+This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at """ + expiry.strftime("%H:%M") + """ CET."""
+		self._send_email(sent_from, to, subject, body)
+
+	def _send_email(self, sent_from, to, subject, body):
+		if not self.active(): #safety
+			return
+		body += "\n\nIf you received this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)."
 		message = 'Subject: {}\n\n{}'.format(subject, body)
-
-		time.sleep(wait_duration)
 		try:
-			server = smtplib.SMTP_SSL(self.mail_server, self.mail_server_port)
-			server.ehlo()
-			server.login(self.mail_user, self.mail_password)
+			server = smtplib.SMTP()
+			if self.mail_server=="localhost":
+				server.connect()
+			else:
+				server = smtplib.SMTP_SSL(self.mail_server, self.mail_server_port)
+				server.ehlo()
+				server.login(self.mail_user, self.mail_password)
+			
+			server.set_debuglevel(True) # todo: remove after testing
 			server.sendmail(sent_from, to, message)
 			server.close()
+			logging.info('Sent verification code to %s' % (to))
 		except Exception as e:
-			logging.error('Failed to email registration code: %s, %s, %s' % (email, code, str(e)))
-	
+			logging.error('Failed to send email from %s to %s' % (sent_from, to))
+			logging.error(str(e))
+
+	def _is_nonresidential_ip(self, ip_address):
+		if not self.active(): #safety
+			return False
+		if not self.iphub_xkey:
+			return False
+		try:
+			response = urllib.request.Request("http://v2.api.iphub.info/ip/{}".format(ip_address))
+			response.add_header("X-Key", self.iphub_xkey)
+			response = json.loads(urllib.request.urlopen(response).read().decode())
+		except Exception as e:
+			logging.error('Failed to check ip info for %s: %s' % (ip_address, str(e)))
+			return False # in the case of an error, pass all IPs
+		block = response.get("block")
+		return block == 1
+
 	def verify (self, user_id, email, code):
 		if not self.active():
 			return True, ''
 		if code=="":
 			return False, 'a verification code is required'
-		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first() # there should be (at most) one code per user 
+		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first() # there should be (at most) one code per user
 		if not entry:
 			logging.error('Unexpected verification attempt: %s, %s' % (user_id, code))
 			return False, 'unexpected verification attempt, please request a verification code'
@@ -959,23 +1210,57 @@ If you received this message in error, please contact us at www.springrts.com (d
 			else:
 				entry.attempts += 1
 				self.sess().commit()
-				return False, 'incorrect verification code, %s/3 attempts' % (3-attempts) 
+				return False, 'incorrect verification code, %i/3 attempts remaining' % (3-entry.attempts)
 		except Exception as e:
 			entry.attempts += 1
 			self.sess().commit()
-			return False, 'incorrect verification code, ' + str(e) + ', %s/3 attempts ' % (3-attempts)
-		
-	def remove (self, user_id):
+			return False, 'incorrect verification code, ' + str(e) + ', %i/3 attempts remaining' % (3-entry.attempts)
+
+	def remove(self, user_id):
 		# remove all entries for user
-		self.sess().query(Verification).filter(Verification.user_id == user_id).delete(synchronize_session=False)			
+		self.sess().query(Verification).filter(Verification.user_id == user_id).delete(synchronize_session=False)
 		self.sess().commit()
-		
-	def clean (self):
+
+	def clean(self):
 		# remove all expired entries
 		now = datetime.now()
-		self.sess().query(Verification).filter(Verification.expiry < now).delete(synchronize_session=False)			
+		response = self.sess().query(Verification).filter(Verification.expiry < now)
+		logging.info("deleting %i expired verifications", response.count())
+		response.delete(synchronize_session=False)
 		self.sess().commit()
-		
+
+	def reset_password(self, user_id):
+		# reset pw, email to user
+		char_set = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!£$%^&*()@<>?"
+		new_password_raw = ""
+		for i in range(0,10):
+			new_password_raw += random.choice(char_set)
+		hash = hashlib.md5()
+		hash.update(str.encode(new_password_raw))
+		new_password = base64.b64encode(hash.digest()).decode()
+		assert(self._root.protocol._validPasswordSyntax(new_password))
+
+		dbuser = self.sess().query(User).filter(User.id == user_id).first()
+		dbuser.password = new_password
+		self.sess().commit()
+
+		try:
+			thread.start_new_thread(self._send_reset_password_email, (dbuser.email, dbuser.username, new_password_raw,))
+		except:
+			logging.error('Failed to launch UserHandler._send_recover_account_email: %s' % (dbuser))
+
+	def _send_reset_password_email(self, email, username, password):
+		if not self.active():
+			return
+		sent_from = self.mail_user
+		to = email
+		subject = 'SpringRTS account recovery'
+		body = """
+You are recieving this email because you recently requested to recover the account <""" + username + """> at the SpringRTS lobby server.
+Your new password is """ + password
+		self._send_email(sent_from, to, subject, body)
+
+
 class ChannelsHandler:
 	def __init__(self, root, engine):
 		self._root = root
@@ -992,11 +1277,11 @@ class ChannelsHandler:
 	def channel_from_name(self, name):
 		entry = self.sess().query(Channel).filter(Channel.name == name).first()
 		return entry
-	
+
 	def channel_from_id(self, channel_id):
 		entry = self.sess().query(Channel).filter(Channel.id == channel_id).first()
 		return entry
-		
+
 	def all_channels(self):
 		response = self.sess().query(Channel)
 		channels = {}
@@ -1024,63 +1309,176 @@ class ChannelsHandler:
 				})
 		return operators
 
-	def setTopic(self, chan, topic, target):
-		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()
+	def all_bans(self):
+		response = self.sess().query(ChannelBan)
+		bans = []
+		for ban in response:
+			bans.append({
+					'channel_id': ban.channel_id,
+					'issuer_user_id': ban.issuer_user_id,
+					'user_id': ban.user_id,
+					'ip_address': ban.ip_address,
+					'expires': ban.expires,
+					'reason': ban.reason,
+				})
+		return bans
+
+	def all_bridged_bans(self):
+		response = self.sess().query(ChannelBridgedBan)
+		bans = []
+		for ban in response:
+			bans.append({
+					'channel_id': ban.channel_id,
+					'bridged_id': ban.bridged_id,
+					'issuer_user_id': ban.issuer_user_id,
+					'expires': ban.expires,
+					'reason': ban.reason,
+				})
+		return bans
+
+	def all_mutes(self):
+		response = self.sess().query(ChannelMute)
+		mutes = []
+		for mute in response:
+			mutes.append({
+					'channel_id': mute.channel_id,
+					'issuer_user_id': mute.issuer_user_id,
+					'user_id': mute.user_id,
+					'expires': mute.expires,
+					'reason': mute.reason,
+				})
+		return mutes
+
+	def all_forwards(self):
+		response = self.sess().query(ChannelForward)
+		forwards = []
+		for forward in response:
+			forwards.append({
+			'channel_from_id': forward.channel_from_id,
+			'channel_to_id': forward.channel_to_id,
+			})
+		return forwards
+
+	def setTopic(self, channel, topic, target):
+		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
 		if entry:
 			entry.topic = topic
 			entry.topic_time = datetime.now()
-			entry.topic_user_id = target.db_id
+			entry.topic_user_id = target.user_id
 			self.sess().commit()
 
-	def setKey(self, chan, key):
-		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()
+	def setKey(self, channel, key):
+		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
 		if entry:
 			entry.key = key
 			self.sess().commit()
 
-	def setFounder(self, chan, target):
-		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()
+	def setFounder(self, channel, target):
+		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
 		if entry:
-			entry.owner_user_id = target.db_id
-			self.sess().commit()			
+			entry.owner_user_id = target.user_id
+			self.sess().commit()
 
-	def opUser(self, chan, target):
-		entry = ChannelOp(chan.id, target.db_id)
+	def setAntispam(self, channel, antispam):
+		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
+		if entry:
+			entry.antispam = antispam
+			self.sess().commit()
+
+	def opUser(self, channel, target):
+		entry = ChannelOp(channel.id, target.user_id)
 		self.sess().add(entry)
 		self.sess().commit()
-	
-	def deopUser(self, chan, target):
-		entry = self.sess().query(ChannelOp).filter(ChannelOp.user_id == target.db_id).filter(ChannelOp.channel_id == chan.id).first()
+
+	def deopUser(self, channel, target):
+		entry = self.sess().query(ChannelOp).filter(ChannelOp.user_id == target.user_id).filter(ChannelOp.channel_id == channel.id).first()
 		if entry:
 			self.sess().delete(entry)
 			self.sess().commit()
 
+	def banBridgedUser(self, channel, issuer, target, expires, reason):
+		entry = ChannelBridgedBan(channel.id, issuer.user_id, target.bridged_id, expires, reason)
+		self.sess().add(entry)
+		self.sess().commit()
+
+	def unbanBridgedUser(self, channel, target):
+		response = self.sess().query(ChannelBridgedBan).filter(ChannelBridgedBan.bridged_id == target.bridged_id).filter(ChannelBridgedBan.channel_id == channel.id)
+		response.delete()
+		self.sess().commit()
+
+	def banUser(self, channel, issuer, target, expires, reason):
+		entry = ChannelBan(channel.id, issuer.user_id, target.user_id, target.last_ip, expires, reason)
+		self.sess().add(entry)
+		self.sess().commit()
+
+	def unbanUser(self, channel, target):
+		response = self.sess().query(ChannelBan).filter(ChannelBan.user_id == target.user_id).filter(ChannelBan.channel_id == channel.id)
+		response.delete()
+		self.sess().commit()
+
+	def muteUser(self, channel, issuer, target, expires, reason):
+		entry = ChannelMute(channel.id, issuer.user_id, target.user_id, expires, reason)
+		self.sess().add(entry)
+		self.sess().commit()
+
+	def unmuteUser(self, channel, target):
+		response = self.sess().query(ChannelMute).filter(ChannelMute.user_id == target.user_id).filter(ChannelMute.channel_id == channel.id)
+		response.delete()
+		self.sess().commit()
+
 	def setHistory(self, chan, enable):
 		entry = self.sess().query(Channel).filter(Channel.name == chan.name).first()
-		if not entry:
-			return False
-		entry.store_history = enable
+		if entry:
+			entry.store_history = enable
+			self.sess().commit()
+
+	def addForward(self, channel_from, channel_to):
+		entry = ChannelForward(channel_from.id, channel_to.id)
+		self.sess().add(entry)
 		self.sess().commit()
-		return True
-		
+
+	def removeForward(self, channel_from, channel_to):
+		entry = self.sess().query(ChannelForward).filter(ChannelForward.channel_from_id == channel_from.id).filter(ChannelForward.channel_to_id == channel_to.id)
+		if entry:
+			self.sess().delete(entry)
+			self.sess().commit()
+
 	def register(self, channel, target):
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
 		if not entry:
 			entry = Channel(channel.name)
-			if channel.topic:
-				entry.topic = channel.topic['text']
-				entry.topic_time =  datetime.fromtimestamp(channel.topic['time'])
-				entry.topic_user_id = target.db_id
-			else:
-				entry.topic_time = datetime.now()
-			entry.owner_user_id = target.db_id
-			self.sess().add(entry)
-			self.sess().commit()
-			entry = self.sess().query(Channel).filter(Channel.name == channel.name).first() # set db id to runtime object
-			channel.id = entry.id
+		if channel.topic:
+			entry.topic = channel.topic['text']
+			entry.topic_time =  datetime.fromtimestamp(channel.topic['time'])
+			entry.topic_user_id = target.user_id
+		else:
+			entry.topic_time = datetime.now()
+		entry.owner_user_id = target.user_id
+		self.sess().add(entry)
+		self.sess().commit()
+		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
+		channel.id = entry.id
 
 	def unRegister(self, client, channel):
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).delete()
+		self.sess().commit()
+
+	def clean(self):
+		#delete all expired channel bans/mutes:
+		now = datetime.now()
+
+		response = self.sess().query(ChannelMute).filter(ChannelMute.expires < now)
+		logging.info("deleting %i expired channel mutes", response.count())
+		response.delete(synchronize_session=False)
+
+		response = self.sess().query(ChannelBan).filter(ChannelBan.expires < now)
+		logging.info("deleting %i expired channel bans", response.count())
+		response.delete(synchronize_session=False)
+
+		response = self.sess().query(ChannelBridgedBan).filter(ChannelBridgedBan.expires < now)
+		logging.info("deleting %i expired channel bridged bans", response.count())
+		response.delete(synchronize_session=False)
+
 		self.sess().commit()
 
 if __name__ == '__main__':
@@ -1107,34 +1505,34 @@ if __name__ == '__main__':
 	root.channeldb = channeldb
 	root.verificationdb = verificationdb
 	root.bandb = bandb
-	
+
 	# test save/load user
 	username = u"test"
 	userdb.register_user(username, u"pass", "192.168.1.1", "DE", "blackhole@blackhole.io")
 	client = userdb.clientFromUsername(username)
 	assert(isinstance(client.id, int))
-	
+
 	# test verification
-	entry = verificationdb.create(client.id, client.email)
-	verificationdb._send(entry.email, entry.code, entry.expiry, "test", 0) #use main thread, or Python will exit without waiting for the test!
+	entry = verificationdb.create(client.id, client.email, 4, False, "test")
+	verificationdb._send_email("test@test.test", "blackhole@blackhole.io", "test", "test") #use main thread, or Python will exit without waiting for the test!
 	verificationdb.verify(client.id, client.email, entry.code)
 	verificationdb.clean()
 
 	# test ban/unban
-	client.db_id = client.id # ban issuer is an *online* client; impersonate one
+	client.user_id = client.id # ban issuer is an *online* client; impersonate one
 	userdb.register_user("delinquent", u"pass", "192.168.1.2", "DE", "blackhole@blackhole.io")
 	client2 = userdb.clientFromUsername("delinquent")
 	bandb.ban(client, 1, "test", "delinquent")
 	ban = bandb.check_ban(client2.id, None, None)
 	assert(ban)
-	bandb.unban(client, "delinquent")	
+	bandb.unban(client, "delinquent")
 	ban = bandb.check_ban(client2.id, None, None)
 	assert(not ban)
-	
+
 	# test save/load channel
 	channelname = u"testchannel"
 	channel = Channel(channelname)
-	client.db_id = client.id # only online clients can register channels, so pretend we are one of those
+	client.user_id = client.id # only online clients can register channels, so pretend we are one of those
 	channeldb.register(channel, client)
 	assert(channel.id > 0)
 
@@ -1172,7 +1570,7 @@ if __name__ == '__main__':
 	userdb.clean()
 	verificationdb.clean()
 	bandb.clean()
-	
+
 	print("Tests went ok")
 
 
