@@ -255,7 +255,8 @@ class Protocol:
 			if not flag in flag_map:
 				unknown_flags += ' ' + flag
 
-		error = missing_TLS or len(missing_flags)>0 or len(deprecated_flags)>0 or len(unwanted_flags)>0
+		compat_error = len(missing_flags)>0 or len(deprec_flags)>0 or len(unwanted_flags)>0
+		error = missing_TLS or compat_error
 		if not error:
 			return
 
@@ -266,10 +267,10 @@ class Protocol:
 			client.RealSend("MOTD  -- -- - -- --")
 			logging.info('[%s] <%s> client "%s" logged in without TLS')
 
-		if len(missing_flags)>0 or len(deprecated_flags)>0 or len(unknown_flags)>0:
+		if compat_error:
 			client.RealSend("MOTD Your client has compatibility errors")
 			if len(missing_flags)>0: client.RealSend("MOTD   missing flags:%s" % missing_flags)
-			if len(deprecated_flags)>0: client.RealSend("MOTD   deprecated flags:%s" % deprec_flags)
+			if len(deprec)>0: client.RealSend("MOTD   deprecated flags:%s" % deprec_flags)
 			if len(unknown_flags)>0: client.RealSend("MOTD   unknown flags:%s" % unknown_flags)
 			client.RealSend("MOTD  -- -- - -- --")
 			logging.info('[%s] <%s> client "%s" sent incorrect compat flags -- missing:%s, deprecated:%s, unknown:%s'%(client.session_id, client.username, client.lobby_id, missing_flags, deprec_flags, unknown_flags))
