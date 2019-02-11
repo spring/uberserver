@@ -117,7 +117,7 @@ class ChanServClient(Client):
 		cmd = cmd.lower()
 
 		if cmd == 'help':
-			return 'Hello, %s!\nI am the server bot.\nFor the full list of my commands, see https://springrts.com/dl/ChanServCommands.html\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
+			return 'Hello, %s!\nI am the server bot.\nFor the full list of my commands, see https://springrts.com/wiki/ChanServ\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
 
 		if cmd == 'battlename':
 			host = self._root.protocol.clientFromUsername(chan, True)
