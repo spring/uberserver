@@ -1384,6 +1384,10 @@ class Protocol:
 		if bridgedClient.bridge_user_id != client.user_id:
 			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client is on a different bridge (got %i, expected %i)" % (bridgedClient.bridge_user_id, client.user_id), True)
 			return
+			
+		bridgedClient_channels = bridgedClient.channels.copy()
+		for chan in bridgedClient_channels:
+			self.in_LEAVEFROM(client, chan, bridgedClient.location, bridgedClient.external_id)
 
 		del client.bridged_external_ids[external_id]
 		client.bridged_locations[location] -= 1
