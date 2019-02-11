@@ -40,7 +40,6 @@ xmlport = 8300
 engine = sqlalchemy.create_engine(sqlurl, echo=False)
 userdb = SQLUsers.UsersHandler(None, engine)
 
-
 class RequestHandler(SimpleXMLRPCRequestHandler):
 	def log_message(self, format, *args):
 		logger.info(format % args)
@@ -55,6 +54,7 @@ class XmlRpcServer(SimpleXMLRPCServer):
 		self.register_instance(_RpcFuncs())
 		logger.info('Listening for XMLRPC clients on %s:%d', host, port)
 		self.serve_forever()
+
 
 
 def validateLogin(username, password):
