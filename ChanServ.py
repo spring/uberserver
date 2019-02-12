@@ -485,7 +485,9 @@ class ChanServClient(Client):
 				users_str = 'Currently contains %i users' % len(users)
 			return '#%s info: %s. %s, %s. %s. ' % (chan, antispam, founder, op_list, users_str)
 
-
+		if not (len(cmd)>=3 and all(c.isalpha() for c in cmd)):
+			return #probably just a smiley or suchlike - not meant to invoke ChanServ
+		
 		return "command '%s' does not exist, try ':help' to get help" %(cmd) #todo: better cmd list + split into functions
 
 	def Remove(self, reason=None):
