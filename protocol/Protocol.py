@@ -265,7 +265,7 @@ class Protocol:
 		if missing_TLS:
 			client.RealSend("MOTD Your client did not use TLS. Your connection is not secure.")
 			client.RealSend("MOTD  -- -- - -- --")
-			logging.info('[%s] <%s> client "%s" logged in without TLS')
+			logging.info('[%s] <%s> client "%s" logged in without TLS' % (client.session_id, client.username, client.lobby_id))
 
 		if compat_error:
 			client.RealSend("MOTD Your client has compatibility errors")
