@@ -640,16 +640,20 @@ class Protocol:
 		return True, ""
 
 	def _validBridgeSyntax(self, location, external_id, external_username):
-		good, reason = self._validUsernameSyntax(external_username)
-		if not good:
-			return good, reason
-		if '@' in external_id:
-			return False, 'Char @ is not allowed in external_id'
+		for char in external_username:
+			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890#':
+				return False, 'Only ASCII chars, [], _, 0-9 and # are allowed in bridged usernames.'
+		if len(external_username) > 20:
+			return False, 'external_username is too long, max is 20 chars.'
+		if ':' in external_id:
+			return False, 'Char : is not allowed in external_id'
 		for char in location:
-			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890.':
-				return False, 'Only ASCII chars, [], _, 0-9 and . are allowed in location name.'
-		if len(external_id)>20 or len(location)>20:
-			return False, 'External_id or location is too long, max is 20 chars.'
+			if not char in 'abcdefghijklmnopqrstuvwzyx[]_1234567890.':
+				return False, 'Only lower case ASCII chars, [], _, 0-9 and . are allowed in location names.'
+		if len(external_id)>20:
+			return False, 'external_id is too long, max is 20 chars.'
+		if len(location)>12:
+			return False, 'location is too long, max is 12 chars.'
 		return True, ''
 
 	def _parseTags(self, tagstring):
@@ -1330,7 +1334,7 @@ class Protocol:
 			return
 		good, reason = self._validBridgeSyntax(location, external_id, external_username)
 		if not good:
-			self.out_FAILED(client, "BRIDGECLIENTFROM", "Invalid syntax: %s", True)
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "Invalid syntax: %s" % reason, True)
 			return
 		location_client = self.clientFromUsername(location, True)
 		if location_client and location_client.bot and location != client.username:

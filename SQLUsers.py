@@ -773,7 +773,7 @@ class OfflineBridgedClient():
 		self.last_bridged = sqluser.last_bridged
 
 		# non-db fields
-		self.username = self.external_username + '@' + self.location
+		self.username = self.external_username + ':' + self.location  
 		self.channels = set()
 		self.bridge_user_id = None
 
@@ -803,7 +803,7 @@ class BridgedUsersHandler:
 		return OfflineBridgedClient(entry)
 
 	def bridgedClientFromUsername(self, username):
-		external_username,location = username.split('@',1)
+		external_username,location = username.split(':',1)
 		if not external_username or not location:
 			return
 		entry = self.sess().query(BridgedUser).filter(BridgedUser.external_username == external_username).filter(BridgedUser.location == location).first()
@@ -1233,7 +1233,7 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 
 	def reset_password(self, user_id):
 		# reset pw, email to user
-		char_set = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!£$%^&*()@<>?"
+		char_set = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!£$%^&*?"
 		new_password_raw = ""
 		for i in range(0,10):
 			new_password_raw += random.choice(char_set)

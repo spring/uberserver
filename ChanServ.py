@@ -293,7 +293,7 @@ class ChanServClient(Client):
 			duration = self.parse_duration(duration_str)
 			if duration == None:
 				return "#%s: Could not parse duration %s, please enter a number of minutes or specify a time unit e.g. '10m', '2h', or '3d'" % (chan, duration_str)
-			if '@' in target_username:
+			if ':' in target_username:
 				return '#%s: Use !ban to remove a bridged user from the channel bridge (then, their chat will not be forwarded to #%s)' % (chan, chan)
 			target = self._root.protocol.clientFromUsername(target_username, True)
 			if not target:
@@ -319,7 +319,7 @@ class ChanServClient(Client):
 			target_username = args
 			if not target_username:
 				return '#%s: You must specify a user to unmute' % chan
-			if '@' in target_username:
+			if ':' in target_username:
 				return '#%s: For bridged users, use !ban/!unban' % (chan, chan)
 			target = self._root.protocol.clientFromUsername(target_username, True)
 			if not target or not target.user_id in channel.mutelist:
@@ -357,7 +357,7 @@ class ChanServClient(Client):
 			duration = self.parse_duration(duration_str)
 			if duration == None:
 				return "#%s: Could not parse duration %s, please enter a number of minutes or specify a time unit e.g. '10m', '2h', or '3d'" % (chan, duration_str)
-			if '@' in target_username:
+			if ':' in target_username:
 				target = self._root.bridgedClientFromUsername(target_username, True)
 				if not target:
 					return '#%s: Bridged user <%s> not found' % (chan, target_username)
@@ -397,7 +397,7 @@ class ChanServClient(Client):
 			if not args:
 				return '#%s: You must specify a user to unban from the channel' % chan
 			target_username = args
-			if '@' in target_username:
+			if ':' in target_username:
 				target = self._root.bridgedClientFromUsername(target_username, True)
 				if not target:
 					return '#%s: User <%s> not found on the bridge' % (chan, target_username)
