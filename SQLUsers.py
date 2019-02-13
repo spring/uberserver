@@ -471,6 +471,8 @@ class UsersHandler:
 
 	def check_banned(self, username, ip):
 		dbuser = self.sess().query(User).filter(User.username == username).first()
+		if not dbuser:
+			return False, ""
 		now = datetime.now()
 		dbban = self._root.bandb.check_ban(dbuser.id, ip, dbuser.email, now)
 		if dbban and not dbuser.access=='admin':
