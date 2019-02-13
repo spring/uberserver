@@ -2753,7 +2753,8 @@ class Protocol:
 			if battle.hasBotflag() and not self._validEngineVersion(battle.engine, battle.version):
 				legacyBattleIds.append(battleId)
 				host = self.clientFromSession(battle.host)
-				self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s -- This battle will close -- %s %s or later is now required by the server. Please join a battle with the new Spring version!' % (host.username, 'Spring', version))
+				self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s -- This battle will close -- %s %s or later is now required by the server. Please join a battle with the new Spring version!' % (host.username, 'Spring', version), None, None, 'u')
+				self.broadcast_SendBattle(battle, 'SAIDEX %s %s -- This battle will close -- %s %s or later is now required by the server. Please join a battle with the new Spring version!' % (battle.name, host.username, 'Spring', version), None, 'u', None)
 		for battleId in legacyBattleIds:
 			battle = self._root.battles[battleId]
 			self.broadcast_RemoveBattle(battle)
