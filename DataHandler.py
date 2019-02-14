@@ -108,7 +108,7 @@ class DataHandler:
 			print('You might want to install a real database server')
 			print('')
 			self.max_threads = 1
-			self.engine = sqlalchemy.create_engine(self.sqlurl, echo=False)
+			self.engine = sqlalchemy.create_engine(self.sqlurl, echo=False, pool_recycle=3600)
 			def _fk_pragma_on_connect(dbapi_con, con_record):
 				dbapi_con.execute('PRAGMA journal_mode = MEMORY')
 				dbapi_con.execute('PRAGMA synchronous = OFF')
