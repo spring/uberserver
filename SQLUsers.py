@@ -649,7 +649,7 @@ class UsersHandler:
 		now = datetime.now()
 		#delete users:
 		# which didn't accept agreement after one week
-		response = self.sess().query(User).filter(User.register_date < now - timedelta(days=7)).filter(User.access == "agreement")
+		response = self.sess().query(User).filter(User.register_date < now).filter(User.access == "agreement")
 		logging.info("deleting %i users who failed to verify registration", response.count())
 		response.delete(synchronize_session=False)
 
