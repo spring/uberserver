@@ -44,6 +44,7 @@ class Battle(Channel):
 			client.Send('JOINBATTLE %s %s %s' % (self.battle_id, self.hashcode, self.name))
 			self.addUser(client) # join the battles channel
 		else:
+			# legacy clients without 'u' -- these are in the __battle__ channel from servers point of view, but are not told about it!
 			client.Send('JOINBATTLE %s %s' % (self.battle_id, self.hashcode))
 			self.users.add(client.session_id)
 			client.channels.add(self.name)
@@ -54,12 +55,12 @@ class Battle(Channel):
 			if client!=host:
 				host.Send('JOINEDBATTLE %s %s %s' % (self.battle_id, client.username, scriptPassword))
 				client.Send('JOINEDBATTLE %s %s %s' % (self.battle_id, client.username, scriptPassword))
-				self._root.broadcast('JOINEDBATTLE %s %s' % (self.battle_id, client.username), ignore=set([self. host, client.session_id])) 
+				self._root.broadcast('JOINEDBATTLE %s %s' % (self.battle_id, client.username), ignore=set([self.host, client.session_id])) 
 		else:
 			if client!=host:
 				host.Send('JOINEDBATTLE %s %s' % (self.battle_id, client.username))
 				client.Send('JOINEDBATTLE %s %s' % (self.battle_id, client.username))
-				self._root.broadcast('JOINEDBATTLE %s %s' % (self.battle_id, client.username), ignore=set([self. host, client.session_id])) 
+				self._root.broadcast('JOINEDBATTLE %s %s' % (self.battle_id, client.username), ignore=set([self.host, client.session_id])) 
 
 		scripttags = []
 		for tag, val in self.script_tags.items():
@@ -96,8 +97,13 @@ class Battle(Channel):
 		client.Send('REQUESTBATTLESTATUS')
 
 	def leaveBattle(self, client):
-		self.removeUser(client)
-
+		if 'u' in client.compat:
+			self.removeUser(client)
+		else:
+			self.users.remove(client.session_id)
+			if self.name in client.channels:
+				client.channels.remove(self.name)
+			
 		client.scriptPassword = None
 		client.current_battle = None
 		client.hostport = None
