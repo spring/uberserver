@@ -386,7 +386,7 @@ class Ban(object):
 		user_id_str = str(self.user_id)+', ' if self.user_id else ""
 		ip_str = self.ip+', ' if self.ip else ""
 		email_str = self.email+', ' if self.email else ""
-		ban_str = user_id_str + email_str + ban_str
+		ban_str = user_id_str + ip_str + email_str
 		return "<Ban: %s (%s, %s)>" % (ban_str, self.issuer_user_id, self.end_date)
 mapper(Ban, ban_table)
 ##########################################
@@ -858,15 +858,18 @@ class BansHandler:
 		# fixme: its probably possible to do this with a single db command!
 		if not now:
 			now = datetime.now()
-		userban = self.sess().query(Ban).filter(Ban.user_id == user_id, now <= Ban.end_date).first()
-		if userban:
-			return userban
-		ipban = self.sess().query(Ban).filter(Ban.ip == ip, now <= Ban.end_date).first()
-		if ipban:
-			return ipban
-		emailban = self.sess().query(Ban).filter(Ban.email == email, now <= Ban.end_date).first()
-		if emailban:
-			return emailban
+		if user_id:
+			userban = self.sess().query(Ban).filter(Ban.user_id == user_id, now <= Ban.end_date).first()
+			if userban:
+				return userban
+		if ip:
+			ipban = self.sess().query(Ban).filter(Ban.ip == ip, now <= Ban.end_date).first()
+			if ipban:
+				return ipban
+		if email:
+			emailban = self.sess().query(Ban).filter(Ban.email == email, now <= Ban.end_date).first()
+			if emailban:
+				return emailban
 		return None
 
 	def ban(self, issuer, duration, reason, username):
