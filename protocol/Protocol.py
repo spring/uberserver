@@ -256,7 +256,7 @@ class Protocol:
 				unknown_flags += ' ' + flag
 
 		compat_error = len(missing_flags)>0 or len(deprec_flags)>0 or len(unknown_flags)>0
-		error = missing_TLS or compat_error
+		error = missing_TLS #or compat_error
 		if not error:
 			return
 
@@ -1848,9 +1848,8 @@ class Protocol:
 		self._root.battles[battle.battle_id] = battle
 		self.broadcast_AddBattle(battle)
 
-		battle.joinBattle(client)
 		client.Send('OPENBATTLE %s' % battle.battle_id)
-		client.Send('JOINBATTLE %s %s' % (battle.battle_id, hashcode))
+		battle.joinBattle(client)
 		client.Send('REQUESTBATTLESTATUS')
 
 	def in_JOINBATTLE(self, client, battle_id, key=None, scriptPassword=None):
