@@ -275,8 +275,8 @@ class Protocol:
 			#client.RealSend("MOTD  -- -- - -- --")
 			logging.info('[%s] <%s> client "%s" sent incorrect compat flags -- missing:%s, deprecated:%s, unknown:%s'%(client.session_id, client.username, client.lobby_id, missing_flags, deprec_flags, unknown_flags))
 
-		client.RealSend("MOTD Please update your client / report these issues.")
-		client.RealSend("MOTD  -- -- - -- --")
+		#client.RealSend("MOTD Please update your client / report these issues.")
+		#client.RealSend("MOTD  -- -- - -- --")
 
 	def _new(self, client):
 		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0'))
