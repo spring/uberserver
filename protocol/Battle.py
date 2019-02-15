@@ -51,12 +51,12 @@ class Battle(Channel):
 		scriptPassword = client.scriptPassword
 		host = self._root.protocol.clientFromSession(self.host)
 		if scriptPassword and host.compat['sp']:
-			host.Send('JOINEDBATTLE %s %s %s' % (self.battle_id, client.username, scriptPassword))
 			if client!=host:
+				host.Send('JOINEDBATTLE %s %s %s' % (self.battle_id, client.username, scriptPassword))
 				client.Send('JOINEDBATTLE %s %s %s' % (self.battle_id, client.username, scriptPassword))
 		else:
-			host.Send('JOINEDBATTLE %s %s' % (self.battle_id, client.username))
 			if client!=host:
+				host.Send('JOINEDBATTLE %s %s' % (self.battle_id, client.username))
 				client.Send('JOINEDBATTLE %s %s' % (self.battle_id, client.username))
 
 		scripttags = []
