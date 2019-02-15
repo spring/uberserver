@@ -54,10 +54,12 @@ class Battle(Channel):
 			if client!=host:
 				host.Send('JOINEDBATTLE %s %s %s' % (self.battle_id, client.username, scriptPassword))
 				client.Send('JOINEDBATTLE %s %s %s' % (self.battle_id, client.username, scriptPassword))
+				self._root.broadcast('JOINEDBATTLE %s %s' % (self.battle_id, client.username), ignore=set([self. host, client.session_id])) 
 		else:
 			if client!=host:
 				host.Send('JOINEDBATTLE %s %s' % (self.battle_id, client.username))
 				client.Send('JOINEDBATTLE %s %s' % (self.battle_id, client.username))
+				self._root.broadcast('JOINEDBATTLE %s %s' % (self.battle_id, client.username), ignore=set([self. host, client.session_id])) 
 
 		scripttags = []
 		for tag, val in self.script_tags.items():
@@ -65,7 +67,6 @@ class Battle(Channel):
 		client.Send('SETSCRIPTTAGS %s'%'\t'.join(scripttags))
 		if self.disabled_units:
 			client.Send('DISABLEUNITS %s' % ' '.join(self.disabled_units))
-		self._root.broadcast('JOINEDBATTLE %s %s' % (self.battle_id, client.username), ignore=set([self.host, client.session_id]))
 
 		if self.natType > 0:
 			if battle.host == client.session_id:
