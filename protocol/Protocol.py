@@ -126,6 +126,7 @@ restricted = {
 	'UNMUTE',
 	'SAYBATTLE',
 	'SAYBATTLEEX',
+	'SAYBATTLEPRIVATEEX',
 	]),
 'mod':set([
 	# users
@@ -3150,7 +3151,12 @@ class Protocol:
 		battle = self.getCurrentBattle(client)
 		if not battle: return
 		self.in_SAYEX(client, battle.name, msg)
-
+	def in_SAYBATTLEPRIVATEEX(self, client, username, msg):
+		if not username: return
+		battle = self.getCurrentBattle(client)
+		if not battle: return
+		self.in_BATTLEHOSTMSG(client, battle.name, username, msg)
+	
 	# Begin outgoing protocol section #
 	#
 	# Any function definition beginning with out_ and ending with capital letters
