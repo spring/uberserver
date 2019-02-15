@@ -1229,7 +1229,7 @@ class Protocol:
 			battle = self._root.battles[client.current_battle]
 			if battle.name==chan:
 				self.broadcast_SendBattle(battle, 'SAIDBATTLE %s %s' % (client.username, msg), client, None, 'u')
-			return
+				return
 		self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client, None, 'u')
 
 
