@@ -37,8 +37,8 @@ class Channel():
 	def db(self):
 		return self._root.channeldb
 
-	def broadcast(self, message, ignore=set(), flag=None):
-		self._root.broadcast(message, self.name, ignore, None, flag)
+	def broadcast(self, message, ignore=set(), flag=None, not_flag=None):
+		self._root.broadcast(message, self.name, ignore, None, flag, not_flag)
 
 	def channelMessage(self, message):
 		if self.identity == 'battle': # backwards compat for clients lacking 'u'
@@ -65,9 +65,14 @@ class Channel():
 			return
 		self.users.add(client.session_id)
 		client.channels.add(self.name)
-		client.Send('JOIN %s' % self.name) #superfluous, could deprecate
-		self.broadcast('JOINED %s %s' % (self.name, client.username))
-
+		
+		flag = 'u' if self.identity=="battle" else None # for legacy clients without 'u', who are not told that they and others are are in the __battle__ channel! 
+		if flag and not flag in client.compat:
+			self.broadcast('JOINED %s %s' % (self.name, client.username), set(), flag)		
+			return			
+		client.Send('JOIN %s' % self.name)	
+		self.broadcast('JOINED %s %s' % (self.name, client.username), set(), flag)		
+		
 		clientlist = ""
 		for session_id in self.users:
 			if clientlist:
@@ -109,11 +114,12 @@ class Channel():
 		if not client.session_id in self.users:
 			return
 		self.users.remove(client.session_id)
-		if reason and len(reason) > 0:
-			self.broadcast('LEFT %s %s %s' % (self.name, client.username, reason))
+		
+		flag = 'u' if self.identity=="battle" else None # for legacy clients without 'u' 
+		if reason:
+			self.broadcast('LEFT %s %s %s' % (self.name, client.username, reason), set(), flag)
 		else:
-			self.broadcast('LEFT %s %s' % (self.name, client.username))
-		client.Send('LEFT %s %s' % (self.name, client.username))
+			self.broadcast('LEFT %s %s' % (self.name, client.username), set(), flag)
 
 	def addBridgedUser(self, client, bridgedClient):
 		bridged_id = bridgedClient.bridged_id

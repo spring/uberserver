@@ -1422,6 +1422,9 @@ class Protocol:
 		if bridgedClient.bridged_id in channel.bridged_ban:
 			self.out_FAILED(client, "JOINFROM", "Bridged user is banned from channel", True)
 			return
+		if chan.identity == "battle" and client.session_id != chan.host:
+			self.out_FAILED(client, "JOINFROM", "Only the battle host can bridge clients into this channel", True)
+			return		
 		channel.addBridgedUser(client, bridgedClient)
 
 	def in_LEAVEFROM(self, client, chan, location, external_id):
@@ -2016,17 +2019,13 @@ class Protocol:
 		if not battle.battle_id in self._root.battles:
 			self.out_FAILED(client, "LEAVEBATTLE", "couldn't find battle")
 			return
-		battle.leaveBattle(client)
 		if battle.host == client.session_id:
-			to_remove = battle.users.copy()
-			for session_id in to_remove:
-				client_in_battle = self.clientFromSession(session_id)
-				if client_in_battle.username!="ChanServ":
-					battle.leaveBattle(client_in_battle)
-			self.broadcast_RemoveBattle(battle)
 			if not battle.registered():
 				del self._root.channels[battle.name]
 			del self._root.battles[battle.battle_id]
+			battle.removeBattle()
+			return		
+		battle.leaveBattle(client)
 
 	def in_MYBATTLESTATUS(self, client, _battlestatus, _myteamcolor):
 		'''

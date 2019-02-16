@@ -42,25 +42,20 @@ class Battle(Channel):
 		# client joins battle + notifies others
 		if 'u' in client.compat:
 			client.Send('JOINBATTLE %s %s %s' % (self.battle_id, self.hashcode, self.name))
-			self.addUser(client) # join the battles channel
 		else:
-			# legacy clients without 'u' -- these are in the __battle__ channel from servers point of view, but are not told about it!
 			client.Send('JOINBATTLE %s %s' % (self.battle_id, self.hashcode))
-			self.users.add(client.session_id)
-			client.channels.add(self.name)
+		self.addUser(client)
 
-		scriptPassword = client.scriptPassword
 		host = self._root.protocol.clientFromSession(self.host)
-		if scriptPassword and host.compat['sp']:
-			if client!=host:
+		if client!=host:
+			self._root.broadcast('JOINEDBATTLE %s %s' % (self.battle_id, client.username), ignore=set([self.host, client.session_id])) 
+			scriptPassword = client.scriptPassword
+			if scriptPassword and host.compat['sp']:
 				host.Send('JOINEDBATTLE %s %s %s' % (self.battle_id, client.username, scriptPassword))
 				client.Send('JOINEDBATTLE %s %s %s' % (self.battle_id, client.username, scriptPassword))
-				self._root.broadcast('JOINEDBATTLE %s %s' % (self.battle_id, client.username), ignore=set([self.host, client.session_id])) 
-		else:
-			if client!=host:
+			else:
 				host.Send('JOINEDBATTLE %s %s' % (self.battle_id, client.username))
 				client.Send('JOINEDBATTLE %s %s' % (self.battle_id, client.username))
-				self._root.broadcast('JOINEDBATTLE %s %s' % (self.battle_id, client.username), ignore=set([self.host, client.session_id])) 
 
 		scripttags = []
 		for tag, val in self.script_tags.items():
@@ -97,12 +92,8 @@ class Battle(Channel):
 		client.Send('REQUESTBATTLESTATUS')
 
 	def leaveBattle(self, client):
-		if 'u' in client.compat:
-			self.removeUser(client)
-		else:
-			self.users.remove(client.session_id)
-			if self.name in client.channels:
-				client.channels.remove(self.name)
+		# client leaves a battle + notifies others
+		self.removeUser(client)
 			
 		client.scriptPassword = None
 		client.current_battle = None
@@ -115,7 +106,7 @@ class Battle(Channel):
 				self._root.broadcast_battle('REMOVEBOT %s %s' % (self.battle_id, bot), self.battle_id)
 		self._root.broadcast('LEFTBATTLE %s %s'%(self.battle_id, client.username))
 		if client.session_id == self.host:
-			return
+			return #safety
 
 		oldspecs = self.spectators
 		specs = 0
@@ -127,6 +118,26 @@ class Battle(Channel):
 		if oldspecs != specs:
 			self._root.broadcast('UPDATEBATTLEINFO %s %i %i %s %s' % (self.battle_id, self.spectators, self.locked, self.maphash, self.map))
 
+	def removeBattle(self):
+		# remove all users from channel, announce battle is closed, reset battle part, but leave channel settings intact 
+		to_remove = self.bridged_users.copy()
+		for bridged_id in to_remove:
+			bridgedClient = self._root.bridgedClientFromID(bridged_id)
+			chanserv = self._root.chanserv
+			self.removeBridgedUser(self, chanserv, bridgedClient)
+		to_remove = self.users.copy()
+		for session_id in to_remove:
+			client = self._root.clientFromSession(session_id)
+			client.scriptPassword = None
+			client.current_battle = None
+			client.hostport = None
+			client.battle_bots = {}
+			if client.username=="ChanServ":
+				continue
+			self.removeUser(client)
+		self._root.protocol.broadcast_RemoveBattle(self)
+		self.__init__(self._root, self.name)		
+			
 	def calc_battlestatus(self, client):
 		battlestatus = client.battlestatus
 		status = self._root.protocol._bin2dec('0000%s%s0000%s%s%s%s%s0'%(battlestatus['side'],
