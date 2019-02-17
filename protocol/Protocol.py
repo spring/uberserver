@@ -1422,7 +1422,7 @@ class Protocol:
 		if bridgedClient.bridged_id in channel.bridged_ban:
 			self.out_FAILED(client, "JOINFROM", "Bridged user is banned from channel", True)
 			return
-		if chan.identity == "battle" and client.session_id != chan.host:
+		if channel.identity == "battle" and client.session_id != chan.host:
 			self.out_FAILED(client, "JOINFROM", "Only the battle host can bridge clients into this channel", True)
 			return		
 		channel.addBridgedUser(client, bridgedClient)
