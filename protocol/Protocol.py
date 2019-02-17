@@ -628,7 +628,7 @@ class Protocol:
 			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
 				return False, 'Only ASCII chars, [], _, 0-9 are allowed in usernames.'
 		if len(username) > 20:
-			return False, 'Username is too long, max is 20 chars.'
+			return False, "Username is too long, max is 20 chars."
 		return True, ""
 
 	def _validChannelSyntax(self, channel):
@@ -637,24 +637,24 @@ class Protocol:
 			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
 				return False, 'Only ASCII chars, [], _, 0-9 are allowed in channel names.'
 		if len(channel) > 20:
-			return False, 'Channelname is too long, max is 20 chars.'
+			return False, "Channel name '%s' is too long, max is 20 chars." % channel
 		return True, ""
 
 	def _validBridgeSyntax(self, location, external_id, external_username):
 		for char in external_username:
 			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890#':
-				return False, 'Only ASCII chars, [], _, 0-9 and # are allowed in bridged usernames.'
+				return False, "external_username '%s' is invalid: only ASCII chars, [], _, 0-9 and # are allowed in bridged usernames." % external_username
 		if len(external_username) > 20:
-			return False, 'external_username is too long, max is 20 chars.'
+			return False, "external_username '%s' is too long, max is 20 chars." % external_username
 		if ':' in external_id:
-			return False, 'Char : is not allowed in external_id'
+			return False, "Char : is not allowed in external_id"
 		for char in location:
 			if not char in 'abcdefghijklmnopqrstuvwzyx[]_1234567890.':
 				return False, 'Only lower case ASCII chars, [], _, 0-9 and . are allowed in location names.'
 		if len(external_id)>20:
-			return False, 'external_id is too long, max is 20 chars.'
+			return False, "external_id '%s' is too long, max is 20 chars." % external_id
 		if len(location)>12:
-			return False, 'location is too long, max is 12 chars.'
+			return False, "location '%s' is too long, max is 12 chars." % location
 		return True, ''
 
 	def _parseTags(self, tagstring):
