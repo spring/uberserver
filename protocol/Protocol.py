@@ -1417,10 +1417,10 @@ class Protocol:
 			self.out_FAILED(client, "JOINFROM", "Channel '%s' not found" % chan, True)
 			return
 		channel = self._root.channels[chan]
-		if channel.hasKey():
-			self.out_FAILED(client, "JOINFROM", "Cannot bridge to private channels", True)			
+		if channel.hasKey() and not (channel.identity == "battle" and client.session_id == channel.host):
+			self.out_FAILED(client, "JOINFROM", "Cannot bridge to this passworded channel", True)			
 			return					
-		if channel.identity!="battle" and not client.bot:
+		if channel.identity != "battle" and not client.bot:
 			self.out_FAILED(client, "JOINFROM", "A botflag is needed to bridge clients into this channel", True)
 			return					
 		if channel.identity == "battle" and client.session_id != channel.host:
