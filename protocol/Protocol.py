@@ -721,7 +721,7 @@ class Protocol:
 				client.user_id = client.id
 				self._calc_access(client)
 		return client
-
+		
 	def broadcast_AddBattle(self, battle):
 		for cid, client in self._root.usernames.items():
 			client.Send(self.client_AddBattle(client, battle))
@@ -1331,8 +1331,15 @@ class Protocol:
 			self.out_FAILED(client, "BRIDGECLIENTFROM", "You need the 'u' compatibility flag to bridge clients", True)
 			return
 		if not client.bot:
-			self.out_FAILED(client, "BRIDGECLIENTFROM", "Only bot users can bridge clients", True)
-			return
+			if not client.isHosting():
+				self.out_FAILED(client, "BRIDGECLIENTFROM", "Only bot users and battle hosts can bridge clients", True)
+				return
+			if len(client.bridged_external_ids)>256:
+				self.out_FAILED(client, "BRIDGECLIENTFROM", "You have reached your maximum allowed number (256) of bridged clients", True)
+				return
+			if location != client.username:
+				self.out_FAILED(client, "BRIDGECLIENTFROM", "You are only allowed to bridge clients with location '%s'" % client.username, True)
+				return		
 		good, reason = self._validBridgeSyntax(location, external_id, external_username)
 		if not good:
 			self.out_FAILED(client, "BRIDGECLIENTFROM", "Invalid syntax: %s" % reason, True)
@@ -1412,6 +1419,13 @@ class Protocol:
 		channel = self._root.channels[chan]
 		if channel.hasKey():
 			self.out_FAILED(client, "JOINFROM", "Cannot bridge to private channels", True)			
+			return					
+		if channel.identity!="battle" and not client.bot:
+			self.out_FAILED(client, "JOINFROM", "A botflag is needed to bridge clients into this channel", True)
+			return					
+		if channel.identity == "battle" and client.session_id != channel.host:
+			self.out_FAILED(client, "JOINFROM", "Only the battle host can bridge clients into this channel", True)
+			return		
 		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient:
 			self.out_FAILED(client, "JOINFROM", "Bridged user not found", True)
@@ -1422,9 +1436,6 @@ class Protocol:
 		if bridgedClient.bridged_id in channel.bridged_ban:
 			self.out_FAILED(client, "JOINFROM", "Bridged user is banned from channel", True)
 			return
-		if channel.identity == "battle" and client.session_id != chan.host:
-			self.out_FAILED(client, "JOINFROM", "Only the battle host can bridge clients into this channel", True)
-			return		
 		channel.addBridgedUser(client, bridgedClient)
 
 	def in_LEAVEFROM(self, client, chan, location, external_id):
