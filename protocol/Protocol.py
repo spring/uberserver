@@ -697,20 +697,25 @@ class Protocol:
 
 	def clientFromID(self, user_id, fromdb = False):
 		# todo: merge these into datahandler.py
-		'given a user database id, returns a client object from memory or the database'
-		assert(isinstance(user_id, int))
+		if not isinstance(user_id, int):
+			logging.error("Invalid user_id: %s %s"% (str(user_id), traceback.format_exc()))
+			self.cleanup()
+			return None
 		user = self._root.clientFromID(user_id)
 		if user: return user
 		if not fromdb: return None
 		return self.userdb.clientFromID(user_id)
 
 	def clientFromSession(self, session_id):
-		assert(isinstance(session_id, int))
-		if session_id in self._root.clients:
-			return self._root.clients[session_id]
-		logging.error("Couldn't get client from session_id: %d %s"% (session_id, traceback.format_exc()))
-		self.cleanup()
-		return None
+		if not isinstance(session_id, int):
+			logging.error("Invalid session_id: %s %s"% (str(session_id), traceback.format_exc()))
+			self.cleanup()
+			return None
+		if not session_id in self._root.clients:
+			logging.error("Couldn't get client from session_id: %d %s"% (session_id, traceback.format_exc()))
+			self.cleanup()
+			return None		
+		return self._root.clients[session_id]
 
 	def clientFromUsername(self, username, fromdb = False):
 		'given a username, returns a client object from memory or the database'
