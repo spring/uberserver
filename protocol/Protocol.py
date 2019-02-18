@@ -653,7 +653,7 @@ class Protocol:
 				return False, 'Only lower case ASCII chars, [], _, 0-9 and . are allowed in location names.'
 		if len(external_id)>20:
 			return False, "external_id '%s' is too long, max is 20 chars." % external_id
-		if len(location)>15:
+		if len(location)>20:
 			return False, "location '%s' is too long, max is 15 chars." % location
 		return True, ''
 
