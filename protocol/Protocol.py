@@ -649,8 +649,8 @@ class Protocol:
 		if ':' in external_id:
 			return False, "Char : is not allowed in external_id"
 		for char in location:
-			if not char in 'abcdefghijklmnopqrstuvwzyx[]_1234567890.':
-				return False, 'Only lower case ASCII chars, [], _, 0-9 and . are allowed in location names.'
+			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890.': # must be a superset of username chars
+				return False, 'Only ASCII chars, [], _, 0-9 and . are allowed in location names.'
 		if len(external_id)>20:
 			return False, "external_id '%s' is too long, max is 20 chars." % external_id
 		if len(location)>20:
@@ -2952,7 +2952,7 @@ class Protocol:
 		self.broadcast_Moderator('Reload successful')
 
 	def in_CLEANUP(self, client):
-		self.broadcast_Moderator('Cleanup initiated by %s (consistency check) ...' %(client.username))
+		self.broadcast_Moderator('Cleanup initiated by <%s> (consistency check) ...' %(client.username))
 		self.cleanup()
 
 	def cleanup(self):
