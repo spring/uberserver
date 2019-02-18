@@ -2952,45 +2952,47 @@ class Protocol:
 		self.broadcast_Moderator('Reload successful')
 
 	def in_CLEANUP(self, client):
-		self._root.admin_broadcast('Cleanup initiated by %s (deleting old users, zombie channels / users)...' %(client.username))
+		self.broadcast_Moderator('Cleanup initiated by %s (consistency check) ...' %(client.username))
 		self.cleanup()
 
 	def cleanup(self):
 		nchan = 0
 		nbattle = 0
 		nuser = 0
+		npending = 0
 		#cleanup battles
 		for battle_id, battle in self._root.battles.items():
-			for sessionid in battle.users:
-				if not sessionid in self._root.clients:
-					logging.error("deleting user in battle %s" % user)
-					self._root.battles[battle].users.remove(user)
+			for session_id in battle.users:
+				if not session_id in self._root.clients:
+					logging.error("deleting session %d in battle %d, doesn't exist" % (session_id, battle_id))
+					battle.users.remove(session_id)
 					nuser = nuser + 1
-			for sessionid in battle.pending_users.copy():
-				if not sessionid in self._root.clients:
-					logging.error("session %d in pending users doesn't exist" % (sessionid))
-					battle.pending_users.remove(sessionid)
+			for session_id in battle.pending_users.copy():
+				if not session_id in self._root.clients:
+					logging.error("deleting session %d in pending users for battle %d, doesn't exist" % (session_id, battle_id))
+					battle.pending_users.remove(session_id)
+					npending = npending + 1
 
 			if not battle.host in self._root.clients:
-				logging.error("deleting battle %s" % battle)
-				del self._root.battles[battle]
+				logging.error("deleting battle %d, host doesn't exist" % battle_id)
+				del self._root.battles[battle_id]
 				nbattle = nbattle + 1
 			if len(battle.users) == 0:
-				logging.error("deleting empty battle %s" % battle)
-				del self._root.battles[battle]
+				logging.error("deleting battle %d, empty" % battle_id)
+				del self._root.battles[battle_id]
 				nbattle = nbattle + 1
 
 		#cleanup channels
 		for channel in self._root.channels.copy():
 			for session_id in self._root.channels[channel].users.copy():
 				if not session_id in self._root.clients:
-					logging.error("deleting session id <%d> from channel %s" %(session_id, channel))
+					logging.error("deleting session %d from channel %s, doesn't exist" %(session_id, channel))
 					self._root.channels[channel].users.remove(session_id)
 			if len(self._root.channels[channel].users) == 0:
 				del self._root.channels[channel]
-				logging.error("deleting empty channel %s" % channel)
+				logging.error("deleting channel %s, empty" % channel)
 				nchan = nchan + 1
-		#todo: clean bridged users
+			#todo: clean bridged users
 
 		dupcheck = set()
 		todel = []
@@ -3027,8 +3029,7 @@ class Protocol:
 			del self._root.usernames[u]
 			logging.error("Deleted username without session: %s" %(u))
 
-		self._root.clean()
-		self._root.admin_broadcast("deleted channels: %d battles: %d users: %d" %(nchan, nbattle, nuser))
+		self.broadcast_Moderator("deleted: %d channels, %d battles, %d users, %d pending users" %(nchan, nbattle, nuser, npending))
 
 	def in_CHANGEEMAILREQUEST(self, client, newmail):
 		# request to be sent a verification code for changing email address
