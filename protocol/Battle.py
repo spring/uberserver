@@ -66,7 +66,7 @@ class Battle(Channel):
 
 		if self.natType > 0:
 			if self.host == client.session_id:
-				raise NameError('%s is having an identity crisis' % (client.name))
+				raise NameError('%s is having an identity crisis' % (client.username))
 			if client.udpport:
 				self._root.usernames[host].Send('CLIENTIPPORT %s %s %s' % (username, client.ip_address, client.udpport))
 
