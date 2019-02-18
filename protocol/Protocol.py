@@ -2962,7 +2962,7 @@ class Protocol:
 		npending = 0
 		#cleanup battles
 		for battle_id, battle in self._root.battles.items():
-			for session_id in battle.users:
+			for session_id in battle.users.copy():
 				if not session_id in self._root.clients:
 					logging.error("deleting session %d in battle %d, doesn't exist" % (session_id, battle_id))
 					battle.users.remove(session_id)
@@ -2977,6 +2977,7 @@ class Protocol:
 				logging.error("deleting battle %d, host doesn't exist" % battle_id)
 				del self._root.battles[battle_id]
 				nbattle = nbattle + 1
+				continue
 			if len(battle.users) == 0:
 				logging.error("deleting battle %d, empty" % battle_id)
 				del self._root.battles[battle_id]
