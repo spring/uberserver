@@ -955,9 +955,9 @@ class Protocol:
 
 		failed_logins = self._root.recent_failed_logins.get(client.ip_address, 0)
 		max_failed_logins = 3
-		if (failed_logins >= max_failed_logins):
-			self.out_DENIED(client, username, "Too many failed logins (%d/3), please try again later." % failed_logins, False)
-			return
+		#if (failed_logins >= max_failed_logins):
+		#	self.out_DENIED(client, username, "Too many failed logins (%d/3), please try again later." % failed_logins, False)
+		#	return
 
 		good, reason = self._validUsernameSyntax(username)
 		if (not good):
