@@ -161,10 +161,15 @@ class DataHandler:
 			channel.topic={'user':topic_name, 'text':dbchannel['topic'], 'time':int(time.time())}
 			self.channels[name] = channel
 
+		# set up chanserv
 		self.chanserv = ChanServ.ChanServClient(self, (self.online_ip, 0), self.session_id)
 		for name in channels:
 			self.chanserv.HandleProtocolCommand("JOIN %s" %(name))
 
+		if not 'moderator' in channels:
+			self.chanserv.Handle(":register moderator ChanServ")
+
+		# set up channel properties
 		forwards = self.channeldb.all_forwards()
 		for forward in forwards:
 			dbchannel_from = self.channeldb.channel_from_id(forward['channel_from_id'])
@@ -226,6 +231,8 @@ class DataHandler:
 		logging.info("scheduled clean finished")
 
 	def shutdown(self):
+		if self.chanserv and self.protocol:
+			self.protocol.in_STATS(self.chanserv)
 		self.running = False
 
 	def showhelp(self):

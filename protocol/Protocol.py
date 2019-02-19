@@ -127,6 +127,7 @@ restricted = {
 	'SAYBATTLE',
 	'SAYBATTLEEX',
 	'SAYBATTLEPRIVATEEX',
+	'FORCELEAVECHANNEL',
 	]),
 'mod':set([
 	# users
@@ -137,7 +138,6 @@ restricted = {
 	'FINDIP',
 	'SETBOTMODE',
 	'CREATEBOTACCOUNT',
-	'FORCELEAVECHANNEL',
 	# kick/ban/etc
 	'KICK',
 	'BAN',
@@ -161,6 +161,7 @@ restricted = {
 	'GETACCOUNTACCESS',
 	#########
 	# dev
+	'STATS',
 	'RELOAD',
 	'CLEANUP',
 	]),
@@ -274,7 +275,7 @@ class Protocol:
 			#if len(deprec_flags)>0: client.RealSend("MOTD   deprecated flags:%s" % deprec_flags)
 			#if len(unknown_flags)>0: client.RealSend("MOTD   unknown flags:%s" % unknown_flags)
 			#client.RealSend("MOTD  -- -- - -- --")
-			logging.info('[%s] <%s> client "%s" sent incorrect compat flags -- missing:%s, deprecated:%s, unknown:%s'%(client.session_id, client.username, client.lobby_id, missing_flags, deprec_flags, unknown_flags))
+			logging.info('[%s] <%s> client "%s" sent incorrect compat flags (sent: %s) -- missing:%s, deprecated:%s, unknown:%s'%(client.session_id, client.username, client.lobby_id, client.compat, missing_flags, deprec_flags, unknown_flags))
 
 		#client.RealSend("MOTD Please update your client / report these issues.")
 		#client.RealSend("MOTD  -- -- - -- --")
@@ -990,16 +991,16 @@ class Protocol:
 			if '\t' in user_id:
 				user_id, compFlags = user_id.split('\t', 1)
 
-				flags = set()
 				for flag in compFlags.split(' '):
 					if flag in ('ab', 'ba'): # why does this check exist?
 						client.compat['a'] = True
 						client.compat['b'] = True
 					else:
 						client.compat[flag] = True
+						
 				# record flag stats
 				self.flag_stats['n_samples'] += 1
-				for flag in flags:
+				for flag in client.compat:
 					if flag in self.flag_stats:
 						self.flag_stats[flag] += 1
 					else:
@@ -2899,42 +2900,37 @@ class Protocol:
 					userThatIgnored.ignored.pop(user.user_id)
 					userThatIgnored.Send('UNIGNORE userName=%s' % (username))
 
-
-	def in_RELOAD(self, client):
-		'''
-		Reload core parts of the server code from source. This also reparses motd, update list, and trusted proxy file.
-		Do not use this for changes unless you are very confident in your ability to recover from a mistake.
-
-		Parts reloaded:
-		ChanServ.py
-		Protocol.py
-		SayHooks.py
-
-		User databases reloaded:
-		SQLUsers.py
-		LanUsers.py
-		'''
+	
+	def in_STATS(self, client):
 		if not 'admin' in client.accesslevels:
-			return
-
+			return		
 		logging.info("Stats of command usage:")
-		for k in self.restricted_list:
+		for k in sorted(self.restricted_list):
 			count = self.command_stats[k] if k in self.command_stats else 0
 			logging.info("%s %d" % (k, count))
 		logging.info("Stats of flag usage:")
 		for k in self.flag_stats:
 			count = self.flag_stats[k]
 			logging.info("%s %d" % (k, count))
+		self.out_SERVERMSG(client, 'Stats were printed in the server logfile')
+	
+	def in_RELOAD(self, client):
+		'''
+		Reload core parts of the server code from source. This also reparses motd, update list, and trusted proxy file.
+		Do not use this for changes unless you are very confident in your ability to recover from a mistake.
+		'''
+		if not 'admin' in client.accesslevels:
+			return
+	
+		self.in_STATS(client)
+		self.broadcast_Moderator('Reload initiated by <%s>' % client.username)
+		logging.info("Reload initiated by <%s>" % client.username)
 
 		try:
-			self.broadcast_Moderator('Reload initiated by <%s>' %(client.username))
-		except Exception as e:
-			logging.error("Broadcast failed: %s" %(str(e)))
-
-		self._root.reload()
-		try:
+			self._root.reload()
 			proto = importlib.reload(sys.modules['Protocol'])
 			chan = importlib.reload(sys.modules['Channel'])
+			bat = importlib.reload(sys.modules['Battle'])
 			chanserv = importlib.reload(sys.modules['ChanServ'])
 			sayhooks = importlib.reload(sys.modules['SayHooks'])
 			self = proto.Protocol(self._root)
@@ -2947,94 +2943,107 @@ class Protocol:
 			self._root.SayHooks = sayhooks
 			importlib.reload(sys.modules['BaseClient'])
 			importlib.reload(sys.modules['Client'])
+			importlib.reload(sys.modules['BridgedClient'])
 			importlib.reload(sys.modules['ip2country'])
 		except Exception as e:
-			self.out_SERVERMSG(client, 'Reload failed!')
-			logging.error("Reload failed: ")
+			self.broadcast_Moderator('Reload failed')
+			self.out_SERVERMSG(client, 'Reload failed')
+			logging.error("Reload failed:")
 			logging.error(e)
 
-		self.out_SERVERMSG(client, 'Reload successful')
 		self.broadcast_Moderator('Reload successful')
+		self.out_SERVERMSG(client, 'Reload successful')
+		logging.info("Reload sucessful")
 
 	def in_CLEANUP(self, client):
-		self.broadcast_Moderator('Cleanup initiated by <%s> (consistency check) ...' %(client.username))
+		self.broadcast_Moderator('Cleanup initiated by <%s>' %(client.username))
 		self.cleanup()
 
 	def cleanup(self):
+		logging.info(client, "Cleanup initiated")
 		nchan = 0
 		nbattle = 0
 		nuser = 0
 		npending = 0
-		#cleanup battles
-		for battle_id, battle in self._root.battles.items():
-			for session_id in battle.users.copy():
-				if not session_id in self._root.clients:
-					logging.error("deleting session %d in battle %d, doesn't exist" % (session_id, battle_id))
-					battle.users.remove(session_id)
-					nuser = nuser + 1
-			for session_id in battle.pending_users.copy():
-				if not session_id in self._root.clients:
-					logging.error("deleting session %d in pending users for battle %d, doesn't exist" % (session_id, battle_id))
-					battle.pending_users.remove(session_id)
-					npending = npending + 1
+		
+		try:
+			#cleanup battles
+			for battle_id, battle in self._root.battles.items():
+				for session_id in battle.users.copy():
+					if not session_id in self._root.clients:
+						logging.error("deleting session %d in battle %d, doesn't exist" % (session_id, battle_id))
+						battle.users.remove(session_id)
+						nuser = nuser + 1
+				for session_id in battle.pending_users.copy():
+					if not session_id in self._root.clients:
+						logging.error("deleting session %d in pending users for battle %d, doesn't exist" % (session_id, battle_id))
+						battle.pending_users.remove(session_id)
+						npending = npending + 1
 
-			if not battle.host in self._root.clients:
-				logging.error("deleting battle %d, host doesn't exist" % battle_id)
-				del self._root.battles[battle_id]
-				nbattle = nbattle + 1
-				continue
-			if len(battle.users) == 0:
-				logging.error("deleting battle %d, empty" % battle_id)
-				del self._root.battles[battle_id]
-				nbattle = nbattle + 1
+				if not battle.host in self._root.clients:
+					logging.error("deleting battle %d, host doesn't exist" % battle_id)
+					del self._root.battles[battle_id]
+					nbattle = nbattle + 1
+					continue
+				if len(battle.users) == 0:
+					logging.error("deleting battle %d, empty" % battle_id)
+					del self._root.battles[battle_id]
+					nbattle = nbattle + 1
 
-		#cleanup channels
-		for channel in self._root.channels.copy():
-			for session_id in self._root.channels[channel].users.copy():
-				if not session_id in self._root.clients:
-					logging.error("deleting session %d from channel %s, doesn't exist" %(session_id, channel))
-					self._root.channels[channel].users.remove(session_id)
-			if len(self._root.channels[channel].users) == 0:
-				del self._root.channels[channel]
-				logging.error("deleting channel %s, empty" % channel)
-				nchan = nchan + 1
-			#todo: clean bridged users
+			#cleanup channels
+			for channel in self._root.channels.copy():
+				for session_id in self._root.channels[channel].users.copy():
+					if not session_id in self._root.clients:
+						logging.error("deleting session %d from channel %s, doesn't exist" %(session_id, channel))
+						self._root.channels[channel].users.remove(session_id)
+				if len(self._root.channels[channel].users) == 0:
+					del self._root.channels[channel]
+					logging.error("deleting channel %s, empty" % channel)
+					nchan = nchan + 1
+				#todo: clean bridged users
 
-		dupcheck = set()
-		todel = []
-		for sessid, c in self._root.clients.items():
-			if not c.connected:
-				logging.error("Not connected client: %s %s"%(c.username, c.connected))
-			if c.username in dupcheck:
-				logging.error("duplicate user: %s", c.username)
-				todel.append(c)
-				continue
-			dupcheck.add(c.username)
-			if c.username not in self._root.usernames:
-				logging.error("missing user: %s %s session_id: %d", c.username, str(c.logged_in), c.session_id)
-				todel.append(c)
-			d = self.clientFromSession(c.session_id)
-			if d.username != c.username:
-				logging.error("missmatch clients: %s %s" %(d.username, c.username))
+			dupcheck = set()
+			todel = []
+			for sessid, c in self._root.clients.items():
+				if not c.connected:
+					logging.error("Not connected client: %s %s"%(c.username, c.connected))
+				if c.username in dupcheck:
+					logging.error("duplicate user: %s", c.username)
+					todel.append(c)
+					continue
+				dupcheck.add(c.username)
+				if c.username not in self._root.usernames:
+					logging.error("missing user: %s %s session_id: %d", c.username, str(c.logged_in), c.session_id)
+					todel.append(c)
+				d = self.clientFromSession(c.session_id)
+				if d.username != c.username:
+					logging.error("missmatch clients: %s %s" %(d.username, c.username))
 
-		for c in todel:
-			del self._root.clients[c.session_id]
-			logging.error("deleted invalid session: %d %s", c.session_id, c.username)
+			for c in todel:
+				del self._root.clients[c.session_id]
+				logging.error("deleted invalid session: %d %s", c.session_id, c.username)
 
-		todel = []
-		for uname in self._root.usernames:
-			c = self.clientFromUsername(uname)
-			if not c.session_id in self._root.clients:
-				logging.error("missing session for %s", c.username)
-				todel.append(uname)
-				continue
-			d = self.clientFromSession(c.session_id)
-			if d.username != c.username:
-				logging.error("missmatch usernames: %s %s" %(d.username, c.username))
-		for u in todel:
-			del self._root.usernames[u]
-			logging.error("Deleted username without session: %s" %(u))
+			todel = []
+			for uname in self._root.usernames:
+				c = self.clientFromUsername(uname)
+				if not c.session_id in self._root.clients:
+					logging.error("missing session for %s", c.username)
+					todel.append(uname)
+					continue
+				d = self.clientFromSession(c.session_id)
+				if d.username != c.username:
+					logging.error("missmatch usernames: %s %s" %(d.username, c.username))
+			for u in todel:
+				del self._root.usernames[u]
+				logging.error("Deleted username without session: %s" %(u))
+		
+		except Exception as e:
+			self.out_SERVERMSG(client, 'Cleanup failed')
+			self.broadcast_Moderator('Cleanup failed')
+			logging.error("Cleanup failed:")
+			logging.error(e)
 
+		logging.info(client, "deleted: %d channels, %d battles, %d users, %d pending users" %(nchan, nbattle, nuser, npending))
 		self.broadcast_Moderator("deleted: %d channels, %d battles, %d users, %d pending users" %(nchan, nbattle, nuser, npending))
 
 	def in_CHANGEEMAILREQUEST(self, client, newmail):
