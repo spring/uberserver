@@ -699,7 +699,7 @@ class Protocol:
 	def clientFromID(self, user_id, fromdb = False):
 		# todo: merge these into datahandler.py
 		if not isinstance(user_id, int):
-			logging.error("Invalid user_id: %s %s"% (str(user_id), traceback.format_exc()))
+			logging.error("Invalid user_id: %s" % str(user_id))
 			self.cleanup()
 			return None
 		user = self._root.clientFromID(user_id)
@@ -709,11 +709,11 @@ class Protocol:
 
 	def clientFromSession(self, session_id):
 		if not isinstance(session_id, int):
-			logging.error("Invalid session_id: %s %s"% (str(session_id), traceback.format_exc()))
+			logging.error("Invalid session_id: %s" % str(session_id))
 			self.cleanup()
 			return None
 		if not session_id in self._root.clients:
-			logging.error("Couldn't get client from session_id: %d %s"% (session_id, traceback.format_exc()))
+			logging.error("Couldn't get client from session_id: %d" % session_id)
 			self.cleanup()
 			return None		
 		return self._root.clients[session_id]
@@ -2956,11 +2956,16 @@ class Protocol:
 		logging.info("Reload sucessful")
 
 	def in_CLEANUP(self, client):
-		self.broadcast_Moderator('Cleanup initiated by <%s>' %(client.username))
-		self.cleanup()
+		self.cleanup(client)
 
-	def cleanup(self):
-		logging.info(client, "Cleanup initiated")
+	def cleanup(self, client=None):
+		logging.info("Cleanup initiated")
+		if client:
+			self.broadcast_Moderator('Cleanup initiated by <%s>' %(client.username))
+		else:
+			self.broadcast_Moderator('Cleanup initiated by server error')
+			logging.error(traceback.print_exc())
+
 		nchan = 0
 		nbattle = 0
 		nuser = 0
@@ -3038,11 +3043,12 @@ class Protocol:
 				logging.error("Deleted username without session: %s" %(u))
 		
 		except Exception as e:
-			self.out_SERVERMSG(client, 'Cleanup failed')
+			if client: self.out_SERVERMSG(client, 'Cleanup failed')
 			self.broadcast_Moderator('Cleanup failed')
 			logging.error("Cleanup failed:")
 			logging.error(e)
-
+		
+		if client: self.out_SERVERMSG(client, 'Cleanup successful')
 		logging.info(client, "deleted: %d channels, %d battles, %d users, %d pending users" %(nchan, nbattle, nuser, npending))
 		self.broadcast_Moderator("deleted: %d channels, %d battles, %d users, %d pending users" %(nchan, nbattle, nuser, npending))
 
