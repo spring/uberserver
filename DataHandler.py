@@ -63,6 +63,13 @@ class DataHandler:
 		self.start_time = time.time()
 		self.detectIp()
 		self.cert = None
+		
+		# stats
+		self.command_stats = {}
+		self.flag_stats = {}
+		self.agent_stats = {}
+		self.tls_stats = 0
+		self.n_login_stats = 0	
 
 		# lists of online stuff
 		self.channels = {} #channame->channel/battle

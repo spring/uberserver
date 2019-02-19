@@ -233,10 +233,6 @@ class Protocol:
 		self.bandb = root.getBanDB()
 		self.SayHooks = root.SayHooks
 
-		self.command_stats = {}
-		self.flag_stats = {}
-		self.flag_stats['n_samples'] = 0
-
 		self.restricted = restricted
 		self.restricted_list = restricted_list
 
@@ -401,10 +397,10 @@ class Protocol:
 		function = getattr(self, 'in_' + command)
 
 		# update statistics
-		if not command in self.command_stats:
-			self.command_stats[command] = 1
+		if not command in self._root.command_stats:
+			self._root.command_stats[command] = 1
 		else:
-			self.command_stats[command] += 1
+			self._root.command_stats[command] += 1
 
 
 		ret_status, fun_args = self.get_function_args(client, command, function, numspaces, args)
@@ -998,13 +994,15 @@ class Protocol:
 					else:
 						client.compat[flag] = True
 						
-				# record flag stats
-				self.flag_stats['n_samples'] += 1
+				# record flag & tls stats
+				self._root.n_login_stats += 1
+				if client.TLS:
+					self._root.tls_stats += 1
 				for flag in client.compat:
-					if flag in self.flag_stats:
-						self.flag_stats[flag] += 1
+					if flag in self._root.flag_stats:
+						self._root.flag_stats[flag] += 1
 					else:
-						self.flag_stats[flag] = 1
+						self._root.flag_stats[flag] = 1
 
 			try:
 				client.last_id = uint32(user_id)
@@ -1012,15 +1010,18 @@ class Protocol:
 				self.out_SERVERMSG(client, 'Invalid userID specified: %s' % (user_id), True)
 		else:
 			lobby_id = sentence_args
-
+			
 		if len(lobby_id) > 64:
 			self.out_DENIED(client, username, "lobby_id is to long (max=64 chars)", False)
 			return
-
 		if self.SayHooks.isNasty(lobby_id):
 			self.out_DENIED(client, username, "invalid lobby_id", True)
 			return
-
+		if lobby_id in self._root.agent_stats:
+			self._root.agent_stats[lobby_id] += 1
+		else:
+			self._root.agent_stats[lobby_id] = 1
+			
 		banned, reason = self.userdb.check_banned(username, client.ip_address)
 		if banned:
 			assert (type(reason) == str)
@@ -2904,14 +2905,22 @@ class Protocol:
 	def in_STATS(self, client):
 		if not 'admin' in client.accesslevels:
 			return		
-		logging.info("Stats of command usage:")
+		logging.info(" -- STATS -- ")
+		logging.info("Command counts:")
 		for k in sorted(self.restricted_list):
-			count = self.command_stats[k] if k in self.command_stats else 0
-			logging.info("%s %d" % (k, count))
-		logging.info("Stats of flag usage:")
-		for k in self.flag_stats:
-			count = self.flag_stats[k]
-			logging.info("%s %d" % (k, count))
+			count = self._root.command_stats[k] if k in self._root.command_stats else 0
+			logging.info(" %s %d" % (k, count))
+		logging.info("Number of logins: %d" % self._root.n_login_stats)
+		logging.info("TLS logins: %d" % self._root.tls_stats)
+		logging.info("Agents:")
+		for k in sorted(self._root.agent_stats):
+			count = self._root.agent_stats[k]
+			logging.info(" %s  %d" % (k, count))
+		logging.info("Flags sent:")
+		for k in sorted(self._root.flag_stats):
+			count = self._root.flag_stats[k]
+			logging.info(" %s %d" % (k, count))
+		logging.info(" -- END STATS -- ")
 		self.out_SERVERMSG(client, 'Stats were printed in the server logfile')
 	
 	def in_RELOAD(self, client):
@@ -2922,7 +2931,6 @@ class Protocol:
 		if not 'admin' in client.accesslevels:
 			return
 	
-		self.in_STATS(client)
 		self.broadcast_Moderator('Reload initiated by <%s>' % client.username)
 		logging.info("Reload initiated by <%s>" % client.username)
 
