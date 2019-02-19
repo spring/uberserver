@@ -82,7 +82,7 @@ class Client(BaseClient):
 		self.scriptPassword = None
 
 		self.battle_bots = {}
-		self.current_battle = None
+		self.current_battle = None # battle_id
 		self.went_ingame = 0
 		self.spectator = False
 		self.battlestatus = {'ready':'0', 'id':'0000', 'ally':'0000', 'mode':'0', 'sync':'00', 'side':'00', 'handicap':'0000000'}
@@ -233,4 +233,7 @@ class Client(BaseClient):
 
 	def isMod(self):
 		return self.isAdmin() or ('mod' in self.accesslevels) # maybe cache these
+		
+	def isHosting(self):
+		return self.current_battle and self._root.battles[self.current_battle].host == self.session_id
 		
