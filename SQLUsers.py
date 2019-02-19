@@ -1464,10 +1464,14 @@ class ChannelsHandler:
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
 		channel.id = entry.id
 
-	def unRegister(self, client, channel):
+	def unRegister(self, channel):
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).delete()
 		self.sess().commit()
 
+	def registered(self, channel):
+		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
+		return bool(entry)
+		
 	def clean(self):
 		#delete all expired channel bans/mutes:
 		now = datetime.now()

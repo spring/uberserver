@@ -55,10 +55,10 @@ class Channel():
 		self.topic = None
 		self.operators = set()
 		self.channelMessage('This channel has been unregistered by <%s>' % client.username)
-		self.db().unRegister(client, self)
+		self.db().unRegister(self)
 
 	def registered(self):
-		return self.owner_user_id != None
+		return self.db().registered(self)
 
 	def addUser(self, client):
 		if client.session_id in self.users:
