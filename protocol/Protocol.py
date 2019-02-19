@@ -245,7 +245,7 @@ class Protocol:
 
 		missing_flags = ""
 		for flag in flag_map:
-			if not flag in optional_flags and not client.compat[flag]:
+			if not flag in optional_flags and not flag in client.compat:
 				missing_flags += ' ' + flag
 
 		deprec_flags = ""
@@ -258,11 +258,11 @@ class Protocol:
 				unknown_flags += ' ' + flag
 
 		compat_error = len(missing_flags)>0 or len(deprec_flags)>0 or len(unknown_flags)>0
-		error = missing_TLS #or compat_error
+		error = missing_TLS or compat_error
 		if not error:
 			return
 
-		client.RealSend("MOTD  -- WARNING --")
+		#client.RealSend("MOTD  -- WARNING --")
 
 		if missing_TLS:
 			client.RealSend("MOTD Your client did not use TLS. Your connection is not secure.")
@@ -275,7 +275,7 @@ class Protocol:
 			#if len(deprec_flags)>0: client.RealSend("MOTD   deprecated flags:%s" % deprec_flags)
 			#if len(unknown_flags)>0: client.RealSend("MOTD   unknown flags:%s" % unknown_flags)
 			#client.RealSend("MOTD  -- -- - -- --")
-			logging.info('[%s] <%s> client "%s" sent incorrect compat flags (sent: %s) -- missing:%s, deprecated:%s, unknown:%s'%(client.session_id, client.username, client.lobby_id, client.compat, missing_flags, deprec_flags, unknown_flags))
+			logging.info('[%s] <%s> client "%s" sent incorrect compat flags %s -- missing:%s, deprecated:%s, unknown:%s'%(client.session_id, client.username, client.lobby_id, client.compat.keys(), missing_flags, deprec_flags, unknown_flags))
 
 		#client.RealSend("MOTD Please update your client / report these issues.")
 		#client.RealSend("MOTD  -- -- - -- --")
@@ -2950,7 +2950,13 @@ class Protocol:
 			self.out_SERVERMSG(client, 'Reload failed')
 			logging.error("Reload failed:")
 			logging.error(e)
-
+			
+		# chanserv has been replaced with a new copy, tell it which channels it is in
+		for chan in self._root.channels:
+			channel = self._root.channels[chan]
+			if channel.registered():
+				self._root.chanserv.channels.add(chan)				
+			
 		self.broadcast_Moderator('Reload successful')
 		self.out_SERVERMSG(client, 'Reload successful')
 		logging.info("Reload sucessful")
@@ -3049,7 +3055,7 @@ class Protocol:
 			logging.error(e)
 		
 		if client: self.out_SERVERMSG(client, 'Cleanup successful')
-		logging.info(client, "deleted: %d channels, %d battles, %d users, %d pending users" %(nchan, nbattle, nuser, npending))
+		logging.info("deleted: %d channels, %d battles, %d users, %d pending users" %(nchan, nbattle, nuser, npending))
 		self.broadcast_Moderator("deleted: %d channels, %d battles, %d users, %d pending users" %(nchan, nbattle, nuser, npending))
 
 	def in_CHANGEEMAILREQUEST(self, client, newmail):
