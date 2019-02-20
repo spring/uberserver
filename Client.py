@@ -41,7 +41,7 @@ class Client(BaseClient):
 		self.static = False
 		self.sendError = False
 
-		self.compat = defaultdict(lambda: False) # holds compatibility flags
+		self.compat = set() # holds compatibility flags
 
 		self.country_code = '??'
 		self.setFlagByIP(self.ip_address)
