@@ -1352,7 +1352,7 @@ class Protocol:
 			return
 		location_client = self.clientFromUsername(location, True)
 		if location_client and location_client.bot and location != client.username:
-			self.out_FAILED(client, "BRIDGECLIENTFROM", "You cannot bridge a location named after another bot user", True)
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "You cannot bridge from a location named after another bot user", True)
 			return
 		if not location in self._root.bridged_locations:
 			self._root.bridged_locations[location] = client.user_id
@@ -1370,7 +1370,7 @@ class Protocol:
 			self.out_FAILED(client, "BRIDGECLIENTFROM", response, True)
 			return
 		if response.bridged_id in self._root.bridged_ids:
-			self.out_FAILED(client, "BRIDGECLIENTFROM", "This client already exists on the bridge (external_id=%s)" % response.external_id, True)
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "The client already exists on the bridge (%s,%s)" % (response.location, response.external_id), True)
 			return
 
 		# copy db values to our local bridged client
@@ -1398,10 +1398,10 @@ class Protocol:
 			return
 		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient:
-			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client not found", True)
+			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client (%s,%s) not found" % (location, external_id), True)
 			return
 		if bridgedClient.bridge_user_id != client.user_id:
-			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client is on a different bridge (got %i, expected %i)" % (bridgedClient.bridge_user_id, client.user_id), True)
+			self.out_FAILED(client, "UNBRIDGECLIENTFROM", "Bridged client <%s> is on a different bridge (got %i, expected %i)" % (bridgedClient.username, dbridgedClient.bridge_user_id, client.user_id), True)
 			return
 			
 		bridgedClient_channels = bridgedClient.channels.copy()
@@ -1420,27 +1420,27 @@ class Protocol:
 		if not 'u' in client.compat:
 			return
 		if not chan in self._root.channels:
-			self.out_FAILED(client, "JOINFROM", "Channel '%s' not found" % chan, True)
+			self.out_FAILED(client, "JOINFROM", "Channel '%s' not found" % chan, False)
 			return
 		channel = self._root.channels[chan]
 		if channel.hasKey() and not (channel.identity == "battle" and client.session_id == channel.host):
-			self.out_FAILED(client, "JOINFROM", "Cannot bridge to this passworded channel", True)			
+			self.out_FAILED(client, "JOINFROM", "Cannot bridge to #%s, this channel has a password" % chan, False)			
 			return					
 		if channel.identity != "battle" and not client.bot:
-			self.out_FAILED(client, "JOINFROM", "A botflag is needed to bridge clients into this channel", True)
+			self.out_FAILED(client, "JOINFROM", "A botflag is needed to bridge clients into #%s" % chan, False)
 			return					
 		if channel.identity == "battle" and client.session_id != channel.host:
-			self.out_FAILED(client, "JOINFROM", "Only the battle host can bridge clients into this channel", True)
+			self.out_FAILED(client, "JOINFROM", "Only the battle host can bridge clients into #%s" % chan, False)
 			return		
 		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient:
-			self.out_FAILED(client, "JOINFROM", "Bridged user not found", True)
+			self.out_FAILED(client, "JOINFROM", "Bridged user (%s,%s) not found" % (location, external_id), False)
 			return
 		if bridgedClient.bridge_user_id != client.user_id:
-			self.out_FAILED(client, "JOINFROM", "Bridged client is on a different bridge (got %i, expected %i)" % (bridgedClient.bridge_user_id, client.user_id), True)
+			self.out_FAILED(client, "JOINFROM", "Bridged client <%s> is on a different bridge (got %i, expected %i)" % (bridgedClient.username, bridgedClient.bridge_user_id, client.user_id), False)
 			return
 		if bridgedClient.bridged_id in channel.bridged_ban:
-			self.out_FAILED(client, "JOINFROM", "Bridged user is banned from channel", True)
+			self.out_FAILED(client, "JOINFROM", "Bridged user <%s> is banned from channel #%s" % (bridgedClient.username, chan), False)
 			return
 		channel.addBridgedUser(client, bridgedClient)
 
@@ -1449,15 +1449,15 @@ class Protocol:
 		if not 'u' in client.compat:
 			return
 		if not chan in self._root.channels:
-			self.out_FAILED(client, "LEAVEFROM", "Channel '%s' not found" % chan, True)
+			self.out_FAILED(client, "LEAVEFROM", "Channel '%s' not found" % chan, False)
 			return
 		channel = self._root.channels[chan]
 		bridgedClient = self._root.bridgedClient(location, external_id)
 		if not bridgedClient:
-			self.out_FAILED(client, "LEAVEFROM", "Bridged user not found", True)
+			self.out_FAILED(client, "LEAVEFROM", "Bridged user (%s,%s) not found" % (location, external_id), False)
 			return
 		if bridgedClient.bridge_user_id != client.user_id:
-			self.out_FAILED(client, "LEAVEFROM", "Bridged client is on a different bridge (got %i, expected %i)" % (bridgedClient.bridge_user_id, client.user_id), True)
+			self.out_FAILED(client, "LEAVEFROM", "Bridged user <%s> is on a different bridge (got %i, expected %i)" % (bridgedClient.username, bridgedClient.bridge_user_id, client.user_id), False)
 			return
 		channel.removeBridgedUser(client, bridgedClient)
 
@@ -1471,7 +1471,7 @@ class Protocol:
 		if not bridgedClient or bridgedClient.bridge_user_id != client.user_id:
 			return
 		if not bridgedClient.bridged_id in channel.bridged_users:
-			self.out_FAILED(client, "SAYFROM", "Bridged user not present in channel", True)
+			self.out_FAILED(client, "SAYFROM", "Bridged user <%s> not present in channel" % bridgedClient.username, False)
 			return
 		self._root.broadcast('SAIDFROM %s %s %s' % (chan, bridgedClient.username, msg), chan, set([]), client, 'u')
 		
