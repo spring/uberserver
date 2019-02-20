@@ -4,9 +4,10 @@ class Battle(Channel):
 	def __init__(self, root, name):
 
 		Channel.__init__(self, root, name)
+		self.__init__Battle__(root, name)
+		
+	def __init__Battle__(self, root, name):
 		self.identity = 'battle'
-
-		# battle
 		self.battle_id = None #FIXME: it would be great to remove this and use battle.name to identify battles, but it causes a big change to protocol -> wait for #58
 		self.host = None
 		self.type = ''
@@ -36,7 +37,6 @@ class Battle(Channel):
 		self.replay_script = {} #FIXME: inaccessible via protocol
 		self.replay = False
 		self.sending_replay_script = False
-
 
 	def joinBattle(self, client):
 		# client joins battle + notifies others
@@ -134,7 +134,7 @@ class Battle(Channel):
 				continue
 			self.removeUser(client)
 		self._root.protocol.broadcast_RemoveBattle(self)
-		self.__init__(self._root, self.name)		
+		self.__init__Battle__(self._root, self.name)		
 			
 	def calc_battlestatus(self, client):
 		battlestatus = client.battlestatus

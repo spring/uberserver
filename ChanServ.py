@@ -481,10 +481,10 @@ class ChanServClient(Client):
 			if separator!=' ': op_list += 'empty'
 			users = channel.users
 			bridged_users = channel.bridged_users
-			users_str = 'Currently contains 1 user'
-			if len(users)>1 or len(bridged_users)>1:
+			users_str = 'Currently contains 0 users and 0 bridged users'
+			if len(users)>=1 or len(bridged_users)>=1:
 				users_str = 'Currently contains %i users and %i bridged users' % (len(users), len(bridged_users))
-			return '#%s info: %s. %s, %s. %s. ' % (chan, antispam, founder, op_list, users_str)
+			return '#%s info: %s. %s. %s. %s. ' % (chan, antispam, founder, op_list, users_str)
 
 		if not (len(cmd)>=3 and all(c.isalpha() for c in cmd)):
 			return #probably just a smiley or suchlike - not meant to invoke ChanServ

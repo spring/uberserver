@@ -1174,13 +1174,6 @@ class Protocol:
 			self.out_FAILED(client, "CREATEBOTACCOUNT", reason, True)
 			return
 
-		#save user to db
-		self.userdb.register_user(username, password, ip_address, country_code, email)
-		bot_client = self.clientFromUsername(username, True)
-		bot_client.access = 'user'
-		bot_client.bot = True
-		self.userdb.save_user(bot_client)
-
 		# set founder, if wanted
 		founder = None
 		if founder_username:
@@ -1188,11 +1181,17 @@ class Protocol:
 			if not founder:
 				self.out_FAILED(client, "CREATEBOTACCOUNT", "User does not exist '%s'" % founder_username, True)
 				return
-			chan = '#__battle__' + str(bot_client.user_id)
+			chan = '__battle__' + str(bot_client.user_id)
 			channel = Channel.Channel(self._root, chan)
 			self._root.channels[chan] = channel
-			self._root.chanserv.Handle("SAIDPRIVATE %s !register %s %s" % (client.username, chan, founder.username))
-			del self._root.channels[chan]
+			self._root.chanserv.Handle("SAIDPRIVATE %s :register %s %s" % (client.username, chan, founder.username))
+
+		#save new bot user to db
+		self.userdb.register_user(username, password, ip_address, country_code, email)
+		bot_client = self.clientFromUsername(username, True)
+		bot_client.access = 'user'
+		bot_client.bot = True
+		self.userdb.save_user(bot_client)
 
 		# declare success
 		self.broadcast_Moderator('New bot: <%s> created by <%s> from <%s>' %(username, client.username, from_client.username))
@@ -1746,7 +1745,7 @@ class Protocol:
 		if not chan in self._root.channels:
 			return
 		channel = self._root.channels[chan]
-		if channel.identity=='battle' and client.username!='ChanServ' and not client.bot:
+		if channel.identity=='battle' and client.username!='ChanServ':
 			self.out_FAILED(client, 'LEAVE', '%s is a battle, use LEAVEBATTLE to leave it' % chan, True)
 			return
 		if not client.session_id in channel.users:
@@ -1754,7 +1753,7 @@ class Protocol:
 			return
 		channel.removeUser(client, reason)
 		assert(not client.session_id in channel.users)
-		if not channel.registered() and len(channel.users)==0 and len(channel.bridged_users)==0 and channel.identity!='battle':
+		if not channel.registered() and len(channel.users)==0 and len(channel.bridged_users)==0:
 			del self._root.channels[chan]
 
 	def in_OPENBATTLE(self, client, type, natType, key, port, maxplayers, hashcode, rank, maphash, sentence_args):
@@ -2042,7 +2041,7 @@ class Protocol:
 				del self._root.channels[battle.name]
 			del self._root.battles[battle.battle_id]
 			battle.removeBattle()
-			return		
+			return
 		battle.leaveBattle(client)
 
 	def in_MYBATTLESTATUS(self, client, _battlestatus, _myteamcolor):
