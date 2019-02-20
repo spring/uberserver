@@ -918,7 +918,7 @@ class Protocol:
 		self._root.recent_registrations[client.ip_address] = recent_regs + 1
 
 		#save user to db
-		self.userdb.register_user(username, password, client.ip_address, client.country_code, email)
+		self.userdb.register_user(username, password, client.ip_address, email)
 		client_fromdb = self.clientFromUsername(username, True)
 
 		# verification
@@ -1187,7 +1187,7 @@ class Protocol:
 			self._root.chanserv.Handle("SAIDPRIVATE %s :register %s %s" % (client.username, chan, founder.username))
 
 		#save new bot user to db
-		self.userdb.register_user(username, password, ip_address, country_code, email)
+		self.userdb.register_user(username, password, ip_address, email)
 		bot_client = self.clientFromUsername(username, True)
 		bot_client.access = 'user'
 		bot_client.bot = True

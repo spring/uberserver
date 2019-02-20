@@ -545,7 +545,7 @@ class UsersHandler:
 				return False, 'Account registration failed: %s' % ipban.reason
 		return True, ""
 
-	def register_user(self, username, password, ip, country, email):
+	def register_user(self, username, password, ip, email):
 		# note: password here is BASE64(MD5(...)) and already in unicode
 		# assume check_register_user was already called
 		entry = User(username, password, "", ip, email)
@@ -1517,7 +1517,7 @@ if __name__ == '__main__':
 
 	# test save/load user
 	username = u"test"
-	userdb.register_user(username, u"pass", "192.168.1.1", "DE", "blackhole@blackhole.io")
+	userdb.register_user(username, u"pass", "192.168.1.1", "blackhole@blackhole.io")
 	client = userdb.clientFromUsername(username)
 	assert(isinstance(client.id, int))
 
@@ -1529,7 +1529,7 @@ if __name__ == '__main__':
 
 	# test ban/unban
 	client.user_id = client.id # ban issuer is an *online* client; impersonate one
-	userdb.register_user("delinquent", u"pass", "192.168.1.2", "DE", "blackhole@blackhole.io")
+	userdb.register_user("delinquent", u"pass", "192.168.1.2", "blackhole@blackhole.io")
 	client2 = userdb.clientFromUsername("delinquent")
 	bandb.ban(client, 1, "test", "delinquent")
 	ban = bandb.check_ban(client2.id, None, None)
