@@ -482,7 +482,7 @@ class ChanServClient(Client):
 			users = channel.users
 			bridged_users = channel.bridged_users
 			users_str = 'Currently contains 1 user'
-			if len(users)>1 or len(bridged_users>1):
+			if len(users)>1 or len(bridged_users)>1:
 				users_str = 'Currently contains %i users and %i bridged users' % (len(users), len(bridged_users))
 			return '#%s info: %s. %s, %s. %s. ' % (chan, antispam, founder, op_list, users_str)
 
