@@ -50,7 +50,7 @@ class Battle(Channel):
 		if client!=host:
 			self._root.broadcast('JOINEDBATTLE %s %s' % (self.battle_id, client.username), ignore=set([self.host, client.session_id])) 
 			scriptPassword = client.scriptPassword
-			if scriptPassword and host.compat['sp']:
+			if scriptPassword and 'sp' in host.compat:
 				host.Send('JOINEDBATTLE %s %s %s' % (self.battle_id, client.username, scriptPassword))
 				client.Send('JOINEDBATTLE %s %s %s' % (self.battle_id, client.username, scriptPassword))
 			else:

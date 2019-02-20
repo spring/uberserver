@@ -271,7 +271,7 @@ class Protocol:
 			#if len(deprec_flags)>0: client.RealSend("MOTD   deprecated flags:%s" % deprec_flags)
 			#if len(unknown_flags)>0: client.RealSend("MOTD   unknown flags:%s" % unknown_flags)
 			#client.RealSend("MOTD  -- -- - -- --")
-			logging.info('[%s] <%s> client "%s" sent incorrect compat flags %s -- missing:%s, deprecated:%s, unknown:%s'%(client.session_id, client.username, client.lobby_id, client.compat.keys(), missing_flags, deprec_flags, unknown_flags))
+			logging.info('[%s] <%s> client "%s" sent incorrect compat flags %s -- missing:%s, deprecated:%s, unknown:%s'%(client.session_id, client.username, client.lobby_id, client.compat, missing_flags, deprec_flags, unknown_flags))
 
 		#client.RealSend("MOTD Please update your client / report these issues.")
 		#client.RealSend("MOTD  -- -- - -- --")
@@ -773,9 +773,9 @@ class Protocol:
 
 	def client_AddUser(self, receiver, user):
 		'sends the protocol for adding a user'
-		if receiver.compat['l']:
+		if 'l' in receiver.compat:
 			return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, user.user_id, user.lobby_id)
-		if receiver.compat['a']: #accountIDs
+		if 'a' in receiver.compat: #accountIDs
 			return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, 0, user.user_id)
 
 		return 'ADDUSER %s %s %s' % (user.username, user.country_code, 0)
@@ -989,10 +989,10 @@ class Protocol:
 
 				for flag in compFlags.split(' '):
 					if flag in ('ab', 'ba'): # why does this check exist?
-						client.compat['a'] = True
-						client.compat['b'] = True
+						client.compat.add('a')
+						client.compat.add('b')
 					else:
-						client.compat[flag] = True
+						client.compat.add(flag)
 						
 				# record flag & tls stats
 				self._root.n_login_stats += 1
@@ -1248,7 +1248,7 @@ class Protocol:
 		@required.str message: The action to send.
 		'''
 		if not msg: return
-		if client.compat['o']:
+		if 'o' in client.compat:
 			self.out_FAILED("SAYEX", "use SAY action=yes")
 			return
 		if not chan in self._root.channels:
@@ -1912,7 +1912,7 @@ class Protocol:
 			if battle.locked:
 				client.Send('JOINBATTLEFAILED Battle is locked')
 				return
-		if host.compat['b'] and not 'mod' in client.accesslevels: # supports battleAuth
+		if 'b' in host.compat and not 'mod' in client.accesslevels: # supports battleAuth
 			if client.session_id in battle.pending_users:
 				client.Send('JOINBATTLEFAILED waiting for JOINBATTLEACCEPT/JOINBATTLEDENIED from host')
 			else:
