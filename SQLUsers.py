@@ -243,11 +243,11 @@ class Channel(object):
 		self.topic = None
 		self.topic_time = None
 		self.topic_user_id = None
-		self.antispam = None
+		self.antispam = False
 		self.autokick = None
-		self.censor = None
+		self.censor = False
 		self.antishock = None
-		self.store_history = None
+		self.store_history = False
 
 	def __repr__(self):
 		return "<Channel('%s')>" % self.name
