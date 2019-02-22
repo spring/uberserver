@@ -209,11 +209,11 @@ flag_map = {
 	'sp': 'scriptPassword',  # scriptPassword in JOINEDBATTLE
 	'cl': 'cleanupBattles',  # BATTLEOPENED / OPENBATTLE with support for engine/version
 	'b':  'battleAuth',      # JOINBATTLEACCEPT/JOINBATTLEDENIED (typically only sent by autohosts)
+	't':  'timelessTopics',  # CHANNELTOPIC without times, allowing empty topic string
 }
 # optional flags
 optional_flags = (
 	'b', # only useful to autohosts -> permanently optional
-	'u', # will become compulsory once clients are ready 
 )
 
 # flags for functionality that is now either compulsory or was removed
@@ -404,7 +404,7 @@ class Protocol:
 
 
 		ret_status, fun_args = self.get_function_args(client, command, function, numspaces, args)
-
+		
 		if (ret_status):
 			## if fun_args is empty, this reduces to function(client)
 			function(*([client] + fun_args))

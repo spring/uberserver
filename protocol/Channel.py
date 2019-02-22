@@ -12,8 +12,8 @@ class Channel():
 		self.name = name
 		self.key = None
 		self.owner_user_id = None # 'founder'
-		self.topic = None
-		self.topic_time = None
+		self.topic = ''
+		self.topic_time = None # deprecated
 		self.topic_user_id = None
 		self.antispam = False
 		self.autokick = '' #deprecated
@@ -25,7 +25,8 @@ class Channel():
 		self.operators = set() #user_ids
 		self.users = set() # session_ids
 		self.bridged_users = set() #bridged_ids
-
+		
+		self.topic_username = ''
 		self.mutelist = {} #user_id -> mute
 		self.ban = {} #user_id -> ban
 		self.ban_ip = {} #ip -> ban
@@ -73,6 +74,25 @@ class Channel():
 		client.Send('JOIN %s' % self.name)	
 		self.broadcast('JOINED %s %s' % (self.name, client.username), set(), flag)		
 		
+		topic_client = self._root.protocol.clientFromID(self.topic_user_id) if self.topic_user_id else None
+		topic_username = topic_client.username if topic_client else 'ChanServ'
+		self.broadcast('CHANNELTOPIC %s %s %s' % (self.name, topic_username, self.topic), set(), 't', None)
+		if len(self.topic)>0:
+			self.broadcast('CHANNELTOPIC %s %s %s %s' % (self.name, topic_username, time.time(), self.topic), set(), None, 't') # backwards compat
+				
+		if 'u' in client.compat:
+			bridgedClients = {}
+			for bridged_id in self.bridged_users:
+				bridgedClient = self._root.bridgedClientFromID(bridged_id)
+				bridge = self._root.clientFromID(bridgedClient.bridge_user_id) 
+				if not bridge.username in bridgedClients:
+					bridgedClients[bridge.username] = ""
+				if bridgedClients[bridge.username] != "":
+					bridgedClients[bridge.username] += " "
+				bridgedClients[bridge.username] += bridgedClient.username
+			for bridge_username in bridgedClients:
+				client.Send('CLIENTSFROM %s %s %s' % (self.name, bridge_username, bridgedClients[bridge_username]))
+
 		clientlist = ""
 		for session_id in self.users:
 			if clientlist:
@@ -81,32 +101,6 @@ class Channel():
 			assert(channeluser)
 			clientlist += channeluser.username
 		client.Send('CLIENTS %s %s' % (self.name, clientlist))
-
-		topic = self.topic
-		if topic:
-			topictime = int(topic['time'])*1000
-			try:
-				top = topic['text']
-			except:
-				top = "Invalid unicode-encoding (should be utf-8)"
-				logging.info("%s for channel topic: %s" %(top, self.name))
-			if len(top) > 0:
-				client.Send('CHANNELTOPIC %s %s %s %s'%(self.name, topic['user'], topictime, top))
-
-		if not 'u' in client.compat:
-			return
-
-		bridgedClients = {}
-		for bridged_id in self.bridged_users:
-			bridgedClient = self._root.bridgedClientFromID(bridged_id)
-			bridge = self._root.clientFromID(bridgedClient.bridge_user_id) 
-			if not bridge.username in bridgedClients:
-				bridgedClients[bridge.username] = ""
-			if bridgedClients[bridge.username] != "":
-				bridgedClients[bridge.username] += " "
-			bridgedClients[bridge.username] += bridgedClient.username
-		for bridge_username in bridgedClients:
-			client.Send('CLIENTSFROM %s %s %s' % (self.name, bridge_username, bridgedClients[bridge_username]))
 
 	def removeUser(self, client, reason=None):
 		if self.name in client.channels:
@@ -150,7 +144,7 @@ class Channel():
 	def isOp(self, client):
 		return client and ((client.user_id in self.operators) or self.isFounder(client))
 
-	def getAccess(self, client): # return client's security clearance
+	def getAccess(self, client):
 		return 'mod' if self.isMod(client) else\
 				('founder' if self.isFounder(client) else\
 				('op' if self.isOp(client) else\
@@ -160,19 +154,20 @@ class Channel():
 		return client.user_id in self.mutelist
 
 	def setTopic(self, client, topic):
-		if self.topic and topic == self.topic['text']:
-			return
 		if topic in ('*', None, ""):
-			self.topic = None
-			self.channelMessage('Topic disabled.')
+			topic = ""
+		if (self.topic and topic == self.topic) or (not self.topic and len(topic)==0):
 			return
-		topicdict = {'user':client.username, 'text':topic, 'time':time.time()}
-		self.topic = topicdict
+		self.topic = topic
 		self.db().setTopic(self, topic, client)
-		self.channelMessage('Topic changed.')
 
-		self.broadcast('CHANNELTOPIC %s %s %s %s'%(self.name, client.username, topicdict['time'], topic), set())
-
+		self.broadcast('CHANNELTOPIC %s %s %s' % (self.name, client.username, topic), set(), 't', None)
+		if len(topic)==0:
+			self.channelMessage('Topic removed.')
+		else:
+			self.channelMessage('Topic changed.')
+			self.broadcast('CHANNELTOPIC %s %s %s %s' % (self.name, client.username, time.time(), topic), set(), None, 't') # backwards compat
+		
 	def setFounder(self, client, target):
 		self.owner_user_id = target.user_id
 		self.db().setFounder(self, target)

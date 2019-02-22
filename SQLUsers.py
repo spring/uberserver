@@ -226,7 +226,7 @@ channels_table = Table('channels', metadata,
 	Column('key', String(32)),
 	Column('owner_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True),
 	Column('topic', Text),
-	Column('topic_time', DateTime),
+	Column('topic_time', DateTime), #deprecated; todo: remove this
 	Column('topic_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True),
 	Column('antispam', Boolean),
 	Column('autokick', String(5)), #deprecated; todo: remove this
@@ -236,18 +236,18 @@ channels_table = Table('channels', metadata,
 	mysql_charset='utf8',
 	)
 class Channel(object):
-	def __init__(self, name,  key='', owner_user_id=None, topic_time=None, topic='', topic_user_id=None, antispam=False, censor=False, store_history=False):
+	def __init__(self, name):
 		self.name = name
-		self.key = key
-		self.owner_user_id = owner_user_id
-		self.topic = topic
-		self.topic_time = topic_time or datetime.now()
-		self.topic_user_id = topic_user_id
-		self.antispam = antispam
-		self.autokick = False
-		self.censor = censor
+		self.key = None
+		self.owner_user_id = None
+		self.topic = None
+		self.topic_time = None
+		self.topic_user_id = None
+		self.antispam = None
+		self.autokick = None
+		self.censor = None
 		self.antishock = None
-		self.store_history = store_history
+		self.store_history = None
 
 	def __repr__(self):
 		return "<Channel('%s')>" % self.name
@@ -1368,7 +1368,6 @@ class ChannelsHandler:
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
 		if entry:
 			entry.topic = topic
-			entry.topic_time = datetime.now()
 			entry.topic_user_id = target.user_id
 			self.sess().commit()
 
@@ -1453,11 +1452,8 @@ class ChannelsHandler:
 		if not entry:
 			entry = Channel(channel.name)
 		if channel.topic:
-			entry.topic = channel.topic['text']
-			entry.topic_time =  datetime.fromtimestamp(channel.topic['time'])
+			entry.topic = channel.topic
 			entry.topic_user_id = target.user_id
-		else:
-			entry.topic_time = datetime.now()
 		entry.owner_user_id = target.user_id
 		self.sess().add(entry)
 		self.sess().commit()

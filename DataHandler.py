@@ -161,11 +161,7 @@ class DataHandler:
 				channel.key = None
 
 			channel.topic_user_id = dbchannel['topic_user_id']
-			topic_client = self.userdb.clientFromID(dbchannel['topic_user_id'])
-			topic_name = 'ChanServ'
-			if topic_client:
-				topic_name = topic_client.username
-			channel.topic={'user':topic_name, 'text':dbchannel['topic'], 'time':int(time.time())}
+			channel.topic = dbchannel['topic']
 			self.channels[name] = channel
 
 		# set up chanserv
