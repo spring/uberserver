@@ -209,7 +209,7 @@ flag_map = {
 	'sp': 'scriptPassword',  # scriptPassword in JOINEDBATTLE
 	'cl': 'cleanupBattles',  # BATTLEOPENED / OPENBATTLE with support for engine/version
 	'b':  'battleAuth',      # JOINBATTLEACCEPT/JOINBATTLEDENIED (typically only sent by autohosts)
-	't':  'timelessTopics',  # CHANNELTOPIC without times, allowing empty topic string
+	't':  'timelessTopics',  # CHANNELTOPIC without times, always sent and allowing empty topic string
 }
 # optional flags
 optional_flags = (
@@ -2179,10 +2179,7 @@ class Protocol:
 		for name, channel in self._root.channels.items():
 			if channel.key:
 				continue
-			try:
-				top = channel.topic['text']
-			except:
-				top = "Invalid unicode-encoding (should be utf-8)"
+			top = channel.topic
 			client.Send('CHANNEL %s %d %s'% (channel.name, len(channel.users), top))
 		client.Send('ENDOFCHANNELS')
 
