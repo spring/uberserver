@@ -76,9 +76,10 @@ class Channel():
 		
 		topic_client = self._root.protocol.clientFromID(self.topic_user_id) if self.topic_user_id else None
 		topic_username = topic_client.username if topic_client else 'ChanServ'
-		self.broadcast('CHANNELTOPIC %s %s %s' % (self.name, topic_username, self.topic), set(), 't', None)
-		if len(self.topic)>0:
-			self.broadcast('CHANNELTOPIC %s %s %s %s' % (self.name, topic_username, time.time(), self.topic), set(), None, 't') # backwards compat
+		if 't' in client.compat:
+			client.Send('CHANNELTOPIC %s %s %s' % (self.name, topic_username, self.topic))
+		if len(self.topic)>0 and not 't' in client.compat:
+			client.Send('CHANNELTOPIC %s %s %s %s' % (self.name, topic_username, time.time(), self.topic)) # backwards compat
 				
 		if 'u' in client.compat:
 			bridgedClients = {}
