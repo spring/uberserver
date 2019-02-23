@@ -4,9 +4,12 @@
 from datetime import datetime, timedelta
 from BaseClient import BaseClient
 
-import time, random, smtplib, re, hashlib, base64, json
+import time, random, re, hashlib, base64, json
 import urllib.request
 import logging
+
+import smtplib
+from email.mime.text import MIMEText
 
 import _thread as thread
 
@@ -1141,7 +1144,7 @@ class VerificationsHandler:
 		if use_delay and self._is_nonresidential_ip(ip_address):
 			body = """
 You are recieving this email because you recently """ + reason + """.
-
+<br><br>
 Your registration attempt was detected as coming from a non-residential IP address.
 To prevent abuse we delay such registrations by 24 hours.
 Your verification code will be sent on """ + send_time.strftime("%Y-%m-%d") + """ at """ + send_time.strftime("%H:%M") + """ CET.
@@ -1152,15 +1155,18 @@ Alternatively, you can register a new account from a different IP address."""
 		body = """
 You are recieving this email because you recently """ + reason + """.
 Your email verification code is """ + str(code) + """
-
+<br><br>
 This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at """ + expiry.strftime("%H:%M") + """ CET."""
 		self._send_email(sent_from, to, subject, body)
 
 	def _send_email(self, sent_from, to, subject, body):
 		if not self.active(): #safety
 			return
-		body += "\n\nIf you received this message in error, please contact us at www.springrts.com (direct replies to this message will be automatically deleted)."
-		message = 'Subject: {}\n\n{}'.format(subject, body)
+		body += '<br><br>If you received this message in error, please contact us at www.springrts.com. Direct replies to this message will be automatically deleted.'
+		message = MIMEText(body, 'html')
+		message['Subject'] = subject 
+		message['From'] = "SpringRTS <" + sent_from + ">"
+		message['To'] = "," + to
 		try:
 			server = smtplib.SMTP()
 			if self.mail_server=="localhost":
@@ -1171,7 +1177,7 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 				server.login(self.mail_user, self.mail_password)
 			
 			server.set_debuglevel(True) # todo: remove after testing
-			server.sendmail(sent_from, to, message)
+			server.sendmail(sent_from, to, message.as_string())
 			server.close()
 			logging.info('Sent verification code to %s' % (to))
 		except Exception as e:
