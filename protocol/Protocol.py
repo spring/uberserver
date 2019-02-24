@@ -1212,17 +1212,18 @@ class Protocol:
 		@required.str channel: The target channel.
 		@required.str message: The message to send.
 		'''
-		if not msg: return
+		if not msg: 
+			return
 		if not chan in self._root.channels:
-			self.out_FAILED(client, "SAY", "Channel does not exist", True)
+			self.out_FAILED(client, "SAY", "Channel %s does not exist", False)
 			return
 		channel = self._root.channels[chan]
-
 		if not client.session_id in channel.users:
-			self.out_FAILED(client, "SAY", "Not present in channel", True)
+			self.out_FAILED(client, "SAY", "Not present in channel %s" % chan, False)
 			return
 		msg = self.SayHooks.hook_SAY(self, client, channel, msg)
-		if not msg or not msg.strip(): return
+		if not msg or not msg.strip(): 
+			return
 		if channel.isMuted(client):
 			client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 			return
@@ -1248,22 +1249,22 @@ class Protocol:
 		@required.str channel: The target channel.
 		@required.str message: The action to send.
 		'''
-		if not msg: return
-		if 'o' in client.compat:
-			self.out_FAILED("SAYEX", "use SAY action=yes")
+		if not msg: 
 			return
 		if not chan in self._root.channels:
+			self.out_FAILED(client, "SAYEX", "Channel %s does not exist", False)
 			return
-
 		channel = self._root.channels[chan]
-		user  = client.username
+		if not client.session_id in channel.users:
+			self.out_FAILED(client, "SAYEX", "Not present in channel %s" % chan, False)
+			return
 		msg = self.SayHooks.hook_SAY(self, client, channel, msg)
-		if not msg or not msg.strip(): return
-		if client.session_id in channel.users:
-			if channel.isMuted(client):
-				client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
-				return
-		if channel.store_history:
+		if not msg or not msg.strip(): 
+			return
+		if channel.isMuted(client):
+			client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
+			return
+		if channel.store_history: # fixme, stored as non-ex msg
 			self.userdb.add_channel_message(channel.id, client.user_id, msg)
 
 		self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, set([]), client, 'u')
@@ -1273,7 +1274,7 @@ class Protocol:
 			battle = self._root.battles[client.current_battle]
 			if battle.name==chan:
 				self.broadcast_SendBattle(battle, 'SAIDBATTLEEX %s %s' % (client.username, msg), client, None, 'u')
-			return
+				return
 		self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, set([]), client, None, 'u')
 
 
