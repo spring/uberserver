@@ -651,7 +651,7 @@ class Protocol:
 		if len(external_id)>20:
 			return False, "external_id '%s' is too long, max is 20 chars." % external_id
 		if len(location)>20:
-			return False, "location '%s' is too long, max is 15 chars." % location
+			return False, "location '%s' is too long, max is 20 chars." % location
 		return True, ''
 
 	def _parseTags(self, tagstring):
@@ -966,8 +966,8 @@ class Protocol:
 			return
 
 		if self.SayHooks.isNasty(username):
-			logging.error("Invalid nickname %s" %(username))
-			self.out_DENIED(client, username, "invalid nickname", True)
+			logging.error("Invalid username %s" %(username))
+			self.out_DENIED(client, username, "invalid username", True)
 			return
 
 		# this check is a duplicate: prevents db access
@@ -1479,6 +1479,8 @@ class Protocol:
 		# backwards compat
 		msg = '<' + bridgedClient.username + '> ' + msg
 		self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client, None, 'u') 
+		if channel.store_history: #fixme for bridged clients
+			self.userdb.add_channel_message(channel.id, client.user_id, msg)
 
 		
 	def in_IGNORE(self, client, tags):
