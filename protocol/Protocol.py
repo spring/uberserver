@@ -624,8 +624,10 @@ class Protocol:
 		for char in username:
 			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
 				return False, 'Only ASCII chars, [], _, 0-9 are allowed in usernames.'
+		if len(username) < 3:
+			return False, "Username is too short, must be at least 3 characters."		
 		if len(username) > 20:
-			return False, "Username is too long, max is 20 chars."
+			return False, "Username is too long, max 20 characters."
 		return True, ""
 
 	def _validChannelSyntax(self, channel):
@@ -962,11 +964,6 @@ class Protocol:
 		#if (failed_logins >= max_failed_logins):
 		#	self.out_DENIED(client, username, "Too many failed logins (%d/3), please try again later." % failed_logins, False)
 		#	return
-
-		good, reason = self._validUsernameSyntax(username)
-		if (not good):
-			self.out_DENIED(client, username, reason, False)
-			return
 
 		if self.SayHooks.isNasty(username):
 			logging.error("Invalid username %s" %(username))
