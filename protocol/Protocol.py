@@ -1502,10 +1502,6 @@ class Protocol:
 			return
 		reason = tags.get("reason")
 
-		ok, failReason = self._validUsernameSyntax(username)
-		if not ok:
-			self.out_SERVERMSG(client, "Invalid userName format.")
-			return
 		ignoreClient = self.clientFromUsername(username, True)
 		if not ignoreClient:
 			self.out_SERVERMSG(client, "No such user.")
@@ -1541,10 +1537,6 @@ class Protocol:
 		if not username:
 			self.out_SERVERMSG(client, "Missing userName argument.")
 			return
-		ok, reason = self._validUsernameSyntax(username)
-		if not ok:
-			self.out_SERVERMSG(client, "Invalid userName format.")
-			return
 		unignoreClient = self.clientFromUsername(username, True)
 		if not unignoreClient:
 			self.out_SERVERMSG(client, "No such user.")
@@ -1576,11 +1568,6 @@ class Protocol:
 			self.out_SERVERMSG(client, "Missing userName argument.")
 			return
 		msg = tags.get("msg")
-
-		ok, failReason = self._validUsernameSyntax(username)
-		if not ok:
-			self.out_SERVERMSG(client, "Invalid userName format.")
-			return
 
 		friendRequestClient = self.clientFromUsername(username, True)
 		if not friendRequestClient:
@@ -1615,11 +1602,6 @@ class Protocol:
 			self.out_SERVERMSG(client, "Missing userName argument.")
 			return
 
-		ok, failReason = self._validUsernameSyntax(username)
-		if not ok:
-			self.out_SERVERMSG(client, "Invalid userName format.")
-			return
-
 		friendRequestClient = self.clientFromUsername(username, True)
 		if not self.userdb.has_friend_request(friendRequestClient.user_id, client.user_id):
 			self.out_SERVERMSG(client, "No such friend request.")
@@ -1639,10 +1621,6 @@ class Protocol:
 		if not username:
 			self.out_SERVERMSG(client, "Missing userName argument.")
 			return
-		ok, failReason = self._validUsernameSyntax(username)
-		if not ok:
-			self.out_SERVERMSG(client, "Invalid userName format.")
-			return
 
 		friendRequestClient = self.clientFromUsername(username, True)
 		if not self.userdb.has_friend_request(friendRequestClient.user_id, client.user_id):
@@ -1656,10 +1634,6 @@ class Protocol:
 		username = tags.get("userName")
 		if not username:
 			self.out_SERVERMSG(client, "Missing userName argument.")
-			return
-		ok, failReason = self._validUsernameSyntax(username)
-		if not ok:
-			self.out_SERVERMSG(client, "Invalid userName format.")
 			return
 
 		friendRequestClient = self.clientFromUsername(username, True)
