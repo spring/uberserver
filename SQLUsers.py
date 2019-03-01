@@ -11,8 +11,6 @@ import logging
 import smtplib
 from email.mime.text import MIMEText
 
-from contextlib import contextmanager
-
 import _thread as thread
 
 	
