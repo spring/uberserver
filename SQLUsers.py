@@ -11,8 +11,11 @@ import logging
 import smtplib
 from email.mime.text import MIMEText
 
+from contextlib import contextmanager
+
 import _thread as thread
 
+	
 try:
 	from sqlalchemy import create_engine, Table, Column, Integer, String, MetaData, ForeignKey, Boolean, Text, DateTime, ForeignKeyConstraint, UniqueConstraint
 	from sqlalchemy.orm import mapper, sessionmaker, relation
@@ -411,10 +414,35 @@ class BlacklistedEmailDomain(object):
 		return "<Domain: %s (%s, since %s)>" % (self.domain, self.issuer_user_id, self.start_time)
 mapper(BlacklistedEmailDomain, blacklisted_email_domain_table)
 ##########################################
-#metadata.create_all(engine)
 
+class session_manager():
+	# on-demand sessionmaker
+	def __init__(self, root, engine):
+		self._root = root
+		metadata.create_all(engine)
+		self.sessionmaker = sessionmaker(bind=engine, autoflush=True)
+		self.session = None
+	
+	def sess(self):
+		if not self.session:
+			self.session = self.sessionmaker()
+		return self.session
+		
+	# guarded access
+	def commit_guard(self):
+		if self.session:
+			self.session.commit()
+	def rollback_guard(self):
+		if self.session:
+			self.session.rollback()
+	def close_guard(self):
+		if self.session:
+			self.session.close()
+			self.session = None
 
-
+##########################################
+			
+			
 class OfflineClient(BaseClient):
 	def __init__(self, sqluser):
 		self.set_user_pwrd_salt(sqluser.username, (sqluser.password, sqluser.randsalt))
@@ -430,17 +458,11 @@ class OfflineClient(BaseClient):
 		self.email = sqluser.email
 
 class UsersHandler:
-	def __init__(self, root, engine):
+	def __init__(self, root):
 		self._root = root
-		metadata.create_all(engine)
-		self.sessionmaker = sessionmaker(bind=engine, autoflush=True)
-		self.session = self.sessionmaker()
 
 	def sess(self):
-		if self.session.is_active:
-			return self.session
-		self.session.rollback()
-		return self.session
+		return self._root.session_manager.sess()
 
 	def clientFromID(self, user_id):
 		entry = self.sess().query(User).filter(User.id==user_id).first()
@@ -781,17 +803,11 @@ class OfflineBridgedClient():
 		self.bridge_user_id = None
 
 class BridgedUsersHandler:
-	def __init__(self, root, engine):
+	def __init__(self, root):
 		self._root = root
-		metadata.create_all(engine)
-		self.sessionmaker = sessionmaker(bind=engine, autoflush=True)
-		self.session = self.sessionmaker()
 
 	def sess(self):
-		if self.session.is_active:
-			return self.session
-		self.session.rollback()
-		return self.session
+		return self._root.session_manager.sess()
 
 	def bridgedClient(self, location, external_id):
 		entry = self.sess().query(BridgedUser).filter(BridgedUser.external_id == external_id).filter(BridgedUser.location == location).first()
@@ -844,17 +860,11 @@ class BridgedUsersHandler:
 		self.sess().commit()
 
 class BansHandler:
-	def __init__(self, root, engine):
+	def __init__(self, root):
 		self._root = root
-		metadata.create_all(engine)
-		self.sessionmaker = sessionmaker(bind=engine, autoflush=True)
-		self.session = self.sessionmaker()
 
 	def sess(self):
-		if self.session.is_active:
-			return self.session
-		self.session.rollback()
-		return self.session
+		return self._root.session_manager.sess()
 
 	def check_ban(self, user_id=None, ip=None, email=None, now=None):
 		# check if any of the args are currently banned
@@ -1019,12 +1029,9 @@ class BansHandler:
 		self.sess().commit()
 
 class VerificationsHandler:
-	def __init__ (self, root, engine):
+	def __init__(self, root):
 		self._root = root
-		metadata.create_all(engine)
-		self.sessionmaker = sessionmaker(bind=engine, autoflush=True)
-		self.session = self.sessionmaker()
-
+		
 		self.require_verification = False
 		try:
 			with open('server_email_account.txt') as f:
@@ -1051,10 +1058,7 @@ class VerificationsHandler:
 
 
 	def sess(self):
-		if self.session.is_active:
-			return self.session
-		self.session.rollback()
-		return self.session
+		return self._root.session_manager.sess()
 
 	def active(self):
 		return self.require_verification
@@ -1273,17 +1277,11 @@ Your new password is """ + password
 
 
 class ChannelsHandler:
-	def __init__(self, root, engine):
+	def __init__(self, root):
 		self._root = root
-		metadata.create_all(engine)
-		self.sessionmaker = sessionmaker(bind=engine, autoflush=True)
-		self.session = self.sessionmaker()
 
 	def sess(self):
-		if self.session.is_active:
-			return self.session
-		self.session.rollback()
-		return self.session
+		return self._root.session_manager.sess()
 
 	def channel_from_name(self, name):
 		entry = self.sess().query(Channel).filter(Channel.name == name).first()
@@ -1508,10 +1506,12 @@ if __name__ == '__main__':
 	sqlalchemy.event.listen(engine, 'connect', _fk_pragma_on_connect)
 
 	root = root()
-	userdb = UsersHandler(root, engine)
-	channeldb = ChannelsHandler(root, engine)
-	verificationdb = VerificationsHandler(root, engine)
-	bandb = BansHandler(root, engine)
+	root.session_manager = session_manager(root, engine)
+	
+	userdb = UsersHandler(root)
+	channeldb = ChannelsHandler(root)
+	verificationdb = VerificationsHandler(root)
+	bandb = BansHandler(root)
 	root.userdb = userdb
 	root.channeldb = channeldb
 	root.verificationdb = verificationdb

@@ -620,7 +620,7 @@ class Protocol:
 	def _validUsernameSyntax(self, username):
 		'checks if usernames syntax is correct / doesn''t contain invalid chars'
 		if not username:
-			return False, 'Invalid username.'
+			return False, 'Username is blank.'
 		for char in username:
 			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
 				return False, 'Only ASCII chars, [], _, 0-9 are allowed in usernames.'
@@ -638,6 +638,9 @@ class Protocol:
 		return True, ""
 
 	def _validBridgeSyntax(self, location, external_id, external_username):
+		if not external_id: return False, 'external_id is blank.'
+		if not location: return False,'location is blank.'
+		if not external_username: return False,'external_username is blank.'
 		for char in external_username:
 			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890#':
 				return False, "external_username '%s' is invalid: only ASCII chars, [], _, 0-9 and # are allowed in bridged usernames." % external_username
@@ -2925,7 +2928,7 @@ class Protocol:
 	
 	def in_RELOAD(self, client):
 		'''
-		Reload core parts of the server code from source. This also reparses motd, update list, and trusted proxy file.
+		Reload core parts of the server code from source.
 		Do not use this for changes unless you are very confident in your ability to recover from a mistake.
 		'''
 		if not 'admin' in client.accesslevels:
@@ -2941,29 +2944,26 @@ class Protocol:
 			bat = importlib.reload(sys.modules['Battle'])
 			chanserv = importlib.reload(sys.modules['ChanServ'])
 			sayhooks = importlib.reload(sys.modules['SayHooks'])
-			self = proto.Protocol(self._root)
-			self._root.protocol = self
-			self.userdb.session = self.userdb.sessionmaker()
-			self._root.channeldb.session = self._root.channeldb.sessionmaker()
-			self._root.verificationdb.session = self._root.verificationdb.sessionmaker()
-			self._root.bandb.session = self._root.bandb.sessionmaker()
-			self._root.chanserv = chanserv.ChanServClient(self._root, (self._root.online_ip, 0), self._root.chanserv.session_id)
-			self._root.SayHooks = sayhooks
 			importlib.reload(sys.modules['BaseClient'])
 			importlib.reload(sys.modules['Client'])
 			importlib.reload(sys.modules['BridgedClient'])
 			importlib.reload(sys.modules['ip2country'])
+
+			self = proto.Protocol(self._root)
+			self._root.protocol = self
+			self._root.SayHooks = sayhooks
+			
+			self._root.chanserv = chanserv.ChanServClient(self._root, (self._root.online_ip, 0), self._root.chanserv.session_id)
+			for chan in self._root.channels:
+				channel = self._root.channels[chan]
+				if channel.registered():
+					self._root.chanserv.channels.add(chan)				
+		
 		except Exception as e:
 			self.broadcast_Moderator('Reload failed')
 			self.out_SERVERMSG(client, 'Reload failed')
 			logging.error("Reload failed:")
 			logging.error(e)
-			
-		# chanserv has been replaced with a new copy, tell it which channels it is in
-		for chan in self._root.channels:
-			channel = self._root.channels[chan]
-			if channel.registered():
-				self._root.chanserv.channels.add(chan)				
 			
 		self.broadcast_Moderator('Reload successful')
 		self.out_SERVERMSG(client, 'Reload successful')

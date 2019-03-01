@@ -124,14 +124,16 @@ class DataHandler:
 		else:
 			self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.max_threads * 2, pool_recycle=300)
 
-		self.userdb = SQLUsers.UsersHandler(self, self.engine)
-		self.bridgeduserdb = SQLUsers.BridgedUsersHandler(self, self.engine)
-		self.verificationdb = SQLUsers.VerificationsHandler(self, self.engine)
-		self.bandb = SQLUsers.BansHandler(self, self.engine)
+		self.session_manager = SQLUsers.session_manager(self, self.engine)
+		
+		self.userdb = SQLUsers.UsersHandler(self)
+		self.bridgeduserdb = SQLUsers.BridgedUsersHandler(self)
+		self.verificationdb = SQLUsers.VerificationsHandler(self)
+		self.bandb = SQLUsers.BansHandler(self)
 		self.parseFiles()
 		self.protocol = Protocol.Protocol(self)
 
-		self.channeldb = SQLUsers.ChannelsHandler(self, self.engine)
+		self.channeldb = SQLUsers.ChannelsHandler(self)
 		channels = self.channeldb.all_channels()
 
 		# set up channels/battles from db
@@ -488,6 +490,9 @@ class DataHandler:
 					self.channeldb.unbanBridgedUser(channel, bridged_id)
 		except:
 			logging.error(traceback.format_exc())
+			self.session_manager.rollback_guard()
+		finally:
+			self.session_manager.close_guard()
 
 			
 	def decrement_dict(self, d):
@@ -502,6 +507,9 @@ class DataHandler:
 				del d[i]
 		except:
 			logging.error(traceback.format_exc())
+			self.session_manager.rollback_guard()
+		finally:
+			self.session_manager.close_guard()
 	
 	def decrement_recent_registrations(self):
 		self.decrement_dict(self.recent_registrations)
