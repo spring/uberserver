@@ -850,9 +850,11 @@ class BridgedUsersHandler:
 		return True, OfflineBridgedClient(bridgedUser)
 
 	def clean(self):
-		# remove any bridged user that wasn't seen for a year
+		# remove any bridged user that wasn't seen for 30 days and isn't banned from any channels
+		bridge_bans = self.sess().query(ChannelBridgedBan.bridged_id).distinct()
+		ignore_ids = set(b.bridged_id for b in bridge_bans)		
 		now = datetime.now()
-		response = self.sess().query(BridgedUser).filter(BridgedUser.last_bridged < now - timedelta(days=365))
+		response = self.sess().query(BridgedUser).filter(BridgedUser.last_bridged < now - timedelta(days=30)).filter(not BridgedUser.id in ignore_ids)
 		logging.info("deleting %i inactive bridged users", response.count())
 		response.delete(synchronize_session=False)
 		self.sess().commit()
