@@ -1142,11 +1142,14 @@ class Protocol:
 		if not good:
 			self.out_DENIED(client, client.username, reason)
 			return
+		ip_string = ""
+		if client.ip_address != client.last_ip:
+			ip_string = client.ip_address + " "
+		self.broadcast_Moderator('Accepted: %s %s%s %s' %(client.username, ip_string, client.last_id, client.lobby_id))
 		client.access = 'user'
 		self.userdb.save_user(client)
 		self._calc_access_status(client)
 		self._SendLoginInfo(client)
-		self.broadcast_Moderator('Accepted: %s %s %s %s' %(client.username, client.ip_address, client.last_id, client.lobby_id))
 
 	def in_CREATEBOTACCOUNT(self, client, username, from_username, founder_username=None):
 		# Create a new botflagged account with the same email & password as from_username
