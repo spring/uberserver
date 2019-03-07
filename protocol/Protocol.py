@@ -1013,12 +1013,12 @@ class Protocol:
 		if self.SayHooks.isNasty(sentence_args):
 			self.out_DENIED(client, username, "invalid sentence args", True)
 			return
-		if not self._validLoginSentence(sentence_args):
-			logging.warning("Invalid login sentence '%s' from <%s>" % (sentence_args, username))
-			self.out_DENIED(client, 'Invalid sentence format, please update your lobby client.', True)
-			return
-		elif sentence_args.count('\t')==0: # fixme: backwards compat for Melbot / Statserv
+		if sentence_args.count('\t')==0: # fixme: backwards compat for Melbot / Statserv
 			lobby_id = sentence_args
+		elif not self._validLoginSentence(sentence_args):
+			logging.warning("Invalid login sentence '%s' from <%s>" % (sentence_args, username))
+			self.out_DENIED(client, username, 'Invalid sentence format, please update your lobby client.', True)
+			return
 		else: 
 			lobby_id, last_id, compat_flags = sentence_args.split('\t',2)
 			print(lobby_id, last_id, compat_flags)
