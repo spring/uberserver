@@ -1015,17 +1015,20 @@ class Protocol:
 			return
 		if not self._validLoginSentence(sentence_args):
 			logging.warning("Invalid login sentence '%s' from <%s>" % (sentence_args, username))
-			self.out_DENIED(client, 'Invalid sentence format, please update your lobby client.')
+			self.out_DENIED(client, 'Invalid sentence format, please update your lobby client.', True)
 			return
-		lobby_id, last_id, compat_flags = sentence_args.split('\t',2)
-		print(lobby_id, last_id, compat_flags)
-		last_id = uint32(last_id)
-		for flag in compat_flags.split(' '):
-			if flag in ('ab', 'ba'): # why does this check exist?
-				client.compat.add('a')
-				client.compat.add('b')
-			else:
-				client.compat.add(flag)
+		elif sentence_args.count('\t')==0: # fixme: backwards compat for Melbot / Statserv
+			lobby_id = sentence_args
+		else: 
+			lobby_id, last_id, compat_flags = sentence_args.split('\t',2)
+			print(lobby_id, last_id, compat_flags)
+			last_id = uint32(last_id)
+			for flag in compat_flags.split(' '):
+				if flag in ('ab', 'ba'): # why does this check exist?
+					client.compat.add('a')
+					client.compat.add('b')
+				else:
+					client.compat.add(flag)
 			
 		good, user_or_error = self.userdb.login_user(username, password, client.ip_address, lobby_id, last_id, local_ip, client.country_code)
 		if (not good):
