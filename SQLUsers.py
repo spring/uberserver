@@ -504,7 +504,7 @@ class UsersHandler:
 			return True, reason
 		return False, ""
 		
-	def login_user(self, username, password, ip, lobby_id, user_id, local_ip, country):
+	def login_user(self, username, password, ip, lobby_id, last_id, local_ip, country):
 		# should only ever be one user with each name so we can just grab the first one :)
 		# password here is unicode(BASE64(MD5(...))), matches the register_user DB encoding
 		dbuser = self.sess().query(User).filter(User.username == username).first()
@@ -514,10 +514,10 @@ class UsersHandler:
 			return False, 'Invalid username or password'
 
 		now = datetime.now()
-		dbuser.logins.append(Login(now, ip, lobby_id, user_id, local_ip, country))
+		dbuser.logins.append(Login(now, ip, lobby_id, last_id, local_ip, country))
 		dbuser.time = now
 		dbuser.last_ip = ip
-		dbuser.last_id = user_id
+		dbuser.last_id = last_id
 
 		# copy unicode(BASE64(...)) values out of DB, leave them as-is
 		user_copy = User(dbuser.username, dbuser.password, dbuser.randsalt, ip, dbuser.email)
@@ -526,6 +526,7 @@ class UsersHandler:
 		user_copy.ingame_time = dbuser.ingame_time
 		user_copy.bot = dbuser.bot
 		user_copy.last_login = dbuser.last_login
+		user_copy.last_id = dbuser.last_id
 		user_copy.register_date = dbuser.register_date
 		user_copy.lobby_id = lobby_id
 		reason = user_copy

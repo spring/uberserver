@@ -1018,6 +1018,7 @@ class Protocol:
 			self.out_DENIED(client, 'Invalid sentence format, please update your lobby client.')
 			return
 		lobby_id, last_id, compat_flags = sentence_args.split('\t',2)
+		print(lobby_id, last_id, compat_flags)
 		last_id = uint32(last_id)
 		for flag in compat_flags.split(' '):
 			if flag in ('ab', 'ba'): # why does this check exist?
@@ -1047,8 +1048,8 @@ class Protocol:
 		client.set_user_pwrd_salt(user_or_error.username, (user_or_error.password, user_or_error.randsalt))
 		client.user_id = user_or_error.id
 		client.lobby_id = user_or_error.lobby_id
-		client.last_id = user_or_error.last_id
 		client.bot = user_or_error.bot
+		client.last_id = user_or_error.last_id
 		client.register_date = user_or_error.register_date
 		client.last_login = user_or_error.last_login
 		client.ingame_time = user_or_error.ingame_time
@@ -1855,7 +1856,8 @@ class Protocol:
 		@optional.str key: The password to use if the battle requires one.
 		@optional.str scriptPassword: A password unique to your user, to verify users connecting to the actual game.
 		'''
-		if scriptPassword: client.scriptPassword = scriptPassword
+		if scriptPassword: 
+			client.scriptPassword = scriptPassword
 
 		try:
 			battle_id = int32(battle_id)
