@@ -575,7 +575,7 @@ class Protocol:
 		return motd_string
 
 	def _sendMotd(self, client, motd_string):
-		'send the message of the day to client'
+		# send the message of the day to client
 		motd_lines = motd_string.split('\n')
 
 		for line in motd_lines:
@@ -592,7 +592,7 @@ class Protocol:
 		return versiontuple(version) >= versiontuple(minver)
 
 	def _validLegacyPasswordSyntax(self, password):
-		'checks if an old-style password is correctly encoded'
+		# checks if an old-style password is correctly encoded
 		if (not password):
 			return False, 'Empty passwords are not allowed.'
 
@@ -618,7 +618,7 @@ class Protocol:
 		return (self._validLegacyPasswordSyntax(password))
 
 	def _validUsernameSyntax(self, username):
-		'checks if usernames syntax is correct / doesn''t contain invalid chars'
+		# checks if usernames syntax is correct / doesn't contain invalid chars
 		if not username:
 			return False, 'Username is blank.'
 		for char in username:
@@ -630,8 +630,24 @@ class Protocol:
 			return False, "Username is too long, max 20 characters."
 		return True, ""
 
+	def _validLoginSentence(self, sentence):
+		# length checks
+		if sentence.count('\t') != 2: return False
+		lo, la, fl = sentence.split('\t',2)
+		if len(lo)>64 or len(la)>40: return False
+		i = la
+		#if ' ' in la:
+		#	i,m = la.split(' ',1)
+		#	if len(m) != 16: return False
+		try: i = uint32(i)
+		except: return False		
+		for char in fl:
+			if not char in 'abcdefghijklmnopqrstuvwzyx ':
+				return False
+		return True
+	
 	def _validChannelSyntax(self, channel):
-		'checks if usernames syntax is correct / doesn''t contain invalid chars'
+		# checks if usernames syntax is correct / doesn''t contain invalid chars
 		for char in channel:
 			if not char.lower() in 'abcdefghijklmnopqrstuvwzyx[]_1234567890':
 				return False, 'Only ASCII chars, [], _, 0-9 are allowed in channel names.'
@@ -813,7 +829,22 @@ class Protocol:
 		else:
 			title = battle.title
 		return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' % (battle.battle_id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded(), battle.rank, battle.maphash, battle.map, title, battle.modname)
-
+	
+	def client_LoginStats(self, client):
+		# record stats for this clients login
+		self._root.n_login_stats += 1
+		if client.TLS:
+			self._root.tls_stats += 1
+		for flag in client.compat:
+			if flag in self._root.flag_stats:
+				self._root.flag_stats[flag] += 1
+			else:
+				self._root.flag_stats[flag] = 1
+		if client.lobby_id in self._root.agent_stats:
+			self._root.agent_stats[client.lobby_id] += 1
+		else:
+			self._root.agent_stats[client.lobby_id] = 1
+	
 	def is_ignored(self, client, ignoredClient):
 		# verify that this is an online client (only those have an .ignored attr)
 		if hasattr(client, "ignored"):
@@ -941,10 +972,10 @@ class Protocol:
 		ip_str = client.ip_address
 		if client.local_ip != client.ip_address:
 			ip_str += " " + client.local_ip
-		self.broadcast_Moderator('New user: %s %s %s %s' %(username, ip_str, client.country_code, email))
+		self.broadcast_Moderator('New: %s %s %s %s' %(username, ip_str, client.country_code, email))
 
 
-	def in_LOGIN(self, client, username, password='', cpu='0', local_ip='', sentence_args=''):
+	def in_LOGIN(self, client, username, password, cpu='0', local_ip='', sentence_args=''):
 		'''
 		Attempt to login the active client.
 
@@ -965,71 +996,37 @@ class Protocol:
 		#	self.out_DENIED(client, username, "Too many failed logins (%d/3), please try again later." % failed_logins, False)
 		#	return
 
+		if (username in self._root.usernames): # prevents db access
+			self.out_DENIED(client, username, 'Already logged in.', False)
+			return
 		if self.SayHooks.isNasty(username):
 			logging.error("Invalid username %s" %(username))
 			self.out_DENIED(client, username, "invalid username", True)
 			return
 
-		# this check is a duplicate: prevents db access
-		if (username in self._root.usernames):
-			self.out_DENIED(client, username, 'Already logged in.', False)
-			return
-
-		user_id = 0
-		# represents <client> after logging in
-		user_or_error = None
-
-
-		if not validateIP(local_ip):
-			local_ip = client.ip_address
-
-		if '\t' in sentence_args:
-			lobby_id, user_id = sentence_args.split('\t',1)
-			if '\t' in user_id:
-				user_id, compFlags = user_id.split('\t', 1)
-
-				for flag in compFlags.split(' '):
-					if flag in ('ab', 'ba'): # why does this check exist?
-						client.compat.add('a')
-						client.compat.add('b')
-					else:
-						client.compat.add(flag)
-						
-				# record flag & tls stats
-				self._root.n_login_stats += 1
-				if client.TLS:
-					self._root.tls_stats += 1
-				for flag in client.compat:
-					if flag in self._root.flag_stats:
-						self._root.flag_stats[flag] += 1
-					else:
-						self._root.flag_stats[flag] = 1
-
-			try:
-				client.last_id = uint32(user_id)
-			except:
-				self.out_SERVERMSG(client, 'Invalid userID specified: %s' % (user_id), True)
-		else:
-			lobby_id = sentence_args
-			
-		if len(lobby_id) > 64:
-			self.out_DENIED(client, username, "lobby_id is to long (max=64 chars)", False)
-			return
-		if self.SayHooks.isNasty(lobby_id):
-			self.out_DENIED(client, username, "invalid lobby_id", True)
-			return
-		if lobby_id in self._root.agent_stats:
-			self._root.agent_stats[lobby_id] += 1
-		else:
-			self._root.agent_stats[lobby_id] = 1
-			
 		banned, reason = self.userdb.check_banned(username, client.ip_address)
 		if banned:
 			assert (type(reason) == str)
 			self.out_DENIED(client, username, reason, False)
 			return			
 			
-		good, user_or_error = self.userdb.login_user(username, password, client.ip_address, lobby_id, user_id, local_ip, client.country_code)
+		if self.SayHooks.isNasty(sentence_args):
+			self.out_DENIED(client, username, "invalid sentence args", True)
+			return
+		if not self._validLoginSentence(sentence_args):
+			logging.warning("Invalid login sentence '%s' from <%s>" % (sentence_args, username))
+			self.out_DENIED(client, 'Invalid sentence format, please update your lobby client.')
+			return
+		lobby_id, last_id, compat_flags = sentence_args.split('\t',2)
+		last_id = uint32(last_id)
+		for flag in compat_flags.split(' '):
+			if flag in ('ab', 'ba'): # why does this check exist?
+				client.compat.add('a')
+				client.compat.add('b')
+			else:
+				client.compat.add(flag)
+			
+		good, user_or_error = self.userdb.login_user(username, password, client.ip_address, lobby_id, last_id, local_ip, client.country_code)
 		if (not good):
 			assert (type(user_or_error) == str)
 			reason = user_or_error
@@ -1044,32 +1041,26 @@ class Protocol:
 		if client.ip_address in self._root.recent_failed_logins:
 			del self._root.recent_failed_logins[client.ip_address]
 
-		#assert(not client.user_id in self._root.user_ids)
-		#assert(not user_or_error.username in self._root.usernames)
-
 		# update local client fields from DB User values
 		client.access = user_or_error.access
 		self._calc_access(client)
 		client.set_user_pwrd_salt(user_or_error.username, (user_or_error.password, user_or_error.randsalt))
+		client.user_id = user_or_error.id
 		client.lobby_id = user_or_error.lobby_id
+		client.last_id = user_or_error.last_id
 		client.bot = user_or_error.bot
 		client.register_date = user_or_error.register_date
 		client.last_login = user_or_error.last_login
+		client.ingame_time = user_or_error.ingame_time
 		client.email = user_or_error.email
-
-		client.local_ip = None
+	
+		client.local_ip = local_ip
 		if local_ip.startswith('127.') or not validateIP(local_ip):
 			client.local_ip = client.ip_address
-		else:
-			client.local_ip = local_ip
 
-		client.ingame_time = user_or_error.ingame_time
-
-		client.user_id = user_or_error.id
-		assert(client.user_id >= 0)
 		if client.ip_address in self._root.trusted_proxies:
 			client.setFlagByIP(local_ip, False)
-
+	
 		if (client.access == 'agreement'):
 			logging.info('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
 			if self.verificationdb.active():
@@ -1080,9 +1071,11 @@ class Protocol:
 			client.Send('AGREEMENTEND')
 			return
 
-		if (client.username in self._root.usernames): # required to avoid problems because of parallel execution
-			self.out_DENIED(client, client.username, 'Already logged in.', False)
-			return
+		#assert(not client.user_id in self._root.user_ids)
+		#assert(not user_or_error.username in self._root.usernames)
+		#assert(client.user_id >= 0)
+
+		self.client_LoginStats(client)
 		self._SendLoginInfo(client)
 
 	def _SendLoginInfo(self, client):
@@ -1145,7 +1138,7 @@ class Protocol:
 		ip_string = ""
 		if client.ip_address != client.last_ip:
 			ip_string = client.ip_address + " "
-		self.broadcast_Moderator('Accepted: %s %s%s %s' %(client.username, ip_string, client.last_id, client.lobby_id))
+		self.broadcast_Moderator('Agr: %s %s%s %s' %(client.username, ip_string, client.last_id, client.lobby_id))
 		client.access = 'user'
 		self.userdb.save_user(client)
 		self._calc_access_status(client)
