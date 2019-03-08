@@ -45,6 +45,17 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 		self.root.protocol._remove(self, str(reason.value))
 		del self.root.clients[self.session_id]
 
+	def removePWs(self, data):
+		data = data.decode("UTF-8")
+		if not "LOGIN" in data: return data.encode('UTF-8')
+		words = data.split(" ")
+		if data.startswith('#') and len(words)>= 3:
+			words[3] = "*"
+		elif data.startswith('LOGIN') and len(words)>= 2:
+			words[2] = "*"
+		data = " ".join(words)
+		return data.encode('UTF-8')
+		
 	def dataReceived(self, data):
 		try:
 			if self.username:
@@ -55,6 +66,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 			self.Remove("Invalid utf-8 data received, closing connection")
 			self._root.session_manager.rollback_guard()
 		except Exception as e:
+			data = self.removePWs(data)
 			logging.error("Error in handling data from client: %s %s:%s \nexception: %s\ncommand:  %s\n%s" % (self.username, self.ip_address, self.port, str(e), data, str(traceback.format_exc())))
 			self._root.session_manager.rollback_guard()
 		finally:
