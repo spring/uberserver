@@ -2953,91 +2953,108 @@ class Protocol:
 			self.broadcast_Moderator('Cleanup initiated by server error')
 			logging.error(traceback.print_exc())
 
-		nchan = 0
-		nbattle = 0
-		nuser = 0
-		npending = 0
+		n_channel = 0
+		n_channel_user = 0
+		
+		n_battle = 0
+		n_battle_user = 0
+		n_battle_pending = 0
+		
+		n_client = 0
+		n_username = 0
 		
 		try:
-			#cleanup battles
+			# cleanup clients/sessions
+			dupcheck = set()
+			todel = []
+			for session_id in self._root.clients:
+				c = self._root.clients[session_id]
+				if not c.connected:
+					logging.error("client not connected: %s %d" % (c.username, c.session_id))
+					todel.append(c)
+				if c.username in dupcheck:
+					logging.error("client username failed dup check: %s %d" % (c.username, c.session_id))
+					todel.append(c)
+				dupcheck.add(c.username)
+				if c.username not in self._root.usernames:
+					logging.error("client with missing username: %s %d" % (c.username, c.session_id))
+					todel.append(c)
+					continue
+				d = self._root.usernames[c.username]
+				if d.session_id != c.session_id:
+					logging.error("missmatched session_id: (%s %d) (%s %d)" % (c.username, c.session_id, d.username, d.session_id))
+				
+			for c in todel:
+				del self._root.clients[c.session_id]
+				logging.error("deleted invalid client: %s %d" % (c.username, c.session_id))
+				n_client = n_client + 1
+				
+			# cleanup usernames
+			todel = []
+			for username in self._root.usernames:
+				c = self._root.usernames[username]
+				if not c.session_id in self._root.clients:
+					logging.error("username with missing client: %s %d" % (c.username, c.session_id))
+					todel.append(username)
+					continue
+				d = self._root.clients[c.session_id]
+				if d.username != c.username:
+					logging.error("missmatched username: (%s %d) (%s %d)" % (d.username, d.session_id, c.username, c.session_id))
+			
+			for username in todel:
+				del self._root.usernames[u]
+				logging.error("deleted invalid username: %s" % username)
+				n_username = n_username + 1
+		
+			#cleanup battle users
 			for battle_id, battle in self._root.battles.items():
 				for session_id in battle.users.copy():
 					if not session_id in self._root.clients:
-						logging.error("deleting session %d in battle %d, doesn't exist" % (session_id, battle_id))
 						battle.users.remove(session_id)
-						nuser = nuser + 1
+						logging.error("deleted invalid session %d from battle %d" % (session_id, battle_id))
+						n_battle_user = n_battle_user + 1
 				for session_id in battle.pending_users.copy():
 					if not session_id in self._root.clients:
-						logging.error("deleting session %d in pending users for battle %d, doesn't exist" % (session_id, battle_id))
 						battle.pending_users.remove(session_id)
-						npending = npending + 1
+						logging.error("deleted invalid session %d from pending users for battle %d" % (session_id, battle_id))
+						n_battle_pending = n_battle_pending + 1
 
+			# cleanup battles
+			for battle_id in self._root.battles.copy():
+				battle = self._root.battles[battle_id]
 				if not battle.host in self._root.clients:
-					logging.error("deleting battle %d, host doesn't exist" % battle_id)
 					del self._root.battles[battle_id]
-					nbattle = nbattle + 1
+					logging.error("deleted battle %d with invalid host %d" % (battle_id, battle.host))
+					n_battle = n_battle + 1
 					continue
 				if len(battle.users) == 0:
-					logging.error("deleting battle %d, empty" % battle_id)
 					del self._root.battles[battle_id]
-					nbattle = nbattle + 1
-
-			#cleanup channels
+					logging.error("deleted battle %d, empty" % battle_id)
+					n_battle = n_battle + 1
+			
+			# cleanup channel users & channels
 			for channel in self._root.channels.copy():
 				for session_id in self._root.channels[channel].users.copy():
 					if not session_id in self._root.clients:
-						logging.error("deleting session %d from channel %s, doesn't exist" %(session_id, channel))
 						self._root.channels[channel].users.remove(session_id)
+						logging.error("deleted invalid session %d from channel %s" % (session_id, channel))
+						n_channel_user = n_channel_user + 1
 				if len(self._root.channels[channel].users) == 0:
 					del self._root.channels[channel]
-					logging.error("deleting channel %s, empty" % channel)
-					nchan = nchan + 1
+					logging.error("deleted empty channel %s" % channel)
+					n_channel = n_channel + 1
 				#todo: clean bridged users
 
-			dupcheck = set()
-			todel = []
-			for sessid, c in self._root.clients.items():
-				if not c.connected:
-					logging.error("Not connected client: %s %s"%(c.username, c.connected))
-				if c.username in dupcheck:
-					logging.error("duplicate user: %s", c.username)
-					todel.append(c)
-					continue
-				dupcheck.add(c.username)
-				if c.username not in self._root.usernames:
-					logging.error("missing user: %s %s session_id: %d", c.username, str(c.logged_in), c.session_id)
-					todel.append(c)
-				d = self.clientFromSession(c.session_id)
-				if d.username != c.username:
-					logging.error("missmatch clients: %s %s" %(d.username, c.username))
-
-			for c in todel:
-				del self._root.clients[c.session_id]
-				logging.error("deleted invalid session: %d %s", c.session_id, c.username)
-
-			todel = []
-			for uname in self._root.usernames:
-				c = self.clientFromUsername(uname)
-				if not c.session_id in self._root.clients:
-					logging.error("missing session for %s", c.username)
-					todel.append(uname)
-					continue
-				d = self.clientFromSession(c.session_id)
-				if d.username != c.username:
-					logging.error("missmatch usernames: %s %s" %(d.username, c.username))
-			for u in todel:
-				del self._root.usernames[u]
-				logging.error("Deleted username without session: %s" %(u))
-		
 		except Exception as e:
 			if client: self.out_SERVERMSG(client, 'Cleanup failed')
 			self.broadcast_Moderator('Cleanup failed')
 			logging.error("Cleanup failed:")
 			logging.error(e)
 		
-		if client: self.out_SERVERMSG(client, 'Cleanup successful')
-		logging.info("deleted: %d channels, %d battles, %d users, %d pending users" %(nchan, nbattle, nuser, npending))
-		self.broadcast_Moderator("deleted: %d channels, %d battles, %d users, %d pending users" %(nchan, nbattle, nuser, npending))
+		if client: 
+			self.out_SERVERMSG(client, 'Cleanup successful')
+		logging.info("deleted: %d clients, %d usernames, %d battle users, %d pending users, %d battles, %d channel users, %d channels" % (n_client, n_username, n_battle_user, n_battle_pending, n_battle, n_channel_user, n_channel))
+		self.broadcast_Moderator("deleted: %d clients, %d usernames, %d battle users, %d pending users, %d battles, %d channel users, %d channels" % (n_client, n_username, n_battle_user, n_battle_pending, n_battle, n_channel_user, n_channel))
 
 	def in_CHANGEEMAILREQUEST(self, client, newmail):
 		# request to be sent a verification code for changing email address
