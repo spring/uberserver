@@ -638,7 +638,7 @@ class Protocol:
 		i = la
 		if ' ' in la:
 			i,m = la.split(' ',1)
- 			try: i = int(m,16)
+			try: m = int(m,16)
 			except: return False		
 			if len(m) > 16: return False
 		try: i = uint32(i)
