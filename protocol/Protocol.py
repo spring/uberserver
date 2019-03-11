@@ -636,9 +636,11 @@ class Protocol:
 		lo, la, fl = sentence.split('\t',2)
 		if len(lo)>64 or len(la)>40: return False
 		i = la
-		#if ' ' in la:
-		#	i,m = la.split(' ',1)
-		#	if len(m) != 16: return False
+		if ' ' in la:
+			i,m = la.split(' ',1)
+ 			try: i = int(m,16)
+			except: return False		
+			if len(m) > 16: return False
 		try: i = uint32(i)
 		except: return False		
 		for char in fl:
@@ -1022,8 +1024,6 @@ class Protocol:
 			return
 		else: 
 			lobby_id, last_id, compat_flags = sentence_args.split('\t',2)
-			print(lobby_id, last_id, compat_flags)
-			last_id = uint32(last_id)
 			for flag in compat_flags.split(' '):
 				if flag in ('ab', 'ba'): # why does this check exist?
 					client.compat.add('a')
@@ -2552,7 +2552,7 @@ class Protocol:
 	def in_GETUSERID(self, client, username):
 		user = self.clientFromUsername(username, True)
 		if user:
-			self.out_SERVERMSG(client, 'The ID for <%s> is %s' % (username, user.last_id))
+			self.out_SERVERMSG(client, 'The ID for <%s> is %s' % (username, user.last_id.split()[0]))
 		else:
 			self.out_SERVERMSG(client, 'User not found.')
 
@@ -2946,11 +2946,12 @@ class Protocol:
 		self.cleanup(client)
 
 	def cleanup(self, client=None):
-		logging.info("Cleanup initiated")
 		if client:
-			self.broadcast_Moderator('Cleanup initiated by <%s>' %(client.username))
+			self.broadcast_Moderator('Cleanup initiated by <%s>' % (client.username))
+			logging.info('Cleanup initiated by <%s>' % (client.username))
 		else:
 			self.broadcast_Moderator('Cleanup initiated by server error')
+			logging.error("Cleanup initiated by server error")
 			logging.error(traceback.print_exc())
 
 		n_channel = 0
