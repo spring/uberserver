@@ -1055,11 +1055,11 @@ class VerificationsHandler:
 	def valid_email_addr(self, email):
 		assert(type(email) == str)
 		if (not email or email==""):
-			return False, "an email address is required"
+			return False, "An email address is required."
 		if ' ' in email:
-			return False, "invalid email address (check for whitespace)"
+			return False, "Invalid email address (check for whitespace)."
 		if not re.match(r"[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,6}", email):
-			return False, "invalid email address"
+			return False, "Invalid email address."
 		return True, ""
 
 	def check_and_send(self, user_id, email, digits, reason, use_delay, ip_address):

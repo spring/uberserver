@@ -946,7 +946,7 @@ class Protocol:
 		if self.verificationdb.active():
 			good, reason = self.verificationdb.valid_email_addr(email)
 			if not good:
-				if email=='': reason += " -- if you were not asked to enter one, please update your lobby client!"
+				if email=='': reason += " -- If you were not asked to enter one, please update your lobby client!"
 				client.Send('REGISTRATIONDENIED %s' % reason)
 				return
 
