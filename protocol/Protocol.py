@@ -106,8 +106,7 @@ restricted = {
 	'FRIENDREQUESTLIST',
 	########
 	# meta
-	'GETINGAMETIME',
-	'GETREGISTRATIONDATE',
+	'GETUSERINFO',
 	'MYSTATUS',
 	'PORTTEST',
 	'JSON',
@@ -131,8 +130,7 @@ restricted = {
 	]),
 'mod':set([
 	# users
-	'GETLASTLOGINTIME',
-	'GETLOBBYVERSION',
+	'GETUSERINFO',
 	'GETUSERID',
 	'GETIP',
 	'FINDIP',
@@ -158,7 +156,6 @@ restricted = {
 	#########
 	# users
 	'SETACCESS',
-	'GETACCOUNTACCESS',
 	#########
 	# dev
 	'STATS',
@@ -2485,70 +2482,6 @@ class Protocol:
 				del battle.bots[name]
 				self._root.broadcast_battle('REMOVEBOT %s %s'%(battle.battle_id, name), battle.battle_id)
 
-	def in_GETINGAMETIME(self, client, username=None):
-		'''
-		Get the ingame time for yourself.
-		[user]
-
-		Get the ingame time for any user.
-		[mod]
-
-		@optional.str username: The target user. Defaults to yourself.
-		'''
-
-		if not username:
-			ingame_time = int(client.ingame_time)
-			self.out_SERVERMSG(client,'Your ingame time is %d minutes (%d hours).'%(ingame_time, ingame_time / 60))
-			return
-
-		if not client.bot and not 'mod' in client.accesslevels:
-			self.out_FAILED(client,'GETINGAMETIME', 'access denied')
-			return
-
-		if not username in self._root.usernames:
-			self.out_FAILED(client,'GETINGAMETIME', 'user not found / offline')
-			return
-
-		ingame_time = int(self._root.usernames[username].ingame_time)
-		self.out_SERVERMSG(client, '<%s> has an ingame time of %d minutes (%d hours).'%(username, ingame_time, ingame_time / 60))
-
-	def in_GETLASTLOGINTIME(self, client, username):
-		'''
-		Get the last login time of target user.
-
-		@required.str username: The target user.
-		'''
-		if username:
-			good, data = self.userdb.get_lastlogin(username)
-			if good: self.out_SERVERMSG(client, '<%s> last logged in on %s.' % (username, data.isoformat()))
-			else: self.out_SERVERMSG(client, 'Database returned error when retrieving last login time for <%s> (%s)' % (username, data))
-
-	def in_GETREGISTRATIONDATE(self, client, username=None):
-		'''
-		Get the registration date of yourself.
-		[user]
-
-		Get the registration date of target user.
-		[mod]
-
-		@optional.str username: The target user. Defaults to yourself.
-		'''
-
-		if not username:
-			self.out_SERVERMSG(client, '<%s> registered on %s.' % (username, client.register_date.isoformat()))
-			return
-
-		if not client.bot and not 'mod' in client.accesslevels:
-			self.out_FAILED(client, "GETREGISTRATIONDATE", "permission denied")
-			return
-
-		if not username in self._root.usernames:
-			self.out_FAILED(client, "GETREGISTRATIONDATE", "user not found / offline")
-			return
-
-		regdate = self._root.usernames[username].register_date
-		self.out_SERVERMSG(client, '<%s> registered on %s.' % (username, regdate.isoformat()))
-
 	def in_GETUSERID(self, client, username):
 		user = self.clientFromUsername(username, True)
 		if user:
@@ -2556,19 +2489,47 @@ class Protocol:
 		else:
 			self.out_SERVERMSG(client, 'User not found.')
 
-	def in_GETACCOUNTACCESS(self, client, username):
-		'''
-		Get the account access bitfield for target user.
-		[mod]
-
-		@required.str username: The target user.
-		'''
-		good, data = self.userdb.get_account_access(username)
-		if good:
-			self.out_SERVERMSG(client, 'Account access for <%s>: %s' % (username, data))
+	def in_GETUSERINFO(self, client, username=''):
+		# send back human readable messages detailing user
+		if not username:
+			# client requests their own details
+			self.out_SERVERMSG(client, "Registration date: %s" %  client.register_date.strftime('%b %d, %Y'))
+			self.out_SERVERMSG(client, "Email address: %s" % client.email)
+			ingame_time = int(self._root.usernames[client.username].ingame_time)			
+			self.out_SERVERMSG(client, "Ingame time: %d hours" % (ingame_time/60))
+			return
+		if not 'mod' in client.accesslevels:
+			return
+		if not username:
+			return
+		if ':' in username:
+			# bridged username
+			bridged_user = self._root.bridgedClientFromUsername(username, True)
+			if not bridged_user:
+				self.out_SERVERMSG(client, "Bridged user '%s' does not exist" % username)
+				return
+			if bridged_user.bridged_id in self._root.bridged_ids:
+				self.out_SERVERMSG(client, "<%s> is bridged,  bridged_id=%s,  bridge_user_id='%s'" % (bridged_user.username, bridged_user.bridged_id, bridged_user.bridge_user_id))
+			else:
+				self.out_SERVERMSG(client, "<%s> is not bridged,  bridged_id=%s, " % (username, bridged_user.bridged_id))
+			self.out_SERVERMSG(client, "Last bridged: %s" % bridged_user.last_bridged.strftime('%b %d, %Y'))
+			self.out_SERVERMSG(client, "external_id=%s,  location=%s,  external_username=%s" % (bridged_user.external_id, bridged_user.location, bridged_user.external_username))			
 		else:
-			self.out_SERVERMSG(client, 'Database returned error when retrieving account access for <%s> (%s)' % (username, data))
-
+			# native username
+			user = self.clientFromUsername(username, True)
+			if not user:
+				self.out_SERVERMSG(client, "User '%s' does not exist" % username)
+				return
+			if user.username in self._root.usernames:
+				self.out_SERVERMSG(client, "<%s> is online,  user_id=%d,  session_id=%d" % (user.username, user.user_id, user.session_id))
+			else:
+				self.out_SERVERMSG(client, "<%s> is offline,  user_id=%s" % (user.username, user.user_id))
+			self.out_SERVERMSG(client, "Registered %s,  last login %s" % (user.register_date.strftime('%b %d, %Y'), user.last_login.strftime('%b %d, %Y')))
+			ingame_time = int(self._root.usernames[client.username].ingame_time)			
+			self.out_SERVERMSG(client, "access=%s,  bot=%s,  ingame_time=%d hours" % (user.access, user.bot, ingame_time/60))
+			self.out_SERVERMSG(client, "email=%s" % (user.email))
+			self.out_SERVERMSG(client, "last_ip=%s,  last_id=%s" % (user.last_ip, user.last_id))
+	
 	def in_FINDIP(self, client, address):
 		'''
 		Get all usernames associated with target IP address.
@@ -2668,16 +2629,6 @@ class Protocol:
 		self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
 
 		return
-
-	def in_GETLOBBYVERSION(self, client, username):
-		'''
-		Get the lobby version of target user.
-
-		@required.str username: The target user.
-		'''
-		user = self.clientFromUsername(username, True)
-		if user and 'lobby_id' in dir(user):
-			self.out_SERVERMSG(client, '<%s> is using %s'%(user.username, user.lobby_id))
 
 	def in_SETBOTMODE(self, client, username, mode):
 		'''
@@ -2963,6 +2914,7 @@ class Protocol:
 		
 		n_client = 0
 		n_username = 0
+		n_bridged_users = 0
 		
 		try:
 			# cleanup clients/sessions
