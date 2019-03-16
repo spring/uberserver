@@ -2492,7 +2492,8 @@ class Protocol:
 		# send back human readable messages detailing user
 		if not username:
 			# client requests their own details
-			self.out_SERVERMSG(client, "Registration date: %s" %  client.register_date.strftime('%b %d, %Y'))
+			register_date = client.register_date.strftime('%b %d, %Y') if client.register_date else 'unknown'
+			self.out_SERVERMSG(client, "Registration date: %s" %  register_date)
 			self.out_SERVERMSG(client, "Email address: %s" % client.email)
 			ingame_time = int(self._root.usernames[client.username].ingame_time)			
 			self.out_SERVERMSG(client, "Ingame time: %d hours" % (ingame_time/60))
