@@ -86,6 +86,7 @@ restricted = {
 	'GETCHANNELMESSAGES',
 	########
 	# account management
+	'GETUSERINFO',
 	'RENAMEACCOUNT',
 	'CHANGEPASSWORD',
 	'CHANGEEMAILREQUEST',
@@ -106,7 +107,6 @@ restricted = {
 	'FRIENDREQUESTLIST',
 	########
 	# meta
-	'GETUSERINFO',
 	'MYSTATUS',
 	'PORTTEST',
 	'JSON',
@@ -130,7 +130,6 @@ restricted = {
 	]),
 'mod':set([
 	# users
-	'GETUSERINFO',
 	'GETUSERID',
 	'GETIP',
 	'FINDIP',
@@ -2905,17 +2904,27 @@ class Protocol:
 			logging.error("Cleanup initiated by server error")
 			logging.error(traceback.print_exc())
 
-		n_channel = 0
-		n_channel_user = 0
+		n_client = 0
+		n_username = 0
+		n_user_id = 0
+		
+		n_bridged_location = 0
+		n_bridged_username = 0
+		n_bridged_user_id = 0
+		
+		n_bridge_external_id = 0
+		n_bridge_location = 0
 		
 		n_battle = 0
 		n_battle_user = 0
-		n_battle_pending = 0
+		n_battle_pending_user = 0
 		
-		n_client = 0
-		n_username = 0
-		n_bridged_users = 0
+		n_channel = 0
+		n_channel_user = 0
+		n_channel_bridged_user = 0
 		
+		n_mismatch = 0
+				
 		try:
 			# cleanup clients/sessions
 			dupcheck = set()
@@ -2953,13 +2962,108 @@ class Protocol:
 				d = self._root.clients[c.session_id]
 				if d.username != c.username:
 					logging.error("missmatched username: (%s %d) (%s %d)" % (d.username, d.session_id, c.username, c.session_id))
+					cs.n_mismatch = cs.n_mismatch + 1
 			
 			for username in todel:
-				del self._root.usernames[u]
+				del self._root.usernames[username]
 				logging.error("deleted invalid username: %s" % username)
 				n_username = n_username + 1
+			
+			# cleanup user_ids
+			todel = []
+			for user_id in self._root.user_ids:
+				c = self._root.user_ids[user_id]
+				if not c.session_id in self._root.clients:
+					logging.error("user_id with missing client: %d<%s> %d" % (c.user_id, c.username, c.session_id))
+					todel.append(user_id)
+					continue
+				d = self._root.clients[c.session_id]
+				if d.user_id != c.user_id:
+					logging.error("missmatched user_id: (%d<%s> %d) (%d<%s> %d)" % (d.user_id, d.username, d.session_id, c.user_id, c.username, c.session_id))
+					n_mismatch = n_mismatch + 1
+			
+			for user_id in todel:
+				del self._root.user_ids[user_id]
+				logging.error("deleted invalid user_id: %d" % user_id)
+				n_user_id = n_user_id + 1
+			
+			# cleanup bridged locations
+			todel = []
+			bridged_locations = set()
+			for location in self._root.bridged_locations:
+				bridge_user_id = self._root.bridged_locations[location]
+				c = self._root.user_ids[bridge_user_id]
+				if not location in c.bridged_locations:
+					logging.error("location with missing bridge: %s %s" % (location, c.username))
+					todel.append(location)
+				bridged_locations.add(location)
+				
+			for location in todel:
+				del self._root.bridged_locations[location]
+				logging.error("deleted invalid bridged location: %s" % location)
+				cs.n_bridged_location = cs.n_bridged_location + 1
+			
+			for session_id in self._root.clients:
+				c = self._root.clients[session_id]
+				todel = []
+				for location in c.bridged_locations:
+					if not location in bridged_locations:
+						logging.error("bridged with missing location: %s %s %d" % (c.username, location, c.bridge_locations[location]))
+						todel.append(location)
+				for location in todel:
+					del c.bridged_locations[location]
+					logging.error("deleted invalid bridged location from bridge: %s %s" % (c.username, location))
+					n_bridge_location = n_bridge_location + 1
+				
+			# cleanup bridged usernames
+			todel = []
+			for bridged_username in self._root.bridged_usernames:
+				b = self._root.bridged_usernames[bridged_username]
+				if not b.bridge_user_id or not b.bridge_user_id in self._root.user_ids:
+					logging.error("bridged username with missing bridge: %s %d" % (b.username, b.bridge_user_id))
+					todel.append(bridged_username)
+				bridge_user = self._root.user_ids[b.bridge_user_id]
+				if not b.external_id in bridge_user.bridged_external_ids or not b.location in bridge_user.bridged_locations:
+					logging.error("bridged username missing from bridge: %s %s %s %s" % (b.username, b.external_id, b.location, bridge_user.username))
+					todel.append(bridged_id)
+			
+			for bridged_username in todel:
+				del self._root.bridged_usernames[bridged_username]
+				logging.error("deleted invalid bridged_username: %s" % bridged_username)
+				n_bridged_username = n_bridged_username + 1
+			
+			# cleanup bridged_ids
+			todel = []
+			for bridged_id in self._root.bridged_ids:
+				b = self._root.bridged_ids[bridged_id]
+				if not b.bridge_user_id or not b.bridge_user_id in self._root.user_ids:
+					logging.error("bridged_id with missing bridge: %d<%s> %d" % (b.bridged_id, b.username, b.bridge_user_id))
+					todel.append(bridged_id)
+				bridge_user = self._root.user_ids[b.bridge_user_id]
+				if not b.external_id in bridge_user.bridged_external_ids or not b.location in bridge_user.bridged_locations:
+					logging.error("bridged_id missing from bridge: %d<%s> %s %s %s" % (b.bridged_id, b.username, b.external_id, b.location, bridge_user.username))
+					todel.append(bridged_id)
+			
+			for bridged_id in todel:
+				del self._root.bridged_ids[bridged_id]
+				logging.error("deleted invalid bridged_id: %s" % bridged_id)
+				n_bridged_user_id = n_bridged_user_id + 1		
 		
-			#cleanup battle users
+			# cleanup external_ids on bridge bots
+			for session_id in self._root.clients:
+				c = self._root.clients[session_id]
+				todel = []
+				for external_id in c.bridged_external_ids:
+					bridged_id = c.bridged_external_ids[external_id]
+					if not bridged_id in self._root.bridged_ids:
+						logging.error("bridge with missing bridged user: %s %s %d" % (c.username, external_id, bridged_id))
+						todel.append(external_id)
+				for external_id in todel:
+					del c.bridged_external_ids[external_id]
+					logging.error("deleted invalid external_id from bridge: %s %s" % (c.username, external_id))
+					n_bridge_external_id = n_bridge_external_id + 1
+			
+			# cleanup battle users
 			for battle_id, battle in self._root.battles.items():
 				for session_id in battle.users.copy():
 					if not session_id in self._root.clients:
@@ -2970,7 +3074,7 @@ class Protocol:
 					if not session_id in self._root.clients:
 						battle.pending_users.remove(session_id)
 						logging.error("deleted invalid session %d from pending users for battle %d" % (session_id, battle_id))
-						n_battle_pending = n_battle_pending + 1
+						n_battle_pending_user = n_battle_pending_user + 1
 
 			# cleanup battles
 			for battle_id in self._root.battles.copy():
@@ -2978,7 +3082,7 @@ class Protocol:
 				if not battle.host in self._root.clients:
 					del self._root.battles[battle_id]
 					logging.error("deleted battle %d with invalid host %d" % (battle_id, battle.host))
-					n_battle = n_battle + 1
+					cs.n_battle = cs.n_battle + 1
 					continue
 				if len(battle.users) == 0:
 					del self._root.battles[battle_id]
@@ -2990,25 +3094,40 @@ class Protocol:
 				for session_id in self._root.channels[channel].users.copy():
 					if not session_id in self._root.clients:
 						self._root.channels[channel].users.remove(session_id)
-						logging.error("deleted invalid session %d from channel %s" % (session_id, channel))
+						logging.error("deleted invalid session_id %d from channel %s" % (session_id, channel))
 						n_channel_user = n_channel_user + 1
+				for bridged_id in self._root.channels[channel].bridged_users.copy():
+					if not bridged_id in self._root.bridged_ids:
+						self._root.channels[channel].bridged_users.remove(bridged_id)
+						logging.error("deleted invalid bridged_id %d from channel %s" % (bridged_id, channel))
+						n_channel_bridged_user = n_channel_bridged_user + 1
+				
 				if len(self._root.channels[channel].users) == 0:
+					if len(self._root.channels[channel].bridged_users) > 0:
+						logging.error("warning: empty channel %s contains %d bridged users" % (channel, len(self._root.channels[channel].bridged_users)))
 					del self._root.channels[channel]
 					logging.error("deleted empty channel %s" % channel)
 					n_channel = n_channel + 1
-				#todo: clean bridged users
 
 		except Exception as e:
 			if client: self.out_SERVERMSG(client, 'Cleanup failed')
 			self.broadcast_Moderator('Cleanup failed')
-			logging.error("Cleanup failed:")
-			logging.error(e)
+			logging.error("Cleanup failed: " + str(e))
+			logging.error(traceback.format_exc())			
+			return
 		
 		if client: 
 			self.out_SERVERMSG(client, 'Cleanup successful')
-		logging.info("deleted: %d clients, %d usernames, %d battle users, %d pending users, %d battles, %d channel users, %d channels" % (n_client, n_username, n_battle_user, n_battle_pending, n_battle, n_channel_user, n_channel))
-		self.broadcast_Moderator("deleted: %d clients, %d usernames, %d battle users, %d pending users, %d battles, %d channel users, %d channels" % (n_client, n_username, n_battle_user, n_battle_pending, n_battle, n_channel_user, n_channel))
-
+		n_delete = n_client + n_username + n_user_id + n_bridged_location + n_bridged_username + n_bridged_user_id + n_bridge_external_id + n_bridge_location + n_battle + n_battle_user + n_battle_pending_user + n_channel + n_channel_user + n_channel_bridged_user
+		self.broadcast_Moderator('Cleanup complete: %s deletions, %s mismatches' % (n_delete, n_mismatch))
+		cleaned_info = "deleted:"
+		cleaned_info += "\n %d clients, %d usernames, %d user_ids" % (n_client, n_username, n_user_id)
+		cleaned_info += "\n %d bridged_locations, %d bridged_usernames, %d bridged_user_ids, %d bridge_external_ids, %d bridge_locations" % (n_bridged_location, n_bridged_username, n_bridged_user_id, n_bridge_external_id, n_bridge_location)
+		cleaned_info += "\n %d battles, %d battle_users, %d battle_pending_users" % (n_battle, n_battle_user, n_battle_pending_user)
+		cleaned_info += "\n %d channels, %d channel_users, %d channel_bridged_users" % (n_channel, n_channel_user, n_channel_bridged_user)
+		cleaned_info += "\n found %d mismatches" % (n_mismatch)
+		logging.info(cleaned_info)
+		
 	def in_CHANGEEMAILREQUEST(self, client, newmail):
 		# request to be sent a verification code for changing email address
 		if not self.verificationdb.active():
