@@ -44,6 +44,7 @@ class Client(BaseClient):
 		self.compat = set() # holds compatibility flags
 
 		self.country_code = '??'
+		self.lobby_id = ""
 		self.setFlagByIP(self.ip_address)
 		self.status = 12
 		self.accesslevels = ['fresh','everyone']
@@ -66,7 +67,7 @@ class Client(BaseClient):
 		
 		# for if we are a bridge bot
 		self.bridged_external_ids = {} #external_id->bridged_id
-		self.bridged_locations = {} #location->#brigded_clients 
+		self.bridged_locations = {} #location->n_bridged_clients
 
 		# perhaps these are unused?
 		self.cpu = 0
@@ -161,7 +162,7 @@ class Client(BaseClient):
 		self.HandleProtocolCommands(self.data.split("\n"), flood_limits)
 
 	def HandleProtocolCommand(self, cmd):
-		## probably caused by trailing newline ("abc\n".split("\n") == ["abc", ""])
+		# probably caused by trailing newline ("abc\n".split("\n") == ["abc", ""])
 		if (len(cmd) < 1):
 			return
 		self._root.protocol._handle(self, cmd)

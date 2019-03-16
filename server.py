@@ -45,8 +45,6 @@ try:
 except socket.error:
 	print('Error: Could not start NAT server - hole punching will be unavailable.')
 
-logging.info('Using %i client handling thread(s).'%_root.max_threads)
-
 _root.init()
 
 try:

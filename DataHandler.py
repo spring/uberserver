@@ -24,6 +24,7 @@ class DataHandler:
 	def __init__(self):
 		self.logfilename = "server.log"
 		self.initlogger(self.logfilename)
+		
 		self.local_ip = None
 		self.online_ip = None
 		self.session_id = 0
@@ -49,7 +50,7 @@ class DataHandler:
 		self.updatefile = None
 		self.trusted_proxyfile = None
 
-		self.max_threads = 25
+		self.pool_size = 50
 		self.sqlurl = 'sqlite:///server.db'
 		self.nextbattle = 0
 		self.SayHooks = __import__('SayHooks')
@@ -83,6 +84,8 @@ class DataHandler:
 		self.bridged_usernames = {} #bridgeUsername->bridgedClient
 
 		# rate limits
+		self.nonres_registrations = set() #user_id
+		self.ip_type_cache = {} #ip->state (iphub: 0=non-residential, 1=residential, 2=both)
 		self.recent_registrations = {} #ip_address->int
 		self.recent_failed_logins = {} #ip_address->int		
 		self.recent_renames = {} #user_id->int
@@ -105,6 +108,18 @@ class DataHandler:
 		fh.setFormatter(formatter)
 		fh.setLevel(logging.DEBUG)
 		self.logger.addHandler(fh)
+		
+	def initiphub(self):
+		try:
+			with open('server_iphub_xkey.txt') as f:
+				lines = f.readlines()
+			lines = [l.strip() for l in lines]
+			self.iphub_xkey = lines[0]
+		except Exception as e:
+			self.iphub_xkey = False
+			logging.info('Could not load server_iphub_xkey.txt: %s' %(e))
+			return
+		logging.info('Successfully loaded server_iphub_xkey.txt')
 
 	def init(self):
 		now = datetime.datetime.now()
@@ -122,7 +137,7 @@ class DataHandler:
 			from sqlalchemy import event
 			event.listen(self.engine, 'connect', _fk_pragma_on_connect)
 		else:
-			self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.max_threads * 2, pool_recycle=3600)
+			self.engine = sqlalchemy.create_engine(self.sqlurl, pool_size=self.pool_size, pool_recycle=3600)
 
 		self.session_manager = SQLUsers.session_manager(self, self.engine)
 		
@@ -131,6 +146,7 @@ class DataHandler:
 		self.verificationdb = SQLUsers.VerificationsHandler(self)
 		self.bandb = SQLUsers.BansHandler(self)
 		self.parseFiles()
+		self.initiphub()
 		self.protocol = Protocol.Protocol(self)
 
 		self.channeldb = SQLUsers.ChannelsHandler(self)
@@ -225,6 +241,7 @@ class DataHandler:
 
 	def clean(self):
 		logging.info("scheduled clean...")
+		self.ip_type_cache = {}
 		try:
 			self.userdb.clean()
 			self.bridgeduserdb.clean()

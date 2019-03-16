@@ -1,4 +1,4 @@
-import inspect, sys, os, types, time, string
+import inspect, sys, os, types, time, string, logging
 from datetime import datetime
 from datetime import timedelta
 
@@ -22,7 +22,7 @@ def _update_lists():
 				bad_word_dict[sline[0].lower()] = ' '.join(sline[1:])
 		f.close()
 	except Exception as e:
-		print('Error parsing profanity list: %s' %(e))
+		logging.error('Error parsing profanity list: %s' %(e))
 	try:
 		global bad_site_list
 		bad_site_list = []
@@ -36,7 +36,7 @@ def _update_lists():
 				bad_site_list.append(line)
 		f.close()
 	except Exception as e:
-		print('Error parsing shock site list: %s' %(e))
+		logging.error('Error parsing shock site list: %s' %(e))
 
 	try:
 		global bad_nick_list
@@ -50,7 +50,7 @@ def _update_lists():
 		f.close()
 
 	except Exception as e:
-		print('Error parsing bad nick list: %s' %(e))
+		logging.error('Error parsing bad nick list: %s' %(e))
 
 
 _update_lists()

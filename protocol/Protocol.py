@@ -13,6 +13,9 @@ import base64
 import json
 import traceback
 
+import urllib.request
+import _thread as thread
+
 import Channel
 import Battle
 import BridgedClient
@@ -949,7 +952,7 @@ class Protocol:
 
 		# rate limit per ip
 		recent_regs = self._root.recent_registrations.get(client.ip_address, 0)
-		if recent_regs >= 3:
+		if recent_regs >= 3 and client.ip_address != self._root.online_ip:
 			client.Send("REGISTRATIONDENIED too many recent registration attempts, please try again later")
 			return
 		self._root.recent_registrations[client.ip_address] = recent_regs + 1
@@ -967,13 +970,45 @@ class Protocol:
 		# declare success
 		client.access = 'agreement'
 		client.Send('REGISTRATIONACCEPTED')
+		
+		try: thread.start_new_thread(self._check_nonresidential_ip, (client_fromdb.user_id, client.ip_address))
+		except: logging.error('Failed to launch _check_nonresidential_ip: %s, %s, %s' % (entry, reason, wait_duration))
 
 		logging.info('[%s] Successfully registered user <%s>.' % (client.session_id, username))
 		ip_str = client.ip_address
 		if client.local_ip != client.ip_address:
 			ip_str += " " + client.local_ip
 		self.broadcast_Moderator('New: %s %s %s %s' %(username, ip_str, client.country_code, email))
-
+	
+	def _check_nonresidential_ip(self, user_id, ip_address):
+		if not self._root.iphub_xkey:
+			return
+		if ip_address == self._root.online_ip:
+			return
+		if ip_address in self._root.ip_type_cache:
+			block = self._root.ip_type_cache[ip_address]
+		else:
+			try:
+				response = urllib.request.Request("http://v2.api.iphub.info/ip/{}".format(ip_address))
+				response.add_header("X-Key", self._root.iphub_xkey)
+				response = json.loads(urllib.request.urlopen(response).read().decode())
+			except Exception as e:
+				logging.error('Failed to check ip info for %s: %s' % (ip_address, str(e)))
+				return
+			block = response.get("block")
+			self._root.ip_type_cache[ip_address] = block
+		if block == 1:
+			self._root.nonres_registrations.add(user_id) # relies on GIL for thread safety!
+			
+	def _check_delayed_registration(self, client):
+		if client.user_id in self._root.nonres_registrations: 
+			time_waited = datetime.datetime.now() - client.register_date
+			if time_waited.days == 0 and time_waited.seconds < 24*3600:
+				time_remaining = datetime.timedelta(1,0,0) - time_waited
+				return True, 'Your registration was detected as a non-residential IP address and will be delayed for 24 hours. Time remaining: %s' % self.pretty_time_delta(time_remaining)
+			else:
+				self._root.nonres_registrations.remove(client.user_id)
+		return False, ''
 
 	def in_LOGIN(self, client, username, password, cpu='0', local_ip='', sentence_args=''):
 		'''
@@ -992,7 +1027,7 @@ class Protocol:
 
 		failed_logins = self._root.recent_failed_logins.get(client.ip_address, 0)
 		max_failed_logins = 3
-		#if (failed_logins >= max_failed_logins):
+		#if (failed_logins >= max_failed_logins) and client.ip_address != self._root.online_ip:
 		#	self.out_DENIED(client, username, "Too many failed logins (%d/3), please try again later." % failed_logins, False)
 		#	return
 
@@ -1018,7 +1053,7 @@ class Protocol:
 			last_id = 0
 		elif not self._validLoginSentence(sentence_args):
 			logging.warning("Invalid login sentence '%s' from <%s>" % (sentence_args, username))
-			self.out_DENIED(client, username, 'Invalid sentence format, please update your lobby client.', True)
+			self.out_DENIED(client, username, 'Invalid sentence format, please update your lobby client.', False)
 			return
 		else: 
 			lobby_id, last_id, compat_flags = sentence_args.split('\t',2)
@@ -1040,10 +1075,6 @@ class Protocol:
 		assert(user_or_error != None)
 		assert(type(user_or_error) != str)
 
-		# login checks complete
-		if client.ip_address in self._root.recent_failed_logins:
-			del self._root.recent_failed_logins[client.ip_address]
-
 		# update local client fields from DB User values
 		client.access = user_or_error.access
 		self._calc_access(client)
@@ -1057,13 +1088,6 @@ class Protocol:
 		client.ingame_time = user_or_error.ingame_time
 		client.email = user_or_error.email
 	
-		client.local_ip = local_ip
-		if local_ip.startswith('127.') or not validateIP(local_ip):
-			client.local_ip = client.ip_address
-
-		if client.ip_address in self._root.trusted_proxies:
-			client.setFlagByIP(local_ip, False)
-	
 		if (client.access == 'agreement'):
 			logging.info('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
 			if self.verificationdb.active():
@@ -1073,7 +1097,22 @@ class Protocol:
 				client.Send("AGREEMENT %s" %(line))
 			client.Send('AGREEMENTEND')
 			return
+		
+		delay, reason = self._check_delayed_registration(client)
+		if delay:
+			self.out_DENIED(client, username, reason, False)
+ 		
+		# login checks complete
+		if client.ip_address in self._root.recent_failed_logins:
+			del self._root.recent_failed_logins[client.ip_address]		
 
+		client.local_ip = local_ip
+		if local_ip.startswith('127.') or not validateIP(local_ip):
+			client.local_ip = client.ip_address
+
+		if client.ip_address in self._root.trusted_proxies:
+			client.setFlagByIP(local_ip, False)
+	
 		#assert(not client.user_id in self._root.user_ids)
 		#assert(not user_or_error.username in self._root.usernames)
 		#assert(client.user_id >= 0)
@@ -1136,8 +1175,16 @@ class Protocol:
 			return
 		good, reason = self.verificationdb.verify(client.user_id, client.email, verification_code)
 		if not good:
-			self.out_DENIED(client, client.username, reason)
+			self.out_DENIED(client, client.username, reason, False)
 			return
+		time_waited = datetime.datetime.now() - client.register_date
+		if time_waited.days == 0 and time_waited.seconds < 10:
+			self.out_DENIED(client, client.username, "Please take at least a few seconds to read our terms of service!")
+			return
+		delay, reason = self._check_delayed_registration(client)
+		if delay:
+			self.out_DENIED(client, client.username, reason, False)
+
 		ip_string = ""
 		if client.ip_address != client.last_ip:
 			ip_string = client.ip_address + " "
@@ -2843,7 +2890,8 @@ class Protocol:
 		logging.info("Command counts:")
 		for k in sorted(self.restricted_list):
 			count = self._root.command_stats[k] if k in self._root.command_stats else 0
-			logging.info(" %s %d" % (k, count))
+			if count > 0:
+				logging.info(" %s %d" % (k, count))
 		logging.info("Number of logins: %d" % self._root.n_login_stats)
 		logging.info("TLS logins: %d" % self._root.tls_stats)
 		logging.info("Agents:")

@@ -4,8 +4,7 @@
 from datetime import datetime, timedelta
 from BaseClient import BaseClient
 
-import time, random, re, hashlib, base64, json
-import urllib.request
+import time, random, re, hashlib, base64
 import logging
 
 import smtplib
@@ -1047,17 +1046,6 @@ class VerificationsHandler:
 		except Exception as e:
 			logging.info('Could not load server_email_account.txt, email verification is disabled: %s' %(e))
 
-		try:
-			with open('server_iphub_xkey.txt') as f:
-				lines = f.readlines()
-			lines = [l.strip() for l in lines]
-			self.iphub_xkey = lines[0]
-			logging.info('Successfully loaded server_iphub_xkey.txt')
-		except Exception as e:
-			self.iphub_xkey = False
-			logging.info('Could not load server_iphub_xkey.txt: %s' %(e))
-
-
 	def sess(self):
 		return self._root.session_manager.sess()
 
@@ -1137,26 +1125,11 @@ class VerificationsHandler:
 			logging.error('Failed to launch VerificationHandler._send: %s, %s, %s' % (entry, reason, wait_duration))
 
 	def _send(self, email, code, reason, use_delay, expiry, ip_address):
+		if use_delay:
+			time.sleep(20)
 		sent_from = self.mail_user
 		to = email
 		subject = 'SpringRTS verification code'
-
-		delay_secs = 60*60*24
-		delay = timedelta(seconds=delay_secs)
-		send_time = datetime.now() + delay
-		if use_delay:
-			time.sleep(20)
-		if use_delay and self._is_nonresidential_ip(ip_address):
-			body = """
-You are recieving this email because you recently """ + reason + """.
-<br><br>
-Your registration attempt was detected as coming from a non-residential IP address.
-To prevent abuse we delay such registrations by 24 hours.
-Your verification code will be sent on """ + send_time.strftime("%Y-%m-%d") + """ at """ + send_time.strftime("%H:%M") + """ CET.
-Alternatively, you can register a new account from a different IP address."""
-			self._send_email(sent_from, to, subject, body)
-			time.sleep(delay_secs)
-
 		body = """
 You are recieving this email because you recently """ + reason + """.
 Your email verification code is """ + str(code) + """
@@ -1188,21 +1161,6 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 		except Exception as e:
 			logging.error('Failed to send email from %s to %s' % (sent_from, to))
 			logging.error(str(e))
-
-	def _is_nonresidential_ip(self, ip_address):
-		if not self.active(): #safety
-			return False
-		if not self.iphub_xkey:
-			return False
-		try:
-			response = urllib.request.Request("http://v2.api.iphub.info/ip/{}".format(ip_address))
-			response.add_header("X-Key", self.iphub_xkey)
-			response = json.loads(urllib.request.urlopen(response).read().decode())
-		except Exception as e:
-			logging.error('Failed to check ip info for %s: %s' % (ip_address, str(e)))
-			return False # in the case of an error, pass all IPs
-		block = response.get("block")
-		return block == 1
 
 	def verify (self, user_id, email, code):
 		if not self.active():
