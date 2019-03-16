@@ -3040,6 +3040,7 @@ class Protocol:
 				if not b.bridge_user_id or not b.bridge_user_id in self._root.user_ids:
 					logging.error("bridged_id with missing bridge: %d<%s> %d" % (b.bridged_id, b.username, b.bridge_user_id))
 					todel.append(bridged_id)
+					continue
 				bridge_user = self._root.user_ids[b.bridge_user_id]
 				if not b.external_id in bridge_user.bridged_external_ids or not b.location in bridge_user.bridged_locations:
 					logging.error("bridged_id missing from bridge: %d<%s> %s %s %s" % (b.bridged_id, b.username, b.external_id, b.location, bridge_user.username))
