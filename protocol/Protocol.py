@@ -2510,7 +2510,7 @@ class Protocol:
 			if bridged_user.bridged_id in self._root.bridged_ids:
 				self.out_SERVERMSG(client, "<%s> is bridged,  bridged_id=%s,  bridge_user_id='%s'" % (bridged_user.username, bridged_user.bridged_id, bridged_user.bridge_user_id))
 			else:
-				self.out_SERVERMSG(client, "<%s> is not bridged,  bridged_id=%s, " % (username, bridged_user.bridged_id))
+				self.out_SERVERMSG(client, "<%s> is not bridged,  bridged_id=%s, " % (bridged_user.username, bridged_user.bridged_id))
 			self.out_SERVERMSG(client, "Last bridged: %s" % bridged_user.last_bridged.strftime('%b %d, %Y'))
 			self.out_SERVERMSG(client, "external_id=%s,  location=%s,  external_username=%s" % (bridged_user.external_id, bridged_user.location, bridged_user.external_username))			
 		else:
