@@ -78,7 +78,7 @@ class DataHandler:
 		self.user_ids = {} #user_id->client
 		self.clients = {} #session_id->client
 
-		self.bridged_locations = {} #location->client
+		self.bridged_locations = {} #location->bridge_user_id
 		self.bridged_ids = {} #bridged_id->bridgedClient
 		self.bridged_usernames = {} #bridgeUsername->bridgedClient
 
