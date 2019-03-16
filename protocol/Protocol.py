@@ -2527,11 +2527,12 @@ class Protocol:
 					self.out_SERVERMSG(client, "User <%s> is static" % username)
 					return
 				self.out_SERVERMSG(client, "<%s> is online,  user_id=%d,  session_id=%d" % (user.username, user.user_id, user.session_id))
+				ingame_time = int(self._root.usernames[user.username].ingame_time)	
 			else:
 				self.out_SERVERMSG(client, "<%s> is offline,  user_id=%s" % (user.username, user.user_id))
+				ingametime = int(user.ingame_time)
 			register_date = user.register_date.strftime('%b %d, %Y') if user.register_date else 'unknown'
 			self.out_SERVERMSG(client, "Registered %s,  last login %s" % (register_date, user.last_login.strftime('%b %d, %Y')))
-			ingame_time = int(self._root.usernames[user.username].ingame_time)	
 			self.out_SERVERMSG(client, "access=%s,  bot=%s,  ingame_time=%d hours" % (user.access, user.bot, ingame_time/60))
 			self.out_SERVERMSG(client, "email=%s" % (user.email))
 			self.out_SERVERMSG(client, "last_ip=%s,  last_id=%s" % (user.last_ip, user.last_id))
