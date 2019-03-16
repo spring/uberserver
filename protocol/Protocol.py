@@ -378,7 +378,9 @@ class Protocol:
 		allowed = False
 
 		if command not in self.restricted_list:
-			self.out_SERVERMSG(client, '%s failed. Unknown command.' % command, True)
+			if args and len(args)>64:
+				args = args[:64] + "..."				
+			self.out_SERVERMSG(client, "%s failed. Unknown command. (args='%s')" % (command, args), True)
 			return False
 
 		for level in client.accesslevels:
