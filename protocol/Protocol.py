@@ -2520,6 +2520,9 @@ class Protocol:
 				self.out_SERVERMSG(client, "User '%s' does not exist" % username)
 				return
 			if user.username in self._root.usernames:
+				if user.static:
+					self.out_SERVERMSG(client, "User <%s> is static" % username)
+					return
 				self.out_SERVERMSG(client, "<%s> is online,  user_id=%d,  session_id=%d" % (user.username, user.user_id, user.session_id))
 			else:
 				self.out_SERVERMSG(client, "<%s> is offline,  user_id=%s" % (user.username, user.user_id))
