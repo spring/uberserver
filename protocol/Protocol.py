@@ -2530,7 +2530,7 @@ class Protocol:
 				ingame_time = int(self._root.usernames[user.username].ingame_time)	
 			else:
 				self.out_SERVERMSG(client, "<%s> is offline,  user_id=%s" % (user.username, user.user_id))
-				ingametime = int(user.ingame_time)
+				ingame_time = int(user.ingame_time)
 			register_date = user.register_date.strftime('%b %d, %Y') if user.register_date else 'unknown'
 			self.out_SERVERMSG(client, "Registered %s,  last login %s" % (register_date, user.last_login.strftime('%b %d, %Y')))
 			self.out_SERVERMSG(client, "access=%s,  bot=%s,  ingame_time=%d hours" % (user.access, user.bot, ingame_time/60))
