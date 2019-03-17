@@ -1050,7 +1050,7 @@ class Protocol:
 			return
 		if sentence_args.count('\t')==0: # fixme: backwards compat for Melbot / Statserv
 			lobby_id = sentence_args
-			last_id = 0
+			last_id = "0"
 		elif not self._validLoginSentence(sentence_args):
 			logging.warning("Invalid login sentence '%s' from <%s>" % (sentence_args, username))
 			self.out_DENIED(client, username, 'Invalid sentence format, please update your lobby client.', False)
