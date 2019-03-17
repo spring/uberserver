@@ -312,7 +312,7 @@ class Protocol:
 			self.in_LEAVEBATTLE(client)
 		for chan in list(client.channels):
 			channel = self._root.channels[chan]
-			self.in_LEAVE(client, chan, reason)
+			self.in_LEAVE(client, chan, 'disconnected')
 		for battle_id, battle in self._root.battles.items():
 			if client.session_id in battle.pending_users:
 				battle.pending_users.remove(client.session_id)
