@@ -66,9 +66,8 @@ class Client(BaseClient):
 		self.lastsaid = {}
 		
 		# for if we are a bridge bot
-		self.bridged_external_ids = {} #external_id->bridged_id
-		self.bridged_locations = {} #location->n_bridged_clients
-
+		self.bridge = {} #location->{external_id->bridged_id}
+		
 		# perhaps these are unused?
 		self.cpu = 0
 		self.data = ''

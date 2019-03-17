@@ -436,10 +436,10 @@ class DataHandler:
 	def bridgedClient(self, location, external_id, fromdb=False):
 		if location in self.bridged_locations:
 			bridge_user_id = self.bridged_locations[location]
-			bridge = self.protocol.clientFromID(bridge_user_id)
-			if external_id in bridge.bridged_external_ids:
-				bridged_id = bridge.bridged_external_ids[external_id]
-				assert(bridged_id in self.bridged_ids)
+			bridge_user = self.protocol.clientFromID(bridge_user_id)
+			bridge = bridge_user.bridge
+			if external_id in bridge[location]:
+				bridged_id = bridge[location][external_id]
 				return self.bridged_ids[bridged_id]
 		if not fromdb:
 			return False

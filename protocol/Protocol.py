@@ -297,14 +297,15 @@ class Protocol:
 		logging.info('[%s] <%s> disconnected from %s: %s'%(client.session_id, client.username, client.ip_address, reason))
 
 		# remove all references related to the client
-		bridged_clients = client.bridged_external_ids.copy() # avoid modifying dict while iterating
-		for external_id, bridged_id in bridged_clients.items():
-			bridgedClient = self._root.bridgedClientFromID(bridged_id)
-			bridgedClient_channels = bridgedClient.channels.copy()
-			for chan in bridgedClient_channels:
-				self.in_LEAVEFROM(client, chan, bridgedClient.location, bridgedClient.external_id)
-			self.in_UNBRIDGECLIENTFROM(client, bridgedClient.location, bridgedClient.external_id)
-		for location in client.bridged_locations:
+		bridge = client.bridge
+		for location in bridge:
+			for external_id in bridge[location].copy():
+				bridged_id = bridge[location][external_id]
+				bridgedClient = self._root.bridgedClientFromID(bridged_id)
+				bridgedClient_channels = bridgedClient.channels.copy()
+				for chan in bridgedClient_channels:
+					self.in_LEAVEFROM(client, chan, bridgedClient.location, bridgedClient.external_id)
+				self.in_UNBRIDGECLIENTFROM(client, bridgedClient.location, bridgedClient.external_id)
 			del self._root.bridged_locations[location]
 
 		if client.current_battle:
@@ -1388,9 +1389,6 @@ class Protocol:
 			if not client.isHosting():
 				self.out_FAILED(client, "BRIDGECLIENTFROM", "Only bot users and battle hosts can bridge clients", True)
 				return
-			if len(client.bridged_external_ids)>256:
-				self.out_FAILED(client, "BRIDGECLIENTFROM", "You have reached your maximum allowed number (256) of bridged clients", True)
-				return
 			if location != client.username:
 				self.out_FAILED(client, "BRIDGECLIENTFROM", "You are only allowed to bridge clients with location '%s'" % client.username, True)
 				return		
@@ -1404,13 +1402,15 @@ class Protocol:
 			return
 		if not location in self._root.bridged_locations:
 			self._root.bridged_locations[location] = client.user_id
-			assert(not location in client.bridged_locations)
-			client.bridged_locations[location] = 0
+			assert(not location in client.bridge)
+			client.bridge[location] = {}
 			self.out_SERVERMSG(client, "You are now the bridge bot for location '%s'" % location)
 		if self._root.bridged_locations[location] != client.user_id:
 			existing_bridge = self.clientFromID(self._root.bridged_locations[location])
-			client.bridge_locations.add(location)
 			self.out_FAILED(client, "BRIDGECLIENTFROM", "The location '%s' is already in use by bridge bot %s" % existing_bridge.username, True)
+			return
+		if not client.bot and len(client.bridge[location])>256:
+			self.out_FAILED(client, "BRIDGECLIENTFROM", "You have reached your maximum allowed number (256) of bridged clients", True)
 			return
 
 		good, response = self._root.bridgeduserdb.bridge_user(location, external_id, external_username)
@@ -1434,8 +1434,7 @@ class Protocol:
 		bridgedClient.channels = set()
 		bridgedClient.bridge_user_id = client.user_id
 
-		client.bridged_locations[location] += 1
-		client.bridged_external_ids[bridgedClient.external_id] = bridgedClient.bridged_id
+		client.bridge[location][bridgedClient.external_id] = bridgedClient.bridged_id
 		self._root.bridged_ids[bridgedClient.bridged_id] = bridgedClient
 		self._root.bridged_usernames[bridgedClient.username] = bridgedClient
 		client.Send("BRIDGEDCLIENTFROM %s %s %s" % (bridgedClient.location, bridgedClient.external_id, bridgedClient.external_username))
@@ -1456,9 +1455,7 @@ class Protocol:
 		for chan in bridgedClient_channels:
 			self.in_LEAVEFROM(client, chan, bridgedClient.location, bridgedClient.external_id)
 
-		del client.bridged_external_ids[external_id]
-		client.bridged_locations[location] -= 1
-		assert(client.bridged_locations[location] >= 0)
+		del client.bridge[location][external_id]
 		del self._root.bridged_ids[bridgedClient.bridged_id]
 		del self._root.bridged_usernames[bridgedClient.username]
 		client.Send("UNBRIDGEDCLIENTFROM %s %s" % (bridgedClient.location, bridgedClient.external_id))
@@ -3049,7 +3046,7 @@ class Protocol:
 			for location in self._root.bridged_locations:
 				bridge_user_id = self._root.bridged_locations[location]
 				c = self._root.user_ids[bridge_user_id]
-				if not location in c.bridged_locations:
+				if not location in c.bridge:
 					logging.error("location with missing bridge: %s %s" % (location, c.username))
 					todel.append(location)
 				bridged_locations.add(location)
@@ -3057,20 +3054,23 @@ class Protocol:
 			for location in todel:
 				del self._root.bridged_locations[location]
 				logging.error("deleted invalid bridged location: %s" % location)
-				cs.n_bridged_location = cs.n_bridged_location + 1
+				n_bridged_location = n_bridged_location + 1
 			
+			# cleanup bridge locations
 			for session_id in self._root.clients:
 				c = self._root.clients[session_id]
 				todel = []
-				for location in c.bridged_locations:
-					if not location in bridged_locations:
-						logging.error("bridged with missing location: %s %s %d" % (c.username, location, c.bridge_locations[location]))
+				for location in c.bridge:
+					if not location in self._root.bridged_locations:
+						logging.error("bridge contains invalid location: %s %s" % (c.username, location))
 						todel.append(location)
+			
 				for location in todel:
-					del c.bridged_locations[location]
-					logging.error("deleted invalid bridged location from bridge: %s %s" % (c.username, location))
+					del c.bridge[location]
+					logging.error("deleted invalid location from bridge: %s %s" % (c.username, location))
 					n_bridge_location = n_bridge_location + 1
-				
+			
+			
 			# cleanup bridged usernames
 			todel = []
 			for bridged_username in self._root.bridged_usernames:
@@ -3080,10 +3080,15 @@ class Protocol:
 					todel.append(bridged_username)
 					continue
 				bridge_user = self._root.user_ids[b.bridge_user_id]
-				if not b.external_id in bridge_user.bridged_external_ids or not b.location in bridge_user.bridged_locations:
-					logging.error("bridged username missing from bridge: %s %s %s %s" % (b.username, b.external_id, b.location, bridge_user.username))
+				bridge = bridge_user.bridge
+				if not b.location in bridge:
+					logging.error("bridged_username has location missing from bridge: %d<%s> %s %s %s" % (b.bridged_id, b.username, b.location, b.external_id, bridge_user.username))
+					todel.append(bridged_username)				
+					continue
+				if not b.external_id in bridge[location]:
+					logging.error("bridged_username has external_id missing from bridge: %d<%s> %s %s %s" % (b.bridged_id, b.username, b.location, b.external_id, bridge_user.username))
 					todel.append(bridged_username)
-			
+					
 			for bridged_username in todel:
 				del self._root.bridged_usernames[bridged_username]
 				logging.error("deleted invalid bridged_username: %s" % bridged_username)
@@ -3098,8 +3103,13 @@ class Protocol:
 					todel.append(bridged_id)
 					continue
 				bridge_user = self._root.user_ids[b.bridge_user_id]
-				if not b.external_id in bridge_user.bridged_external_ids or not b.location in bridge_user.bridged_locations:
-					logging.error("bridged_id missing from bridge: %d<%s> %s %s %s" % (b.bridged_id, b.username, b.external_id, b.location, bridge_user.username))
+				bridge = bridge_user.bridge
+				if not b.location in bridge:
+					logging.error("bridged_id has location missing from bridge: %d<%s> %s %s %s" % (b.bridged_id, b.username, b.location, b.external_id, bridge_user.username))
+					todel.append(bridged_id)				
+					continue
+				if not b.external_id in bridge[location]:
+					logging.error("bridged_id has external_id missing from bridge: %d<%s> %s %s %s" % (b.bridged_id, b.username, b.location, b.external_id, bridge_user.username))
 					todel.append(bridged_id)
 			
 			for bridged_id in todel:
@@ -3107,19 +3117,21 @@ class Protocol:
 				logging.error("deleted invalid bridged_id: %s" % bridged_id)
 				n_bridged_user_id = n_bridged_user_id + 1		
 		
-			# cleanup external_ids on bridge bots
+			# cleanup bridge external_ids
 			for session_id in self._root.clients:
 				c = self._root.clients[session_id]
-				todel = []
-				for external_id in c.bridged_external_ids:
-					bridged_id = c.bridged_external_ids[external_id]
-					if not bridged_id in self._root.bridged_ids:
-						logging.error("bridge with missing bridged user: %s %s %d" % (c.username, external_id, bridged_id))
-						todel.append(external_id)
-				for external_id in todel:
-					del c.bridged_external_ids[external_id]
-					logging.error("deleted invalid external_id from bridge: %s %s" % (c.username, external_id))
-					n_bridge_external_id = n_bridge_external_id + 1
+				for location in c.bridge:
+					todel = []
+					for external_id, in c.bridge[location]:
+						bridged_id = c.bridge[location][external_id]
+						if not bridged_id in self._root.bridged_ids:
+							logging.error("bridge has external_id with missing bridged_id: %s %s %s %d" % (c.username, location, external_id, bridged_id))
+							todel.append(external_id)
+					
+					for external_id in todel:
+						del c.bridge[location][external_id]
+						logging.error("deleted invalid external_id from bridge: %s %s %s" % (c.username, location, external_id))
+						n_bridge_external_id = n_bridge_external_id + 1
 			
 			# cleanup battle users
 			for battle_id, battle in self._root.battles.items():
