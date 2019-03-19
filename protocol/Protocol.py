@@ -972,8 +972,10 @@ class Protocol:
 		client.access = 'agreement'
 		client.Send('REGISTRATIONACCEPTED')
 		
-		try: thread.start_new_thread(self._check_nonresidential_ip, (client_fromdb.user_id, client.ip_address))
-		except: logging.error('Failed to launch _check_nonresidential_ip: %s, %s, %s' % (entry, reason, wait_duration))
+		try: 
+			thread.start_new_thread(self._check_nonresidential_ip, (client_fromdb.user_id, client_fromdb.username, client.ip_address))
+		except: 
+			logging.error('Failed to launch _check_nonresidential_ip: %s, %s, %s' % (client_fromdb.user_id, client_fromdb.username, client.ip_address))
 
 		logging.info('[%s] Successfully registered user <%s>.' % (client.session_id, username))
 		ip_str = client.ip_address
@@ -981,12 +983,12 @@ class Protocol:
 			ip_str += " " + client.local_ip
 		self.broadcast_Moderator('New: %s %s %s %s' %(username, ip_str, client.country_code, email))
 	
-	def _check_nonresidential_ip(self, user_id, ip_address):
+	def _check_nonresidential_ip(self, user_id, username, ip_address):
 		if not self._root.iphub_xkey:
 			return
 		if ip_address == self._root.online_ip:
-			return
-		if ip_address in self._root.ip_type_cache:
+			block = -1
+		elif ip_address in self._root.ip_type_cache:
 			block = self._root.ip_type_cache[ip_address]
 		else:
 			try:
@@ -998,6 +1000,7 @@ class Protocol:
 				return
 			block = response.get("block")
 			self._root.ip_type_cache[ip_address] = block
+		logging.info("<%s> ip %s has type %d", (username, ip_address, block))
 		if block == 1:
 			self._root.nonres_registrations.add(user_id) # relies on GIL for thread safety!
 			
