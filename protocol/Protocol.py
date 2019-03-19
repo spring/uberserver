@@ -1000,7 +1000,7 @@ class Protocol:
 				return
 			block = response.get("block")
 			self._root.ip_type_cache[ip_address] = block
-		logging.info("<%s> ip %s has type %d", (username, ip_address, block))
+		logging.info("<%s> ip %s has type %d" % (username, ip_address, block))
 		if block == 1:
 			self._root.nonres_registrations.add(user_id) # relies on GIL for thread safety!
 			
@@ -2579,7 +2579,8 @@ class Protocol:
 				self.out_SERVERMSG(client, "<%s> is offline,  user_id=%s" % (user.username, user.user_id))
 				ingame_time = int(user.ingame_time)
 			register_date = user.register_date.strftime('%b %d, %Y') if user.register_date else 'unknown'
-			self.out_SERVERMSG(client, "Registered %s,  last login %s" % (register_date, user.last_login.strftime('%b %d, %Y')))
+			self.out_SERVERMSG(client, "Registered %s" % (register_date))
+			self.out_SERVERMSG(client, "Last login %s, %s" % (user.last_login.strftime('%b %d, %Y'), user.lobby_id))
 			self.out_SERVERMSG(client, "access=%s,  bot=%s,  ingame_time=%d hours" % (user.access, user.bot, ingame_time/60))
 			self.out_SERVERMSG(client, "email=%s" % (user.email))
 			self.out_SERVERMSG(client, "last_ip=%s,  last_id=%s" % (user.last_ip, user.last_id))
