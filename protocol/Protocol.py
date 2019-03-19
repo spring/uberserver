@@ -1039,8 +1039,7 @@ class Protocol:
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
 		if self.SayHooks.isNasty(username):
-			logging.error("Invalid username %s" %(username))
-			self.out_DENIED(client, username, "invalid username", True)
+			self.out_DENIED(client, username, "invalid username: '%s'" % username, True)
 			return
 
 		banned, reason = self.userdb.check_banned(username, client.ip_address)
@@ -3127,7 +3126,7 @@ class Protocol:
 				c = self._root.clients[session_id]
 				for location in c.bridge:
 					todel = []
-					for external_id, in c.bridge[location]:
+					for external_id in c.bridge[location]:
 						bridged_id = c.bridge[location][external_id]
 						if not bridged_id in self._root.bridged_ids:
 							logging.error("bridge has external_id with missing bridged_id: %s %s %s %d" % (c.username, location, external_id, bridged_id))
