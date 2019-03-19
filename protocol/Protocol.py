@@ -3112,7 +3112,7 @@ class Protocol:
 					logging.error("bridged_id has location missing from bridge: %d<%s> %s %s %s" % (b.bridged_id, b.username, b.location, b.external_id, bridge_user.username))
 					todel.append(bridged_id)				
 					continue
-				if not b.external_id in bridge[location]:
+				if not b.external_id in bridge[b.location]:
 					logging.error("bridged_id has external_id missing from bridge: %d<%s> %s %s %s" % (b.bridged_id, b.username, b.location, b.external_id, bridge_user.username))
 					todel.append(bridged_id)
 			
