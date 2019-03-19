@@ -140,11 +140,10 @@ class Client(BaseClient):
 				total += self.msg_length_history[iter]
 
 		if total > (bytespersecond * seconds):
-			if not self.access in ('admin', 'mod'):
-				self.Send('SERVERMSG No flooding (over %s per second for %s seconds)' % (bytespersecond, seconds))
-				self.Remove('Kicked for flooding (%s)' % (self.access))
-				self.ReportFloodBreach("flood limit", total)
-				return
+			self.Send('SERVERMSG No flooding (over %s per second for %s seconds)' % (bytespersecond, seconds))
+			self.ReportFloodBreach("flood limit", total)
+			self.Remove('Kicked for flooding (%s)' % (self.access))
+			return
 
 		# keep appending until we see at least one newline
 		self.data += data
@@ -197,11 +196,11 @@ class Client(BaseClient):
 			self.HandleProtocolCommand(command)
 
 	def ReportFloodBreach(self, type, bytes):
-		if hasattr("username"):
-			username = self.username
+		if hasattr(self, "username"):
+			user_details = "<%s>, session_id: %i" % (self.uisername, self.session_id)
 		else:
-			username = "session_id: %i" % self.session_id
-		err_msg = "%s for '%s' breached by %s (had %i bytes)" % (type, self.access, username, bytes)
+			user_details = "session_id: %i" % self.session_id
+		err_msg = "%s for '%s' breached by %s, had %i bytes" % (type, self.access, user_details, bytes)
 		self._root.protocol.broadcast_Moderator(err_msg)
 		logging.info(err_msg)
 
