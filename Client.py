@@ -197,7 +197,7 @@ class Client(BaseClient):
 
 	def ReportFloodBreach(self, type, bytes):
 		if hasattr(self, "username"):
-			user_details = "<%s>, session_id: %i" % (self.uisername, self.session_id)
+			user_details = "<%s>, session_id: %i" % (self.username, self.session_id)
 		else:
 			user_details = "session_id: %i" % self.session_id
 		err_msg = "%s for '%s' breached by %s, had %i bytes" % (type, self.access, user_details, bytes)

@@ -62,7 +62,7 @@ class ChanServClient(Client):
 				self.HandleMessage(None, user, msg)
 			if cmd == 'SAIDBATTLE': #legacy compat, if clients lacks 'u'
 				user, msg = args.split(' ', 1)
-				client = self._root.protocol.clientFromUsername(user)
+				client = self._root.clientFromUsername(user)
 				battle = self._root.protocol.getCurrentBattle(client)
 				chan = battle.name
 				self.HandleMessage(chan, user, msg)
@@ -84,7 +84,7 @@ class ChanServClient(Client):
 			cmd = msg[:n]
 			if chan == "moderator" and cmd in self._root.protocol.restricted['mod']:
 				# allow some mod commands to be executed by simply typing into #moderator
-				client = self._root.protocol.clientFromUsername(user)
+				client = self._root.clientFromUsername(user)
 				if client:
 					self._root.protocol._handle(client, msg)
 			if not chan: #pm to ChanServ
@@ -113,14 +113,14 @@ class ChanServClient(Client):
 				self.Respond('SAYPRIVATE %s %s'%(user, s))
 
 	def HandleCommand(self, user, cmd, chan=None, args=None):
-		client = self._root.protocol.clientFromUsername(user)
+		client = self._root.clientFromUsername(user)
 		cmd = cmd.lower()
 
 		if cmd == 'help':
 			return 'Hello, %s!\nI am the server bot.\nFor the full list of my commands, see https://springrts.com/wiki/ChanServ\nIf you want to go ahead and register a new channel, please contact one of the server moderators!' % user
 
 		if cmd == 'battlename':
-			host = self._root.protocol.clientFromUsername(chan, True)
+			host = self._root.clientFromUsername(chan, True)
 			if not host:
 				return "User %s does not exist" % chan
 			battle = self._root.protocol.getCurrentBattle(host)
@@ -139,7 +139,7 @@ class ChanServClient(Client):
 			if not client.isMod():
 				return '#%s: You must contact one of the server moderators to register a channel' % chan
 			if not args: args = user
-			target = self._root.protocol.clientFromUsername(args, True)
+			target = self._root.clientFromUsername(args, True)
 			if not target:
 				return '#%s: User <%s> not found' % (chan, args)
 			if not chan in self._root.channels:
@@ -248,7 +248,7 @@ class ChanServClient(Client):
 				return '#%s: You do not have permission to op users' % chan
 			if not args:
 				return '#%s: You must specify a user to op' % chan
-			target = self._root.protocol.clientFromUsername(args, True)
+			target = self._root.clientFromUsername(args, True)
 			if not target:
 				return '#%s: User <%s> not found' % (chan, args)
 			if channel.isOp(target):
@@ -261,7 +261,7 @@ class ChanServClient(Client):
 				return '#%s: You do not have permission to deop users' % chan
 			if not args:
 				return '#%s: You must specify a user to deop' % chan
-			target = self._root.protocol.clientFromUsername(args, True)
+			target = self._root.clientFromUsername(args, True)
 			if not target:
 				return '#%s: User <%s> not found' % (chan, args)
 			if target.user_id==channel.owner_user_id:
@@ -276,7 +276,7 @@ class ChanServClient(Client):
 				return '#%s: You must contact one of the server moderators or the owner of the channel to change the founder' % chan
 			if not args:
 				return '#%s: You must specify a new founder' % chan
-			target = self._root.protocol.clientFromUsername(args, True)
+			target = self._root.clientFromUsername(args, True)
 			if not target:
 				return '#%s: Cannot assign founder status to a user who does not exist'
 			channel.setFounder(client, target)
@@ -295,12 +295,12 @@ class ChanServClient(Client):
 				return "#%s: Could not parse duration %s, please enter a number of minutes or specify a time unit e.g. '10m', '2h', or '3d'" % (chan, duration_str)
 			if ':' in target_username:
 				return '#%s: Use !ban to remove a bridged user from the channel bridge (then, their chat will not be forwarded to #%s)' % (chan, chan)
-			target = self._root.protocol.clientFromUsername(target_username, True)
+			target = self._root.clientFromUsername(target_username, True)
 			if not target:
 				return '#%s: User <%s> not found' % (chan, target_username)
 			if target.user_id in channel.mutelist:
 				mute = channel.mutelist[target.user_id]
-				issuer = self._root.protocol.clientFromID(mute['issuer_user_id'])
+				issuer = self._root.clientFromID(mute['issuer_user_id'])
 				if not issuer:
 					return "#%s: User <%s> is already muted by <unknown user>" % (chan, target.username)
 				return "#%s: User <%s> is already muted by <%s>" % (chan, target.username, issuer.username)
@@ -311,7 +311,7 @@ class ChanServClient(Client):
 			except:
 				expires = datetime.max
 			channel.muteUser(client, target, expires, reason, duration)
-			return '#%s: muted <%s> %s' % (chan, target.username, self._root.protocol.pretty_time_delta(duration))
+			return '#%s: muted <%s> for %s' % (chan, target.username, self._root.protocol._pretty_time_delta(duration))
 
 		if cmd == 'unmute':
 			if not access in ['mod', 'founder', 'op']:
@@ -321,7 +321,7 @@ class ChanServClient(Client):
 				return '#%s: You must specify a user to unmute' % chan
 			if ':' in target_username:
 				return '#%s: For bridged users, use !ban/!unban' % (chan, chan)
-			target = self._root.protocol.clientFromUsername(target_username, True)
+			target = self._root.clientFromUsername(target_username, True)
 			if not target or not target.user_id in channel.mutelist:
 				return '#%s: User <%s> not found in mutelist' % (chan, target_username)
 			channel.unmuteUser(client, target)
@@ -335,11 +335,11 @@ class ChanServClient(Client):
 			mutelist_str = " -- Mutelist for %s -- " % chan
 			for user_id in channel.mutelist:
 				mute = channel.mutelist[user_id]
-				target = self._root.protocol.clientFromID(user_id, True)
+				target = self._root.clientFromID(user_id, True)
 				target_username = "id:" + str(user_id)
 				if target:
 					target_username = target.username
-				issuer = self._root.protocol.clientFromID(mute['issuer_user_id'], True)
+				issuer = self._root.clientFromID(mute['issuer_user_id'], True)
 				issuer_name_str = "unknown"
 				if issuer:
 					issuer_name_str = issuer.username
@@ -363,7 +363,7 @@ class ChanServClient(Client):
 					return '#%s: Bridged user <%s> not found' % (chan, target_username)
 				if target.bridged_id in channel.bridged_ban:
 					ban = channel.bridged_ban[target.bridged_id]
-					issuer = self._root.protocol.clientFromID(ban['issuer_user_id'])
+					issuer = self._root.clientFromID(ban['issuer_user_id'])
 					if not issuer:
 						return "#%s: User <%s> is already banned by <unknown user>" % (chan, target.username)
 					return "#%s: User <%s> is already banned by <%s>" % (chan, target.username, issuer.username)
@@ -372,15 +372,15 @@ class ChanServClient(Client):
 				except:
 					expires = datetime.max
 				channel.banBridgedUser(client, target, expires, reason, duration)
-				return '#%s: banned <%s> %s' % (chan, target.username, self._root.protocol.pretty_time_delta(duration))
-			target = self._root.protocol.clientFromUsername(target_username, True)
+				return '#%s: banned <%s> for %s' % (chan, target.username, self._root.protocol._pretty_time_delta(duration))
+			target = self._root.clientFromUsername(target_username, True)
 			if not target:
 				return '#%s: User <%s> not found' % (chan, target_username)
 			if channel.isOp(target):
 				return '#%s: Cannot ban <%s>, user has operator status' % (chan, target.username)
 			if target.user_id in channel.ban and target.last_ip in channel.ban_ip:
 				ban = channel.ban[target.user_id]
-				issuer = self._root.protocol.clientFromID(ban['issuer_user_id'])
+				issuer = self._root.clientFromID(ban['issuer_user_id'])
 				if not issuer:
 					return "#%s: User <%s, ip %s is already banned by <unknown user>" % (chan, target.username, ban.ip_address)
 				return "#%s: User <%s>, ip %s is already banned by <%s>" % (chan, target.username, ban['ip_address'], issuer.username)
@@ -389,7 +389,7 @@ class ChanServClient(Client):
 			except:
 				expires = datetime.max
 			channel.banUser(client, target, expires, reason, duration)
-			return '#%s: banned <%s> %s' % (chan, target.username, self._root.protocol.pretty_time_delta(duration))
+			return '#%s: banned <%s> for %s' % (chan, target.username, self._root.protocol._pretty_time_delta(duration))
 
 		if cmd == 'unban':
 			if not access in ['mod', 'founder', 'op']:
@@ -405,7 +405,7 @@ class ChanServClient(Client):
 					return '#%s: User <%s> not found in bridged banlist' % (chan, target.username)
 				channel.unbanBridgedUser(client, target)
 				return '#%s: <%s> unbanned' % (chan, target.username)
-			target = self._root.protocol.clientFromUsername(target_username, True)
+			target = self._root.clientFromUsername(target_username, True)
 			if not target or not target.user_id in channel.ban:
 				return '#%s: User <%s> not found in banlist' % (chan, target.username)
 			channel.unbanUser(client, target)
@@ -419,10 +419,10 @@ class ChanServClient(Client):
 			banlist_str = " -- Banlist for %s -- " % chan
 			for user_id in channel.ban:
 				ban = channel.ban[user_id]
-				target = self._root.protocol.clientFromID(user_id, True)
+				target = self._root.clientFromID(user_id, True)
 				if not target:
 					continue
-				issuer = self._root.protocol.clientFromID(ban['issuer_user_id'], True)
+				issuer = self._root.clientFromID(ban['issuer_user_id'], True)
 				issuer_name_str = "unknown"
 				if issuer:
 					issuer_name_str = issuer.username
@@ -432,7 +432,7 @@ class ChanServClient(Client):
 				target = self._root.bridgedClientFromID(bridged_id, True)
 				if not target:
 					continue
-				issuer = self._root.protocol.clientFromID(ban['issuer_user_id'])
+				issuer = self._root.clientFromID(ban['issuer_user_id'])
 				issuer_name_str = "unknown"
 				if issuer:
 					issuer_name_str = issuer.username
@@ -446,7 +446,7 @@ class ChanServClient(Client):
 			target_username = args
 			if not target_username:
 				return '#%s: You must specify a user to kick from the channel' % chan
-			target = self._root.protocol.clientFromUsername(args, True)
+			target = self._root.clientFromUsername(args, True)
 			if not target or not target.session_id in channel.users:
 				return '#%s: User <%s> not found' % (chan, target_username)
 			if channel.isOp(target):
@@ -467,13 +467,13 @@ class ChanServClient(Client):
 				antispam = "Anti-spam protection is on"
 			founder = 'No founder is registered'
 			if channel.owner_user_id:
-				founder = self._root.protocol.clientFromID(channel.owner_user_id, True)
+				founder = self._root.clientFromID(channel.owner_user_id, True)
 				if founder: founder = 'Founder is <%s>' % founder.username
 			operators = channel.operators
 			op_list = "Operator list is "
 			separator = '['
 			for op_user_id in operators:
-				op_entry = self._root.protocol.clientFromID(op_user_id, True)
+				op_entry = self._root.clientFromID(op_user_id, True)
 				if op_entry:
 					op_list += separator + op_entry.username
 					if separator == '[': separator = ' '

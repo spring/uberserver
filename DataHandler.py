@@ -1,6 +1,7 @@
 import time, sys, os, socket
 
 import traceback
+import importlib
 import SQLUsers
 import ChanServ
 import ip2country
@@ -202,7 +203,7 @@ class DataHandler:
 		for op in operators:
 			dbchannel = self.channeldb.channel_from_id(op['channel_id'])
 			if dbchannel:
-				target = self.protocol.clientFromID(op['user_id'], True)
+				target = self.clientFromID(op['user_id'], True)
 				if not target: continue
 				self.channels[dbchannel.name].opUser(self.chanserv, target)
 
@@ -210,9 +211,9 @@ class DataHandler:
 		for ban in bans:
 			dbchannel = self.channeldb.channel_from_id(ban['channel_id'])
 			if dbchannel:
-				target = self.protocol.clientFromID(ban['user_id'], True)
+				target = self.clientFromID(ban['user_id'], True)
 				if not target: continue
-				issuer = self.protocol.clientFromID(ban['issuer_user_id'], True)
+				issuer = self.clientFromID(ban['issuer_user_id'], True)
 				if not issuer: issuer = self.chanserv
 				duration = ban['expires'] - now
 				self.channels[dbchannel.name].banUser(issuer, target, ban['expires'], ban['reason'], duration)
@@ -223,7 +224,7 @@ class DataHandler:
 			if dbchannel:
 				target = self.bridgedClientFromID(ban['bridged_id'], True)
 				if not target: continue
-				issuer = self.protocol.clientFromID(ban['issuer_user_id'], True)
+				issuer = self.clientFromID(ban['issuer_user_id'], True)
 				if not issuer: issuer = self.chanserv
 				duration = ban['expires'] - now
 				self.channels[dbchannel.name].banBridgedUser(issuer, target, ban['expires'], ban['reason'], duration)
@@ -232,14 +233,14 @@ class DataHandler:
 		for mute in mutes:
 			dbchannel = self.channeldb.channel_from_id(mute['channel_id'])
 			if dbchannel:
-				target = self.protocol.clientFromID(mute['user_id'], True)
+				target = self.clientFromID(mute['user_id'], True)
 				if not target: continue
-				issuer = self.protocol.clientFromID(mute['issuer_user_id'], True)
+				issuer = self.clientFromID(mute['issuer_user_id'], True)
 				if not issuer: issuer = self.chanserv
 				duration = mute['expires'] - now
 				self.channels[dbchannel.name].muteUser(issuer, target, mute['expires'], mute['reason'], duration)
 
-	def clean(self):
+	def scheduled_clean(self):
 		logging.info("scheduled clean...")
 		self.ip_type_cache = {}
 		try:
@@ -424,14 +425,28 @@ class DataHandler:
 	def getBanDB(self):
 		return self.bandb
 
-	def clientFromID(self, user_id):
-		if user_id in self.user_ids: return self.user_ids[user_id]
-
-	def clientFromUsername(self, username):
-		if username in self.usernames: return self.usernames[username]
-
+	def clientFromID(self, user_id, fromdb=False):
+		if user_id in self.user_ids: 
+			return self.user_ids[user_id]
+		if not fromdb: 
+			return None
+		return self.userdb.clientFromID(user_id)
+			
+	def clientFromUsername(self, username, fromdb=False):
+		if username in self.usernames: 
+			return self.usernames[username]
+		if not fromdb: 
+			return None
+		client = self.userdb.clientFromUsername(username)
+		if client:
+			self.protocol._calc_access(client)
+		return client
+		
 	def clientFromSession(self, session_id):
-		if session_id in self.clients: return self.clients[session_id]
+		if session_id in self.clients: 
+			return self.clients[session_id]
+		logging.warning("tried to get client from invalid session_id '%s'" % session_id)
+		return None
 
 	def bridgedClient(self, location, external_id, fromdb=False):
 		if location in self.bridged_locations:
@@ -594,10 +609,6 @@ class DataHandler:
 			if 'admin' in client.accesslevels:
 				client.Send('SERVERMSG Admin broadcast: %s'%msg)
 
-	def reload(self):
-		self.parseFiles()
-		ip2country.reloaddb()
-
 	def get_ip_address(self):
 		try:
 			s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -645,4 +656,72 @@ class DataHandler:
 		server.listen(backlog)
 		return server
 
+	def stats(self):
+		logging.info(" -- STATS -- ")
+		logging.info("Command counts:")
+		for k in self.command_stats:
+			logging.info(" %s %d" % (k, self.command_stats[k]))
+		logging.info("Number of logins: %d" % self.n_login_stats)
+		logging.info("TLS logins: %d" % self.tls_stats)
+		logging.info("Agents:")
+		for k in sorted(self.agent_stats):
+			count = self.agent_stats[k]
+			logging.info(" %s  %d" % (k, count))
+		logging.info("Flags sent:")
+		for k in sorted(self.flag_stats):
+			count = self.flag_stats[k]
+			logging.info(" %s %d" % (k, count))
+		logging.info(" -- END STATS -- ")		
+		
+	def client_LoginStats(self, client):
+		# record stats for this clients login
+		self.n_login_stats += 1
+		if client.TLS:
+			self.tls_stats += 1
+		for flag in client.compat:
+			if flag in self.flag_stats:
+				self.flag_stats[flag] += 1
+			else:
+				self.flag_stats[flag] = 1
+		if client.lobby_id in self.agent_stats:
+			self.agent_stats[client.lobby_id] += 1
+		else:
+			self.agent_stats[client.lobby_id] = 1
+	
+	def reload(self, client):
+		# reload non-core parts of the server
+		logging.info("Reload initiated by <%s>" % client.username)
 
+		try:
+			self.parseFiles()
+			importlib.reload(sys.modules['BaseClient'])
+			importlib.reload(sys.modules['Client'])
+			importlib.reload(sys.modules['BridgedClient'])
+			importlib.reload(sys.modules['Channel'])
+			importlib.reload(sys.modules['Battle'])
+			
+			proto = importlib.reload(sys.modules['Protocol'])
+			sayhooks = importlib.reload(sys.modules['SayHooks'])
+			chanserv = importlib.reload(sys.modules['ChanServ'])
+
+			self.protocol = proto.Protocol(self)
+			self.SayHooks = sayhooks
+			
+			self.chanserv = chanserv.ChanServClient(self, (self.online_ip, 0), self.chanserv.session_id)
+			for chan in self.channels:
+				channel = self.channels[chan]
+				if channel.registered():
+					self.chanserv.channels.add(chan)				
+		
+		except Exception as e:
+			ret = 'Reload failed'
+			logging.error(ret + ":")
+			logging.error(e)
+			return ret
+			
+		ret = 'Reload successful'
+		logging.info(ret)
+		return ret
+		
+
+		

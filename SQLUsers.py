@@ -91,14 +91,14 @@ mapper(Verification, verifications_table)
 ##########################################
 logins_table = Table('logins', metadata,
 	Column('id', Integer, primary_key=True),
-	Column('user_dbid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('user_dbid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # todo: rename to user_id
 	Column('ip_address', String(15), nullable=False),
 	Column('time', DateTime),
 	Column('lobby_id', String(64)),
 	Column('local_ip', String(15)), # needs update for ipv6
 	Column('country', String(4)),
 	Column('end', DateTime),
-	Column('user_id', String(128)),
+	Column('user_id', String(128)), # todo: rename to last_id
 	mysql_charset='utf8',
 	)
 

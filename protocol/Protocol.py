@@ -6,7 +6,6 @@ import time
 import re
 import sys
 import socket
-import importlib
 import logging
 import datetime
 import base64
@@ -171,12 +170,6 @@ for level in restricted:
 	for cmd in restricted[level]:
 		restricted_list.add(cmd)
 
-ipRegex = r"^([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])$"
-re_ip = re.compile(ipRegex)
-
-def validateIP(ipAddress):
-	return re_ip.match(ipAddress)
-
 def int32(x):
 	val = int(x)
 	if val >  2147483647 : raise OverflowError
@@ -189,17 +182,6 @@ def uint32(x):
 	if val < 0 : raise OverflowError
 	return val
 
-def datetime_totimestamp(dt):
-	return int(time.mktime(dt.timetuple()))
-
-def versiontuple(version):
-	assert(len(version) > 0)
-	v = ""
-	for c in version:
-		if c not in "0123456789.":
-			break
-		v+=c
-	return tuple(map(int, (v.split("."))))
 
 # supported flags
 flag_map = {
@@ -234,7 +216,10 @@ class Protocol:
 
 		self.restricted = restricted
 		self.restricted_list = restricted_list
-
+		
+		self.ipRegex = r"^([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])\.([01]?\d\d?|2[0-4]\d|25[0-5])$"
+		self.ipRegex_compiled = re.compile(self.ipRegex)
+		
 	def _checkCompat(self, client):
 		missing_TLS = not client.TLS
 
@@ -408,7 +393,7 @@ class Protocol:
 		ret_status, fun_args = self.get_function_args(client, command, function, numspaces, args)
 		
 		if (ret_status):
-			## if fun_args is empty, this reduces to function(client)
+			# if fun_args is empty, this reduces to function(client)
 			function(*([client] + fun_args))
 
 
@@ -455,6 +440,15 @@ class Protocol:
 		else:
 			self._root.admin_broadcast('NAT spoof from %s pretending to be <%s>'%(ip,username))
 
+	def clientFromID(self, user_id, fromdb=False):
+		return self._root.clientFromID(user_id, fromdb)
+	
+	def clientFromUsername(self, username, fromdb=False):
+		return self._root.clientFromUsername(username, fromdb)
+	
+	def clientFromSession(self, session_id):
+		return self._root.clientFromSession(session_id)
+	
 	def _calc_access_status(self, client):
 		self._calc_access(client)
 		self._calc_status(client, client.status)
@@ -499,71 +493,35 @@ class Protocol:
 		status = self._bin2dec('%s%s%s%s%s%s%s'%(bot, access, rank1, rank2, rank3, away, ingame))
 		client.status = status
 
-	def _time_format(self, seconds):
-		'given a duration in seconds, returns a human-readable relative time'
-		minutesleft = float(seconds) / 60
-		hoursleft = minutesleft / 60
-		daysleft = hoursleft / 24
-		if daysleft > 7:
-			message = '%0.2f weeks' % (daysleft / 7)
-		elif daysleft == 7:
-			message = 'a week'
-		elif daysleft > 1:
-			message = '%0.2f days' % daysleft
-		elif daysleft == 1:
-			message = 'a day'
-		elif hoursleft > 1:
-			message = '%0.2f hours' % hoursleft
-		elif hoursleft == 1:
-			message = 'an hour'
-		elif minutesleft > 1:
-			message = '%0.1f minutes' % minutesleft
-		elif minutesleft == 1:
-			message = 'a minute'
-		else:
-			message = '%0.0f second(s)'%(float(seconds))
-		return message
-
-	def _time_until(self, timestamp):
-		'given a future timestamp, as returned by time.time(), returns a human-readable relative time'
-		now = time.time()
-		seconds = timestamp - now
-		if seconds <= 0:
-			return 'forever'
-		return self._time_format(seconds)
-
-	def _time_since(self, timestamp):
-		'given a past timestamp, as returned by time.time(), returns a readable relative time as a string'
-		seconds = time.time() - timestamp
-		return self._time_format(seconds)
-
-	def pretty_time_delta(self, duration):
+	def _pretty_time_delta(self, duration):
+		#given a timedelta, return a human readable time format
 		days = duration.days
 		hours, remainder = divmod(duration.seconds, 3600)
 		minutes, seconds = divmod(remainder, 60)
-		if days > 365*200:
-			return ''
-		pretty = 'for'
+		if days > 900:
+			return 'a long time'
+		pretty = ''
 		if days > 0:
-			pretty += ' %d days' % (days)
+			pretty += '%d days ' % (days)
 		if (days>0 and minutes>0) or hours > 0:
-			pretty += ' %d hours' % (hours)
+			pretty += '%d hours ' % (hours)
 		if (days>0 and hours>0) or minutes > 0:
-			pretty += ' %d minutes' % (minutes)
+			pretty += '%d minutes ' % (minutes)
 		if days == 0 and hours == 0 and minutes == 0:
-			pretty += ' %d seconds' % (seconds)
-		return pretty
+			pretty += '%d seconds ' % (seconds)
+		return pretty.strip()
 
 	def _get_motd_string(self, client):
 		motd_string = ""
+		uptime_seconds = time.time() - self._root.start_time
+		uptime = datetime.timedelta(seconds=uptime_seconds)
 		replace_vars = {
 			"{USERNAME}": str(client.username),
 			"{CLIENTS}" : str(len(self._root.clients)),
 			"{CHANNELS}": str(len(self._root.channels)),
 			"{BATTLES}" : str(len(self._root.battles)),
-			"{UPTIME}"  : str(self._time_since(self._root.start_time))
+			"{UPTIME}"  : str(self._pretty_time_delta(uptime))
 		}
-
 		if (self._root.motd):
 			for line in self._root.motd:
 				for key, value in replace_vars.items():
@@ -582,7 +540,16 @@ class Protocol:
 
 		for line in motd_lines:
 			client.RealSend('MOTD %s' % line)
-
+			
+	def _versiontuple(self, version):
+		assert(len(version) > 0)
+		v = ""
+		for c in version:
+			if c not in "0123456789.":
+				break
+			v+=c
+		return tuple(map(int, (v.split("."))))
+	
 	def _validEngineVersion(self, engine, version):
 		if engine != "spring":
 			return False
@@ -591,8 +558,11 @@ class Protocol:
 			return True
 		if not version:
 			return False
-		return versiontuple(version) >= versiontuple(minver)
+		return self.versiontuple(version) >= self.versiontuple(minver)
 
+	def _validateIP(self, ipAddress):
+		return self.ipRegex_compiled.match(ipAddress)
+	
 	def _validLegacyPasswordSyntax(self, password):
 		# checks if an old-style password is correctly encoded
 		if (not password):
@@ -697,14 +667,8 @@ class Protocol:
 			res += key + "=" + dictionary[key]
 		return res
 
-	def _informErrors(self, client):
-		if client.lobby_id in ("SpringLobby 0.188 (win x32)", "SpringLobby 0.200 (win x32)"):
-			client.Send("SAYPRIVATE ChanServ The autoupdater of SpringLobby 0.188 is broken, please manually update: https://springrts.com/phpbb/viewtopic.php?f=64&t=31224")
-		if self.SayHooks.isNasty(client.username):
-			client.Send("SAYPRIVATE ChanServ Your username is on the nasty word list. Please rename to a username which is not. If you think this is wrong, please create an issue on https://github.com/spring/uberserver/issues with the username which triggers this error.")
-
 	def _getNextBattleId(self):
-		self._root.nextbattle += 1 #FIXME: handle overflow (int32)
+		self._root.nextbattle += 1 
 		id = self._root.nextbattle
 		return id
 
@@ -717,38 +681,6 @@ class Protocol:
 			return False
 		return self._root.battles[battle_id]
 
-	def clientFromID(self, user_id, fromdb = False):
-		# todo: merge these into datahandler.py
-		if not isinstance(user_id, int):
-			logging.error("Invalid user_id: %s" % str(user_id))
-			self.cleanup()
-			return None
-		user = self._root.clientFromID(user_id)
-		if user: return user
-		if not fromdb: return None
-		return self.userdb.clientFromID(user_id)
-
-	def clientFromSession(self, session_id):
-		if not isinstance(session_id, int):
-			logging.error("Invalid session_id: %s" % str(session_id))
-			self.cleanup()
-			return None
-		if not session_id in self._root.clients:
-			logging.error("Couldn't get client from session_id: %d" % session_id)
-			self.cleanup()
-			return None		
-		return self._root.clients[session_id]
-
-	def clientFromUsername(self, username, fromdb = False):
-		'given a username, returns a client object from memory or the database'
-		client = self._root.clientFromUsername(username)
-		if fromdb and not client:
-			client = self.userdb.clientFromUsername(username)
-			if client:
-				client.user_id = client.id
-				self._calc_access(client)
-		return client
-		
 	def broadcast_AddBattle(self, battle):
 		for cid, client in self._root.usernames.items():
 			client.Send(self.client_AddBattle(client, battle))
@@ -757,16 +689,16 @@ class Protocol:
 		for cid, client in self._root.usernames.items():
 			client.Send('BATTLECLOSED %s' % battle.battle_id)
 
-	# the sourceClient is only sent for SAY*, and RING commands
 	def broadcast_SendBattle(self, battle, data, sourceClient=None, flag=None, not_flag=None):
+		# the sourceClient is only sent for SAY*, and RING commands
 		if sourceClient:
-			dbid = sourceClient.user_id
-			if dbid in battle.mutelist:
-				endtime = battle.mutelist[dbid]
-				if endtime < datetime.datetime.now():
-					self.out_FAILED(sourceClient, "SAY", "You are muted in this battle until %s!" %(enddate))
-					return
-				battle.mutelist.remove[dbid]
+			user_id = sourceClient.user_id
+			if user_id in battle.mutelist:
+				endtime = battle.mutelist[user_id]
+				if endtime > datetime.datetime.now():
+					self.out_SERVERMSG(sourceClient, "SAY You are muted in this battle until %s!" %(endtime))
+				else:
+					battle.mutelist.remove[user_id]
 
 		for session_id in battle.users:
 			client = self.clientFromSession(session_id)
@@ -834,21 +766,6 @@ class Protocol:
 			title = battle.title
 		return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' % (battle.battle_id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded(), battle.rank, battle.maphash, battle.map, title, battle.modname)
 	
-	def client_LoginStats(self, client):
-		# record stats for this clients login
-		self._root.n_login_stats += 1
-		if client.TLS:
-			self._root.tls_stats += 1
-		for flag in client.compat:
-			if flag in self._root.flag_stats:
-				self._root.flag_stats[flag] += 1
-			else:
-				self._root.flag_stats[flag] = 1
-		if client.lobby_id in self._root.agent_stats:
-			self._root.agent_stats[client.lobby_id] += 1
-		else:
-			self._root.agent_stats[client.lobby_id] = 1
-	
 	def is_ignored(self, client, ignoredClient):
 		# verify that this is an online client (only those have an .ignored attr)
 		if hasattr(client, "ignored"):
@@ -912,6 +829,12 @@ class Protocol:
 		sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 		sock.sendto('Port testing...', (host, port))
 		sock.close()
+
+	def in_STLS(self, client):
+		self.out_OK(client, "STLS")
+		client.StartTLS()
+		client.flushBuffer()
+		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0')))
 
 	def in_REGISTER(self, client, username, password, email = ''):
 		'''
@@ -1009,7 +932,7 @@ class Protocol:
 			time_waited = datetime.datetime.now() - client.register_date
 			if time_waited.days == 0 and time_waited.seconds < 24*3600:
 				time_remaining = datetime.timedelta(1,0,0) - time_waited
-				return True, 'Your registration was detected as a non-residential IP address and will be delayed for 24 hours. Time remaining: %s' % self.pretty_time_delta(time_remaining)
+				return True, 'Your registration was detected as a non-residential IP address and will be delayed for 24 hours. Time remaining: %s' % self._pretty_time_delta(time_remaining)
 			else:
 				self._root.nonres_registrations.remove(client.user_id)
 		return False, ''
@@ -1110,7 +1033,7 @@ class Protocol:
 			del self._root.recent_failed_logins[client.ip_address]		
 
 		client.local_ip = local_ip
-		if local_ip.startswith('127.') or not validateIP(local_ip):
+		if local_ip.startswith('127.') or not self._validateIP(local_ip):
 			client.local_ip = client.ip_address
 
 		if client.ip_address in self._root.trusted_proxies:
@@ -1120,7 +1043,7 @@ class Protocol:
 		#assert(not user_or_error.username in self._root.usernames)
 		#assert(client.user_id >= 0)
 
-		self.client_LoginStats(client)
+		self._root.client_LoginStats(client)
 		self._SendLoginInfo(client)
 
 	def _SendLoginInfo(self, client):
@@ -1163,7 +1086,6 @@ class Protocol:
 
 		client.RealSend('LOGININFOEND')
 		client.flushBuffer()
-		self._informErrors(client)
 		self.broadcast_AddUser(client) # send ADDUSER to all clients except self
 		if client.status != 0:
 			self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status)) # broadcast current client status
@@ -1884,8 +1806,8 @@ class Protocol:
 		battle.maphash = maphash
 		battle.modname = modname
 		battle.hashcode = hashcode
-		battle.engine=engine
-		battle.version=version
+		battle.engine = engine
+		battle.version = version
 		battle.rank = rank
 		battle.maxplayers = maxplayers
 
@@ -2241,7 +2163,8 @@ class Protocol:
 			return
 		msgs = self.userdb.get_channel_messages(client.user_id, channel.id, lastid)
 		for msg in msgs:
-			self.out_JSON(client,  'SAID', {"chanName": chan, "time": str(datetime_totimestamp(msg[0])), "userName": msg[1], "msg": msg[2], "id": msg[3]})
+			timestamp = int(time.mktime(msg[0].timetuple()))
+			self.out_JSON(client,  'SAID', {"chanName": chan, "time": str(timestamp), "userName": msg[1], "msg": msg[2], "id": msg[3]})
 
 	def in_RING(self, client, username):
 		'''
@@ -2686,12 +2609,7 @@ class Protocol:
 		return
 
 	def in_SETBOTMODE(self, client, username, mode):
-		'''
-		Set the bot flag of target user.
-
-		@required.str username: The target user.
-		@required.bool mode: The resulting bot mode.
-		'''
+		# set bot mode of target user
 		online = False
 		user = self.clientFromUsername(username)
 		if user:
@@ -2715,38 +2633,18 @@ class Protocol:
 			self.broadcast_Moderator('User <%s> had botflag removed by <%s>' % (username, client.username))
 
 	def in_BROADCAST(self, client, msg):
-		'''
-		Broadcast a message.
-
-		@required.str message: The message to broadcast.
-		'''
 		self._root.broadcast('BROADCAST %s'%msg)
 
 	def in_BROADCASTEX(self, client, msg):
-		'''
-		Broadcast a message to be shown especially by lobby clients.
-
-		@required.str message: The message to broadcast.
-		'''
 		self._root.broadcast('SERVERMSGBOX %s'%msg)
 
 	def in_ADMINBROADCAST(self, client, msg):
-		'''
-		Broadcast a message to administrative users.
-
-		@required.str message: The message to broadcast.
-		'''
 		self._root.admin_broadcast(msg)
 
 	def in_SETMINSPRINGVERSION(self, client, version):
-		'''
-		Set a new min Spring version.
-
-		@required.str version: The new version to apply.
-		'''
+		# set the minimal engine version for botflagged hosts
 		self._root.min_spring_version = version
 		self.in_BROADCAST(client, 'New engine version: Spring %s' % version)
-
 		legacyBattleIds = []
 		for battleId, battle in self._root.battles.items():
 			if battle.hasBotflag() and not self._validEngineVersion(battle.engine, battle.version):
@@ -2760,11 +2658,7 @@ class Protocol:
 			del self._root.battles[battleId]
 
 	def in_EXIT(self, client, reason=('Exiting')):
-		'''
-		Disconnect from the server, with an optional reason.
-
-		optional.str reason: The reason for exiting.
-		'''
+		# disconnect from the server, with an optional reason.
 		if reason: reason = 'Quit: %s' % reason
 		else: reason = 'Quit'
 		client.Remove(reason)
@@ -2779,12 +2673,7 @@ class Protocol:
 		client.Send("COMPFLAGS %s" %(flags))
 
 	def in_KICK(self, client, username, reason=''):
-		'''
-		Kick target user from the server.
-
-		@required.str username: The target user.
-		@optional.str reason: The reason to be shown.
-		'''
+		# kick target username from server
 		kickeduser = self.clientFromUsername(username)
 		if not kickeduser:
 			self.out_SERVERMSG(client, 'User <%s> was not online' % username)
@@ -2854,13 +2743,7 @@ class Protocol:
 		self.out_SERVERMSG(client, 'Blacklist is empty')
 
 	def in_SETACCESS(self, client, username, access):
-		'''
-		Set the access level of target user.
-
-		@required.str username: The target user.
-		@required.str access: The new access to apply.
-		Access levels: user, mod, admin
-		'''
+		# set the access level of target user.
 		user = self.clientFromUsername(username, True)
 		if not user:
 			self.out_SERVERMSG(client, "User not found.")
@@ -2887,72 +2770,24 @@ class Protocol:
 	def in_STATS(self, client):
 		if not 'admin' in client.accesslevels:
 			return		
-		logging.info(" -- STATS -- ")
-		logging.info("Command counts:")
-		for k in sorted(self.restricted_list):
-			count = self._root.command_stats[k] if k in self._root.command_stats else 0
-			if count > 0:
-				logging.info(" %s %d" % (k, count))
-		logging.info("Number of logins: %d" % self._root.n_login_stats)
-		logging.info("TLS logins: %d" % self._root.tls_stats)
-		logging.info("Agents:")
-		for k in sorted(self._root.agent_stats):
-			count = self._root.agent_stats[k]
-			logging.info(" %s  %d" % (k, count))
-		logging.info("Flags sent:")
-		for k in sorted(self._root.flag_stats):
-			count = self._root.flag_stats[k]
-			logging.info(" %s %d" % (k, count))
-		logging.info(" -- END STATS -- ")
+		self._root.stats()
 		self.out_SERVERMSG(client, 'Stats were printed in the server logfile')
 	
 	def in_RELOAD(self, client):
-		'''
-		Reload core parts of the server code from source.
-		Do not use this for changes unless you are very confident in your ability to recover from a mistake.
-		'''
-		if not 'admin' in client.accesslevels:
-			return
-	
 		self.broadcast_Moderator('Reload initiated by <%s>' % client.username)
-		logging.info("Reload initiated by <%s>" % client.username)
-
-		try:
-			self._root.reload()
-			proto = importlib.reload(sys.modules['Protocol'])
-			chan = importlib.reload(sys.modules['Channel'])
-			bat = importlib.reload(sys.modules['Battle'])
-			chanserv = importlib.reload(sys.modules['ChanServ'])
-			sayhooks = importlib.reload(sys.modules['SayHooks'])
-			importlib.reload(sys.modules['BaseClient'])
-			importlib.reload(sys.modules['Client'])
-			importlib.reload(sys.modules['BridgedClient'])
-			importlib.reload(sys.modules['ip2country'])
-
-			self = proto.Protocol(self._root)
-			self._root.protocol = self
-			self._root.SayHooks = sayhooks
-			
-			self._root.chanserv = chanserv.ChanServClient(self._root, (self._root.online_ip, 0), self._root.chanserv.session_id)
-			for chan in self._root.channels:
-				channel = self._root.channels[chan]
-				if channel.registered():
-					self._root.chanserv.channels.add(chan)				
-		
-		except Exception as e:
-			self.broadcast_Moderator('Reload failed')
-			self.out_SERVERMSG(client, 'Reload failed')
-			logging.error("Reload failed:")
-			logging.error(e)
-			
-		self.broadcast_Moderator('Reload successful')
-		self.out_SERVERMSG(client, 'Reload successful')
-		logging.info("Reload sucessful")
+		if not 'admin' in client.accesslevels:
+			return		
+		ret = self._root.reload(client)
+		self.broadcast_Moderator(ret)
+		self.out_SERVERMSG(client, ret)
 
 	def in_CLEANUP(self, client):
+		if not 'admin' in client.accesslevels:
+			return		
 		self.cleanup(client)
-
+		
 	def cleanup(self, client=None):
+		# keep calm, delete all inconsistencies, and carry on
 		if client:
 			self.broadcast_Moderator('Cleanup initiated by <%s>' % (client.username))
 			logging.info('Cleanup initiated by <%s>' % (client.username))
@@ -2981,13 +2816,15 @@ class Protocol:
 		n_channel_bridged_user = 0
 		
 		n_mismatch = 0
+		
+		root = self._root
 				
 		try:
 			# cleanup clients/sessions
 			dupcheck = set()
 			todel = []
-			for session_id in self._root.clients:
-				c = self._root.clients[session_id]
+			for session_id in root.clients:
+				c = root.clients[session_id]
 				if not c.connected:
 					logging.error("client not connected: %s %d" % (c.username, c.session_id))
 					todel.append(c)
@@ -2995,77 +2832,77 @@ class Protocol:
 					logging.error("client username failed dup check: %s %d" % (c.username, c.session_id))
 					todel.append(c)
 				dupcheck.add(c.username)
-				if c.username not in self._root.usernames:
+				if c.username not in root.usernames:
 					logging.error("client with missing username: %s %d" % (c.username, c.session_id))
 					todel.append(c)
 					continue
-				d = self._root.usernames[c.username]
+				d = root.usernames[c.username]
 				if d.session_id != c.session_id:
 					logging.error("missmatched session_id: (%s %d) (%s %d)" % (c.username, c.session_id, d.username, d.session_id))
 				
 			for c in todel:
-				del self._root.clients[c.session_id]
+				del root.clients[c.session_id]
 				logging.error("deleted invalid client: %s %d" % (c.username, c.session_id))
 				n_client = n_client + 1
 				
 			# cleanup usernames
 			todel = []
-			for username in self._root.usernames:
-				c = self._root.usernames[username]
-				if not c.session_id in self._root.clients:
+			for username in root.usernames:
+				c = root.usernames[username]
+				if not c.session_id in root.clients:
 					logging.error("username with missing client: %s %d" % (c.username, c.session_id))
 					todel.append(username)
 					continue
-				d = self._root.clients[c.session_id]
+				d = root.clients[c.session_id]
 				if d.username != c.username:
 					logging.error("missmatched username: (%s %d) (%s %d)" % (d.username, d.session_id, c.username, c.session_id))
 					cs.n_mismatch = cs.n_mismatch + 1
 			
 			for username in todel:
-				del self._root.usernames[username]
+				del root.usernames[username]
 				logging.error("deleted invalid username: %s" % username)
 				n_username = n_username + 1
 			
 			# cleanup user_ids
 			todel = []
-			for user_id in self._root.user_ids:
-				c = self._root.user_ids[user_id]
-				if not c.session_id in self._root.clients:
+			for user_id in root.user_ids:
+				c = root.user_ids[user_id]
+				if not c.session_id in root.clients:
 					logging.error("user_id with missing client: %d<%s> %d" % (c.user_id, c.username, c.session_id))
 					todel.append(user_id)
 					continue
-				d = self._root.clients[c.session_id]
+				d = root.clients[c.session_id]
 				if d.user_id != c.user_id:
 					logging.error("missmatched user_id: (%d<%s> %d) (%d<%s> %d)" % (d.user_id, d.username, d.session_id, c.user_id, c.username, c.session_id))
 					n_mismatch = n_mismatch + 1
 			
 			for user_id in todel:
-				del self._root.user_ids[user_id]
+				del root.user_ids[user_id]
 				logging.error("deleted invalid user_id: %d" % user_id)
 				n_user_id = n_user_id + 1
 			
 			# cleanup bridged locations
 			todel = []
 			bridged_locations = set()
-			for location in self._root.bridged_locations:
-				bridge_user_id = self._root.bridged_locations[location]
-				c = self._root.user_ids[bridge_user_id]
+			for location in root.bridged_locations:
+				bridge_user_id = root.bridged_locations[location]
+				c = root.user_ids[bridge_user_id]
 				if not location in c.bridge:
 					logging.error("location with missing bridge: %s %s" % (location, c.username))
 					todel.append(location)
 				bridged_locations.add(location)
 				
 			for location in todel:
-				del self._root.bridged_locations[location]
+				del root.bridged_locations[location]
 				logging.error("deleted invalid bridged location: %s" % location)
 				n_bridged_location = n_bridged_location + 1
 			
 			# cleanup bridge locations
-			for session_id in self._root.clients:
-				c = self._root.clients[session_id]
+			for session_id in root.clients:
+				c = root.clients[session_id]
 				todel = []
 				for location in c.bridge:
-					if not location in self._root.bridged_locations:
+					if not location in root.bridged_locations:
 						logging.error("bridge contains invalid location: %s %s" % (c.username, location))
 						todel.append(location)
 			
@@ -3077,13 +2914,13 @@ class Protocol:
 			
 			# cleanup bridged usernames
 			todel = []
-			for bridged_username in self._root.bridged_usernames:
-				b = self._root.bridged_usernames[bridged_username]
-				if not b.bridge_user_id or not b.bridge_user_id in self._root.user_ids:
+			for bridged_username in root.bridged_usernames:
+				b = root.bridged_usernames[bridged_username]
+				if not b.bridge_user_id or not b.bridge_user_id in root.user_ids:
 					logging.error("bridged username with missing bridge: %s %d" % (b.username, b.bridge_user_id))
 					todel.append(bridged_username)
 					continue
-				bridge_user = self._root.user_ids[b.bridge_user_id]
+				bridge_user = root.user_ids[b.bridge_user_id]
 				bridge = bridge_user.bridge
 				if not b.location in bridge:
 					logging.error("bridged_username has location missing from bridge: %d<%s> %s %s %s" % (b.bridged_id, b.username, b.location, b.external_id, bridge_user.username))
@@ -3094,19 +2931,19 @@ class Protocol:
 					todel.append(bridged_username)
 					
 			for bridged_username in todel:
-				del self._root.bridged_usernames[bridged_username]
+				del root.bridged_usernames[bridged_username]
 				logging.error("deleted invalid bridged_username: %s" % bridged_username)
 				n_bridged_username = n_bridged_username + 1
 			
 			# cleanup bridged_ids
 			todel = []
-			for bridged_id in self._root.bridged_ids:
-				b = self._root.bridged_ids[bridged_id]
-				if not b.bridge_user_id or not b.bridge_user_id in self._root.user_ids:
+			for bridged_id in root.bridged_ids:
+				b = root.bridged_ids[bridged_id]
+				if not b.bridge_user_id or not b.bridge_user_id in root.user_ids:
 					logging.error("bridged_id with missing bridge: %d<%s> %d" % (b.bridged_id, b.username, b.bridge_user_id))
 					todel.append(bridged_id)
 					continue
-				bridge_user = self._root.user_ids[b.bridge_user_id]
+				bridge_user = root.user_ids[b.bridge_user_id]
 				bridge = bridge_user.bridge
 				if not b.location in bridge:
 					logging.error("bridged_id has location missing from bridge: %d<%s> %s %s %s" % (b.bridged_id, b.username, b.location, b.external_id, bridge_user.username))
@@ -3117,18 +2954,18 @@ class Protocol:
 					todel.append(bridged_id)
 			
 			for bridged_id in todel:
-				del self._root.bridged_ids[bridged_id]
+				del root.bridged_ids[bridged_id]
 				logging.error("deleted invalid bridged_id: %s" % bridged_id)
 				n_bridged_user_id = n_bridged_user_id + 1		
 		
 			# cleanup bridge external_ids
-			for session_id in self._root.clients:
-				c = self._root.clients[session_id]
+			for session_id in root.clients:
+				c = root.clients[session_id]
 				for location in c.bridge:
 					todel = []
 					for external_id in c.bridge[location]:
 						bridged_id = c.bridge[location][external_id]
-						if not bridged_id in self._root.bridged_ids:
+						if not bridged_id in root.bridged_ids:
 							logging.error("bridge has external_id with missing bridged_id: %s %s %s %d" % (c.username, location, external_id, bridged_id))
 							todel.append(external_id)
 					
@@ -3138,62 +2975,56 @@ class Protocol:
 						n_bridge_external_id = n_bridge_external_id + 1
 			
 			# cleanup battle users
-			for battle_id, battle in self._root.battles.items():
+			for battle_id, battle in root.battles.items():
 				for session_id in battle.users.copy():
-					if not session_id in self._root.clients:
+					if not session_id in root.clients:
 						battle.users.remove(session_id)
 						logging.error("deleted invalid session %d from battle %d" % (session_id, battle_id))
 						n_battle_user = n_battle_user + 1
 				for session_id in battle.pending_users.copy():
-					if not session_id in self._root.clients:
+					if not session_id in root.clients:
 						battle.pending_users.remove(session_id)
 						logging.error("deleted invalid session %d from pending users for battle %d" % (session_id, battle_id))
 						n_battle_pending_user = n_battle_pending_user + 1
 
 			# cleanup battles
-			for battle_id in self._root.battles.copy():
-				battle = self._root.battles[battle_id]
-				if not battle.host in self._root.clients:
-					del self._root.battles[battle_id]
+			for battle_id in root.battles.copy():
+				battle = root.battles[battle_id]
+				if not battle.host in root.clients:
+					del root.battles[battle_id]
 					logging.error("deleted battle %d with invalid host %d" % (battle_id, battle.host))
 					cs.n_battle = cs.n_battle + 1
 					continue
 				if len(battle.users) == 0:
-					del self._root.battles[battle_id]
+					del root.battles[battle_id]
 					logging.error("deleted battle %d, empty" % battle_id)
 					n_battle = n_battle + 1
 			
 			# cleanup channel users & channels
-			for channel in self._root.channels.copy():
-				for session_id in self._root.channels[channel].users.copy():
-					if not session_id in self._root.clients:
-						self._root.channels[channel].users.remove(session_id)
+			for channel in root.channels.copy():
+				for session_id in root.channels[channel].users.copy():
+					if not session_id in root.clients:
+						root.channels[channel].users.remove(session_id)
 						logging.error("deleted invalid session_id %d from channel %s" % (session_id, channel))
 						n_channel_user = n_channel_user + 1
-				for bridged_id in self._root.channels[channel].bridged_users.copy():
-					if not bridged_id in self._root.bridged_ids:
-						self._root.channels[channel].bridged_users.remove(bridged_id)
+				for bridged_id in root.channels[channel].bridged_users.copy():
+					if not bridged_id in root.bridged_ids:
+						root.channels[channel].bridged_users.remove(bridged_id)
 						logging.error("deleted invalid bridged_id %d from channel %s" % (bridged_id, channel))
 						n_channel_bridged_user = n_channel_bridged_user + 1
 				
-				if len(self._root.channels[channel].users) == 0:
-					if len(self._root.channels[channel].bridged_users) > 0:
-						logging.error("warning: empty channel %s contains %d bridged users" % (channel, len(self._root.channels[channel].bridged_users)))
-					del self._root.channels[channel]
+				if len(root.channels[channel].users) == 0:
+					if len(root.channels[channel].bridged_users) > 0:
+						logging.error("warning: empty channel %s contains %d bridged users" % (channel, len(root.channels[channel].bridged_users)))
+					del root.channels[channel]
 					logging.error("deleted empty channel %s" % channel)
 					n_channel = n_channel + 1
 
 		except Exception as e:
-			if client: self.out_SERVERMSG(client, 'Cleanup failed')
-			self.broadcast_Moderator('Cleanup failed')
 			logging.error("Cleanup failed: " + str(e))
 			logging.error(traceback.format_exc())			
-			return
+			return 'Cleanup failed'
 		
-		if client: 
-			self.out_SERVERMSG(client, 'Cleanup successful')
-		n_delete = n_client + n_username + n_user_id + n_bridged_location + n_bridged_username + n_bridged_user_id + n_bridge_external_id + n_bridge_location + n_battle + n_battle_user + n_battle_pending_user + n_channel + n_channel_user + n_channel_bridged_user
-		self.broadcast_Moderator('Cleanup complete: %s deletions, %s mismatches' % (n_delete, n_mismatch))
 		cleaned_info = "deleted:"
 		cleaned_info += "\n %d clients, %d usernames, %d user_ids" % (n_client, n_username, n_user_id)
 		cleaned_info += "\n %d bridged_locations, %d bridged_usernames, %d bridged_user_ids, %d bridge_external_ids, %d bridge_locations" % (n_bridged_location, n_bridged_username, n_bridged_user_id, n_bridge_external_id, n_bridge_location)
@@ -3202,6 +3033,13 @@ class Protocol:
 		cleaned_info += "\n found %d mismatches" % (n_mismatch)
 		logging.info(cleaned_info)
 		
+		n_delete = n_client + n_username + n_user_id + n_bridged_location + n_bridged_username + n_bridged_user_id + n_bridge_external_id + n_bridge_location + n_battle + n_battle_user + n_battle_pending_user + n_channel + n_channel_user + n_channel_bridged_user
+		cleaned_msg = 'Cleanup complete: %s deletions, %s mismatches' % (n_delete, n_mismatch)	
+		if client:
+			self.out_SERVERMSG(client, cleaned_msg)
+		self.broadcast_Moderator(cleaned_msg)
+
+
 	def in_CHANGEEMAILREQUEST(self, client, newmail):
 		# request to be sent a verification code for changing email address
 		if not self.verificationdb.active():
@@ -3283,12 +3121,6 @@ class Protocol:
 			return
 		client.Send("RESENDVERIFICATIONACCEPTED")
 
-	def in_STLS(self, client):
-		self.out_OK(client, "STLS")
-		client.StartTLS()
-		client.flushBuffer()
-		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0')))
-
 	def in_JSON(self, client, rawcmd):
 		try:
 			cmd = json.loads(rawcmd)
@@ -3347,9 +3179,7 @@ class Protocol:
 	# Most outgoing commands are sent directly via client.Send within an in_ command
 
 	def out_DENIED(self, client, username, reason, incr = True):
-		'''
-			response to LOGIN
-		'''
+		# response to LOGIN
 		if incr:
 			failed_logins = self._root.recent_failed_logins.get(client.ip_address, 0)
 			self._root.recent_failed_logins[client.ip_address] = failed_logins + 1
@@ -3358,24 +3188,16 @@ class Protocol:
 		logging.info('[%s] Failed to log in user <%s>: %s'%(client.session_id, username, reason))
 
 	def out_OPENBATTLEFAILED(self, client, reason):
-		'''
-			response to OPENBATTLE
-		'''
 		client.Send('OPENBATTLEFAILED %s' % (reason))
 		logging.info('[%s] <%s> OPENBATTLEFAILED: %s' % (client.session_id, client.username, reason))
 
 	def out_SERVERMSG(self, client, message, log = False):
-		'''
-			send a message to the client
-		'''
+		# send a message to the client
 		client.Send('SERVERMSG %s' %(message))
 		if log:
 			logging.info('[%s] <%s>: %s' % (client.session_id, client.username, message))
 
 	def out_FAILED(self, client, cmd, message, log = False):
-		'''
-			send to a client when a command failed
-		'''
 		client.Send('FAILED ' + self._dictToTags({'msg':message, 'cmd':cmd}))
 		if log:
 			logging.warning('[%s] <%s>: %s %s' % (client.session_id, client.username, cmd, message))
@@ -3398,16 +3220,6 @@ def check_protocol_commands():
 			return False
 	return True
 assert(check_protocol_commands())
-
-def make_docs():
-	response = []
-	cmdlist = dir(Protocol)
-	for cmd in cmdlist:
-		if cmd.find('in_') == 0:
-			docstr = getattr(Protocol, cmd).__doc__ or ''
-			cmd = cmd.split('_',1)[1]
-			response.append('%s - %s' % (cmd, docstr))
-	return response
 
 def selftest():
 	class DummyRoot():
@@ -3444,13 +3256,4 @@ def selftest():
 		assert(p._validEngineVersion("spring", ver) == res)
 
 if __name__ == '__main__':
-	import os
-	if not os.path.exists('docs'):
-		os.mkdir('docs')
-	f = open('docs/protocol.txt', 'w')
-	f.write('\n'.join(make_docs()) + '\n')
-	f.close()
-
-	print('Protocol documentation written to docs/protocol.txt')
-
 	selftest()

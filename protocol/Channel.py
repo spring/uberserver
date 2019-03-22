@@ -74,7 +74,7 @@ class Channel():
 		client.Send('JOIN %s' % self.name)	
 		self.broadcast('JOINED %s %s' % (self.name, client.username), set(), flag)		
 		
-		topic_client = self._root.protocol.clientFromID(self.topic_user_id) if self.topic_user_id else None
+		topic_client = self._root.clientFromID(self.topic_user_id) if self.topic_user_id else None
 		topic_username = topic_client.username if topic_client else 'ChanServ'
 		if 't' in client.compat:
 			client.Send('CHANNELTOPIC %s %s %s' % (self.name, topic_username, self.topic))
@@ -98,7 +98,7 @@ class Channel():
 		for session_id in self.users:
 			if clientlist:
 				clientlist += " "
-			channeluser = self._root.protocol.clientFromSession(session_id)
+			channeluser = self._root.clientFromSession(session_id)
 			assert(channeluser)
 			clientlist += channeluser.username
 		client.Send('CLIENTS %s %s' % (self.name, clientlist))
@@ -283,7 +283,7 @@ class Channel():
 	def getMuteMessage(self, client):
 		if self.isMuted(client):
 			mute = self.mutelist[client.user_id]
-			return 'muted ' + self._root.protocol.pretty_time_delta(mute['expires']-datetime.now())
+			return 'muted for ' + self._root.protocol._pretty_time_delta(mute['expires']-datetime.now())
 		return 'not muted'
 
 	def muteUser(self, client, target, expires, reason, duration):
@@ -295,7 +295,7 @@ class Channel():
 			expires = datetime.max
 		self.mutelist[target.user_id] = {'user_id':target.user_id, 'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
 		self.db().muteUser(self, client, target, expires, reason)
-		self.channelMessage('<%s> has been muted by <%s> %s' % (client.username, target.username, self._root.protocol.pretty_time_delta(duration)))
+		self.channelMessage('<%s> has been muted by <%s> for %s' % (client.username, target.username, self._root.protocol._pretty_time_delta(duration)))
 
 		for chan in self.forwards:
 			if chan in self._root.channels:

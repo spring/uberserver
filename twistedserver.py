@@ -16,7 +16,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 	def __init__(self, root):
 		self.root = root
 		self.TLS = False
-		assert(self.root.protocol.userdb)
+		assert(self.root.userdb != None)
 
 	def connectionMade(self):
 		try:
@@ -46,6 +46,7 @@ class Chat(protocol.Protocol, Client.Client, TimeoutMixin):
 		del self.root.clients[self.session_id]
 
 	def removePWs(self, data):
+		# remove pw from LOGIN msg, to avoid appearing in logfile
 		data = data.decode("UTF-8")
 		if not "LOGIN" in data: return data.encode('UTF-8')
 		words = data.split(" ")

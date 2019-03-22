@@ -54,7 +54,7 @@ try:
 	print('  public:  %s:%d' %(_root.online_ip, _root.port))
 	print('  private: %s:%d' %(_root.local_ip, _root.port))
 	
-	clean_loop = task.LoopingCall(_root.clean)
+	clean_loop = task.LoopingCall(_root.scheduled_clean)
 	clean_loop.start(60*60*24)
 	
 	event_loop = task.LoopingCall(_root.channel_mute_ban_timeout)

@@ -46,7 +46,7 @@ class Battle(Channel):
 			client.Send('JOINBATTLE %s %s' % (self.battle_id, self.hashcode))
 		self.addUser(client)
 
-		host = self._root.protocol.clientFromSession(self.host)
+		host = self._root.clientFromSession(self.host)
 		if client!=host:
 			self._root.broadcast('JOINEDBATTLE %s %s' % (self.battle_id, client.username), ignore=set([self.host, client.session_id])) 
 			scriptPassword = client.scriptPassword
@@ -70,7 +70,7 @@ class Battle(Channel):
 
 		specs = 0
 		for sessionid in self.users:
-			battle_client = self._root.protocol.clientFromSession(sessionid)
+			battle_client = self._root.clientFromSession(sessionid)
 			if battle_client and battle_client.battlestatus['mode'] == '0':
 				specs += 1
 			battlestatus = self.calc_battlestatus(battle_client)
@@ -109,7 +109,7 @@ class Battle(Channel):
 		oldspecs = self.spectators
 		specs = 0
 		for session_id in self.users:
-			user = self._root.protocol.clientFromSession(session_id)
+			user = self._root.clientFromSession(session_id)
 			if user and user.battlestatus['mode'] == '0':
 				specs += 1
 		self.spectators = specs
@@ -147,11 +147,11 @@ class Battle(Channel):
 
 	def kickUser(self, client, target):
 		super().kickUser(self, client, target)
-		host = self._root.protocol.clientFromSession(self.host)
+		host = self._root.clientFromSession(self.host)
 		host.send("KICKFROMBATTLE %s %s" % (self.battle_id, target.username))
 
 	def hasBotflag(self):
-		host = self._root.protocol.clientFromSession(self.host)
+		host = self._root.clientFromSession(self.host)
 		return host.bot
 
 	def canChangeSettings(self, client):
