@@ -558,7 +558,7 @@ class Protocol:
 			return True
 		if not version:
 			return False
-		return self.versiontuple(version) >= self.versiontuple(minver)
+		return self._versiontuple(version) >= self._versiontuple(minver)
 
 	def _validateIP(self, ipAddress):
 		return self.ipRegex_compiled.match(ipAddress)
