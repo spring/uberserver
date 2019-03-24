@@ -1,4 +1,6 @@
-import socket, time, sys, ip2country, errno
+import socket, time, sys, ip2country
+import errno
+import logging
 
 from collections import defaultdict
 from BaseClient import BaseClient
