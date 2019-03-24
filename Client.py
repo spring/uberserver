@@ -114,7 +114,9 @@ class Client(BaseClient):
 	## handle data from client
 	##
 	def Handle(self, data):
-		if (self.access in self._root.flood_limits):
+		if self.bot:
+			flood_limits = self._root.flood_limits['bot']
+		elif (self.access in self._root.flood_limits):
 			flood_limits = self._root.flood_limits[self.access]
 		else:
 			flood_limits = self._root.flood_limits['fresh']
