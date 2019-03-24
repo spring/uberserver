@@ -129,6 +129,7 @@ restricted = {
 	'SAYBATTLEEX',
 	'SAYBATTLEPRIVATEEX',
 	'FORCELEAVECHANNEL',
+	'GETINGAMETIME',
 	]),
 'mod':set([
 	# users
@@ -3170,6 +3171,9 @@ class Protocol:
 		battle = self.getCurrentBattle(client)
 		if not battle: return
 		self.in_BATTLEHOSTMSG(client, battle.name, username, msg)
+	def in_GETINGAMETIME(self, client):
+		self.out_FAILED(client, "GETINGAMETIME", "deprecated, using GETUSERINFO instead!")
+		self.in_GETUSERINFO(client)
 	
 	# Begin outgoing protocol section #
 	#
