@@ -2489,10 +2489,10 @@ class Protocol:
 		else:
 			# native username
 			user = self.clientFromUsername(username, True)
-			register_date = user.register_date.strftime('%b %d, %Y') if user.register_date else 'unknown'
 			if not user:
 				self.out_SERVERMSG(client, "User '%s' does not exist" % username)
 				return
+			register_date = user.register_date.strftime('%b %d, %Y') if user.register_date else 'unknown'
 			if user.username in self._root.usernames:
 				if user.static:
 					self.out_SERVERMSG(client, "User <%s> is static" % username)
