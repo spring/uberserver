@@ -1045,7 +1045,7 @@ class Protocol:
 			assert(not client.user_id in self._root.user_ids)
 			assert(not client.username in self._root.usernames)
 		except Exception as e:
-			logging.error("Exception from LOGIN asserts: " + str(e))
+			logging.error("Exception from LOGIN asserts: %s %s %d" % (username, client.username, client.user_id))
 			logging.error(traceback.format_exc())
 		
 		self._root.client_LoginStats(client)
@@ -3028,7 +3028,7 @@ class Protocol:
 		except Exception as e:
 			logging.error("Cleanup failed: " + str(e))
 			logging.error(traceback.format_exc())			
-			return 'Cleanup failed'
+			return
 		
 		cleaned_info = "deleted:"
 		cleaned_info += "\n %d clients, %d usernames, %d user_ids" % (n_client, n_username, n_user_id)
