@@ -1046,6 +1046,7 @@ class Protocol:
 			assert(not client.username in self._root.usernames)
 		except Exception as e:
 			logging.error("Exception from LOGIN asserts: " + str(e))
+			logging.error(traceback.print_exc())
 		
 		self._root.client_LoginStats(client)
 		self._SendLoginInfo(client)
