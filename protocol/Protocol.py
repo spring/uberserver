@@ -1040,10 +1040,13 @@ class Protocol:
 		if client.ip_address in self._root.trusted_proxies:
 			client.setFlagByIP(local_ip, False)
 	
-		#assert(not client.user_id in self._root.user_ids)
-		#assert(not user_or_error.username in self._root.usernames)
-		#assert(client.user_id >= 0)
-
+		try:
+			assert(username == client.username)
+			assert(not client.user_id in self._root.user_ids)
+			assert(not client.username in self._root.usernames)
+		except Exception as e:
+			loging.error("Exception from LOGIN asserts: %s" + str(e))
+		
 		self._root.client_LoginStats(client)
 		self._SendLoginInfo(client)
 
