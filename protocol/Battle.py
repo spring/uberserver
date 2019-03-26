@@ -27,7 +27,7 @@ class Battle(Channel):
 		self.spectators = 0 # duplicated info?
 		self.locked = False
 
-		self.pending_users = set() # users who asked to join, waiting for hosts response
+		self.pending_users = set() # users who asked to join, waiting for hosts response; managed by Protocol
 
 		self.bots = {}
 		self.script_tags = {}
@@ -37,7 +37,7 @@ class Battle(Channel):
 		self.replay_script = {} #FIXME: inaccessible via protocol
 		self.replay = False
 		self.sending_replay_script = False
-
+		
 	def joinBattle(self, client):
 		# client joins battle + notifies others
 		if 'u' in client.compat:
@@ -123,6 +123,10 @@ class Battle(Channel):
 			bridgedClient = self._root.bridgedClientFromID(bridged_id)
 			chanserv = self._root.chanserv
 			self.removeBridgedUser(self, chanserv, bridgedClient)
+		to_remove = self.pending_users.copy()
+		for session_id in to_remove:
+			client = self._root.clientFromSession(session_id)
+			client.pending_battle = None
 		to_remove = self.users.copy()
 		for session_id in to_remove:
 			client = self._root.clientFromSession(session_id)

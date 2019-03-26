@@ -276,7 +276,6 @@ class Protocol:
 
 	def _remove(self, client, reason='Quit'):
 		if client.static: return # static clients don't disconnect
-
 		if not client.logged_in:
 			logging.info('[%s] disconnected from %s: %s'%(client.session_id, client.ip_address, reason))
 			return
@@ -294,15 +293,13 @@ class Protocol:
 				self.in_UNBRIDGECLIENTFROM(client, bridgedClient.location, bridgedClient.external_id)
 			del self._root.bridged_locations[location]
 
+		self.removePendingBattle(client)
 		if client.current_battle:
 			self.in_LEAVEBATTLE(client)
 		for chan in list(client.channels):
 			channel = self._root.channels[chan]
 			self.in_LEAVE(client, chan, 'disconnected')
-		for battle_id, battle in self._root.battles.items():
-			if client.session_id in battle.pending_users:
-				battle.pending_users.remove(client.session_id)
-
+			
 		user = client.username
 		if user in self._root.usernames:
 			del self._root.usernames[user]
@@ -949,8 +946,6 @@ class Protocol:
 		@optional.sentence.str lobby_id: Lobby name and version
 		@optional.sentence.int user_id: User ID provided by lobby
 		@optional.sentence.str compat_flags: Compatibility flags, sent in space-separated form, see lobby protocol docs for details
-
-		assert(type(password) == str)
 		'''
 
 		failed_logins = self._root.recent_failed_logins.get(client.ip_address, 0)
@@ -962,8 +957,13 @@ class Protocol:
 		if (username in self._root.usernames): # prevents db access
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
+		existing_client = self.clientFromUsername(username, True)
+		if existing_client and existing_client.user_id in self._root.user_ids: # rel #335
+			self.out_DENIED(client, username, 'Already logged in.', False)
+			return
+		
 		if self.SayHooks.isNasty(username):
-			self.out_DENIED(client, username, "invalid username: '%s'" % username, True)
+			self.out_DENIED(client, username, "Invalid username: '%s'" % username, True)
 			return
 
 		banned, reason = self.userdb.check_banned(username, client.ip_address)
@@ -973,7 +973,7 @@ class Protocol:
 			return			
 			
 		if self.SayHooks.isNasty(sentence_args):
-			self.out_DENIED(client, username, "invalid sentence args", True)
+			self.out_DENIED(client, username, "Invalid sentence args", True)
 			return
 		if sentence_args.count('\t')==0: # fixme: backwards compat for Melbot / Statserv
 			lobby_id = sentence_args
@@ -1863,18 +1863,27 @@ class Protocol:
 			if battle.locked:
 				client.Send('JOINBATTLEFAILED Battle is locked')
 				return
-		if 'b' in host.compat and not 'mod' in client.accesslevels: # supports battleAuth
+		if 'b' in host.compat and not 'mod' in client.accesslevels: # use battleAuth
 			if client.session_id in battle.pending_users:
 				client.Send('JOINBATTLEFAILED waiting for JOINBATTLEACCEPT/JOINBATTLEDENIED from host')
 			else:
-				battle.pending_users.add(client.session_id)
-			if client.ip_address in self._root.trusted_proxies:
-				client_ip = client.local_ip
-			else:
-				client_ip = client.ip_address
+				self.addPendingBattle(client, battle)
+			client_ip = client.local_ip if client.ip_address in self._root.trusted_proxies else client.ip_address
 			host.Send('JOINBATTLEREQUEST %s %s' % (username, client_ip))
 			return
+		self.removePendingBattle(client)
 		battle.joinBattle(client)
+		
+	def addPendingBattle(self, client, battle):
+		self.removePendingBattle(client)
+		battle.pending_users.add(client.session_id)
+		client.pending_battle = battle_id
+		
+	def removePendingBattle(self, client):
+		if client.pending_battle:
+			pending_battle = self._root.battles[client.pending_battle]
+			pending_battle.pending_users.remove(client.session_id)
+			client.pending_battle = None
 
 	def in_JOINBATTLEACCEPT(self, client, username):
 		'''
@@ -1888,12 +1897,11 @@ class Protocol:
 			return
 		battle = self.getCurrentBattle(client)
 		if not client.session_id == battle.host:
-			self.out_FAILED(client, 'JOINBATTLEACCEPT', "client isn't the specified host %s vs %s" %(client.session_id, battle.host), True)
+			self.out_FAILED(client, 'JOINBATTLEACCEPT', "Client isn't the specified host, %d vs %d" %(client.session_id, battle.host), True)
 			return
 		if not user.session_id in battle.pending_users:
-			self.out_FAILED(client, 'JOINBATTLEACCEPT', "client isn't in pending users %s %s" %(client.username, username), True)
 			return
-		battle.pending_users.remove(user.session_id)
+		self.removePendingBattle(client)
 		battle.joinBattle(user)
 
 	def in_JOINBATTLEDENY(self, client, username, reason=None):
@@ -1909,9 +1917,10 @@ class Protocol:
 		battle = self.getCurrentBattle(client)
 		if not client.session_id == battle.host:
 			return
-		if user.session_id in battle.pending_users:
-			battle.pending_users.remove(user.session_id)
-			user.Send('JOINBATTLEFAILED %s%s' % ('Access denied by host', (' ('+reason+')' if reason else '')))
+		if not user.session_id in battle.pending_users:
+			return
+		self._removePendingBattle(client)
+		user.Send('JOINBATTLEFAILED %s%s' % ('Access denied by host', (' ('+reason+')' if reason else '')))
 
 	def in_KICKFROMBATTLE(self, client, username):
 		'''
@@ -2991,7 +3000,7 @@ class Protocol:
 						battle.pending_users.remove(session_id)
 						logging.error("deleted invalid session %d from pending users for battle %d" % (session_id, battle_id))
 						n_battle_pending_user = n_battle_pending_user + 1
-
+			
 			# cleanup battles
 			for battle_id in root.battles.copy():
 				battle = root.battles[battle_id]
