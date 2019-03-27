@@ -1673,11 +1673,8 @@ class Protocol:
 			client.Send("JOINFAILED Channel '%s' is associated to a battle, please use JOINBATTLE to access it" % chan)
 			return
 		if not channel.isFounder(client) and not 'mod' in client.accesslevels:
-			if client.user_id in channel.ban:
-				client.Send('JOINFAILED %s You are not permitted to enter channel (%s)' % (chan, channel.ban[client.user_id].reason))
-				return
-			if client.ip_address in channel.ban:
-				client.Send('JOINFAILED %s You are not permitted to enter channel (%s)' % (chan, channel.ban[client.user_id].reason))
+			if client.user_id in channel.ban or client.ip_address in channel.ban_ip:
+				client.Send('JOINFAILED %s %s' % (chan, channel.getBanMessage(client)))
 				return
 			if channel.key and not channel.key in (key, None, '*', ''):
 				client.Send('JOINFAILED %s Invalid key' % chan)

@@ -108,13 +108,13 @@ class Channel():
 			client.channels.remove(self.name)
 		if not client.session_id in self.users:
 			return
-		self.users.remove(client.session_id)
 		
 		flag = 'u' if self.identity=="battle" else None # for legacy clients without 'u' 
 		if reason:
 			self.broadcast('LEFT %s %s %s' % (self.name, client.username, reason), set(), flag)
 		else:
 			self.broadcast('LEFT %s %s' % (self.name, client.username), set(), flag)
+		self.users.remove(client.session_id)
 
 	def addBridgedUser(self, client, bridgedClient):
 		bridged_id = bridgedClient.bridged_id
@@ -221,8 +221,8 @@ class Channel():
 
 	def kickUser(self, client, target):
 		if hasattr(target, "session_id") and target.session_id in self.users:
+			self.channelMessage('<%s> has been removed from this %s by <%s>' % (target.username, self.identity, client.username))
 			self.removeUser(target)
-			self.channelMessage('<%s> has been kicked from this %s by <%s>' % (target.username, self.identity, client.username))
 
 		for chan in self.forwards:
 			if chan in self._root.channels:
@@ -231,12 +231,10 @@ class Channel():
 	def banUser(self, client, target, expires, reason, duration):
 		if target.user_id in self.ban:
 			return
-		self.kickUser(client, target)
 		self.ban[target.user_id] = {'user_id':target.user_id, 'ip_address':target.last_ip, 'expires':expires, 'reason':reason, 'issuer_user_id':client.user_id}
 		self.ban_ip[target.last_ip] = self.ban[target.user_id]
 		self.db().banUser(self, client, target, expires, reason)
-		if hasattr(target, "session_id") and target.session_id in self.users:
-			self.channelMessage('<%s> has been removed from this %s by <%s>' % (target.username, self.identity, client.username))
+		self.kickUser(client, target)
 
 		for chan in self.forwards:
 			if chan in self._root.channels:
@@ -270,6 +268,15 @@ class Channel():
 			if chan in self._root.channels:
 				self._root.channels[chan].banBridgedUser(client, target, expires, reason, duration)
 
+	def getBanMessage(self, client):
+		if client.user_id in self.ban:
+			ban = self.ban[client.user_id]
+		elif client.ip_address in channel.ban_ip:
+			ban = self.ban[client.ip_address]
+		else:
+			return 'not banned'
+		return "You are not permitted to enter channel %s (reason: %s, remaining: %s)" % (self.name, ban['reason'], self._root.protocol._pretty_time_delta(ban['expires']-datetime.now()))	
+	
 	def unbanBridgedUser(self, client, target):
 		if not target.bridged_id in self.bridged_ban:
 			return
@@ -287,7 +294,7 @@ class Channel():
 		return 'not muted'
 
 	def muteUser(self, client, target, expires, reason, duration):
-		if target.id in self.mutelist:
+		if target.user_id in self.mutelist:
 			return
 		try:
 			expires = datetime.now() + duration

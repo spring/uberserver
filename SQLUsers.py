@@ -1348,10 +1348,10 @@ class ChannelsHandler:
 		self.sess().commit()
 
 	def deopUser(self, channel, target):
-		entry = self.sess().query(ChannelOp).filter(ChannelOp.user_id == target.user_id).filter(ChannelOp.channel_id == channel.id).first()
-		if entry:
-			self.sess().delete(entry)
-			self.sess().commit()
+		print(channel, target.user_id, target.username)
+		response = self.sess().query(ChannelOp).filter(ChannelOp.user_id == target.user_id).filter(ChannelOp.channel_id == channel.id)
+		response.delete()
+		self.sess().commit()
 
 	def banBridgedUser(self, channel, issuer, target, expires, reason):
 		entry = ChannelBridgedBan(channel.id, issuer.user_id, target.bridged_id, expires, reason)
@@ -1395,10 +1395,9 @@ class ChannelsHandler:
 		self.sess().commit()
 
 	def removeForward(self, channel_from, channel_to):
-		entry = self.sess().query(ChannelForward).filter(ChannelForward.channel_from_id == channel_from.id).filter(ChannelForward.channel_to_id == channel_to.id)
-		if entry:
-			self.sess().delete(entry)
-			self.sess().commit()
+		response = self.sess().query(ChannelForward).filter(ChannelForward.channel_from_id == channel_from.id).filter(ChannelForward.channel_to_id == channel_to.id)
+		response.delete()
+		self.sess().commit()
 
 	def register(self, channel, target):
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()

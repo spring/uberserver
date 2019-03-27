@@ -406,7 +406,9 @@ class ChanServClient(Client):
 				channel.unbanBridgedUser(client, target)
 				return '#%s: <%s> unbanned' % (chan, target.username)
 			target = self._root.clientFromUsername(target_username, True)
-			if not target or not target.user_id in channel.ban:
+			if not target:
+				return "#%s: User 'target_username' does not exist" % (chan, target.username)
+			if not target.user_id in channel.ban:
 				return '#%s: User <%s> not found in banlist' % (chan, target.username)
 			channel.unbanUser(client, target)
 			return '#%s: <%s> unbanned' % (chan, target.username)
