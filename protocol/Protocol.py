@@ -1877,7 +1877,7 @@ class Protocol:
 	def addPendingBattle(self, client, battle):
 		self.removePendingBattle(client)
 		battle.pending_users.add(client.session_id)
-		client.pending_battle = battle_id
+		client.pending_battle = battle.battle_id
 		
 	def removePendingBattle(self, client):
 		if client.pending_battle:
