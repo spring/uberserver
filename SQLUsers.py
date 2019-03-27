@@ -637,18 +637,18 @@ class UsersHandler:
 	def get_registration_date(self, username):
 		entry = self.sess().query(User).filter(User.username==username).first()
 		if entry and entry.register_date: return True, entry.register_date
-		else: return False, 'user or date not found in database'
+		else: return False, 'User or date not found in database'
 
 	def get_ingame_time(self, username):
 		entry = self.sess().query(User).filter(User.username==username).first()
 		if entry: return True, entry.ingame_time
-		else: return False, 'user not found in database'
+		else: return False, 'User not found in database'
 
 	def get_account_access(self, username):
 		entry = self.session.query(User).filter(User.username==username).first()
 		if entry:
 			return True, entry.access
-		else: return False, 'user not found in database'
+		else: return False, 'User not found in database'
 
 	def find_ip(self, ip):
 		results = self.sess().query(User).filter(User.last_ip==ip)
@@ -1074,16 +1074,16 @@ class VerificationsHandler:
 		email_entry = self.sess().query(Verification).filter(Verification.email == email).first()
 		if email_entry:
 			if datetime.now() <= email_entry.expiry:
-				return False, 'a verification attempt is already active for ' + email + ', use that or wait for it to expire (up to 24h)'
+				return False, 'A verification attempt is already active for ' + email + ', use that or wait for it to expire (up to 24h)'
 		if email_entry: #expired
 			self.remove(email_entry.user_id)
 
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first()
 		if entry:
 			if entry.email != email:
-				return False, 'a verification code is active for ' + entry.email + ', use that or wait for it to expire (up to 24h)'
+				return False, 'A verification code is active for ' + entry.email + ', use that or wait for it to expire (up to 24h)'
 			if datetime.now() < entry.expiry:
-				return False, 'already sent a verification code, please check your spam filter!'
+				return False, 'Already sent a verification code, please check your spam filter!'
 		if entry: #expired
 			self.remove(user_id)
 		entry = self.create(user_id, email, digits, use_delay, reason)
@@ -1099,13 +1099,13 @@ class VerificationsHandler:
 	def resend(self, user_id, email, ip_address):
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first()
 		if not entry:
-			return False, 'you do not have an active verification code'
+			return False, 'You do not have an active verification code'
 		if entry.expiry <= datetime.now():
-			return False, 'your verification code has expired, please request a new one'
+			return False, 'Your verification code has expired, please request a new one'
 		if email!=entry.email:
-			return False, 'your verification code for ' + entry.email + ' cannot be re-sent to a different email address, use it or wait for it to expire (up to 24h)'
+			return False, 'Your verification code for ' + entry.email + ' cannot be re-sent to a different email address, use it or wait for it to expire (up to 24h)'
 		if entry.resends>=3:
-			return False, 'too many resends, please try again later'
+			return False, 'Too many resends, please try again later'
 		if entry.resends==0:
 			entry.reason += " (resend requested)"
 		entry.resends += 1
@@ -1156,17 +1156,17 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 		if not self.active():
 			return True, ''
 		if code=="":
-			return False, 'a verification code is required'
+			return False, 'A verification code is required'
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first() # there should be (at most) one code per user
 		if not entry:
 			logging.error('Unexpected verification attempt: %s, %s' % (user_id, code))
-			return False, 'unexpected verification attempt, please request a verification code'
+			return False, 'Unexpected verification attempt, please request a verification code'
 		if entry.expiry <= datetime.now():
-			return False, 'your verification code for ' + entry.email + ' has expired, please request a new one'
+			return False, 'Your verification code for ' + entry.email + ' has expired, please request a new one'
 		if entry.attempts>=3:
-			return False, 'too many attempts, please try again later'
+			return False, 'Too many attempts, please try again later'
 		if entry.email!=email:
-			return False, 'failed to match email addresses'
+			return False, 'Failed to match email addresses'
 		try:
 			if entry.code==int(code):
 				self.remove(user_id)
@@ -1174,11 +1174,11 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 			else:
 				entry.attempts += 1
 				self.sess().commit()
-				return False, 'incorrect verification code, %i/3 attempts remaining' % (3-entry.attempts)
+				return False, 'Incorrect verification code, %i/3 attempts remaining' % (3-entry.attempts)
 		except Exception as e:
 			entry.attempts += 1
 			self.sess().commit()
-			return False, 'incorrect verification code, ' + str(e) + ', %i/3 attempts remaining' % (3-entry.attempts)
+			return False, 'Incorrect verification code, ' + str(e) + ', %i/3 attempts remaining' % (3-entry.attempts)
 
 	def remove(self, user_id):
 		# remove all entries for user

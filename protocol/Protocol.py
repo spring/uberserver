@@ -1670,14 +1670,14 @@ class Protocol:
 			#self.out_FAILED(client, "JOIN", 'Already in channel %s' %(chan), True)
 			return
 		if channel.identity=='battle' and client.username!='ChanServ' and not client.bot:
-			client.Send('JOINFAILED %s is a battle, please use JOINBATTLE to access it' % chan)
+			client.Send("JOINFAILED Channel '%s' is associated to a battle, please use JOINBATTLE to access it" % chan)
 			return
 		if not channel.isFounder(client) and not 'mod' in client.accesslevels:
 			if client.user_id in channel.ban:
-				client.Send('JOINFAILED %s You are banned from the channel (%s)' % (chan, channel.ban[client.user_id].reason))
+				client.Send('JOINFAILED %s You are not permitted to enter channel (%s)' % (chan, channel.ban[client.user_id].reason))
 				return
 			if client.ip_address in channel.ban:
-				client.Send('JOINFAILED %s Your ip is banned from the channel (%s)' % (chan, channel.ban[client.user_id].reason))
+				client.Send('JOINFAILED %s You are not permitted to enter channel (%s)' % (chan, channel.ban[client.user_id].reason))
 				return
 			if channel.key and not channel.key in (key, None, '*', ''):
 				client.Send('JOINFAILED %s Invalid key' % chan)
@@ -1744,7 +1744,7 @@ class Protocol:
 		if tabcount == 4:
 			engine, version, map, title, modname = sentence_args.split('\t', 4)
 		else:
-			self.out_OPENBATTLEFAILED(client, 'arguments: %d' %(argcount))
+			self.out_OPENBATTLEFAILED(client, 'Invalid arguments: %d' %(tabcount))
 			return
 
 		title = self.SayHooks.hook_OPENBATTLE(self, client, title).strip()
@@ -1753,7 +1753,7 @@ class Protocol:
 			(engine, 'No engine specified.'),
 			(version, 'No engine version specified.'),
 			(map, "No map name specified"),
-			(title, "invalid title"),
+			(title, "No title specified"),
 			(modname, "No game name specified")]
 
 		for var, error in checkvars:
@@ -1865,7 +1865,7 @@ class Protocol:
 				return
 		if 'b' in host.compat and not 'mod' in client.accesslevels: # use battleAuth
 			if client.session_id in battle.pending_users:
-				client.Send('JOINBATTLEFAILED waiting for JOINBATTLEACCEPT/JOINBATTLEDENIED from host')
+				client.Send('JOINBATTLEFAILED Waiting for JOINBATTLEACCEPT/JOINBATTLEDENIED from host')
 			else:
 				self.addPendingBattle(client, battle)
 			client_ip = client.local_ip if client.ip_address in self._root.trusted_proxies else client.ip_address
