@@ -1348,7 +1348,6 @@ class ChannelsHandler:
 		self.sess().commit()
 
 	def deopUser(self, channel, target):
-		print(channel, target.user_id, target.username)
 		response = self.sess().query(ChannelOp).filter(ChannelOp.user_id == target.user_id).filter(ChannelOp.channel_id == channel.id)
 		response.delete()
 		self.sess().commit()
