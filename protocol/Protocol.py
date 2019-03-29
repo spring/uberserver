@@ -213,6 +213,7 @@ class Protocol:
 		self.userdb = root.getUserDB()
 		self.verificationdb = root.getVerificationDB()
 		self.bandb = root.getBanDB()
+		self.contentdb = root.getContentDB()
 		self.SayHooks = root.SayHooks
 
 		self.restricted = restricted
@@ -518,7 +519,8 @@ class Protocol:
 			"{CLIENTS}" : str(len(self._root.clients)),
 			"{CHANNELS}": str(len(self._root.channels)),
 			"{BATTLES}" : str(len(self._root.battles)),
-			"{UPTIME}"  : str(self._pretty_time_delta(uptime))
+			"{UPTIME}"  : str(self._pretty_time_delta(uptime)),
+			"{MINSPRINGVERSION}" : str(self._root.min_spring_version),
 		}
 		if (self._root.motd):
 			for line in self._root.motd:
@@ -2655,7 +2657,7 @@ class Protocol:
 	def in_SETMINSPRINGVERSION(self, client, version):
 		# set the minimal engine version for botflagged hosts
 		self._root.min_spring_version = version
-		self.in_BROADCAST(client, 'New engine version: Spring %s' % version)
+		self.contentdb.set_min_spring_version(version)
 		legacyBattleIds = []
 		for battleId, battle in self._root.battles.items():
 			if battle.hasBotflag() and not self._validEngineVersion(battle.engine, battle.version):
@@ -2667,6 +2669,7 @@ class Protocol:
 			battle = self._root.battles[battleId]
 			self.broadcast_RemoveBattle(battle)
 			del self._root.battles[battleId]
+		self.out_SERVERMSG(client, 'Set Spring engine version to %s' % version)
 
 	def in_EXIT(self, client, reason=('Exiting')):
 		# disconnect from the server, with an optional reason.

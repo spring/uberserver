@@ -271,12 +271,12 @@ class Channel():
 	def getBanMessage(self, client):
 		if client.user_id in self.ban:
 			ban = self.ban[client.user_id]
-		elif client.ip_address in channel.ban_ip:
-			ban = self.ban[client.ip_address]
+		elif client.ip_address in self.ban_ip:
+			ban = self.ban_ip[client.ip_address]
 		else:
 			return 'not banned'
-		return "You are not permitted to enter channel %s (reason: %s, remaining: %s)" % (self.name, ban['reason'], self._root.protocol._pretty_time_delta(ban['expires']-datetime.now()))	
-	
+		return "Cannot join channel '%s' (reason: %s, remaining: %s)" % (self.name, ban['reason'], self._root.protocol._pretty_time_delta(ban['expires']-datetime.now()))
+
 	def unbanBridgedUser(self, client, target):
 		if not target.bridged_id in self.bridged_ban:
 			return

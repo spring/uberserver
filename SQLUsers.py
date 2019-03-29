@@ -411,6 +411,20 @@ class BlacklistedEmailDomain(object):
 		return "<Domain: %s (%s, since %s)>" % (self.domain, self.issuer_user_id, self.start_time)
 mapper(BlacklistedEmailDomain, blacklisted_email_domain_table)
 ##########################################
+min_spring_version_table = Table('min_spring_version', metadata,
+	Column('id',Integer, primary_key=True),
+	Column('min_spring_version', String(128)),
+	Column('start_time', DateTime),
+	)
+class MinSpringVersion(object):
+	def __init__(self, min_spring_version, start_time):
+		self.min_spring_version = min_spring_version
+		self.start_time = start_time
+	
+	def __repr__(self):
+		return "<Version: %d (since %s)>" % (self.min_spring_version, self.start_time)
+mapper(MinSpringVersion, min_spring_version_table)
+##########################################
 
 class session_manager():
 	# on-demand sessionmaker
@@ -1031,18 +1045,8 @@ class BansHandler:
 class VerificationsHandler:
 	def __init__(self, root):
 		self._root = root
+		self.require_verification = (self._root.mail_user != None)
 		
-		self.require_verification = False
-		try:
-			with open('server_email_account.txt') as f:
-				lines = f.readlines()
-			lines = [l.strip() for l in lines]
-			self.mail_user = lines[0]
-			self.require_verification = True
-			logging.info('Email verification is enabled, server email account is %s' % self.mail_user)
-		except Exception as e:
-			logging.info('Could not load server_email_account.txt, email verification is disabled: %s' %(e))
-
 	def sess(self):
 		return self._root.session_manager.sess()
 
@@ -1216,7 +1220,7 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 	def _send_reset_password_email(self, email, username, password):
 		if not self.active():
 			return
-		sent_from = self.mail_user
+		sent_from = self._root.mail_user
 		to = email
 		subject = 'SpringRTS account recovery'
 		body = """
@@ -1436,6 +1440,28 @@ class ChannelsHandler:
 		response.delete(synchronize_session=False)
 
 		self.sess().commit()
+
+
+class ContentHandler:
+	def __init__(self, root):
+		self._root = root
+
+	def sess(self):
+		return self._root.session_manager.sess()
+
+	def set_min_spring_version(self, version):
+		response = self.sess().query(MinSpringVersion)
+		response.delete()
+		now = datetime.now()
+		entry = MinSpringVersion(version, now)
+		self.sess().add(entry)
+		self.sess().commit()	
+	
+	def get_min_spring_version(self):
+		entry = self.sess().query(MinSpringVersion).first()
+		if entry: return entry.min_spring_version
+		return '*'
+
 
 if __name__ == '__main__':
 	class root:

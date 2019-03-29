@@ -34,10 +34,15 @@ class DataHandler:
 		self.port = 8200
 		self.natport = self.port + 1
 		self.min_spring_version = '*'
-		self.agreementfile = 'agreement.txt'
+		
 		self.agreement = []
+		self.motd = []
+		self.iphub_xkey = None
+		self.mail_user = None		
+		self.trusted_proxies = set([])		
+		
 		self.server = 'TASServer'
-		self.server_version = 0.36
+		self.server_version = '0.36'
 		self.sighup = False
 
 		self.userdb = None
@@ -56,11 +61,8 @@ class DataHandler:
 		self.nextbattle = 0
 		self.SayHooks = __import__('SayHooks')
 		self.censor = True
-		self.motd = None
 		self.running = True
 		self.redirect = None
-
-		self.trusted_proxies = []
 
 		self.start_time = time.time()
 		self.detectIp()
@@ -110,19 +112,9 @@ class DataHandler:
 		fh.setLevel(logging.DEBUG)
 		self.logger.addHandler(fh)
 		
-	def initiphub(self):
-		try:
-			with open('server_iphub_xkey.txt') as f:
-				lines = f.readlines()
-			lines = [l.strip() for l in lines]
-			self.iphub_xkey = lines[0]
-		except Exception as e:
-			self.iphub_xkey = False
-			logging.info('Could not load server_iphub_xkey.txt: %s' %(e))
-			return
-		logging.info('Successfully loaded server_iphub_xkey.txt')
-
 	def init(self):
+		self.parseFiles()
+		
 		now = datetime.datetime.now()
 		sqlalchemy = __import__('sqlalchemy')
 		if self.sqlurl.startswith('sqlite'):
@@ -143,11 +135,13 @@ class DataHandler:
 		self.session_manager = SQLUsers.session_manager(self, self.engine)
 		
 		self.userdb = SQLUsers.UsersHandler(self)
-		self.bridgeduserdb = SQLUsers.BridgedUsersHandler(self)
-		self.verificationdb = SQLUsers.VerificationsHandler(self)
 		self.bandb = SQLUsers.BansHandler(self)
-		self.parseFiles()
-		self.initiphub()
+		self.verificationdb = SQLUsers.VerificationsHandler(self)
+		self.bridgeduserdb = SQLUsers.BridgedUsersHandler(self)
+
+		self.contentdb = SQLUsers.ContentHandler(self)
+		self.min_spring_version = self.contentdb.get_min_spring_version()
+
 		self.protocol = Protocol.Protocol(self)
 
 		self.channeldb = SQLUsers.ChannelsHandler(self)
@@ -386,35 +380,56 @@ class DataHandler:
 			self.cert = ssl.PrivateCertificate.loadPEM(data.read()).options()
 
 	def parseFiles(self):
-		if os.path.isfile('motd.txt'):
-			motd = []
-			f = open('motd.txt', 'r')
-			data = f.read()
+		self.loadCertificates()
+		
+		try:
+			f = open('server_motd.txt', 'r')
+			for line in f:
+				self.motd.append(line.rstrip('\r\n'))
 			f.close()
-			if data:
-				for line in data.split('\n'):
-					motd.append(line.strip())
-			self.motd = motd
+		except Exception as e:
+			logging.error("Could not load motd: %s" % str(e))
+			self.motd.append("You have successfully logged into Uberserver!")
 
-		if self.trusted_proxyfile:
-			self.trusted_proxies = set([])
-			f = open(self.trusted_proxyfile, 'r')
-			data = f.read()
+		try:
+			f = open('server_agreement.txt', 'r')
+			for line in f:
+				self.agreement.append(line.rstrip('\r\n'))
 			f.close()
-			if data:
-				for line in data.split('\n'):
+		except Exception as e:
+			logging.error("Could not load user agreement %s" % str(e))
+			self.agreement.append("No user agreement detected. If this server is in production, please report this issue immediately!")
+
+		try:
+			with open('server_iphub_xkey.txt') as f:
+				lines = f.readlines()
+			lines = [l.strip() for l in lines]
+			self.iphub_xkey = lines[0]
+		except Exception as e:
+			logging.error('Could not load server_iphub_xkey.txt: %s' %(e))
+		
+		try:
+			with open('server_email_account.txt') as f:
+				lines = f.readlines()
+			lines = [l.strip() for l in lines]
+			self.mail_user = lines[0]
+			logging.info('Server email account is %s' % self.mail_user)
+		except Exception as e:
+			logging.error('Could not load server_email_account.txt: %s' %(e))
+
+		
+		try:
+			if self.trusted_proxyfile:
+				f = open(self.trusted_proxyfile, 'r')
+				for line in f:
 					proxy = line.strip()
 					if not proxy.replace('.', '', 3).isdigit():
 						proxy = socket.gethostbyname(proxy)
-
 					if proxy:
 						self.trusted_proxies.add(proxy)
-		self.agreement = []
-		ins = open(self.agreementfile, "r" )
-		for line in ins:
-			self.agreement.append(line.rstrip('\r\n'))
-		ins.close()
-		self.loadCertificates()
+				f.close()
+		except Exception as e:
+			logging.error("error whilst loading %s: %s" % (self.trusted_proxyfile, str(e)))		
 
 	def getUserDB(self):
 		return self.userdb
@@ -424,6 +439,9 @@ class DataHandler:
 
 	def getBanDB(self):
 		return self.bandb
+		
+	def getContentDB(self):
+		return self.contentdb
 
 	def clientFromID(self, user_id, fromdb=False):
 		if user_id in self.user_ids: 
