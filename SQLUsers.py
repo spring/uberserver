@@ -1160,7 +1160,7 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 		if not self.active():
 			return True, ''
 		if code=="":
-			return False, 'A verification code is required'
+			return False, 'A verification code is required -- check your email'
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first() # there should be (at most) one code per user
 		if not entry:
 			logging.error('Unexpected verification attempt: %s, %s' % (user_id, code))
