@@ -1480,6 +1480,7 @@ if __name__ == '__main__':
 
 	root = root()
 	root.session_manager = session_manager(root, engine)
+	root.mail_user = "no-reply@springrts.com"
 	
 	userdb = UsersHandler(root)
 	channeldb = ChannelsHandler(root)

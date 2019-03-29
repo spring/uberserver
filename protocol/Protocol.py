@@ -3248,6 +3248,8 @@ def selftest():
 			pass
 		def getBanDB(self):
 			pass
+		def getContentDB(self):
+			pass
 	p = Protocol(DummyRoot())
 	assert(p._validUsernameSyntax("abcde")[0])
 	assert(not p._validUsernameSyntax("abcde ")[0])
