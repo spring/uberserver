@@ -1918,7 +1918,7 @@ class Protocol:
 			return
 		if not user.session_id in battle.pending_users:
 			return
-		self._removePendingBattle(client)
+		self.removePendingBattle(client)
 		user.Send('JOINBATTLEFAILED %s%s' % ('Access denied by host', (' ('+reason+')' if reason else '')))
 
 	def in_KICKFROMBATTLE(self, client, username):
