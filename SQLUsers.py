@@ -524,7 +524,7 @@ class UsersHandler:
 			return False, 'Invalid username or password'
 		if dbuser.username != username:
 			# user tried to login with wrong upper/lower case somewhere in their username
-			return False, "Invalid username -- did you mean '%s'?" % dbuser.username
+			return False, "Invalid username -- did you mean '%s'" % dbuser.username
 		if (not self.legacy_test_user_pwrd(dbuser, password)):
 			return False, 'Invalid username or password'
 
