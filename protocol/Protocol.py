@@ -956,11 +956,7 @@ class Protocol:
 		#	self.out_DENIED(client, username, "Too many failed logins (%d/3), please try again later." % failed_logins, False)
 		#	return
 
-		if (username in self._root.usernames): # prevents db access
-			self.out_DENIED(client, username, 'Already logged in.', False)
-			return
-		existing_client = self.clientFromUsername(username, True)
-		if existing_client and existing_client.user_id in self._root.user_ids: # rel #335
+		if username in self._root.usernames:
 			self.out_DENIED(client, username, 'Already logged in.', False)
 			return
 		

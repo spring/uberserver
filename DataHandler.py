@@ -456,6 +456,8 @@ class DataHandler:
 		if not fromdb: 
 			return None
 		client = self.userdb.clientFromUsername(username)
+		if client and username != client.username:
+			return None # db side is case insensitive!
 		if client:
 			self.protocol._calc_access(client)
 		return client
