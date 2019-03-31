@@ -703,7 +703,7 @@ class UsersHandler:
 		response.delete(synchronize_session=False)
 
 		# old messages > 2 weeks
-		reponse = self.sess().query(ChannelHistory).filter(ChannelHistory.time < now - timedelta(days=14))
+		response = self.sess().query(ChannelHistory).filter(ChannelHistory.time < now - timedelta(days=14))
 		logging.info("deleting %i channel history messages", response.count())
 		response.delete(synchronize_session=False)
 		
