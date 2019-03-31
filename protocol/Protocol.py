@@ -263,7 +263,7 @@ class Protocol:
 		#client.RealSend("MOTD  -- -- - -- --")
 
 	def _new(self, client):
-		login_string = ' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0'))
+		login_string = ' '.join((self._root.server, str(self._root.server_version), '*', str(self._root.natport), '0'))
 		if self._root.redirect:
 			login_string += "\nREDIRECT " + self._root.redirect
 
@@ -834,7 +834,7 @@ class Protocol:
 		self.out_OK(client, "STLS")
 		client.StartTLS()
 		client.flushBuffer()
-		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0')))
+		client.Send(' '.join((self._root.server, str(self._root.server_version), '*', str(self._root.natport), '0')))
 
 	def in_REGISTER(self, client, username, password, email = ''):
 		'''
@@ -3170,7 +3170,7 @@ class Protocol:
 	def in_STARTTLS(self, client):
 		client.StartTLS()
 		client.flushBuffer()
-		client.Send(' '.join((self._root.server, str(self._root.server_version), self._root.min_spring_version, str(self._root.natport), '0')))
+		client.Send(' '.join((self._root.server, str(self._root.server_version), '*', str(self._root.natport), '0')))
 	def in_SAYBATTLE(self, client, msg):
 		battle = self.getCurrentBattle(client)
 		if not battle: return
