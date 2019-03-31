@@ -3007,7 +3007,7 @@ class Protocol:
 				if not battle.host in root.clients:
 					del root.battles[battle_id]
 					logging.error("deleted battle %d with invalid host %d" % (battle_id, battle.host))
-					cs.n_battle = cs.n_battle + 1
+					n_battle = n_battle + 1
 					continue
 				if len(battle.users) == 0:
 					del root.battles[battle_id]
