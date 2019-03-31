@@ -238,6 +238,7 @@ class DataHandler:
 		logging.info("scheduled clean...")
 		self.ip_type_cache = {}
 		try:
+			self.userdb.audit_access()
 			self.userdb.clean()
 			self.bridgeduserdb.clean()
 			self.channeldb.clean()
@@ -382,6 +383,7 @@ class DataHandler:
 	def parseFiles(self):
 		self.loadCertificates()
 		
+		self.motd = []
 		try:
 			f = open('server_motd.txt', 'r')
 			for line in f:
@@ -391,6 +393,7 @@ class DataHandler:
 			logging.error("Could not load motd: %s" % str(e))
 			self.motd.append("You have successfully logged into Uberserver!")
 
+		self.agreement = []
 		try:
 			f = open('server_agreement.txt', 'r')
 			for line in f:
@@ -401,7 +404,7 @@ class DataHandler:
 			self.agreement.append("No user agreement detected. If this server is in production, please report this issue immediately!")
 
 		try:
-			with open('server_iphub_xkey.txt') as f:
+			with open('server_iphub_xkey.txt', 'r') as f:
 				lines = f.readlines()
 			lines = [l.strip() for l in lines]
 			self.iphub_xkey = lines[0]
@@ -409,7 +412,7 @@ class DataHandler:
 			logging.error('Could not load server_iphub_xkey.txt: %s' %(e))
 		
 		try:
-			with open('server_email_account.txt') as f:
+			with open('server_email_account.txt', 'r') as f:
 				lines = f.readlines()
 			lines = [l.strip() for l in lines]
 			self.mail_user = lines[0]

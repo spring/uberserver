@@ -698,15 +698,35 @@ class UsersHandler:
 		response.delete(synchronize_session=False)
 
 		# last login > 5 years
-		self.sess().query(User).filter(User.last_login < now - timedelta(days=1825)).delete(synchronize_session=False)
+		response = self.sess().query(User).filter(User.last_login < now - timedelta(days=1825))
 		logging.info("deleting %i very inactive users", response.count())
 		response.delete(synchronize_session=False)
 
 		# old messages > 2 weeks
-		self.sess().query(ChannelHistory).filter(ChannelHistory.time < now - timedelta(days=14)).delete(synchronize_session=False)
+		reponse = self.sess().query(ChannelHistory).filter(ChannelHistory.time < now - timedelta(days=14))
 		logging.info("deleting %i channel history messages", response.count())
 		response.delete(synchronize_session=False)
+		
+		self.sess().commit()
 
+	def audit_access(self):
+		now = datetime.now()
+		# remove botflags from clients that didn't log in for 3 months:
+		response = self.sess().query(User).filter(User.last_login < now - timedelta(days=90)).filter(User.bot == 1)
+		logging.info("removing %i botflags from inactive hosts", response.count())
+		for user in response:
+			user.bot = 0
+		
+		# remove moderator/admin access from clients that didn't log in for 1 year:
+		response = self.sess().query(User).filter(User.last_login < now - timedelta(days=365)).filter(User.access == "admin")
+		logging.info("removing %i inactive admins", response.count())
+		for user in response:
+			user.access = "user"
+		response = self.sess().query(User).filter(User.last_login < now - timedelta(days=365)).filter(User.access == "mod")
+		logging.info("removing %i inactive mods", response.count())
+		for user in response:
+			user.access = "user"
+	
 		self.sess().commit()
 
 	def ignore_user(self, user_id, ignore_user_id, reason=None):
