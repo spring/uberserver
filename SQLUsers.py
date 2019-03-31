@@ -518,11 +518,13 @@ class UsersHandler:
 		return False, ""
 		
 	def login_user(self, username, password, ip, lobby_id, last_id, local_ip, country):
-		# should only ever be one user with each name so we can just grab the first one :)
 		# password here is unicode(BASE64(MD5(...))), matches the register_user DB encoding
 		dbuser = self.sess().query(User).filter(User.username == username).first()
 		if (not dbuser):
 			return False, 'Invalid username or password'
+		if dbuser.username != username:
+			# user tried to login with wrong upper/lower case somewhere in their username
+			return False, "Invalid username -- did you mean '%s'?" % dbuser.username
 		if (not self.legacy_test_user_pwrd(dbuser, password)):
 			return False, 'Invalid username or password'
 
