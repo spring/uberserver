@@ -1743,7 +1743,7 @@ class Protocol:
 		if tabcount == 4:
 			engine, version, map, title, modname = sentence_args.split('\t', 4)
 		else:
-			self.out_OPENBATTLEFAILED(client, 'Invalid arguments: %d' %(tabcount))
+			self.out_OPENBATTLEFAILED(client, 'Invalid arguments (%d): %s' %(tabcount, sentence_args))
 			return
 
 		title = self.SayHooks.hook_OPENBATTLE(self, client, title).strip()
