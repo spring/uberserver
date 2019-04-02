@@ -1757,7 +1757,7 @@ class Protocol:
 				return
 
 		if client.bot and not self._validEngineVersion(engine, version):
-			self.out_OPENBATTLEFAILED(client, "Engine version specified is invalid: Spring %s or later is required!" % self._root.min_spring_version)
+			self.out_OPENBATTLEFAILED(client, "Engine version specified (%s,%s) is invalid: Spring %s or later is required!" % (engine, version, self._root.min_spring_version))
 			return
 
 		battle_id = self._getNextBattleId()
