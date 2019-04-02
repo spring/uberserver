@@ -548,7 +548,10 @@ class Protocol:
 			if c not in "0123456789.":
 				break
 			v+=c
-		return tuple(map(int, (v.split("."))))
+		version_tuple = tuple(map(int, (v.split("."))))
+		if len(version_tuple) == 1:
+			version_tuple += (0,)
+		return version_tuple
 	
 	def _validEngineVersion(self, engine, version):
 		if engine != "spring":
@@ -3255,6 +3258,9 @@ def selftest():
 
 	p._root.min_spring_version = "104.0"
 	tests = {
+		"104": True,
+		"103": False,
+		"105": True,
 		"103.0": False,
 		"83.0": False,
 		"84.1": False,
