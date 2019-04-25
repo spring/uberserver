@@ -612,12 +612,10 @@ class UsersHandler:
 		return True, 'Account renamed successfully.'
 
 	def save_user(self, obj):
-		## assert(isinstance(obj, User) or isinstance(obj, Client))
-
+		# assert(isinstance(obj, User) or isinstance(obj, Client))
 		entry = self.sess().query(User).filter(User.username==obj.username).first()
-
 		if (entry != None):
-			## caller might have changed these!
+			# caller might have changed these!
 			entry.set_pwrd_salt((obj.password, obj.randsalt))
 
 			entry.ingame_time = obj.ingame_time
@@ -1082,7 +1080,7 @@ class VerificationsHandler:
 		if ' ' in email:
 			return False, "Invalid email address (check for whitespace)."
 		if not re.match(r"[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,6}", email):
-			return False, "Invalid email address."
+			return False, "Invalid email address format."
 		return True, ""
 
 	def check_and_send(self, user_id, email, digits, reason, use_delay, ip_address):
@@ -1162,6 +1160,7 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 
 	def _send_email(self, sent_from, to, subject, body):
 		if not self.active(): #safety
+			logging.error("Attempt to send email (subject: %s) failed, verifications handler is inactive" % subject)
 			return
 		body += '<br><br>If you received this message in error, please contact us at www.springrts.com. Direct replies to this message will be automatically deleted.'
 		message = MIMEText(body, 'html')
@@ -1240,8 +1239,6 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 			logging.error('Failed to launch UserHandler._send_recover_account_email: %s' % (dbuser))
 
 	def _send_reset_password_email(self, email, username, password):
-		if not self.active():
-			return
 		sent_from = self._root.mail_user
 		to = email
 		subject = 'SpringRTS account recovery'

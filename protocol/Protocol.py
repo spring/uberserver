@@ -138,6 +138,7 @@ restricted = {
 	'FINDIP',
 	'SETBOTMODE',
 	'CREATEBOTACCOUNT',
+	'RESETUSERPASSWORD',
 	# kick/ban/etc
 	'KICK',
 	'BAN',
@@ -3087,16 +3088,18 @@ class Protocol:
 		client.Send("CHANGEEMAILACCEPTED " + newmail)
 
 	def in_RESETPASSWORDREQUEST(self, client, email):
+		# client requests to reset the pw of an account; account recovery by email
+		# we do not assume that the client is logged in
 		if not self.verificationdb.active():
-			client.Send("RESETPASSWORDREQUESTDENIED email verification is currently turned off, account recovery is disabled")
+			client.Send("RESETPASSWORDREQUESTDENIED Email verification is currently turned off, account recovery is disabled")
 			return
 		email = email.lower()
-		reason = "requested to recover your account <" + client.username + "> on the SpringRTS lobbyserver"
 		good, response = self.userdb.get_user_id_with_email(email)
 		if not good:
 			client.Send("RESETPASSWORDREQUESTDENIED " + response)
 			return
 		recover_client = self.clientFromID(response, True) # can't assume that the user is logged in, or even genuinely the client
+		reason = "requested to recover your account <" + recover_client.username + "> on the SpringRTS lobbyserver"
 		good, reason = self.verificationdb.check_and_send(recover_client.user_id, email, 8, reason, False, client.ip_address)
 		if not good:
 			client.Send("RESETPASSWORDREQUESTDENIED " + reason)
@@ -3104,8 +3107,9 @@ class Protocol:
 		client.Send("RESETPASSWORDREQUESTACCEPTED %s" % recover_client.email)
 
 	def in_RESETPASSWORD(self, client, email, verification_code):
+		# we do not assume that the client is logged in
 		if not self.verificationdb.active():
-			client.Send("RESETPASSWORDDENIED email verification is currently turned off, account recovery is disabled")
+			client.Send("RESETPASSWORDDENIED Email verification is currently turned off, account recovery is disabled")
 			return
 
 		email = email.lower()
@@ -3123,6 +3127,34 @@ class Protocol:
 		client.Send("RESETPASSWORDACCEPTED %s %s" % (recover_client.email, recover_client.username))
 		self.out_SERVERMSG(client, "Your password has been reset. Please check your email account." + client.email)
 		client.Remove("")
+		
+	def in_RESETUSERPASSWORD(self, client, username, newmail=None):
+		# reset password, send the new password by email to the user
+		# if the user does not have an email address associated to their account, it can be added with newmail
+		if not self.verificationdb.active():
+			self.out_SERVERMSG("Email verification is currently turned off, account recovery is disabled")
+			return
+			
+		recover_client = self.clientFromUsername(username, True) 
+		if not recover_client:
+			self.out_SERVERMSG(client, "User <%s> does not exist" % (username))
+			return		
+		good, reason = self.verificationdb.valid_email_addr(recover_client.email)
+		if good and newmail:
+			self.out_SERVERMSG(client, "User <%s> already has a valid email address (%s), please try again without specifying an email address" % (username, recover_client.email))
+			return
+		if not good and not newmail:
+			self.out_SERVERMSG(client, "User <%s> does not have a valid email address, please specify an email address to add to their account" % username)
+			return
+		if not good and newmail:
+			good_new, reason_new = self.verificationdb.valid_email_addr(newmail)
+			if not good_new:
+				self.out_SERVERMSG(client, "The email address '%s' is not valid: %s" % (newmail, reason_new))
+				return
+			recover_client.email = newmail
+			self.userdb.save_user(recover_client)			
+		self.verificationdb.reset_password(recover_client.user_id)
+		self.out_SERVERMSG(client, "An email was sent to '%s' containing a new password for <%s>" % (recover_client.username, recover_client.email))
 
 	def in_RESENDVERIFICATION(self, client, newmail):
 		if not self.verificationdb.active():
@@ -3133,7 +3165,7 @@ class Protocol:
 			client.Send("RESENDVERIFICATIONDENIED %s" % reason)
 			return
 		client.Send("RESENDVERIFICATIONACCEPTED")
-
+		
 	def in_JSON(self, client, rawcmd):
 		try:
 			cmd = json.loads(rawcmd)
@@ -3256,7 +3288,6 @@ def selftest():
 	assert(not p._validChannelSyntax("#abcde")[0])
 	assert(not p._validChannelSyntax("ab cde")[0])
 
-	p._root.min_spring_version = "104.0"
 	tests = {
 		"104": True,
 		"103": False,
@@ -3273,6 +3304,10 @@ def selftest():
 		"105.0": True,
 		"105.0.1": True,
 	}
+	p._root.min_spring_version = "104.0"
+	for ver, res in tests.items():
+		assert(p._validEngineVersion("spring", ver) == res)
+	p._root.min_spring_version = "104"
 	for ver, res in tests.items():
 		assert(p._validEngineVersion("spring", ver) == res)
 
