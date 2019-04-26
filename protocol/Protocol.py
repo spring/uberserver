@@ -2666,7 +2666,7 @@ class Protocol:
 				self.broadcast_SendBattle(battle, 'SAIDEX %s %s -- This battle will close -- %s %s or later is now required by the server. Please join a battle with the new Spring version!' % (battle.name, host.username, 'Spring', version), None, 'u', None)
 		for battleId in legacyBattleIds:
 			battle = self._root.battles[battleId]
-			self.broadcast_RemoveBattle(battle)
+			battle.removeBattle()
 			del self._root.battles[battleId]
 		self.out_SERVERMSG(client, 'Set Spring engine version to %s' % version)
 
