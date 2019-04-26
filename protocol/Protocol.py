@@ -159,6 +159,7 @@ restricted = {
 	#########
 	# users
 	'SETACCESS',
+	'DELETEACCOUNT',
 	#########
 	# dev
 	'STATS',
@@ -968,6 +969,17 @@ class Protocol:
 			self.out_DENIED(client, username, "Invalid username: '%s'" % username, True)
 			return
 
+		good, reason = self.userdb.check_login_user(username, password)
+		if not good:
+			reason += " (%d/%d)" % (1+failed_logins, max_failed_logins)
+			self.out_DENIED(client, username, reason, True)
+			return
+		
+		delay, reason = self._check_delayed_registration(client)
+		if delay:
+			self.out_DENIED(client, username, reason, False)
+			return
+ 		
 		banned, reason = self.userdb.check_banned(username, client.ip_address)
 		if banned:
 			assert (type(reason) == str)
@@ -992,33 +1004,25 @@ class Protocol:
 					client.compat.add('b')
 				else:
 					client.compat.add(flag)
-			
-		good, user_or_error = self.userdb.login_user(username, password, client.ip_address, lobby_id, last_id, local_ip, client.country_code)
-		if (not good):
-			assert (type(user_or_error) == str)
-			reason = user_or_error
-			reason += " (%d/%d)" % (1+failed_logins, max_failed_logins)
-			self.out_DENIED(client, username, reason, True)
-			return
-			
-		assert(user_or_error != None)
-		assert(type(user_or_error) != str)
+		
+		# login checks complete
+		dbuser = self.userdb.login_user(username, password, client.ip_address, lobby_id, last_id, local_ip, client.country_code)			
 
 		# update local client fields from DB User values
-		client.access = user_or_error.access
+		client.access = dbuser.access
 		self._calc_access(client)
-		client.set_user_pwrd_salt(user_or_error.username, (user_or_error.password, user_or_error.randsalt))
-		client.user_id = user_or_error.id
-		client.lobby_id = user_or_error.lobby_id
-		client.bot = user_or_error.bot
-		client.last_id = user_or_error.last_id
-		client.register_date = user_or_error.register_date
-		client.last_login = user_or_error.last_login
-		client.ingame_time = user_or_error.ingame_time
-		client.email = user_or_error.email
+		client.set_user_pwrd_salt(dbuser.username, (dbuser.password, dbuser.randsalt))
+		client.user_id = dbuser.id
+		client.lobby_id = dbuser.lobby_id
+		client.bot = dbuser.bot
+		client.last_id = dbuser.last_id
+		client.register_date = dbuser.register_date
+		client.last_login = dbuser.last_login
+		client.ingame_time = dbuser.ingame_time
+		client.email = dbuser.email
 	
 		if (client.access == 'agreement'):
-			logging.info('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, user_or_error.username))
+			logging.info('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, dbuser.username))
 			if self.verificationdb.active():
 				client.Send("AGREEMENT A verification code has been sent to your email address. Please read our terms of service and then enter your four digit code below.")
 				client.Send("AGREEMENT ")
@@ -1027,11 +1031,6 @@ class Protocol:
 			client.Send('AGREEMENTEND')
 			return
 		
-		delay, reason = self._check_delayed_registration(client)
-		if delay:
-			self.out_DENIED(client, username, reason, False)
- 		
-		# login checks complete
 		if client.ip_address in self._root.recent_failed_logins:
 			del self._root.recent_failed_logins[client.ip_address]		
 
@@ -3123,7 +3122,7 @@ class Protocol:
 			client.Send("RESETPASSWORDDENIED " + reason)
 			return
 
-		self.verificationdb.reset_password(recover_client.user_id)
+		self.verificationdb.reset_password(recover_client.user_id, True)
 		client.Send("RESETPASSWORDACCEPTED %s %s" % (recover_client.email, recover_client.username))
 		self.out_SERVERMSG(client, "Your password has been reset. Please check your email account." + client.email)
 		client.Remove("")
@@ -3152,10 +3151,32 @@ class Protocol:
 				self.out_SERVERMSG(client, "The email address '%s' is not valid: %s" % (newmail, reason_new))
 				return
 			recover_client.email = newmail
-			self.userdb.save_user(recover_client)			
-		self.verificationdb.reset_password(recover_client.user_id)
+			self.userdb.save_user(recover_client)
+		self.verificationdb.reset_password(recover_client.user_id, False)
 		self.out_SERVERMSG(client, "An email was sent to '%s' containing a new password for <%s>" % (recover_client.username, recover_client.email))
 
+	def in_DELETEACCOUNT(self, client, username):
+		# schedule the user account for deletion; after a delay during which the account becomes inaccessible
+		delete_client = self.clientFromUsername(username, True) 
+		if not delete_client:
+			self.out_SERVERMSG(client, "User <%s> does not exist" % (username))
+			return		
+			
+		# ensure that account is not logged in while we modify it & deter use of account deletion requests for smurfing
+		self.in_BANSPECIFIC(client, delete_client.ip_address, 28, "account deletion request scheduled")
+		if delete_client.email:
+			self.in_BANSPECIFIC(client, delete_client.email, 28, "account deletion request scheduled")
+		self.in_KICK(client, username, "account deletion request")
+	
+		delete_client.ingame_time = 0
+		delete_client.bot = 0
+		delete_client.access = "user"
+		delete_client.email = "" # prevent account recovery
+		self.userdb.save_user(delete_client)
+		self.verificationdb.reset_password(delete_client.user_id, False)		
+		# now the account can no longer be accessed & has no ingame time or special status 
+		# -> automated deletion after 28 days
+	
 	def in_RESENDVERIFICATION(self, client, newmail):
 		if not self.verificationdb.active():
 			client.Send("RESENDVERIFICATIONDENIED email verification is currently turned off, you do not need a verification code!")

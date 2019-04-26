@@ -517,7 +517,7 @@ class UsersHandler:
 			return True, reason
 		return False, ""
 		
-	def login_user(self, username, password, ip, lobby_id, last_id, local_ip, country):
+	def check_login_user(self, username, password):
 		# password here is unicode(BASE64(MD5(...))), matches the register_user DB encoding
 		dbuser = self.sess().query(User).filter(User.username == username).first()
 		if (not dbuser):
@@ -527,8 +527,11 @@ class UsersHandler:
 			return False, "Invalid username -- did you mean '%s'" % dbuser.username
 		if (not self.legacy_test_user_pwrd(dbuser, password)):
 			return False, 'Invalid username or password'
-
+		return True, ""
+		
+	def login_user(self, username, password, ip, lobby_id, last_id, local_ip, country):
 		now = datetime.now()
+		dbuser = self.sess().query(User).filter(User.username == username).first()
 		dbuser.logins.append(Login(now, ip, lobby_id, last_id, local_ip, country))
 		dbuser.time = now
 		dbuser.last_ip = ip
@@ -544,12 +547,10 @@ class UsersHandler:
 		user_copy.last_id = dbuser.last_id
 		user_copy.register_date = dbuser.register_date
 		user_copy.lobby_id = lobby_id
-		reason = user_copy
 
 		dbuser.last_login = now # store current time to db but keep last_login in the copy we send back
 		self.sess().commit()
-
-		return True, reason
+		return user_copy
 
 	def end_session(self, user_id):
 		entry = self.sess().query(User).filter(User.id==user_id).first()
@@ -573,11 +574,11 @@ class UsersHandler:
 			return False, reason
 		dbuser = self.sess().query(User).filter(User.username == username).first()
 		if dbuser:
-			return False, 'Username already exists.'
+			return False, 'Username is not available, please try another.'
 		if email:
 			dbemail = self.sess().query(User).filter(User.email == email).first()
 			if dbemail:
-				return False, 'Email address already in use.'
+				return False, 'Email address is already in use.'
 		if ip_address:
 			ipban = self._root.bandb.check_ban(None, ip_address)
 			if ipban:
@@ -625,7 +626,7 @@ class UsersHandler:
 			entry.email = obj.email
 
 		self.sess().commit()
-
+		
 	def get_user_id_with_email(self, email):
 		if email == '':
 			return False, 'Email address is blank'
@@ -690,8 +691,8 @@ class UsersHandler:
 		logging.info("deleting %i users who failed to verify registration", response.count())
 		response.delete(synchronize_session=False)
 
-		# which have no ingame time, last login > 30 days, not bot, not mod
-		response = self.sess().query(User).filter(User.ingame_time == 0).filter(User.last_login < now - timedelta(days=30)).filter(User.bot == 0).filter(User.access == "user")
+		# which have no ingame time, last login > 1 month ago, not bot, not mod
+		response = self.sess().query(User).filter(User.ingame_time == 0).filter(User.last_login < now - timedelta(days=28)).filter(User.bot == 0).filter(User.access == "user")
 		logging.info("deleting %i inactive users with no ingame time", response.count())
 		response.delete(synchronize_session=False)
 
@@ -1218,7 +1219,7 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 		response.delete(synchronize_session=False)
 		self.sess().commit()
 
-	def reset_password(self, user_id):
+	def reset_password(self, user_id, email_to_user):
 		# reset pw, email to user
 		char_set = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!£$%^&*?"
 		new_password_raw = ""
@@ -1233,10 +1234,11 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 		dbuser.password = new_password
 		self.sess().commit()
 
-		try:
-			thread.start_new_thread(self._send_reset_password_email, (dbuser.email, dbuser.username, new_password_raw,))
-		except:
-			logging.error('Failed to launch UserHandler._send_recover_account_email: %s' % (dbuser))
+		if email_to_user:
+			try:
+				thread.start_new_thread(self._send_reset_password_email, (dbuser.email, dbuser.username, new_password_raw,))
+			except:
+				logging.error('Failed to launch UserHandler._send_recover_account_email: %s' % (dbuser))
 
 	def _send_reset_password_email(self, email, username, password):
 		sent_from = self._root.mail_user
