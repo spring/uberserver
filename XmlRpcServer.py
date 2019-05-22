@@ -37,8 +37,11 @@ sqlurl = dbconfig.sqlurl
 xmlhost = "localhost"
 xmlport = 8300
 
-engine = sqlalchemy.create_engine(sqlurl, echo=False)
-userdb = SQLUsers.UsersHandler(None, engine)
+class DummyRoot:
+	def __init__(self):
+		self.engine = sqlalchemy.create_engine(sqlurl, echo=False)
+		self.session_manager = SQLUsers.session_manager(self, self.engine)
+		self.userdb = SQLUsers.UsersHandler(self)
 
 class RequestHandler(SimpleXMLRPCRequestHandler):
 	def log_message(self, format, *args):
@@ -49,6 +52,7 @@ class XmlRpcServer(SimpleXMLRPCServer):
 		XMLRPC service, exported functions are in class _RpcFuncs
 	"""
 	def __init__(self, host, port):
+		self.root = DummyRoot()
 		super(XmlRpcServer, self).__init__((host, port), requestHandler=RequestHandler)
 		self.register_introspection_functions()
 		self.register_instance(_RpcFuncs())
@@ -59,7 +63,7 @@ class XmlRpcServer(SimpleXMLRPCServer):
 
 def validateLogin(username, password):
 
-	session = userdb.sessionmaker()
+	session = userdb.sess()
 
 	db_user = session.query(User.id, User.username, User.ingame_time, User.email, User.password, User.access).filter(User.username == username).first()
 	if not db_user:
@@ -92,14 +96,17 @@ def validateLogin(username, password):
 			"aliases": renames,
 			"country": country[0] if country else ''
 		 }
+		 
 	session.close()
+	
 	logger.info("validation success: {}".format(username))
 	return result
 
 
 def user_id(username):
-	session = userdb.sessionmaker()
+	session = userdb.sess()
 	db_user = session.query(User.id).filter(User.username == username).first()
+	session.close()
 	return db_user.id
 
 class _RpcFuncs(object):
