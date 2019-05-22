@@ -43,6 +43,8 @@ class DummyRoot:
 		self.session_manager = SQLUsers.session_manager(self, self.engine)
 		self.userdb = SQLUsers.UsersHandler(self)
 
+root = DummyRoot()
+		
 class RequestHandler(SimpleXMLRPCRequestHandler):
 	def log_message(self, format, *args):
 		logger.info(format % args)
@@ -52,18 +54,15 @@ class XmlRpcServer(SimpleXMLRPCServer):
 		XMLRPC service, exported functions are in class _RpcFuncs
 	"""
 	def __init__(self, host, port):
-		self.root = DummyRoot()
 		super(XmlRpcServer, self).__init__((host, port), requestHandler=RequestHandler)
 		self.register_introspection_functions()
 		self.register_instance(_RpcFuncs())
 		logger.info('Listening for XMLRPC clients on %s:%d', host, port)
 		self.serve_forever()
 
-
-
 def validateLogin(username, password):
 
-	session = self.root.userdb.sess()
+	session = root.userdb.sess()
 
 	db_user = session.query(User.id, User.username, User.ingame_time, User.email, User.password, User.access).filter(User.username == username).first()
 	if not db_user:
@@ -104,7 +103,7 @@ def validateLogin(username, password):
 
 
 def user_id(username):
-	session = self.root.userdb.sess()
+	session = root.userdb.sess()
 	db_user = session.query(User.id).filter(User.username == username).first()
 	session.close()
 	return db_user.id
