@@ -63,7 +63,7 @@ class XmlRpcServer(SimpleXMLRPCServer):
 
 def validateLogin(username, password):
 
-	session = userdb.sess()
+	session = self.root.userdb.sess()
 
 	db_user = session.query(User.id, User.username, User.ingame_time, User.email, User.password, User.access).filter(User.username == username).first()
 	if not db_user:
@@ -104,7 +104,7 @@ def validateLogin(username, password):
 
 
 def user_id(username):
-	session = userdb.sess()
+	session = self.root.userdb.sess()
 	db_user = session.query(User.id).filter(User.username == username).first()
 	session.close()
 	return db_user.id
