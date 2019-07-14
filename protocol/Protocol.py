@@ -895,6 +895,7 @@ class Protocol:
 		good, reason = self.verificationdb.check_and_send(client_fromdb.user_id, email, 4, verif_reason, True, client.ip_address)
 		if (not good):
 			client.Send("REGISTRATIONDENIED %s" % ("verification failed: " + reason))
+			return
 
 		# declare success
 		client.access = 'agreement'
