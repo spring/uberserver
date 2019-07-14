@@ -1,4 +1,4 @@
-import socket, time, sys, ip2country
+import socket, time, datetime, sys, ip2country
 import errno
 import logging
 
@@ -28,8 +28,8 @@ class Client(BaseClient):
 		# fields also in user db
 		self.user_id = -1 # db user object has a .id attr instead
 		self.set_user_pwrd_salt("", ("", "")) # inits self.username, self.password self.randsalt
-		self.register_date = now
-		self.last_login = now
+		self.register_date = datetime.datetime.now()
+		self.last_login = datetime.datetime.now()
 		self.last_ip = self.ip_address
 		self.last_id = 0
 		self.ingame_time = 0

@@ -233,10 +233,26 @@ class DataHandler:
 				duration = mute['expires'] - now
 				self.channels[dbchannel.name].muteUser(issuer, target, mute['expires'], mute['reason'], duration)
 
+	def logout_stale_sessions(self):
+		to_logout = []
+		now = datetime.datetime.now()
+		for session_id in self.clients:
+			client = self.clients[session_id]
+			if client.static or client.bot:
+				continue
+			login_duration = now - client.last_login
+			if login_duration > datetime.timedelta(days=14):
+				to_logout.append(session_id)
+		logging.info("logging out %d stale sessions" % len(to_logout))
+		for session_id in to_logout:
+			client = self.clients[session_id]
+			client.Remove('reached maximum login duration')
+	
 	def scheduled_clean(self):
 		logging.info("scheduled clean...")
 		self.ip_type_cache = {}
 		try:
+			self.logout_stale_sessions()
 			self.userdb.audit_access()
 			self.userdb.clean()
 			self.bridgeduserdb.clean()
@@ -571,9 +587,6 @@ class DataHandler:
 	def decrement_recent_renames(self):
 		self.decrement_dict(self.recent_renames)
 
-	def decrement_recent_failed_logins(self):
-		self.decrement_dict(self.recent_failed_logins)
-	
 	# the sourceClient is only sent for SAY*, and RING commands
 	def multicast(self, session_ids, msg, ignore=(), sourceClient=None, flag=None, not_flag=None):
 		assert(type(ignore) == set)
