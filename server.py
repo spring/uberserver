@@ -35,15 +35,13 @@ except AttributeError:
 
 logging.info('Starting uberserver...')
 
-natport = _root.natport
-backlog = 100
-
 try:
+	natport = _root.natport
 	natserver = NATServer(natport)
 	thread.start_new_thread(natserver.start,())
 	natserver.bind(_root)
 except socket.error:
-	print('Error: Could not start NAT server - hole punching will be unavailable.')
+	logging.error("Could not start NAT server - hole punching will be unavailable.")
 
 _root.init()
 
@@ -71,7 +69,7 @@ except KeyboardInterrupt:
 	logging.info('Server killed by keyboard interrupt.')
 except:
 	logging.error(traceback.format_exc())
-	logging.info('Deep error, exiting...')
+	logging.info('Exception caught, exiting...')
 
 _root.shutdown()
 

@@ -1,5 +1,5 @@
 from socketserver import UDPServer,DatagramRequestHandler
-import sys
+import sys, logging
 
 class CustomUDPServer(UDPServer):
 	def Bind(self, root):
@@ -35,7 +35,7 @@ class handler(DatagramRequestHandler):
 class NATServer:
 	def __init__(self, port):
 		self.s = CustomUDPServer(('',port), handler)
-		print("Awaiting UDP messages on port %d" % port)
+		logging.info("Awaiting UDP messages on port %d" % port)
 
 	def bind(self, root):
 		self.s.Bind(root)
