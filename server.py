@@ -61,8 +61,6 @@ try:
 	event_loop.start(1)
 	recent_registration_loop = task.LoopingCall(_root.decrement_recent_registrations)
 	recent_registration_loop.start(60*20)
-	recent_failed_login_loop = task.LoopingCall(_root.decrement_recent_failed_logins)
-	recent_failed_login_loop.start(60*20)
 	recent_rename_loop = task.LoopingCall(_root.decrement_recent_renames)
 	recent_rename_loop.start(60*60*24*7)
 	

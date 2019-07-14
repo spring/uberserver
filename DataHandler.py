@@ -90,7 +90,6 @@ class DataHandler:
 		self.nonres_registrations = set() #user_id
 		self.ip_type_cache = {} #ip->state (iphub: 0=non-residential, 1=residential, 2=both)
 		self.recent_registrations = {} #ip_address->int
-		self.recent_failed_logins = {} #ip_address->int		
 		self.recent_renames = {} #user_id->int
 		self.flood_limits = {
 			'fresh':{'msglength':1000, 'bytespersecond':1000, 'seconds':2}, # also the default

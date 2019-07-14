@@ -956,46 +956,39 @@ class Protocol:
 		@optional.sentence.str compat_flags: Compatibility flags, sent in space-separated form, see lobby protocol docs for details
 		'''
 
-		failed_logins = self._root.recent_failed_logins.get(client.ip_address, 0)
-		max_failed_logins = 3
-		#if (failed_logins >= max_failed_logins) and client.ip_address != self._root.online_ip:
-		#	self.out_DENIED(client, username, "Too many failed logins (%d/3), please try again later." % failed_logins, False)
-		#	return
-
 		if username in self._root.usernames:
-			self.out_DENIED(client, username, 'Already logged in.', False)
+			self.out_DENIED(client, username, 'Already logged in.')
 			return
 		
 		if self.SayHooks.isNasty(username):
-			self.out_DENIED(client, username, "Invalid username: '%s'" % username, True)
+			self.out_DENIED(client, username, "Invalid username: '%s'" % username)
 			return
 
 		good, reason = self.userdb.check_login_user(username, password)
 		if not good:
-			reason += " (%d/%d)" % (1+failed_logins, max_failed_logins)
-			self.out_DENIED(client, username, reason, True)
+			self.out_DENIED(client, username, reason)
 			return
 		
 		delay, reason = self._check_delayed_registration(client)
 		if delay:
-			self.out_DENIED(client, username, reason, False)
+			self.out_DENIED(client, username, reason)
 			return
  		
 		banned, reason = self.userdb.check_banned(username, client.ip_address)
 		if banned:
 			assert (type(reason) == str)
-			self.out_DENIED(client, username, reason, False)
+			self.out_DENIED(client, username, reason)
 			return			
 			
 		if self.SayHooks.isNasty(sentence_args):
-			self.out_DENIED(client, username, "Invalid sentence args", True)
+			self.out_DENIED(client, username, "Invalid sentence args")
 			return
 		if sentence_args.count('\t')==0: # fixme: backwards compat for Melbot / Statserv
 			lobby_id = sentence_args
 			last_id = "0"
 		elif not self._validLoginSentence(sentence_args):
 			logging.warning("Invalid login sentence '%s' from <%s>" % (sentence_args, username))
-			self.out_DENIED(client, username, 'Invalid sentence format, please update your lobby client.', False)
+			self.out_DENIED(client, username, 'Invalid sentence format, please update your lobby client.')
 			return
 		else: 
 			lobby_id, last_id, compat_flags = sentence_args.split('\t',2)
@@ -1032,9 +1025,6 @@ class Protocol:
 			client.Send('AGREEMENTEND')
 			return
 		
-		if client.ip_address in self._root.recent_failed_logins:
-			del self._root.recent_failed_logins[client.ip_address]		
-
 		client.local_ip = local_ip
 		if local_ip.startswith('127.') or not self._validateIP(local_ip):
 			client.local_ip = client.ip_address
@@ -1107,7 +1097,7 @@ class Protocol:
 			return
 		good, reason = self.verificationdb.verify(client.user_id, client.email, verification_code)
 		if not good:
-			self.out_DENIED(client, client.username, reason, False)
+			self.out_DENIED(client, client.username, reason)
 			return
 		time_waited = datetime.datetime.now() - client.register_date
 		if time_waited.days == 0 and time_waited.seconds < 10:
@@ -1115,7 +1105,7 @@ class Protocol:
 			return
 		delay, reason = self._check_delayed_registration(client)
 		if delay:
-			self.out_DENIED(client, client.username, reason, False)
+			self.out_DENIED(client, client.username, reason)
 
 		ip_string = ""
 		if client.ip_address != client.last_ip:
@@ -3248,12 +3238,8 @@ class Protocol:
 	#
 	# Most outgoing commands are sent directly via client.Send within an in_ command
 
-	def out_DENIED(self, client, username, reason, incr = True):
+	def out_DENIED(self, client, username, reason):
 		# response to LOGIN
-		if incr:
-			failed_logins = self._root.recent_failed_logins.get(client.ip_address, 0)
-			self._root.recent_failed_logins[client.ip_address] = failed_logins + 1
-			
 		client.Send("DENIED %s" %(reason))
 		logging.info('[%s] Failed to log in user <%s>: %s'%(client.session_id, username, reason))
 
