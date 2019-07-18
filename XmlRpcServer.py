@@ -96,8 +96,6 @@ def validateLogin(username, password):
 			"country": country[0] if country else ''
 		 }
 		 
-	session.close()
-	
 	logger.info("validation success: {}".format(username))
 	return result
 
@@ -105,7 +103,6 @@ def validateLogin(username, password):
 def user_id(username):
 	session = root.userdb.sess()
 	db_user = session.query(User.id).filter(User.username == username).first()
-	session.close()
 	return db_user.id
 
 class _RpcFuncs(object):
@@ -114,18 +111,28 @@ class _RpcFuncs(object):
 	"""
 
 	def get_account_info(self, username, password):
+		ret = {"status": 1}
 		try:
-			return validateLogin(username, password)
+			ret = validateLogin(username, password)
+			root.session_manager.commit_guard()
 		except Exception as e:
 			logger.error('Exception: {}: {}'.format(e, traceback.format_exc()))
-			return {"status": 1}
+			root.session_manager.rollback_guard()
+		finally:
+			root.session_manager.close_guard()
+		return ret
 
 	def get_account_id(self, username):
+		ret = None
 		try:
-			return user_id(username)
+			ret = user_id(username)
+			root.session_manager.commit_guard()				
 		except Exception as e:
 			logger.error('Exception: {}: {}'.format(e, traceback.format_exc()))
-			return None
+			root.session_manager.rollback_guard()
+		finally:
+			root.session_manager.close_guard()
+		return ret
 
 
 try:
