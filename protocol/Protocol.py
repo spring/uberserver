@@ -2832,9 +2832,11 @@ class Protocol:
 				if not c.connected:
 					logging.error("client not connected: %s %d" % (c.username, c.session_id))
 					todel.append(c)
+					continue
 				if c.username in dupcheck:
 					logging.error("client username failed dup check: %s %d" % (c.username, c.session_id))
 					todel.append(c)
+					continue
 				dupcheck.add(c.username)
 				if c.username not in root.usernames:
 					logging.error("client with missing username: %s %d" % (c.username, c.session_id))
