@@ -1106,6 +1106,7 @@ class Protocol:
 		delay, reason = self._check_delayed_registration(client)
 		if delay:
 			self.out_DENIED(client, client.username, reason)
+			return
 
 		ip_string = ""
 		if client.ip_address != client.last_ip:
