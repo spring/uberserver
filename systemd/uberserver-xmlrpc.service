@@ -1,0 +1,19 @@
+[Unit]
+Description=Uberserver Lobby XMLRPC Login Service
+After=network-online.target mariadb.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=lobby
+Group=lobby
+WorkingDirectory=/home/lobby/uberserver
+ExecStart=/home/lobby/uberserver/XmlRpcServer.py
+SyslogIdentifier=uberserver
+StandardOutput=syslog
+StandardError=syslog
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
