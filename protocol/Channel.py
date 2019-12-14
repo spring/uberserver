@@ -15,7 +15,7 @@ class Channel():
 		self.topic = ''
 		self.topic_time = None # deprecated
 		self.topic_user_id = None
-		self.antispam = False
+		self.antispam = False # deprecated
 		self.autokick = '' #deprecated
 		self.censor = False
 		self.antishock = False #deprecated
@@ -76,10 +76,7 @@ class Channel():
 		
 		topic_client = self._root.clientFromID(self.topic_user_id) if self.topic_user_id else None
 		topic_username = topic_client.username if topic_client else 'ChanServ'
-		if 't' in client.compat:
-			client.Send('CHANNELTOPIC %s %s %s' % (self.name, topic_username, self.topic))
-		if len(self.topic)>0 and not 't' in client.compat:
-			client.Send('CHANNELTOPIC %s %s %s %s' % (self.name, topic_username, time.time(), self.topic)) # backwards compat
+		client.Send('CHANNELTOPIC %s %s %s' % (self.name, topic_username, self.topic))
 				
 		if 'u' in client.compat:
 			bridgedClients = {}
@@ -162,12 +159,11 @@ class Channel():
 		self.topic = topic
 		self.db().setTopic(self, topic, client)
 
-		self.broadcast('CHANNELTOPIC %s %s %s' % (self.name, client.username, topic), set(), 't', None)
+		self.broadcast('CHANNELTOPIC %s %s %s' % (self.name, client.username, topic), set())
 		if len(topic)==0:
 			self.channelMessage('Topic removed.')
 		else:
 			self.channelMessage('Topic changed.')
-			self.broadcast('CHANNELTOPIC %s %s %s %s' % (self.name, client.username, time.time(), topic), set(), None, 't') # backwards compat
 		
 	def setFounder(self, client, target):
 		self.owner_user_id = target.user_id

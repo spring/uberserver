@@ -189,11 +189,8 @@ def uint32(x):
 # supported flags
 flag_map = {
 	'u':  'say2',            # SAYFROM, Battle<->Channel unification
-	'l':  'lobbyIDs',        # send account IDs and lobby IDs in ADDUSER (supersedes 'a')
 	'sp': 'scriptPassword',  # scriptPassword in JOINEDBATTLE
-	'cl': 'cleanupBattles',  # BATTLEOPENED / OPENBATTLE with support for engine/version
 	'b':  'battleAuth',      # JOINBATTLEACCEPT/JOINBATTLEDENIED (typically only sent by autohosts)
-	't':  'timelessTopics',  # CHANNELTOPIC without times, always sent and allowing empty topic string
 }
 # optional flags
 optional_flags = (
@@ -202,6 +199,9 @@ optional_flags = (
 
 # flags for functionality that is now either compulsory or was removed
 deprecated_flags = (
+	'cl',# BATTLEOPENED / OPENBATTLE with support for engine/version, now mandatory
+	't', # CHANNELTOPIC without times, always sent and allowing empty topic string, now mandatory
+	'l', # send account IDs and lobby IDs in ADDUSER (supersedes 'a'), now mandatory
 	'a', # superceded by 'l'
 	'm', # matchmaking, removed
 	'p', # plain text user agreement, now mandatory
@@ -735,12 +735,7 @@ class Protocol:
 
 	def client_AddUser(self, receiver, user):
 		'sends the protocol for adding a user'
-		if 'l' in receiver.compat:
-			return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, user.user_id, user.lobby_id)
-		if 'a' in receiver.compat: #accountIDs
-			return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, 0, user.user_id)
-
-		return 'ADDUSER %s %s %s' % (user.username, user.country_code, 0)
+		return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, user.user_id, user.lobby_id)
 
 	def client_RemoveUser(self, client, user):
 		'sends the protocol for removing a user'
@@ -758,18 +753,9 @@ class Protocol:
 
 		battle.ip = translated_ip
 		battle.host = host.session_id # session_id -> username
-		if 'cl' in client.compat and 'u' in client.compat: #supports multi-engine
+		if 'u' in client.compat: 
 			return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s\t%s\t%s\t%s' %(battle.battle_id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded(), battle.rank, battle.maphash, battle.engine, battle.version, battle.map, battle.title, battle.modname, battle.name)
-
-		#backwards compat
-		if 'cl' in client.compat:
-			return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s\t%s\t%s' %(battle.battle_id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded(), battle.rank, battle.maphash, battle.engine, battle.version, battle.map, battle.title, battle.modname)
-		# give a legacy client without version support a hint, that this battle might be incompatible to his version
-		if not (battle.engine == 'spring' and (battle.version == self._root.min_spring_version or battle.version == self._root.min_spring_version + '.0')):
-			title =  'Incompatible (%s %s) %s' %(battle.engine, battle.version, battle.title)
-		else:
-			title = battle.title
-		return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s' % (battle.battle_id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded(), battle.rank, battle.maphash, battle.map, title, battle.modname)
+		return 'BATTLEOPENED %s %s %s %s %s %s %s %s %s %s %s\t%s\t%s\t%s\t%s' %(battle.battle_id, battle.type, battle.natType, host.username, battle.ip, battle.port, battle.maxplayers, battle.passworded(), battle.rank, battle.maphash, battle.engine, battle.version, battle.map, battle.title, battle.modname)
 	
 	def is_ignored(self, client, ignoredClient):
 		# verify that this is an online client (only those have an .ignored attr)
@@ -2459,7 +2445,7 @@ class Protocol:
 	def in_GETUSERID(self, client, username):
 		user = self.clientFromUsername(username, True)
 		if user:
-			self.out_SERVERMSG(client, 'The ID for <%s> is %s' % (username, user.last_id.split()[0]))
+			self.out_SERVERMSG(client, 'The ID for <%s> is %s' % (username, user.last_id))
 		else:
 			self.out_SERVERMSG(client, 'User not found.')
 
@@ -2475,6 +2461,7 @@ class Protocol:
 			return
 		if not 'mod' in client.accesslevels:
 			return
+		# mod requests client details
 		if not username:
 			return
 		if ':' in username:
