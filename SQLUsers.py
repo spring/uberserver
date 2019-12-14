@@ -1518,7 +1518,7 @@ if __name__ == '__main__':
 	assert(isinstance(client.id, int))
 
 	# test verification
-	entry = verificationdb.create(client.id, client.email, 4, False, "test")
+	entry = verificationdb.create(client.id, client.email, 4, "test")
 	verificationdb._send_email("test@test.test", "blackhole@blackhole.io", "test", "test") #use main thread, or Python will exit without waiting for the test!
 	verificationdb.verify(client.id, client.email, entry.code)
 	verificationdb.clean()
