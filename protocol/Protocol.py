@@ -878,7 +878,7 @@ class Protocol:
 
 		# verification
 		verif_reason = "registered an account on the SpringRTS lobbyserver"
-		good, reason = self.verificationdb.check_and_send(client_fromdb.user_id, email, 4, verif_reason, True, client.ip_address)
+		good, reason = self.verificationdb.check_and_send(client_fromdb.user_id, email, 4, verif_reason, client.ip_address)
 		if (not good):
 			client.Send("REGISTRATIONDENIED %s" % ("verification failed: " + reason))
 			return
@@ -3045,7 +3045,7 @@ class Protocol:
 			client.Send("CHANGEEMAILREQUESTDENIED another user is already registered to the email address '%s'" % newmail)
 			return
 		reason = "requested to change your email address for the account <%s> on on the SpringRTS lobbyserver" % client.username
-		good, reason = self.verificationdb.check_and_send(client.user_id, newmail, 4, reason, False, client.ip_address)
+		good, reason = self.verificationdb.check_and_send(client.user_id, newmail, 4, reason, client.ip_address)
 		if not good:
 			client.Send("CHANGEEMAILREQUESTDENIED " + reason)
 			return
@@ -3080,7 +3080,7 @@ class Protocol:
 			return
 		recover_client = self.clientFromID(response, True) # can't assume that the user is logged in, or even genuinely the client
 		reason = "requested to recover your account <" + recover_client.username + "> on the SpringRTS lobbyserver"
-		good, reason = self.verificationdb.check_and_send(recover_client.user_id, email, 8, reason, False, client.ip_address)
+		good, reason = self.verificationdb.check_and_send(recover_client.user_id, email, 8, reason, client.ip_address)
 		if not good:
 			client.Send("RESETPASSWORDREQUESTDENIED " + reason)
 			return

@@ -68,12 +68,12 @@ verifications_table = Table('verifications', metadata,
 	Column('expiry', DateTime),
 	Column('attempts', Integer),
 	Column('resends', Integer),
-	Column('use_delay', Boolean),
+	#Column('use_delay', Boolean),
 	Column('reason', Text),
 	mysql_charset='utf8',
 	)
 class Verification(object):
-	def __init__(self, user_id, email, digits, use_delay, reason):
+	def __init__(self, user_id, email, digits, reason):
 		self.user_id = user_id
 		self.email = email
 		assert(digits>=4)
@@ -81,11 +81,11 @@ class Verification(object):
 		self.expiry = datetime.now() + timedelta(days=2)
 		self.attempts = 0
 		self.resends = 0
-		self.use_delay = use_delay
+		#self.use_delay = use_delay
 		self.reason = reason
 
 	def __repr__(self):
-		return "<Verification('%s', '%s', '%s', '%s', '%s', %i, %i, %r)>" % (self.id, self.user_id, self.email, self.code, self.expiry, self.attempts, self.resends, self.use_delay)
+		return "<Verification('%s', '%s', '%s', '%s', '%s', %i, %i)>" % (self.id, self.user_id, self.email, self.code, self.expiry, self.attempts, self.resends)
 mapper(Verification, verifications_table)
 
 ##########################################
@@ -1066,7 +1066,7 @@ class BansHandler:
 class VerificationsHandler:
 	def __init__(self, root):
 		self._root = root
-		self.require_verification = (self._root.mail_user != None)
+		self.require_verification = (self._root.mail_user != None)	
 		
 	def sess(self):
 		return self._root.session_manager.sess()
@@ -1084,8 +1084,9 @@ class VerificationsHandler:
 			return False, "Invalid email address format."
 		return True, ""
 
-	def check_and_send(self, user_id, email, digits, reason, use_delay, ip_address):
+	def check_and_send(self, user_id, email, digits, reason, ip_address):
 		# check that we don't already have an active verification, send a new one if not
+		print(1)
 		if not self.active():
 			return True, ''
 		good, validity_reason = self.valid_email_addr(email)
@@ -1111,12 +1112,12 @@ class VerificationsHandler:
 				return False, 'Already sent a verification code, please check your spam filter!'
 		if entry: #expired
 			self.remove(user_id)
-		entry = self.create(user_id, email, digits, use_delay, reason)
+		entry = self.create(user_id, email, digits, reason)
 		self.send(entry, ip_address)
 		return True, ''
 
-	def create(self, user_id, email, digits, use_delay, reason):
-		entry = Verification(user_id, email, digits, use_delay, reason)
+	def create(self, user_id, email, digits, reason):
+		entry = Verification(user_id, email, digits, reason)
 		self.sess().add(entry)
 		self.sess().commit()
 		return entry
@@ -1139,17 +1140,15 @@ class VerificationsHandler:
 		return True, ''
 
 	def send(self, entry, ip_address):
-		if not self.active(): #safety
+		if not self.active(): 
 			return
 		try:
-			thread.start_new_thread(self._send, (entry.email, entry.code, entry.reason, entry.use_delay, entry.expiry, ip_address))
+			thread.start_new_thread(self._send, (entry.email, entry.code, entry.reason, entry.expiry, ip_address))
 		except:
 			logging.error('Failed to launch VerificationHandler._send: %s, %s, %s' % (entry, reason, wait_duration))
 
-	def _send(self, email, code, reason, use_delay, expiry, ip_address):
-		if use_delay:
-			time.sleep(20)
-		sent_from = self.mail_user
+	def _send(self, email, code, reason, expiry, ip_address):
+		sent_from = self._root.mail_user
 		to = email
 		subject = 'SpringRTS verification code'
 		body = """
@@ -1161,7 +1160,7 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 
 	def _send_email(self, sent_from, to, subject, body):
 		if not self.active(): #safety
-			logging.error("Attempt to send email (subject: %s) failed, verifications handler is inactive" % subject)
+			logging.error("Attempt to _send_email (subject: %s) failed, verifications handler is inactive" % subject)
 			return
 		body += '<br><br>If you received this message in error, please contact us at www.springrts.com. Direct replies to this message will be automatically deleted.'
 		message = MIMEText(body, 'html')
