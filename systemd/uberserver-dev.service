@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=lobby
-Group=lobby
+User=lobbydev
+Group=lobbydev
 WorkingDirectory=/home/lobbydev/uberserver
 ExecStart=/home/lobby/uberserverdev/server.py -g args.txt
 SyslogIdentifier=uberserver
