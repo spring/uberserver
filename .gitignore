@@ -9,6 +9,10 @@ xmlrpc.log*
 /sqlalchemy/
 /server.log*
 /server.db
+/server_agreement.txt
+/server_email_account.txt
+/server_iphub_xkey.txt
+/server_motd.txt
 /test.db
 /deps.zip
 /GeoIP.dat
