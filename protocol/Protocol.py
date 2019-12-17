@@ -3134,7 +3134,7 @@ class Protocol:
 			recover_client.email = newmail
 			self.userdb.save_user(recover_client)
 		self.verificationdb.reset_password(recover_client.user_id, False)
-		self.out_SERVERMSG(client, "An email was sent to '%s' containing a new password for <%s>" % (recover_client.username, recover_client.email))
+		self.out_SERVERMSG(client, "An email was sent to '%s' containing a new password for <%s>" % (recover_client.username, recover_client.email), True)
 
 	def in_DELETEACCOUNT(self, client, username):
 		# schedule the user account for deletion; after a delay during which the account becomes inaccessible
