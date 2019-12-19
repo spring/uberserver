@@ -634,8 +634,8 @@ class UsersHandler:
 		dbuser = response.first()
 		if not dbuser:
 			return False, 'No user with email address %s was found' % email
-		for entry in response: # pick oldest, if multiple choices
-			if entry.register_date < dbuser.register_date:
+		for entry in response: # pick oldest with a valid date, if multiple choices
+			if (entry.register_date and dbuser.register_date and entry.register_date < dbuser.register_date) or not dbuser.register_date:
 				db_user = entry
 		return True, dbuser.id
 
