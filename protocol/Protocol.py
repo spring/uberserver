@@ -884,7 +884,7 @@ class Protocol:
 		client_fromdb = self.clientFromUsername(username, True)
 
 		# verification
-		verif_reason = "registered an account on the SpringRTS lobbyserver"
+		verif_reason = "registered an account on the SpringRTS lobbyserver (username: %s)" % username
 		good, reason = self.verificationdb.check_and_send(client_fromdb.user_id, email, 4, verif_reason, client.ip_address)
 		if (not good):
 			client.Send("REGISTRATIONDENIED %s" % ("verification failed: " + reason))
