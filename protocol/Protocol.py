@@ -11,7 +11,6 @@ import datetime
 import base64
 import json
 import traceback
-import subprocess
 
 import urllib.request
 import _thread as thread
