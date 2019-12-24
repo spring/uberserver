@@ -998,7 +998,8 @@ class Protocol:
 		# update local client fields from DB User values
 		client.access = dbuser.access
 		self._calc_access(client)
-		client.set_user_pwrd_salt(dbuser.username, (dbuser.password, dbuser.randsalt))
+		client.username = dbuser.username
+		client.password = dbuser.password
 		client.user_id = dbuser.id
 		client.lobby_id = dbuser.lobby_id
 		client.bot = dbuser.bot
@@ -2577,34 +2578,23 @@ class Protocol:
 
 
 	def in_CHANGEPASSWORD(self, client, cur_password, new_password):
-		'''
-		Change the password of current user.
-
-		@required.str cur_password: client's current password.
-		@required.str new_password: client's desired password.
-		'''
+		# Change the password of current user.
 		if (cur_password == new_password):
+			self.out_SERVERMSG(client, "New password must be different to current password.")
 			return
 
 		good, reason = self._validPasswordSyntax(new_password)
-
 		if (not good):
 			self.out_SERVERMSG(client, '%s' % reason)
 			return
-
-		db_user = self.clientFromUsername(client.username, True)
-
-		if (db_user == None):
+			
+		good, reason = self.userdb.check_login_user(client.username, cur_password)
+		if not good:
+			self.out_SERVERMSG(client, '%s' % reason)
 			return
 
-		if (not self.userdb.legacy_test_user_pwrd(db_user, cur_password)):
-			self.out_SERVERMSG(client, 'Incorrect old password.')
-			return
-
-		self.userdb.legacy_update_user_pwrd(db_user, new_password)
-		self.out_SERVERMSG(client, 'Password changed successfully! It will be used at the next login!')
-
-		return
+		self.userdb.set_user_password(client.username, new_password)
+		self.out_SERVERMSG(client, 'Password changed successfully.')
 
 	def in_SETBOTMODE(self, client, username, mode):
 		# set bot mode of target user

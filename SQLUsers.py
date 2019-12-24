@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 from datetime import datetime, timedelta
-from BaseClient import BaseClient
 
 import time, random, re, hashlib, base64
 import logging
@@ -31,7 +30,7 @@ users_table = Table('users', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('username', String(40), unique=True), # unicode
 	Column('password', String(64)), # unicode(BASE64(ASCII)) (unicode is added by DB on write)
-	Column('randsalt', String(64)), # unicode(BASE64(ASCII)) (unicode is added by DB on write)
+	Column('randsalt', String(64)), # unused
 	Column('register_date', DateTime),
 	Column('last_login', DateTime),
 	Column('last_ip', String(15)), # would need update for ipv6
@@ -43,10 +42,11 @@ users_table = Table('users', metadata,
 	mysql_charset='utf8',
 )
 
-class User(BaseClient):
-	def __init__(self, username, password, randsalt, last_ip, email, access='agreement'):
-		self.set_user_pwrd_salt(username, (password, randsalt))
-
+class User():
+	def __init__(self, username, password, last_ip, email, access='agreement'):
+		self.username = username
+		self.password = password
+		self.randsalt = ""
 		self.last_login = datetime.now()
 		self.register_date = datetime.now()
 		self.last_ip = last_ip
@@ -68,7 +68,6 @@ verifications_table = Table('verifications', metadata,
 	Column('expiry', DateTime),
 	Column('attempts', Integer),
 	Column('resends', Integer),
-	#Column('use_delay', Boolean),
 	Column('reason', Text),
 	mysql_charset='utf8',
 	)
@@ -81,7 +80,6 @@ class Verification(object):
 		self.expiry = datetime.now() + timedelta(days=2)
 		self.attempts = 0
 		self.resends = 0
-		#self.use_delay = use_delay
 		self.reason = reason
 
 	def __repr__(self):
@@ -454,9 +452,10 @@ class session_manager():
 ##########################################
 			
 			
-class OfflineClient(BaseClient):
+class OfflineClient():
 	def __init__(self, sqluser):
-		self.set_user_pwrd_salt(sqluser.username, (sqluser.password, sqluser.randsalt))
+		self.username = sqluser.username
+		self.password = sqluser.password
 		self.id = sqluser.id
 		self.user_id = sqluser.id
 		self.ingame_time = sqluser.ingame_time
@@ -484,15 +483,6 @@ class UsersHandler:
 		entry = self.sess().query(User).filter(User.username==username).first()
 		if not entry: return None
 		return OfflineClient(entry)
-
-	def legacy_update_user_pwrd(self, db_user, password):
-		assert(db_user.has_legacy_password())
-
-		db_user.set_pwrd_salt((password, ""))
-		self.save_user(db_user)
-
-	def legacy_test_user_pwrd(self, dbuser, password):
-		return (dbuser.password == password)
 
 	def remaining_ban_str(self, dbban, now):
 		timeleft = int((dbban.end_date - now).total_seconds())
@@ -525,7 +515,7 @@ class UsersHandler:
 		if dbuser.username != username:
 			# user tried to login with wrong upper/lower case somewhere in their username
 			return False, "Invalid username -- did you mean '%s'" % dbuser.username
-		if (not self.legacy_test_user_pwrd(dbuser, password)):
+		if dbuser.password != password:
 			return False, 'Invalid username or password'
 		return True, ""
 		
@@ -538,7 +528,7 @@ class UsersHandler:
 		dbuser.last_id = last_id
 
 		# copy unicode(BASE64(...)) values out of DB, leave them as-is
-		user_copy = User(dbuser.username, dbuser.password, dbuser.randsalt, ip, dbuser.email)
+		user_copy = User(dbuser.username, dbuser.password, ip, dbuser.email)
 		user_copy.access = dbuser.access
 		user_copy.id = dbuser.id
 		user_copy.ingame_time = dbuser.ingame_time
@@ -551,6 +541,11 @@ class UsersHandler:
 		dbuser.last_login = now # store current time to db but keep last_login in the copy we send back
 		self.sess().commit()
 		return user_copy
+
+	def set_user_password(self, username, password):
+		dbuser = self.sess().query(User).filter(User.username==username).first()
+		dbuser.password = password
+		self.sess().commit()
 
 	def end_session(self, user_id):
 		entry = self.sess().query(User).filter(User.id==user_id).first()
@@ -588,7 +583,7 @@ class UsersHandler:
 	def register_user(self, username, password, ip, email):
 		# note: password here is BASE64(MD5(...)) and already in unicode
 		# assume check_register_user was already called
-		entry = User(username, password, "", ip, email)
+		entry = User(username, password, ip, email)
 
 		self.sess().add(entry)
 		self.sess().commit()
@@ -617,8 +612,7 @@ class UsersHandler:
 		entry = self.sess().query(User).filter(User.username==obj.username).first()
 		if (entry != None):
 			# caller might have changed these!
-			entry.set_pwrd_salt((obj.password, obj.randsalt))
-
+			entry.password = obj.password
 			entry.ingame_time = obj.ingame_time
 			entry.access = obj.access
 			entry.bot = obj.bot

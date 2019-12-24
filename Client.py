@@ -3,10 +3,9 @@ import errno
 import logging
 
 from collections import defaultdict
-from BaseClient import BaseClient
 from BridgedClient import BridgedClient
 
-class Client(BaseClient):
+class Client():
 	'this object represents one server-side connected client'
 
 	def __init__(self, root, address, session_id):
@@ -27,7 +26,8 @@ class Client(BaseClient):
 
 		# fields also in user db
 		self.user_id = -1 # db user object has a .id attr instead
-		self.set_user_pwrd_salt("", ("", "")) # inits self.username, self.password self.randsalt
+		self.username = ""
+		self.password = ""
 		self.register_date = datetime.datetime.now()
 		self.last_login = datetime.datetime.now()
 		self.last_ip = self.ip_address
