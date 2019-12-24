@@ -741,7 +741,6 @@ class DataHandler:
 		try:
 			self.parseFiles()
 			self.get_server_version()
-			importlib.reload(sys.modules['BaseClient'])
 			importlib.reload(sys.modules['Client'])
 			importlib.reload(sys.modules['BridgedClient'])
 			importlib.reload(sys.modules['Channel'])
