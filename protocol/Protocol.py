@@ -986,11 +986,7 @@ class Protocol:
 		else: 
 			lobby_id, last_id, compat_flags = sentence_args.split('\t',2)
 			for flag in compat_flags.split(' '):
-				if flag in ('ab', 'ba'): # why does this check exist?
-					client.compat.add('a')
-					client.compat.add('b')
-				else:
-					client.compat.add(flag)
+				client.compat.add(flag)
 		
 		# login checks complete
 		dbuser = self.userdb.login_user(username, password, client.ip_address, lobby_id, last_id, local_ip, client.country_code)			
