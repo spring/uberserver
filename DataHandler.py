@@ -41,8 +41,9 @@ class DataHandler:
 		self.mail_user = None		
 		self.trusted_proxies = set([])		
 		
-		self.server = 'TASServer'
-		self.server_version = '0.36'
+		self.server = 'TASSERVER'
+		self.server_version = 'unknown'
+		
 		self.sighup = False
 
 		self.userdb = None
@@ -113,6 +114,7 @@ class DataHandler:
 		
 	def init(self):
 		self.parseFiles()
+		self.get_server_version()		
 		
 		now = datetime.datetime.now()
 		sqlalchemy = __import__('sqlalchemy')
@@ -449,6 +451,13 @@ class DataHandler:
 		except Exception as e:
 			logging.error("error whilst loading %s: %s" % (self.trusted_proxyfile, str(e)))		
 
+	def get_server_version(self):
+		try:
+			self.server_version = subprocess.check_output(["git", "describe"], universal_newlines=True).strip()
+		except:
+			self.server_version = "unknown"			
+			logging.error("Failed to get server version")
+
 	def getUserDB(self):
 		return self.userdb
 
@@ -729,6 +738,7 @@ class DataHandler:
 
 		try:
 			self.parseFiles()
+			self.get_server_version()
 			importlib.reload(sys.modules['BaseClient'])
 			importlib.reload(sys.modules['Client'])
 			importlib.reload(sys.modules['BridgedClient'])

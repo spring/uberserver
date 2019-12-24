@@ -242,11 +242,7 @@ class Protocol:
 			if not flag in flag_map:
 				unknown_flags += ' ' + flag
 
-		try:
-			server_version = subprocess.check_output(["git", "describe"], universal_newlines=True).strip()
-		except:
-			server_version = "unknown"			
-		client.RealSend("MOTD Server version: %s" % server_version)
+		client.RealSend("MOTD Server version: %s" % self._root.server_version)
 		
 		compat_error = len(missing_flags)>0 or len(deprec_flags)>0 or len(unknown_flags)>0
 		error = missing_TLS or compat_error

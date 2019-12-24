@@ -46,7 +46,6 @@ class User():
 	def __init__(self, username, password, last_ip, email, access='agreement'):
 		self.username = username
 		self.password = password
-		self.randsalt = ""
 		self.last_login = datetime.now()
 		self.register_date = datetime.now()
 		self.last_ip = last_ip
