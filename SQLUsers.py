@@ -46,6 +46,7 @@ class User():
 	def __init__(self, username, password, last_ip, email, access='agreement'):
 		self.username = username
 		self.password = password
+		self.randsalt = ""
 		self.last_login = datetime.now()
 		self.register_date = datetime.now()
 		self.last_ip = last_ip
@@ -455,6 +456,7 @@ class OfflineClient():
 	def __init__(self, sqluser):
 		self.username = sqluser.username
 		self.password = sqluser.password
+		self.randsalt = ""
 		self.id = sqluser.id
 		self.user_id = sqluser.id
 		self.ingame_time = sqluser.ingame_time
