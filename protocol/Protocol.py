@@ -936,7 +936,7 @@ class Protocol:
 		Attempt to login the active client.
 
 		@required.str username: Username
-		@required.str password: Password (old-style: BASE64(MD5(PWRD)), new-style: BASE64(PWRD))
+		@required.str password: Password BASE64(MD5(PWRD))
 		@optional.int cpu: deprecated
 		@optional.ip local_ip: LAN IP address, sent to clients when they have the same WAN IP as host
 		@optional.sentence.str lobby_id: Lobby name and version
@@ -1633,11 +1633,11 @@ class Protocol:
 			self.out_FAILED(client, "JOIN", "Only moderators allowed in this channel! access=%s" %(client.access), True)
 			return
 		if not chan:
-			self.out_FAILED(client, 'JOIN', 'Invalid channel: %s' %(chan), True)
+			self.out_FAILED(client, 'JOIN', 'Invalid channel', False)
 			return
 		if not chan in self._root.channels:
 			if chan.startswith('__battle__'):
-				self.out_FAILED(client, 'JOIN', 'cannot create channel %s with prefix __battle__, these names are reserved for battles' % chan, True)
+				self.out_FAILED(client, 'JOIN', 'cannot create channel %s with prefix __battle__, these names are reserved for battles' % chan, False)
 				return
 			channel = Channel.Channel(self._root, chan)
 			self._root.channels[chan] = channel
