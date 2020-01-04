@@ -898,7 +898,7 @@ class Protocol:
 		ip_str = client.ip_address
 		if client.local_ip != client.ip_address:
 			ip_str += " " + client.local_ip
-		self.broadcast_Moderator('New: %s %s %s %s' %(username, ip_str, client.country_code, email))
+		self.broadcast_Moderator('New: %s %s %s' %(username, ip_str, client.country_code))
 	
 	def _check_nonresidential_ip(self, user_id, username, ip_address):
 		if not self._root.iphub_xkey:
