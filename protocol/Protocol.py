@@ -1080,16 +1080,19 @@ class Protocol:
 		# Verify the users verification code.
 		if client.access != 'agreement':
 			return
-		good, reason = self.verificationdb.verify(client.user_id, client.email, verification_code)
-		if not good:
-			self.out_DENIED(client, client.username, reason)
-			return
+		
 		time_waited = datetime.datetime.now() - client.register_date
 		if time_waited.days == 0 and time_waited.seconds < 10:
 			self.out_DENIED(client, client.username, "Please take at least a few seconds to read our terms of service!")
 			return
+		
 		delay, reason = self._check_delayed_registration(client)
 		if delay:
+			self.out_DENIED(client, client.username, reason)
+			return
+		
+		good, reason = self.verificationdb.verify(client.user_id, client.email, verification_code)
+		if not good:
 			self.out_DENIED(client, client.username, reason)
 			return
 
