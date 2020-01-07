@@ -3124,7 +3124,7 @@ class Protocol:
 				return
 			recover_client.email = newmail
 			self.userdb.save_user(recover_client)
-		self.verificationdb.reset_password(recover_client.user_id, False)
+		self.verificationdb.reset_password(recover_client.user_id, True)
 		self.out_SERVERMSG(client, "An email was sent to '%s' containing a new password for <%s>" % (recover_client.email, recover_client.username), True)
 
 	def in_DELETEACCOUNT(self, client, username):
