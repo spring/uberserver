@@ -995,6 +995,7 @@ class Protocol:
 		client.lobby_id = dbuser.lobby_id
 		client.bot = dbuser.bot
 		client.last_id = dbuser.last_id
+		client.last_ip = dbuser.last_ip
 		client.register_date = dbuser.register_date
 		client.last_login = dbuser.last_login
 		client.ingame_time = dbuser.ingame_time
@@ -3135,8 +3136,8 @@ class Protocol:
 			return		
 			
 		# ensure that account is not logged in while we modify it & deter use of account deletion requests for smurfing
-		if delete_client.ip_address:
-			self.in_BANSPECIFIC(client, delete_client.ip_address, 28, "account deletion request scheduled")
+		if delete_client.last_ip:
+			self.in_BANSPECIFIC(client, delete_client.last_ip, 28, "account deletion request scheduled")
 		if delete_client.email:
 			self.in_BANSPECIFIC(client, delete_client.email, 28, "account deletion request scheduled")
 		self.in_KICK(client, username, "account deletion request")
