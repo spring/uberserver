@@ -3136,8 +3136,6 @@ class Protocol:
 			return		
 			
 		# ensure that account is not logged in while we modify it & deter use of account deletion requests for smurfing
-		if delete_client.last_ip:
-			self.in_BANSPECIFIC(client, delete_client.last_ip, 28, "account deletion request scheduled")
 		if delete_client.email:
 			self.in_BANSPECIFIC(client, delete_client.email, 28, "account deletion request scheduled")
 		self.in_KICK(client, username, "account deletion request")
