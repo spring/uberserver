@@ -524,24 +524,12 @@ class UsersHandler:
 		now = datetime.now()
 		dbuser = self.sess().query(User).filter(User.username == username).first()
 		dbuser.logins.append(Login(now, ip, lobby_id, last_id, local_ip, country))
-		dbuser.time = now
 		dbuser.last_ip = ip
 		dbuser.last_id = last_id
-
-		# copy unicode(BASE64(...)) values out of DB, leave them as-is
-		user_copy = User(dbuser.username, dbuser.password, ip, dbuser.email)
-		user_copy.access = dbuser.access
-		user_copy.id = dbuser.id
-		user_copy.ingame_time = dbuser.ingame_time
-		user_copy.bot = dbuser.bot
-		user_copy.last_login = dbuser.last_login
-		user_copy.last_id = dbuser.last_id
-		user_copy.register_date = dbuser.register_date
-		user_copy.lobby_id = lobby_id
-
-		dbuser.last_login = now # store current time to db but keep last_login in the copy we send back
+		dbuser.last_login = now 
+		
 		self.sess().commit()
-		return user_copy
+		return dbuser
 
 	def set_user_password(self, username, password):
 		dbuser = self.sess().query(User).filter(User.username==username).first()

@@ -992,7 +992,6 @@ class Protocol:
 		client.username = dbuser.username
 		client.password = dbuser.password
 		client.user_id = dbuser.id
-		client.lobby_id = dbuser.lobby_id
 		client.bot = dbuser.bot
 		client.last_id = dbuser.last_id
 		client.last_ip = dbuser.last_ip
@@ -1000,6 +999,7 @@ class Protocol:
 		client.last_login = dbuser.last_login
 		client.ingame_time = dbuser.ingame_time
 		client.email = dbuser.email
+		client.lobby_id = lobby_id
 	
 		if (client.access == 'agreement'):
 			logging.info('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, dbuser.username))
