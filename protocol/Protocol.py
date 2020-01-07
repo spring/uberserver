@@ -3135,7 +3135,8 @@ class Protocol:
 			return		
 			
 		# ensure that account is not logged in while we modify it & deter use of account deletion requests for smurfing
-		self.in_BANSPECIFIC(client, delete_client.ip_address, 28, "account deletion request scheduled")
+		if delete_client.ip_address:
+			self.in_BANSPECIFIC(client, delete_client.ip_address, 28, "account deletion request scheduled")
 		if delete_client.email:
 			self.in_BANSPECIFIC(client, delete_client.email, 28, "account deletion request scheduled")
 		self.in_KICK(client, username, "account deletion request")
@@ -3148,6 +3149,7 @@ class Protocol:
 		self.verificationdb.reset_password(delete_client.user_id, False)		
 		# now the account can no longer be accessed & has no ingame time or special status 
 		# -> automated deletion after 28 days
+		self.out_SERVERMSG(client, "Account deletion of <%s> scheduled by <%s>" % (delete_client.username, client.username), True)
 	
 	def in_RESENDVERIFICATION(self, client, newmail):
 		if not self.verificationdb.active():
