@@ -1136,19 +1136,15 @@ class VerificationsHandler:
 	def _send(self, email, code, reason, expiry):
 		sent_from = self._root.mail_user
 		to = email
-		subject = 'SpringRTS verification code'
-		body = """
-You are recieving this email because you recently """ + reason + """.
-Your email verification code is """ + str(code) + """
-<br><br>
-This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at """ + expiry.strftime("%H:%M") + """ CET."""
+		subject = "SpringRTS verification code"
+		body = "You are recieving this email because you recently " + reason + ".Your email verification code is " + str(code) + "\n\nThis verification code will expire on " + expiry.strftime("%Y-%m-%d") + " at " + expiry.strftime("%H:%M") + " CET."
 		self._send_email(sent_from, to, subject, body)
 
 	def _send_email(self, sent_from, to, subject, body):
 		if not self.active(): #safety
 			logging.error("Attempt to _send_email (subject: %s) failed, verifications handler is inactive" % subject)
 			return
-		body += '<br><br>If you received this message in error, please contact us at www.springrts.com. Direct replies to this message will be automatically deleted.'
+		body += "\n\nIf you received this message in error, please contact us at https://springrts.com. Direct replies to this message will be automatically deleted."
 		message = MIMEText(body, 'html')
 		message['Subject'] = subject 
 		message['From'] = "SpringRTS <" + sent_from + ">"
