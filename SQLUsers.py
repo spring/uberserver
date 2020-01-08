@@ -558,7 +558,7 @@ class UsersHandler:
 			return False, reason
 		dbuser = self.sess().query(User).filter(User.username == username).first()
 		if dbuser:
-			return False, 'Username is not available, please try another.'
+			return False, 'Username is already in use.'
 		if email:
 			dbemail = self.sess().query(User).filter(User.email == email).first()
 			if dbemail:
@@ -1067,7 +1067,7 @@ class VerificationsHandler:
 			return False, "Invalid email address format."
 		return True, ""
 
-	def check_and_send(self, user_id, email, digits, reason, ip_address):
+	def check_and_send(self, user_id, email, digits, reason):
 		# check that we don't already have an active verification, send a new one if not
 		print(1)
 		if not self.active():
@@ -1096,7 +1096,7 @@ class VerificationsHandler:
 		if entry: #expired
 			self.remove(user_id)
 		entry = self.create(user_id, email, digits, reason)
-		self.send(entry, ip_address)
+		self.send(entry)
 		return True, ''
 
 	def create(self, user_id, email, digits, reason):
@@ -1105,32 +1105,35 @@ class VerificationsHandler:
 		self.sess().commit()
 		return entry
 
-	def resend(self, user_id, email, ip_address):
+	def resend(self, user_id, email):
 		entry = self.sess().query(Verification).filter(Verification.user_id == user_id).first()
 		if not entry:
 			return False, 'You do not have an active verification code'
 		if entry.expiry <= datetime.now():
 			return False, 'Your verification code has expired, please request a new one'
 		if email!=entry.email:
-			return False, 'Your verification code for ' + entry.email + ' cannot be re-sent to a different email address, use it or wait for it to expire (up to 24h)'
+			return False, 'Your verification code for ' + entry.email + ' cannot be re-sent to a different email address, use it or wait for it to expire (up to 48h)'
 		if entry.resends>=3:
 			return False, 'Too many resends, please try again later'
 		if entry.resends==0:
 			entry.reason += " (resend requested)"
 		entry.resends += 1
 		self.sess().commit()
-		self.send(entry, ip_address)
+		self.send(entry)
 		return True, ''
 
-	def send(self, entry, ip_address):
+	def send(self, entry):
 		if not self.active(): 
 			return
 		try:
-			thread.start_new_thread(self._send, (entry.email, entry.code, entry.reason, entry.expiry, ip_address))
+			thread.start_new_thread(self._send, (entry.email, entry.code, entry.reason, entry.expiry))
 		except:
 			logging.error('Failed to launch VerificationHandler._send: %s, %s, %s' % (entry, reason, wait_duration))
+			return
+		dbuser = self.sess().query(User).filter(User.id == user_id).first()
+		logging.info('Sent verification code for <%s> to %s' % (dbuser.username, entry.email)) 
 
-	def _send(self, email, code, reason, expiry, ip_address):
+	def _send(self, email, code, reason, expiry):
 		sent_from = self._root.mail_user
 		to = email
 		subject = 'SpringRTS verification code'
@@ -1155,7 +1158,7 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 			server.connect()
 			server.sendmail(sent_from, to, message.as_string())
 			server.close()
-			logging.info('Sent verification code to %s' % (to))
+			logging.info('Sent email to %s' % (to))
 		except Exception as e:
 			logging.error('Failed to send email from %s to %s' % (sent_from, to))
 			logging.error(str(e))
@@ -1177,6 +1180,8 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 			return False, 'Failed to match email addresses'
 		try:
 			if entry.code==int(code):
+				dbuser = self.sess().query(User).filter(User.id == user_id).first()
+				logging.info('Successful verification code for <%s> %s' % (dbuser.username, entry.email)) 
 				self.remove(user_id)
 				return True, ''
 			else:
@@ -1220,7 +1225,7 @@ This verification code will expire on """ + expiry.strftime("%Y-%m-%d") + """ at
 			try:
 				thread.start_new_thread(self._send_reset_password_email, (dbuser.email, dbuser.username, new_password_raw,))
 			except:
-				logging.error('Failed to launch UserHandler._send_recover_account_email: %s' % (dbuser))
+				logging.error('Failed to launch VerificationsHandler._send_reset_password_email: %s' % (dbuser))
 
 	def _send_reset_password_email(self, email, username, password):
 		sent_from = self._root.mail_user
