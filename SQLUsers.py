@@ -1130,7 +1130,7 @@ class VerificationsHandler:
 		except:
 			logging.error('Failed to launch VerificationHandler._send: %s, %s, %s' % (entry, reason, wait_duration))
 			return
-		dbuser = self.sess().query(User).filter(User.id == user_id).first()
+		dbuser = self.sess().query(User).filter(User.id == entry.user_id).first()
 		logging.info('Sent verification code for <%s> to %s' % (dbuser.username, entry.email)) 
 
 	def _send(self, email, code, reason, expiry):
