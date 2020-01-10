@@ -123,7 +123,7 @@ class Client():
 			flood_limits = self._root.flood_limits[self.access]
 		else:
 			flood_limits = self._root.flood_limits['fresh']
-		#logging.info("  < [" + self.username +"] " + data.strip()) # uncomment for debugging
+		#logging.info("  < [" + self.username + " " + str(self.session_id) + "] " + data.strip()) # uncomment for debugging
 
 		now = int(time.time())
 		self.lastdata = now # data received, store time to detect disconnects
@@ -216,7 +216,7 @@ class Client():
 		## don't append new data to buffer when client gets removed
 		if not data:
 			return
-		#logging.info("> [" + self.username +"] " + data.strip()) # uncomment for debugging
+		#logging.info("> [" + self.username + " " + str(self.session_id) + "] " + data.strip()) # uncomment for debugging
 		self.transport.write(data.encode("utf-8") + b"\n")
 
 	def Send(self, data):
