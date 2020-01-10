@@ -1145,7 +1145,7 @@ class VerificationsHandler:
 			logging.error("Attempt to _send_email (subject: %s) failed, verifications handler is inactive" % subject)
 			return
 		body += "\r\n\r\nIf you received this message in error, please contact us at https://springrts.com. Direct replies to this message will be automatically deleted."
-		message = MIMEText(body, 'html')
+		message = MIMEText(body, 'plain')
 		message['Subject'] = subject 
 		message['From'] = "SpringRTS <" + sent_from + ">"
 		message['To'] = "," + to
