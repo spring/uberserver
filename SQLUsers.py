@@ -1137,7 +1137,7 @@ class VerificationsHandler:
 		sent_from = self._root.mail_user
 		to = email
 		subject = "SpringRTS verification code"
-		body = "You are recieving this email because you recently " + reason + ".Your email verification code is " + str(code) + "\r\n\r\nThis verification code will expire on " + expiry.strftime("%Y-%m-%d") + " at " + expiry.strftime("%H:%M") + " CET."
+		body = "You are recieving this email because you recently " + reason + ".\r\nYour email verification code is " + str(code) + "\r\n\r\nThis verification code will expire on " + expiry.strftime("%Y-%m-%d") + " at " + expiry.strftime("%H:%M") + " CET."
 		self._send_email(sent_from, to, subject, body)
 
 	def _send_email(self, sent_from, to, subject, body):
