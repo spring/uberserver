@@ -1227,9 +1227,7 @@ class VerificationsHandler:
 		sent_from = self._root.mail_user
 		to = email
 		subject = 'SpringRTS account recovery'
-		body = """
-You are recieving this email because you recently requested to recover the account <""" + username + """> at the SpringRTS lobby server.
-Your new password is """ + password
+		body = "You are recieving this email because you recently requested to recover the account <" + username + "> at the SpringRTS lobby server.\nYour new password is " + password
 		self._send_email(sent_from, to, subject, body)
 
 
