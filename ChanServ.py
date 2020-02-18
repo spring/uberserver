@@ -216,10 +216,10 @@ class ChanServClient(Client):
 				return '#%s: You do not have permission to change history settings in the channel' % chan
 			if args=='on':
 				channel.setHistory(client, True)
-				return '#%s: History enabled' % (chan, str(enable))
+				return '#%s: History enabled' % chan
 			if args=='off':
 				channel.setHistory(client, False)
-				return '#%s: History disabled' % (chan, str(enable))
+				return '#%s: History disabled' % chan
 			return '#%s: Unknown value for history setting (expected: on, off).' % chan
 
 		if cmd == 'antispam':
@@ -467,6 +467,9 @@ class ChanServClient(Client):
 			antispam = "Anti-spam protection is off"
 			if channel.antispam:
 				antispam = "Anti-spam protection is on"
+			history = "Channel history is off"
+			if channel.store_history:
+				history = "Channel history is on"
 			founder = 'No founder is registered'
 			if channel.owner_user_id:
 				founder = self._root.clientFromID(channel.owner_user_id, True)
@@ -487,7 +490,7 @@ class ChanServClient(Client):
 			if len(users)>=1 or len(bridged_users)>=1:
 				users_str = 'Currently contains %i users and %i bridged users' % (len(users), len(bridged_users))
 			used_str = "Last used on %s" % channel.last_used.strftime('%b %d, %Y')
-			return '#%s info: %s. %s. %s. %s. %s.' % (chan, antispam, founder, op_list, users_str, used_str)
+			return '#%s info: %s. %s. %s. %s. %s. %s.' % (chan, founder, op_list, users_str, antispam, history, used_str)
 
 		if not (len(cmd)>=3 and all(c.isalpha() for c in cmd)):
 			return #probably just a smiley or suchlike - not meant to invoke ChanServ

@@ -256,14 +256,16 @@ channelshistory_table = Table('channel_history', metadata,
 	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('time', DateTime),
 	Column('msg', Text),
+	Column('ex_msg', Boolean),
 	mysql_charset='utf8',
 	)
 class ChannelHistory(object):
-	def __init__(self, channel_id, user_id, msg, time):
+	def __init__(self, channel_id, user_id, time, msg, ex_msg):
 		self.channel_id = channel_id
 		self.user_id = user_id
 		self.time = time
 		self.msg = msg
+		self.ex_msg = ex_msg
 
 	def __repr__(self):
 		return "<ChannelHistory('%s')>" % self.channel_id
@@ -781,10 +783,10 @@ class UsersHandler:
 		users = [(req.user_id, req.msg) for req in reqs]
 		return users
 
-	def add_channel_message(self, channel_id, user_id, msg, date = None):
+	def add_channel_message(self, channel_id, user_id, msg, ex_msg, date=None):
 		if date is None:
 			date = datetime.now()
-		entry = ChannelHistory(channel_id, user_id, msg, date)
+		entry = ChannelHistory(channel_id, user_id, date, msg, ex_msg)
 		self.sess().add(entry)
 		self.sess().commit()
 		return entry.id
@@ -792,8 +794,8 @@ class UsersHandler:
 	def get_channel_messages(self, user_id, channel_id, last_msg_id):
 		# returns a list of channel messages since last_msg_id for the specific userid when he is subscribed to the channel
 		# [[date, user, msg], [date, user, msg, id], ...]
-		reqs = self.sess().query(ChannelHistory.time, ChannelHistory.msg, User.username, ChannelHistory.id).filter(ChannelHistory.channel_id == channel_id).filter(ChannelHistory.id > last_msg_id).join(User, isouter=True).order_by(ChannelHistory.id).all()
-		msgs = [(htime, username, msg, id) if username else (htime, 'ChanServ', msg, id) for htime, msg, username, id in reqs ]
+		reqs = self.sess().query(ChannelHistory.time, ChannelHistory.msg, ChannelHistory.ex_msg, User.username, ChannelHistory.id).filter(ChannelHistory.channel_id == channel_id).filter(ChannelHistory.id > last_msg_id).join(User, isouter=True).order_by(ChannelHistory.id).all()
+		msgs = [(htime, username, msg, ex_msg, id) if username else (htime, 'ChanServ', msg, ex_msg, id) for htime, msg, ex_msg, username, id in reqs ]
 		if len(msgs)>0:
 			assert(type(msgs[0][2]) == str)
 		return msgs

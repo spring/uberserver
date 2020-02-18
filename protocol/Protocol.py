@@ -1174,7 +1174,7 @@ class Protocol:
 			client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 			return
 		if channel.store_history:
-			self.userdb.add_channel_message(channel.id, client.user_id, msg)
+			self.userdb.add_channel_message(channel.id, client.user_id, msg, False)
 
 		self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client, 'u')
 		
@@ -1210,8 +1210,8 @@ class Protocol:
 		if channel.isMuted(client):
 			client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 			return
-		if channel.store_history: # fixme, stored as non-ex msg
-			self.userdb.add_channel_message(channel.id, client.user_id, msg)
+		if channel.store_history: 
+			self.userdb.add_channel_message(channel.id, client.user_id, msg, True)
 
 		self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, set([]), client, 'u')
 
@@ -1423,7 +1423,7 @@ class Protocol:
 		msg = '<' + bridgedClient.username + '> ' + msg
 		self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client, None, 'u') 
 		if channel.store_history: #fixme for bridged clients
-			self.userdb.add_channel_message(channel.id, client.user_id, msg)
+			self.userdb.add_channel_message(channel.id, client.user_id, msg, False)
 
 		
 	def in_IGNORE(self, client, tags):
@@ -2145,7 +2145,7 @@ class Protocol:
 		msgs = self.userdb.get_channel_messages(client.user_id, channel.id, last_msg_id)
 		for msg in msgs:
 			timestamp = int(time.mktime(msg[0].timetuple()))
-			self.out_JSON(client,  'SAID', {"chanName": chan, "time": str(timestamp), "userName": msg[1], "msg": msg[2], "id": msg[3]})
+			self.out_JSON(client,  'SAID', {"chanName": chan, "time": str(timestamp), "userName": msg[1], "msg": msg[2], "ex_msg":msg[3], "id": msg[4]})
 
 	def in_RING(self, client, username):
 		'''
