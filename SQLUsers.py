@@ -227,12 +227,9 @@ channels_table = Table('channels', metadata,
 	Column('key', String(32)),
 	Column('owner_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True),
 	Column('topic', Text),
-	Column('topic_time', DateTime), #deprecated; todo: remove this
 	Column('topic_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True),
 	Column('antispam', Boolean),
-	Column('autokick', String(5)), #deprecated; todo: remove this
 	Column('censor', Boolean),
-	Column('antishock', Boolean), #deprecated; todo: remove this
 	Column('store_history', Boolean),
 	mysql_charset='utf8',
 	)
@@ -242,12 +239,9 @@ class Channel(object):
 		self.key = None
 		self.owner_user_id = None
 		self.topic = None
-		self.topic_time = None
 		self.topic_user_id = None
 		self.antispam = False
-		self.autokick = None
 		self.censor = False
-		self.antishock = None
 		self.store_history = False
 
 	def __repr__(self):

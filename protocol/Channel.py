@@ -13,12 +13,9 @@ class Channel():
 		self.key = None
 		self.owner_user_id = None # 'founder'
 		self.topic = ''
-		self.topic_time = None # deprecated
 		self.topic_user_id = None
-		self.antispam = False # deprecated
-		self.autokick = '' #deprecated
+		self.antispam = False
 		self.censor = False
-		self.antishock = False #deprecated
 		self.store_history = False
 
 		# non-db fields
