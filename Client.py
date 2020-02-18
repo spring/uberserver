@@ -220,6 +220,8 @@ class Client():
 		self.transport.write(data.encode("utf-8") + b"\n")
 
 	def Send(self, data):
+		command = data[:data.find(" ")] if " " in data else data
+		self._root.outbound_command_stats[command] = self._root.outbound_command_stats.get(command, 0) + 1 # ignore when RealSend is used directly
 		if self.msg_id:
 			data = self.msg_id + data
 		if self.buffersend:

@@ -387,11 +387,7 @@ class Protocol:
 		function = getattr(self, 'in_' + command)
 
 		# update statistics
-		if not command in self._root.command_stats:
-			self._root.command_stats[command] = 1
-		else:
-			self._root.command_stats[command] += 1
-
+		self._root.inbound_command_stats[command] = self._root.inbound_command_stats.get(command, 0) + 1 # ignore when RealSend is used directly
 
 		ret_status, fun_args = self.get_function_args(client, command, function, numspaces, args)
 		

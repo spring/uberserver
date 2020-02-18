@@ -72,7 +72,8 @@ class DataHandler:
 		self.cert = None
 		
 		# stats
-		self.command_stats = {}
+		self.inbound_command_stats = {}
+		self.outbound_command_stats = {}
 		self.flag_stats = {}
 		self.agent_stats = {}
 		self.tls_stats = 0
@@ -704,9 +705,12 @@ class DataHandler:
 
 	def stats(self):
 		logging.info(" -- STATS -- ")
-		logging.info("Command counts:")
-		for k in self.command_stats:
-			logging.info(" %s %d" % (k, self.command_stats[k]))
+		logging.info("Command counts (inbound):")
+		for k in self.inbound_command_stats:
+			logging.info(" %s %d" % (k, self.inbound_command_stats[k]))
+		logging.info("Command counts (outbound):")
+		for k in self.outbound_command_stats:
+			logging.info(" %s %d" % (k, self.outbound_command_stats[k]))
 		logging.info("Number of logins: %d" % self.n_login_stats)
 		logging.info("TLS logins: %d" % self.tls_stats)
 		logging.info("Agents:")
