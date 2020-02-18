@@ -836,13 +836,6 @@ class Protocol:
 
 		# well formed-ness tests
 		good, reason = self._validUsernameSyntax(username)
-		if not good:
-			client.Send("REGISTRATIONDENIED %s" % (reason))
-			return
-		if self.SayHooks.isNasty(username):
-			logging.info("invalid nickname used for registering %s" %(username))
-			client.Send("REGISTRATIONDENIED invalid nickname")
-			return
 		good, reason = self._validPasswordSyntax(password)
 		if not good:
 			client.Send("REGISTRATIONDENIED %s" % (reason))
@@ -2556,21 +2549,17 @@ class Protocol:
 		if not good:
 			self.out_SERVERMSG(client, '%s' %(reason))
 			return
-
 		if self.SayHooks.isNasty(newname):
 			self.out_FAILED(client, "RENAMEACCOUNT", "invalid nickname: %s" %(newname), True)
 			return
-
-		user = client.username
-		if user == newname:
-			self.out_SERVERMSG(client, 'You already have that username.')
-			return
-		good, reason = self.userdb.rename_user(user, newname)
-		if good:
-			self.out_SERVERMSG(client, 'Your account has been renamed to <%s>. Reconnect with the new username (you will now be automatically disconnected).' % newname)
-			client.Remove('renaming')
-		else:
+			
+		good, reason = self.userdb.rename_user(client.username, newname)
+		if not good:
 			self.out_SERVERMSG(client, 'Failed to rename to <%s>: %s' % (newname, reason))
+			return
+		
+		self.out_SERVERMSG(client, 'Your account has been renamed to <%s>. Reconnect with the new username (you will now be automatically disconnected).' % newname)
+		client.Remove('renaming')
 
 
 	def in_CHANGEPASSWORD(self, client, cur_password, new_password):

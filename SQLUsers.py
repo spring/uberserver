@@ -140,18 +140,16 @@ renames_table = Table('renames', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('original', String(40)),
-	Column('new', String(40)), # FIXME: not needed
 	Column('time', DateTime),
 	mysql_charset='utf8',
 	)
 class Rename(object):
-	def __init__(self, original, new):
+	def __init__(self, original):
 		self.original = original
-		self.new = new
 		self.time = datetime.now()
 
 	def __repr__(self):
-		return "<Rename('%s' -> '%s')>" % (self.original, self.new)
+		return "<Rename of '%s'>" % (self.original)
 mapper(Rename, renames_table)
 
 ##########################################
@@ -581,22 +579,18 @@ class UsersHandler:
 		self.sess().commit()
 		return True, 'Account registered successfully.'
 
-	def rename_user(self, user, newname):
-		if len(newname)>20: return False, 'Username too long'
-		if self._root.censor:
-			if not self._root.SayHooks._nasty_word_censor(user):
-				return False, 'New username failed to pass profanity filter.'
-		if not newname == user:
-			results = self.sess().query(User).filter(User.username==newname).first()
-			if results:
-				return False, 'Username already exists.'
-		entry = self.sess().query(User).filter(User.username==user).first()
-		if not entry: return False, 'You don\'t seem to exist anymore. Contact an admin or moderator.'
-		entry.renames.append(Rename(user, newname))
+	def rename_user(self, username, newname):
+		if newname == username:
+			return False, 'You already have that username.'
+		results = self.sess().query(User).filter(User.username==newname).first()
+		if results:
+			return False, 'Username already exists.'
+		entry = self.sess().query(User).filter(User.username==username).first()
+		if not entry: 
+			return False, 'You don\'t seem to exist anymore. Contact an admin or moderator.'
+		entry.renames.append(Rename(username))
 		entry.username = newname
 		self.sess().commit()
-		# need to iterate through channels and rename junk there...
-		# it might actually be a lot easier to use userids in the server... # later.
 		return True, 'Account renamed successfully.'
 
 	def save_user(self, obj):
