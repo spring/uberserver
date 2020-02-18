@@ -231,6 +231,7 @@ channels_table = Table('channels', metadata,
 	Column('antispam', Boolean),
 	Column('censor', Boolean),
 	Column('store_history', Boolean),
+	Column('last_used', DateTime),
 	mysql_charset='utf8',
 	)
 class Channel(object):
@@ -243,6 +244,7 @@ class Channel(object):
 		self.antispam = False
 		self.censor = False
 		self.store_history = False
+		self.last_used = None
 
 	def __repr__(self):
 		return "<Channel('%s')>" % self.name
@@ -1251,6 +1253,7 @@ class ChannelsHandler:
 					'operator':[],
 					'chanserv': True,
 					'store_history': chan.store_history,
+					'last_used' : chan.last_used,
 				}
 		return channels
 
@@ -1313,6 +1316,14 @@ class ChannelsHandler:
 			'channel_to_id': forward.channel_to_id,
 			})
 		return forwards
+		
+	def recordUse(self, channel):
+		now = datetime.now()
+		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
+		if entry:
+			now = datetime.now()
+			entry.last_used = now
+			self.sess().commit()
 
 	def setTopic(self, channel, topic, target):
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
@@ -1403,6 +1414,7 @@ class ChannelsHandler:
 			entry.topic = channel.topic
 			entry.topic_user_id = target.user_id
 		entry.owner_user_id = target.user_id
+		entry.last_used = datetime.now()
 		self.sess().add(entry)
 		self.sess().commit()
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
@@ -1432,6 +1444,10 @@ class ChannelsHandler:
 		logging.info("deleting %i expired channel bridged bans", response.count())
 		response.delete(synchronize_session=False)
 
+		response = self.sess().query(Channel).filter(Channel.last_used < now - timedelta(days=180))
+		logging.info("deleting %i inactive channels", response.count())
+		response.delete(synchronize_session=False)
+		
 		self.sess().commit()
 
 

@@ -486,7 +486,8 @@ class ChanServClient(Client):
 			users_str = 'Currently contains 0 users and 0 bridged users'
 			if len(users)>=1 or len(bridged_users)>=1:
 				users_str = 'Currently contains %i users and %i bridged users' % (len(users), len(bridged_users))
-			return '#%s info: %s. %s. %s. %s. ' % (chan, antispam, founder, op_list, users_str)
+			used_str = "Last used on %s" % channel.last_used.strftime('%b %d, %Y')
+			return '#%s info: %s. %s. %s. %s. %s.' % (chan, antispam, founder, op_list, users_str, used_str)
 
 		if not (len(cmd)>=3 and all(c.isalpha() for c in cmd)):
 			return #probably just a smiley or suchlike - not meant to invoke ChanServ

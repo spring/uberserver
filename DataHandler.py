@@ -176,6 +176,10 @@ class DataHandler:
 			channel.key = dbchannel['key']
 			if channel.key in ('', None, '*'):
 				channel.key = None
+			channel.last_used = dbchannel['last_used']
+			if not channel.last_used: # can remove after first run!
+				channel.last_used = now
+				self.channeldb.recordUse(channel)
 
 			channel.topic_user_id = dbchannel['topic_user_id']
 			channel.topic = dbchannel['topic']
