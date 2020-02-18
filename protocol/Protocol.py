@@ -2128,11 +2128,11 @@ class Protocol:
 			if channel.isOp(client):
 				channel.setTopic(client, topic)
 
-	def in_GETCHANNELMESSAGES(self, client, chan, lastid):
+	def in_GETCHANNELMESSAGES(self, client, chan, last_msg_id):
 		'''
 		Get historical messages from the chan since the specified time
 		@required.str chan: The target channel
-		@required.str lastid: messages to get since this id
+		@required.str last_msg_id: messages to get since this id
 		'''
 		if not chan in self._root.channels:
 			return
@@ -2143,11 +2143,11 @@ class Protocol:
 			self.out_FAILED(client, "GETCHANNELMESSAGES", "Can't get channel messages when not joined", True)
 			return
 		try:
-			timestamp = datetime.datetime.fromtimestamp(int(lastid))
+			timestamp = datetime.datetime.fromtimestamp(int(last_msg_id))
 		except:
 			self.out_FAILED(client, "GETCHANNELMESSAGES", "Invalid id", True)
 			return
-		msgs = self.userdb.get_channel_messages(client.user_id, channel.id, lastid)
+		msgs = self.userdb.get_channel_messages(client.user_id, channel.id, last_msg_id)
 		for msg in msgs:
 			timestamp = int(time.mktime(msg[0].timetuple()))
 			self.out_JSON(client,  'SAID', {"chanName": chan, "time": str(timestamp), "userName": msg[1], "msg": msg[2], "id": msg[3]})
