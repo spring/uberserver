@@ -27,6 +27,7 @@ ranks = (5, 15, 30, 100, 300, 1000, 3000)
 restricted = {
 'disabled':set(),
 'everyone':set([
+	'SETACCESS',
 	'EXIT',
 	'PING',
 	'LISTCOMPFLAGS',
@@ -969,18 +970,20 @@ class Protocol:
 			return
 		if sentence_args.count('\t')==0: # fixme: backwards compat for Melbot / Statserv
 			lobby_id = sentence_args
-			last_id = "0"
+			last_sys_id = "0"
+			last_mac_id = "0"
 		elif not self._validLoginSentence(sentence_args):
 			logging.warning("Invalid login sentence '%s' from <%s>" % (sentence_args, username))
 			self.out_DENIED(client, username, 'Invalid sentence format, please update your lobby client.')
 			return
 		else: 
 			lobby_id, last_id, compat_flags = sentence_args.split('\t',2)
+			last_mac_id, last_sys_id = last_id.split(" ") 
 			for flag in compat_flags.split(' '):
 				client.compat.add(flag)
 		
 		# login checks complete
-		dbuser = self.userdb.login_user(username, password, client.ip_address, lobby_id, last_id, local_ip, client.country_code)			
+		dbuser = self.userdb.login_user(username, password, client.ip_address, lobby_id, last_sys_id, last_mac_id, local_ip, client.country_code)			
 
 		# update local client fields from DB User values
 		client.access = dbuser.access
@@ -989,7 +992,8 @@ class Protocol:
 		client.password = dbuser.password
 		client.user_id = dbuser.id
 		client.bot = dbuser.bot
-		client.last_id = dbuser.last_id
+		client.last_sys_id = dbuser.last_sys_id
+		client.last_mac_id = dbuser.last_mac_id
 		client.last_ip = dbuser.last_ip
 		client.register_date = dbuser.register_date
 		client.last_login = dbuser.last_login
@@ -1096,7 +1100,7 @@ class Protocol:
 		ip_string = ""
 		if client.ip_address != client.last_ip:
 			ip_string = client.ip_address + " "
-		self.broadcast_Moderator('Agr: %s %s%s %s' %(client.username, ip_string, client.last_id, client.lobby_id))
+		self.broadcast_Moderator('Agr: %s %s %s %s %s' %(client.username, ip_string, client.last_sys_id, client.last_mac_id, client.lobby_id))
 		client.access = 'user'
 		self.userdb.save_user(client)
 		self._calc_access_status(client)
@@ -2444,7 +2448,7 @@ class Protocol:
 	def in_GETUSERID(self, client, username):
 		user = self.clientFromUsername(username, True)
 		if user:
-			self.out_SERVERMSG(client, 'The ID for <%s> is %s' % (username, user.last_id))
+			self.out_SERVERMSG(client, 'The ID for <%s> is %s %s' % (username, user.last_mac_id, user.last_sys_id))
 		else:
 			self.out_SERVERMSG(client, 'User not found.')
 
@@ -2496,7 +2500,8 @@ class Protocol:
 				ingame_time = int(user.ingame_time)
 			self.out_SERVERMSG(client, "access=%s,  bot=%s,  ingame_time=%d hours" % (user.access, user.bot, ingame_time/60))
 			self.out_SERVERMSG(client, "email=%s" % (user.email))
-			self.out_SERVERMSG(client, "last_ip=%s,  last_id=%s" % (user.last_ip, user.last_id))
+			self.out_SERVERMSG(client, "last_ip=%s" % (user.last_ip))
+			self.out_SERVERMSG(client, "last_sys_id=%s, last_mac_id=%s" % (user.last_sys_id, user.last_mac_id))
 	
 	def in_FINDIP(self, client, address):
 		'''
@@ -3253,9 +3258,9 @@ def check_protocol_commands():
 			print("unused function %s"%(func))
 			return False
 	return True
-assert(check_protocol_commands())
 
 def selftest():
+	assert(check_protocol_commands())
 	class DummyRoot():
 		def SayHooks(self):
 			pass
