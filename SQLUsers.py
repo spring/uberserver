@@ -37,7 +37,7 @@ users_table = Table('users', metadata,
 	Column('last_mac_id', String(16)),
 	Column('ingame_time', Integer),
 	Column('access', String(32)),
-	Column('email', String(254)), # http://www.rfc-editor.org/errata_search.php?rfc=3696&eid=1690
+	Column('email', String(254), unique=True, nullable=True), # http://www.rfc-editor.org/errata_search.php?rfc=3696&eid=1690
 	Column('bot', Integer),
 	mysql_charset='utf8',
 )

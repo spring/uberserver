@@ -1114,12 +1114,7 @@ class Protocol:
 		password = from_client.password
 		ip_address = from_client.ip_address
 		country_code = from_client.country_code
-		email = from_client.email
-
-		good, reason = self.verificationdb.valid_email_addr(email)
-		if not good:
-			self.out_FAILED(client, "CREATEBOTACCOUNT", "Client <%s> has invalid email address '%s'" % (from_client.username, email), True)
-			return
+		email = None # bots don't have email
 
 		good, reason = self.userdb.check_register_user(username)
 		if (not good):
@@ -1147,7 +1142,7 @@ class Protocol:
 
 		# declare success
 		self.broadcast_Moderator('New bot: <%s> created by <%s> from <%s>' %(username, client.username, from_client.username))
-		msg = "A new bot account <%s> has been created, with the same password and email address as <%s>" % (bot_client.username, from_client.username)
+		msg = "A new bot account <%s> has been created, with the same password as <%s>" % (bot_client.username, from_client.username)
 		if founder:
 			msg += ", and battle founder <%s>" % founder.username
 		self.out_SERVERMSG(client, msg)
