@@ -92,7 +92,7 @@ logins_table = Table('logins', metadata,
 	Column('user_dbid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # todo: rename to user_id
 	Column('ip_address', String(15), nullable=False),
 	Column('time', DateTime),
-	Column('lobby_id', String(64)),
+	Column('agent', String(64)),
 	Column('last_sys_id', String(16)),
 	Column('last_mac_id', String(16)),
 	Column('local_ip', String(15)), # needs update for ipv6
@@ -102,10 +102,10 @@ logins_table = Table('logins', metadata,
 	)
 
 class Login(object):
-	def __init__(self, now, ip_address, lobby_id, last_sys_id, last_mac_id, local_ip, country):
+	def __init__(self, now, ip_address, agent, last_sys_id, last_mac_id, local_ip, country):
 		self.ip_address = ip_address
 		self.time = now
-		self.lobby_id = lobby_id
+		self.agent = agent
 		self.last_sys_id = last_sys_id
 		self.last_mac_id = last_mac_id
 		self.local_ip = local_ip
@@ -514,10 +514,10 @@ class UsersHandler:
 			return False, 'Invalid username or password'
 		return True, ""
 		
-	def login_user(self, username, password, ip, lobby_id, last_sys_id, last_mac_id, local_ip, country):
+	def login_user(self, username, password, ip, agent, last_sys_id, last_mac_id, local_ip, country):
 		now = datetime.now()
 		dbuser = self.sess().query(User).filter(User.username == username).first()
-		dbuser.logins.append(Login(now, ip, lobby_id, last_sys_id, last_mac_id, local_ip, country))
+		dbuser.logins.append(Login(now, ip, agent, last_sys_id, last_mac_id, local_ip, country))
 		dbuser.last_ip = ip
 		dbuser.last_sys_id = last_sys_id
 		dbuser.last_mac_id = last_mac_id

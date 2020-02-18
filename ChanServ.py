@@ -19,7 +19,7 @@ class ChanServClient(Client):
 
 		self.username = 'ChanServ'
 		self.password = 'ChanServ'
-		self.lobby_id = 'ChanServ'
+		self.agent = 'ChanServ'
 		self._root.usernames[self.username] = self
 		self._root.clients[session_id] = self
 		self._root = root

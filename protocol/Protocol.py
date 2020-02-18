@@ -254,7 +254,7 @@ class Protocol:
 		if missing_TLS:
 			client.RealSend("MOTD Your client did not use TLS. Your connection is not secure.")
 			client.RealSend("MOTD  -- -- - -- --")
-			logging.info('[%s] <%s> client "%s" logged in without TLS' % (client.session_id, client.username, client.lobby_id))
+			logging.info('[%s] <%s> client "%s" logged in without TLS' % (client.session_id, client.username, client.agent))
 
 		if compat_error:
 			#client.RealSend("MOTD Your client has compatibility errors")
@@ -262,7 +262,7 @@ class Protocol:
 			#if len(deprec_flags)>0: client.RealSend("MOTD   deprecated flags:%s" % deprec_flags)
 			#if len(unknown_flags)>0: client.RealSend("MOTD   unknown flags:%s" % unknown_flags)
 			#client.RealSend("MOTD  -- -- - -- --")
-			logging.info('[%s] <%s> client "%s" sent incorrect compat flags %s -- missing:%s, deprecated:%s, unknown:%s'%(client.session_id, client.username, client.lobby_id, client.compat, missing_flags, deprec_flags, unknown_flags))
+			logging.info('[%s] <%s> client "%s" sent incorrect compat flags %s -- missing:%s, deprecated:%s, unknown:%s'%(client.session_id, client.username, client.agent, client.compat, missing_flags, deprec_flags, unknown_flags))
 
 		#client.RealSend("MOTD Please update your client / report these issues.")
 		#client.RealSend("MOTD  -- -- - -- --")
@@ -734,7 +734,7 @@ class Protocol:
 
 	def client_AddUser(self, receiver, user):
 		'sends the protocol for adding a user'
-		return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, user.user_id, user.lobby_id)
+		return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, user.user_id, user.agent)
 
 	def client_RemoveUser(self, client, user):
 		'sends the protocol for removing a user'
@@ -929,7 +929,7 @@ class Protocol:
 		@required.str password: Password BASE64(MD5(PWRD))
 		@optional.int cpu: deprecated
 		@optional.ip local_ip: LAN IP address, sent to clients when they have the same WAN IP as host
-		@optional.sentence.str lobby_id: Lobby name and version
+		@optional.sentence.str agent: Lobby name and version
 		@optional.sentence.int user_id: User ID provided by lobby
 		@optional.sentence.str compat_flags: Compatibility flags, sent in space-separated form, see lobby protocol docs for details
 		'''
@@ -962,7 +962,7 @@ class Protocol:
 			self.out_DENIED(client, username, "Invalid sentence args")
 			return
 		if sentence_args.count('\t')==0: # fixme: backwards compat for Melbot / Statserv
-			lobby_id = sentence_args
+			agent = sentence_args
 			last_sys_id = "0"
 			last_mac_id = "0"
 		elif not self._validLoginSentence(sentence_args):
@@ -970,13 +970,13 @@ class Protocol:
 			self.out_DENIED(client, username, 'Invalid sentence format, please update your lobby client.')
 			return
 		else: 
-			lobby_id, last_id, compat_flags = sentence_args.split('\t',2)
+			agent, last_id, compat_flags = sentence_args.split('\t',2)
 			last_mac_id, last_sys_id = last_id.split(" ") 
 			for flag in compat_flags.split(' '):
 				client.compat.add(flag)
 		
 		# login checks complete
-		dbuser = self.userdb.login_user(username, password, client.ip_address, lobby_id, last_sys_id, last_mac_id, local_ip, client.country_code)			
+		dbuser = self.userdb.login_user(username, password, client.ip_address, agent, last_sys_id, last_mac_id, local_ip, client.country_code)			
 
 		# update local client fields from DB User values
 		client.access = dbuser.access
@@ -992,7 +992,7 @@ class Protocol:
 		client.last_login = dbuser.last_login
 		client.ingame_time = dbuser.ingame_time
 		client.email = dbuser.email
-		client.lobby_id = lobby_id
+		client.agent = agent
 	
 		if (client.access == 'agreement'):
 			logging.info('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, dbuser.username))
@@ -1093,7 +1093,7 @@ class Protocol:
 		ip_string = ""
 		if client.ip_address != client.last_ip:
 			ip_string = client.ip_address + " "
-		self.broadcast_Moderator('Agr: %s %s %s %s %s' %(client.username, ip_string, client.last_sys_id, client.last_mac_id, client.lobby_id))
+		self.broadcast_Moderator('Agr: %s %s %s %s %s' %(client.username, ip_string, client.last_sys_id, client.last_mac_id, client.agent))
 		client.access = 'user'
 		self.userdb.save_user(client)
 		self._calc_access_status(client)
@@ -1623,7 +1623,7 @@ class Protocol:
 
 		user = client.username
 		# FIXME: unhardcode this
-		if (client.bot or client.lobby_id.startswith("SPADS")) and chan in ("newbies") and client.username != "ChanServ":
+		if (client.bot or client.agent.startswith("SPADS")) and chan in ("newbies") and client.username != "ChanServ":
 			#client.Send('JOINFAILED %s No bots allowed in #%s!' %(chan, chan))
 			return
 		if chan == 'moderator' and not 'mod' in client.accesslevels:
@@ -2484,7 +2484,7 @@ class Protocol:
 					self.out_SERVERMSG(client, "User <%s> is static" % username)
 					return
 				self.out_SERVERMSG(client, "<%s> is online,  user_id=%d, session_id=%d" % (user.username, user.user_id, user.session_id))
-				self.out_SERVERMSG(client, "Agent: %s" % (user.lobby_id))
+				self.out_SERVERMSG(client, "Agent: %s" % (user.agent))
 				self.out_SERVERMSG(client, "Registered %s" % (register_date))
 				ingame_time = int(self._root.usernames[user.username].ingame_time)	
 			else:

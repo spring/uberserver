@@ -733,10 +733,10 @@ class DataHandler:
 				self.flag_stats[flag] += 1
 			else:
 				self.flag_stats[flag] = 1
-		if client.lobby_id in self.agent_stats:
-			self.agent_stats[client.lobby_id] += 1
+		if client.agent in self.agent_stats:
+			self.agent_stats[client.agent] += 1
 		else:
-			self.agent_stats[client.lobby_id] = 1
+			self.agent_stats[client.agent] = 1
 	
 	def reload(self, client):
 		# reload non-core parts of the server
