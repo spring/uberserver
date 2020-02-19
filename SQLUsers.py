@@ -254,15 +254,17 @@ channelshistory_table = Table('channel_history', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('bridged_id', Integer, ForeignKey('bridged_users.id', onupdate='CASCADE', ondelete='CASCADE'), nullable=True),
 	Column('time', DateTime),
 	Column('msg', Text),
 	Column('ex_msg', Boolean),
 	mysql_charset='utf8',
 	)
 class ChannelHistory(object):
-	def __init__(self, channel_id, user_id, time, msg, ex_msg):
+	def __init__(self, channel_id, user_id, bridged_id, time, msg, ex_msg):
 		self.channel_id = channel_id
 		self.user_id = user_id
+		self.bridged_id = bridged_id
 		self.time = time
 		self.msg = msg
 		self.ex_msg = ex_msg
@@ -783,21 +785,27 @@ class UsersHandler:
 		users = [(req.user_id, req.msg) for req in reqs]
 		return users
 
-	def add_channel_message(self, channel_id, user_id, msg, ex_msg, date=None):
+	def add_channel_message(self, channel_id, user_id, bridged_id, msg, ex_msg, date=None):
 		if date is None:
 			date = datetime.now()
-		entry = ChannelHistory(channel_id, user_id, date, msg, ex_msg)
+		entry = ChannelHistory(channel_id, user_id, bridged_id, date, msg, ex_msg)
 		self.sess().add(entry)
 		self.sess().commit()
 		return entry.id
 
 	def get_channel_messages(self, user_id, channel_id, last_msg_id):
 		# returns a list of channel messages since last_msg_id for the specific userid when he is subscribed to the channel
-		# [[date, user, msg], [date, user, msg, id], ...]
-		reqs = self.sess().query(ChannelHistory.time, ChannelHistory.msg, ChannelHistory.ex_msg, User.username, ChannelHistory.id).filter(ChannelHistory.channel_id == channel_id).filter(ChannelHistory.id > last_msg_id).join(User, isouter=True).order_by(ChannelHistory.id).all()
-		msgs = [(htime, username, msg, ex_msg, id) if username else (htime, 'ChanServ', msg, ex_msg, id) for htime, msg, ex_msg, username, id in reqs ]
-		if len(msgs)>0:
-			assert(type(msgs[0][2]) == str)
+		# [[date, username, msg, id], ...]
+		res = self.sess().query(ChannelHistory.time, ChannelHistory.msg, ChannelHistory.ex_msg, User.username, BridgedUser.external_username, BridgedUser.location, ChannelHistory.id).filter(ChannelHistory.channel_id == channel_id).filter(ChannelHistory.id > last_msg_id).join(User, isouter=True).join(BridgedUser, isouter=True).order_by(ChannelHistory.id).all()
+		msgs = []
+		for (time, msg, ex_msg, username, external_username, location, id) in res:
+			if not username:
+				msgs.append((time, "?", msg, ex_msg, id))
+			elif external_username:
+				bridged_username = external_username + ":" + location
+				msgs.append((time, bridged_username, msg, ex_msg, id))
+			else:
+				msgs.append((time, username, msg, ex_msg, id))				
 		return msgs
 
 class OfflineBridgedClient():

@@ -1174,7 +1174,7 @@ class Protocol:
 			client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 			return
 		if channel.store_history:
-			self.userdb.add_channel_message(channel.id, client.user_id, msg, False)
+			self.userdb.add_channel_message(channel.id, client.user_id, None, msg, False)
 
 		self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client, 'u')
 		
@@ -1211,7 +1211,7 @@ class Protocol:
 			client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 			return
 		if channel.store_history: 
-			self.userdb.add_channel_message(channel.id, client.user_id, msg, True)
+			self.userdb.add_channel_message(channel.id, client.user_id, None, msg, True)
 
 		self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, set([]), client, 'u')
 
@@ -1417,13 +1417,14 @@ class Protocol:
 		if not bridgedClient.bridged_id in channel.bridged_users:
 			self.out_FAILED(client, "SAYFROM", "Bridged user <%s> not present in channel" % bridgedClient.username, False)
 			return
+		if channel.store_history: 
+			self.userdb.add_channel_message(channel.id, client.user_id, bridgedClient.bridged_id, msg, False)
+
 		self._root.broadcast('SAIDFROM %s %s %s' % (chan, bridgedClient.username, msg), chan, set([]), client, 'u')
 		
 		# backwards compat
 		msg = '<' + bridgedClient.username + '> ' + msg
 		self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client, None, 'u') 
-		if channel.store_history: #fixme for bridged clients
-			self.userdb.add_channel_message(channel.id, client.user_id, msg, False)
 
 		
 	def in_IGNORE(self, client, tags):
