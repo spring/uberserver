@@ -27,7 +27,6 @@ ranks = (5, 15, 30, 100, 300, 1000, 3000)
 restricted = {
 'disabled':set(),
 'everyone':set([
-	'SETACCESS',
 	'EXIT',
 	'PING',
 	'LISTCOMPFLAGS',
@@ -856,6 +855,8 @@ class Protocol:
 				if email=='': reason += " -- If you were not asked to enter one, please update your lobby client!"
 				client.Send('REGISTRATIONDENIED %s' % reason)
 				return
+		else:
+			email = None # avoid triggering uniqueness constraint with empty strings
 
 		# rate limit per ip
 		recent_regs = self._root.recent_registrations.get(client.ip_address, 0)
