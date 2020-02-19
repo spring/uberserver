@@ -1553,9 +1553,9 @@ if __name__ == '__main__':
 	last_msg_id = -1
 	for i in range(0, 20):
 		if i == 0:
-			last_msg_id = userdb.add_channel_message(channel.id, client.id, msg % i, False, now + timedelta(0, i))
+			last_msg_id = userdb.add_channel_message(channel.id, client.id, None, msg % i, False, now + timedelta(0, i))
 		else:
-			userdb.add_channel_message(channel.id, client.id, msg % i, False, now + timedelta(0, i))
+			userdb.add_channel_message(channel.id, client.id, None, msg % i, False, now + timedelta(0, i))
 
 	assert(last_msg_id > -1)
 
@@ -1568,8 +1568,9 @@ if __name__ == '__main__':
 			assert(msgs[0][2] == msg % i)
 			assert(type(msgs[0][2]) == str)
 
-	userdb.add_channel_message(channel.id, None, "test", False)
-	userdb.add_channel_message(channel.id, 99, "test", False)
+	userdb.add_channel_message(channel.id, None, None, "test", False)
+	userdb.add_channel_message(channel.id, 99, None, "test", False)
+	userdb.add_channel_message(channel.id, 99, 99, "test", False)
 
 	userdb.clean()
 	verificationdb.clean()
