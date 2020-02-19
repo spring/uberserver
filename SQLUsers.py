@@ -33,6 +33,7 @@ users_table = Table('users', metadata,
 	Column('register_date', DateTime),
 	Column('last_login', DateTime),
 	Column('last_ip', String(15)), # would need update for ipv6
+	Column('last_agent', String(254)),
 	Column('last_sys_id', String(16)),
 	Column('last_mac_id', String(16)),
 	Column('ingame_time', Integer),
@@ -49,6 +50,7 @@ class User():
 		self.last_login = datetime.now()
 		self.register_date = datetime.now()
 		self.last_ip = last_ip
+		self.last_agent = ""
 		self.email = email
 		self.ingame_time = 0
 		self.bot = 0
@@ -462,9 +464,10 @@ class OfflineClient():
 		self.bot = sqluser.bot
 		self.last_login = sqluser.last_login
 		self.register_date = sqluser.register_date
+		self.last_ip = sqluser.last_ip
+		self.last_agent = sqluser.last_agent
 		self.last_sys_id = sqluser.last_sys_id
 		self.last_mac_id = sqluser.last_mac_id
-		self.last_ip = sqluser.last_ip
 		self.access = sqluser.access
 		self.email = sqluser.email
 
@@ -525,6 +528,7 @@ class UsersHandler:
 		dbuser = self.sess().query(User).filter(User.username == username).first()
 		dbuser.logins.append(Login(now, ip, agent, last_sys_id, last_mac_id, local_ip, country))
 		dbuser.last_ip = ip
+		dbuser.last_agent = agent
 		dbuser.last_sys_id = last_sys_id
 		dbuser.last_mac_id = last_mac_id
 		dbuser.last_login = now 

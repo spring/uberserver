@@ -27,6 +27,7 @@ ranks = (5, 15, 30, 100, 300, 1000, 3000)
 restricted = {
 'disabled':set(),
 'everyone':set([
+	'SETACCESS',
 	'EXIT',
 	'PING',
 	'LISTCOMPFLAGS',
@@ -986,9 +987,10 @@ class Protocol:
 		client.password = dbuser.password
 		client.user_id = dbuser.id
 		client.bot = dbuser.bot
+		client.last_ip = dbuser.last_ip
+		client.last_agent = dbuser.last_agent
 		client.last_sys_id = dbuser.last_sys_id
 		client.last_mac_id = dbuser.last_mac_id
-		client.last_ip = dbuser.last_ip
 		client.register_date = dbuser.register_date
 		client.last_login = dbuser.last_login
 		client.ingame_time = dbuser.ingame_time
@@ -2486,6 +2488,7 @@ class Protocol:
 				ingame_time = int(self._root.usernames[user.username].ingame_time)	
 			else:
 				self.out_SERVERMSG(client, "<%s> is offline,  user_id=%s" % (user.username, user.user_id))
+				self.out_SERVERMSG(client, "Agent: %s" % (user.last_agent))
 				self.out_SERVERMSG(client, "Registered %s,  last login %s" % (register_date, user.last_login.strftime('%b %d, %Y')))
 				ingame_time = int(user.ingame_time)
 			self.out_SERVERMSG(client, "access=%s,  bot=%s,  ingame_time=%d hours" % (user.access, user.bot, ingame_time/60))
