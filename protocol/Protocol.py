@@ -1879,7 +1879,7 @@ class Protocol:
 			return
 		if not user.session_id in battle.pending_users:
 			return
-		self.removePendingBattle(client)
+		self.removePendingBattle(user)
 		battle.joinBattle(user)
 
 	def in_JOINBATTLEDENY(self, client, username, reason=None):
@@ -1897,7 +1897,7 @@ class Protocol:
 			return
 		if not user.session_id in battle.pending_users:
 			return
-		self.removePendingBattle(client)
+		self.removePendingBattle(user)
 		user.Send('JOINBATTLEFAILED %s%s' % ('Access denied by host', (' ('+reason+')' if reason else '')))
 
 	def in_KICKFROMBATTLE(self, client, username):
