@@ -1429,7 +1429,10 @@ class Protocol:
 		
 		# backwards compat
 		msg = '<' + bridgedClient.username + '> ' + msg
-		self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client, None, 'u') 
+		if channel.identity=="battle":
+			self._root.broadcast('SAIDBATTLE %s %s %s' % (channel.battle_id, client.username, msg), chan, set([]), client, None, 'u') 		
+		else:
+			self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client, None, 'u') 
 		if channel.store_history: #fixme for bridged clients
 			self.userdb.add_channel_message(channel.id, client.user_id, msg)
 
