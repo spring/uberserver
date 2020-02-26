@@ -104,7 +104,8 @@ logins_table = Table('logins', metadata,
 	)
 
 class Login(object):
-	def __init__(self, now, ip_address, agent, last_sys_id, last_mac_id, local_ip, country):
+	def __init__(self, now, user_id, ip_address, agent, last_sys_id, last_mac_id, local_ip, country):
+		self.user_id = user_id
 		self.ip_address = ip_address
 		self.time = now
 		self.agent = agent
@@ -114,7 +115,7 @@ class Login(object):
 		self.country = country
 
 	def __repr__(self):
-		return "<Login('%s', '%s')>" % (self.ip_address, self.time)
+		return "<Login('%s', '%s')>" % (self.user_id, self.time)
 mapper(Login, logins_table)
 ##########################################
 bridged_users_table = Table('bridged_users', metadata,
@@ -526,7 +527,7 @@ class UsersHandler:
 	def login_user(self, username, password, ip, agent, last_sys_id, last_mac_id, local_ip, country):
 		now = datetime.now()
 		dbuser = self.sess().query(User).filter(User.username == username).first()
-		dbuser.logins.append(Login(now, ip, agent, last_sys_id, last_mac_id, local_ip, country))
+		dbuser.logins.append(Login(now, dbuser.id, ip, agent, last_sys_id, last_mac_id, local_ip, country))
 		dbuser.last_ip = ip
 		dbuser.last_agent = agent
 		dbuser.last_sys_id = last_sys_id
