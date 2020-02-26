@@ -91,7 +91,7 @@ mapper(Verification, verifications_table)
 ##########################################
 logins_table = Table('logins', metadata,
 	Column('id', Integer, primary_key=True),
-	Column('user_dbid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # todo: rename to user_id
+	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), 
 	Column('ip_address', String(15), nullable=False),
 	Column('time', DateTime),
 	Column('agent', String(64)),
