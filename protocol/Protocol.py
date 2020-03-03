@@ -2403,7 +2403,7 @@ class Protocol:
 			return
 
 		if name in battle.bots:
-			self.out_FAILED(client, "ADDBOT", "Bot already exists!", True)
+			self.out_FAILED(client, "ADDBOT", "Bot already exists!", False)
 			return
 		client.battle_bots[name] = battle.battle_id
 		battle.bots[name] = {'owner':client.username, 'battlestatus':battlestatus, 'teamcolor':teamcolor, 'AIDLL':AIDLL}
