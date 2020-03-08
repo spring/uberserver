@@ -1427,7 +1427,12 @@ class Protocol:
 		
 		# backwards compat
 		msg = '<' + bridgedClient.username + '> ' + msg
-		self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client, None, 'u') 
+		if channel.identity=="battle":
+			self._root.broadcast('SAIDBATTLE %s %s' % (client.username, msg), chan, set([]), client, None, 'u')
+		else:
+			self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client, None, 'u')
+		if channel.store_history: #fixme for bridged clients
+			self.userdb.add_channel_message(channel.id, client.user_id, msg)
 
 		
 	def in_IGNORE(self, client, tags):
@@ -1872,7 +1877,7 @@ class Protocol:
 			return
 		if not user.session_id in battle.pending_users:
 			return
-		self.removePendingBattle(client)
+		self.removePendingBattle(user)
 		battle.joinBattle(user)
 
 	def in_JOINBATTLEDENY(self, client, username, reason=None):
@@ -1890,7 +1895,7 @@ class Protocol:
 			return
 		if not user.session_id in battle.pending_users:
 			return
-		self.removePendingBattle(client)
+		self.removePendingBattle(user)
 		user.Send('JOINBATTLEFAILED %s%s' % ('Access denied by host', (' ('+reason+')' if reason else '')))
 
 	def in_KICKFROMBATTLE(self, client, username):
@@ -2396,7 +2401,7 @@ class Protocol:
 			return
 
 		if name in battle.bots:
-			self.out_FAILED(client, "ADDBOT", "Bot already exists!", True)
+			self.out_FAILED(client, "ADDBOT", "Bot already exists!", False)
 			return
 		client.battle_bots[name] = battle.battle_id
 		battle.bots[name] = {'owner':client.username, 'battlestatus':battlestatus, 'teamcolor':teamcolor, 'AIDLL':AIDLL}

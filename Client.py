@@ -123,6 +123,7 @@ class Client():
 			flood_limits = self._root.flood_limits[self.access]
 		else:
 			flood_limits = self._root.flood_limits['fresh']
+		
 		#logging.info("  < [" + self.username + " " + str(self.session_id) + "] " + data.strip()) # uncomment for debugging
 
 		now = int(time.time())
@@ -213,15 +214,18 @@ class Client():
 	## send data to client
 	##
 	def RealSend(self, data):
-		## don't append new data to buffer when client gets removed
 		if not data:
 			return
+
+		raw_msg  = data[data.find(" ")+1:] if data.startswith('#') else data
+		command = raw_msg[:raw_msg.find(" ")] if " " in raw_msg else raw_msg
+		self._root.outbound_command_stats[command] = self._root.outbound_command_stats.get(command, 0) + 1
+
 		#logging.info("> [" + self.username + " " + str(self.session_id) + "] " + data.strip()) # uncomment for debugging
+		
 		self.transport.write(data.encode("utf-8") + b"\n")
 
 	def Send(self, data):
-		command = data[:data.find(" ")] if " " in data else data
-		self._root.outbound_command_stats[command] = self._root.outbound_command_stats.get(command, 0) + 1 # ignore when RealSend is used directly
 		if self.msg_id:
 			data = self.msg_id + data
 		if self.buffersend:

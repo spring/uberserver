@@ -710,10 +710,10 @@ class DataHandler:
 	def stats(self):
 		logging.info(" -- STATS -- ")
 		logging.info("Command counts (inbound):")
-		for k in self.inbound_command_stats:
+		for k in sorted(self.inbound_command_stats):
 			logging.info(" %s %d" % (k, self.inbound_command_stats[k]))
 		logging.info("Command counts (outbound):")
-		for k in self.outbound_command_stats:
+		for k in sorted(self.outbound_command_stats):
 			logging.info(" %s %d" % (k, self.outbound_command_stats[k]))
 		logging.info("Number of logins: %d" % self.n_login_stats)
 		logging.info("TLS logins: %d" % self.tls_stats)
