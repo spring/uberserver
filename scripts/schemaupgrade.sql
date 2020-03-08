@@ -5,12 +5,14 @@ alter table renames drop new;
 alter table logins change column lobby_id agent;
 
 -- #333 cleanup channel
--- ???
+alter table channel drop topic_time, autokick, antishock;
 
 -- #359 uniqueness for dbuser.email
-alter table user add unique(email);
+update users set email = None where email == '';
+alter table users add unique(email);
 
 -- #360 split last_id
+update users set last_id = None where last_id == '';
 update users
 set last_sys_id = newdata.sysid
 set last_mac_id = newdata.macid
@@ -25,4 +27,4 @@ where
 id = newdata.id;
 
 -- 368 remove randsalt from dbuser
-alter users drop randsalt
+alter table users drop randsalt;
