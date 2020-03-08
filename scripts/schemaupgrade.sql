@@ -12,6 +12,8 @@ update users set email = None where email == '';
 alter table users add unique(email);
 
 -- #360 split last_id
+truncate logins;
+alter table logins drop user_id, user_dbid;
 update users set last_id = None where last_id == '';
 update users
 set last_sys_id = newdata.sysid
