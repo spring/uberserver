@@ -1050,6 +1050,8 @@ class VerificationsHandler:
 	def __init__(self, root):
 		self._root = root
 		self.require_verification = (self._root.mail_user != None)	
+		self.mail_identity = "SpringRTS"
+		self.mail_contact_addr = "https://springrts.com"
 		
 	def sess(self):
 		return self._root.session_manager.sess()
@@ -1136,7 +1138,7 @@ class VerificationsHandler:
 	def _send(self, email, code, reason, expiry):
 		sent_from = self._root.mail_user
 		to = email
-		subject = "SpringRTS verification code"
+		subject = self.mail_identity + " verification code"
 		body = "You are recieving this email because you recently " + reason + ".\r\nYour email verification code is " + str(code) + "\r\n\r\nThis verification code will expire on " + expiry.strftime("%Y-%m-%d") + " at " + expiry.strftime("%H:%M") + " CET."
 		self._send_email(sent_from, to, subject, body)
 
@@ -1144,10 +1146,10 @@ class VerificationsHandler:
 		if not self.active(): #safety
 			logging.error("Attempt to _send_email (subject: %s) failed, verifications handler is inactive" % subject)
 			return
-		body += "\r\n\r\nIf you received this message in error, please contact us at https://springrts.com. Direct replies to this message will be automatically deleted."
+		body += "\r\n\r\nIf you received this message in error, please contact us at " + self.mail_contact_addr + ". Direct replies to this message will be automatically deleted."
 		message = MIMEText(body, 'plain')
 		message['Subject'] = subject 
-		message['From'] = "SpringRTS <" + sent_from + ">"
+		message['From'] = self.mail_identity + " <" + sent_from + ">"
 		message['To'] = "," + to
 		try:
 			server = smtplib.SMTP()
@@ -1226,8 +1228,8 @@ class VerificationsHandler:
 	def _send_reset_password_email(self, email, username, password):
 		sent_from = self._root.mail_user
 		to = email
-		subject = 'SpringRTS account recovery'
-		body = "You are recieving this email because you recently requested to recover the account <" + username + "> at the SpringRTS lobby server.\r\nYour new password is " + password
+		subject = self.mail_identity + ' account recovery'
+		body = "You are recieving this email because you recently requested to recover the account <" + username + "> at the " + self.mail_identity + " lobby server.\r\nYour new password is " + password
 		self._send_email(sent_from, to, subject, body)
 
 
