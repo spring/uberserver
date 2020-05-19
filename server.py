@@ -43,7 +43,11 @@ try:
 except socket.error:
 	logging.error("Could not start NAT server - hole punching will be unavailable.")
 
-_root.init()
+try:
+	_root.init()
+except:
+	logging.error(traceback.format_exc())
+	logging.info('Exception caught, exiting...')
 
 try:
 	reactor.listenTCP(_root.port, twistedserver.ChatFactory(_root))
