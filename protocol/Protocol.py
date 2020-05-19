@@ -27,6 +27,7 @@ ranks = (5, 15, 30, 100, 300, 1000, 3000)
 restricted = {
 'disabled':set(),
 'everyone':set([
+	'SETACCESS',
 	'EXIT',
 	'PING',
 	'LISTCOMPFLAGS',
@@ -253,7 +254,7 @@ class Protocol:
 		if missing_TLS:
 			client.RealSend("MOTD Your client did not use TLS. Your connection is not secure.")
 			client.RealSend("MOTD  -- -- - -- --")
-			logging.info('[%s] <%s> client "%s" logged in without TLS' % (client.session_id, client.username, client.lobby_id))
+			logging.info('[%s] <%s> client "%s" logged in without TLS' % (client.session_id, client.username, client.agent))
 
 		if compat_error:
 			#client.RealSend("MOTD Your client has compatibility errors")
@@ -261,7 +262,7 @@ class Protocol:
 			#if len(deprec_flags)>0: client.RealSend("MOTD   deprecated flags:%s" % deprec_flags)
 			#if len(unknown_flags)>0: client.RealSend("MOTD   unknown flags:%s" % unknown_flags)
 			#client.RealSend("MOTD  -- -- - -- --")
-			logging.info('[%s] <%s> client "%s" sent incorrect compat flags %s -- missing:%s, deprecated:%s, unknown:%s'%(client.session_id, client.username, client.lobby_id, client.compat, missing_flags, deprec_flags, unknown_flags))
+			logging.info('[%s] <%s> client "%s" sent incorrect compat flags %s -- missing:%s, deprecated:%s, unknown:%s'%(client.session_id, client.username, client.agent, client.compat, missing_flags, deprec_flags, unknown_flags))
 
 		#client.RealSend("MOTD Please update your client / report these issues.")
 		#client.RealSend("MOTD  -- -- - -- --")
@@ -733,7 +734,7 @@ class Protocol:
 
 	def client_AddUser(self, receiver, user):
 		'sends the protocol for adding a user'
-		return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, user.user_id, user.lobby_id)
+		return 'ADDUSER %s %s %s %s' % (user.username, user.country_code, user.user_id, user.agent)
 
 	def client_RemoveUser(self, client, user):
 		'sends the protocol for removing a user'
@@ -835,13 +836,6 @@ class Protocol:
 
 		# well formed-ness tests
 		good, reason = self._validUsernameSyntax(username)
-		if not good:
-			client.Send("REGISTRATIONDENIED %s" % (reason))
-			return
-		if self.SayHooks.isNasty(username):
-			logging.info("invalid nickname used for registering %s" %(username))
-			client.Send("REGISTRATIONDENIED invalid nickname")
-			return
 		good, reason = self._validPasswordSyntax(password)
 		if not good:
 			client.Send("REGISTRATIONDENIED %s" % (reason))
@@ -862,6 +856,8 @@ class Protocol:
 				if email=='': reason += " -- If you were not asked to enter one, please update your lobby client!"
 				client.Send('REGISTRATIONDENIED %s' % reason)
 				return
+		else:
+			email = None # avoid triggering uniqueness constraint with empty strings
 
 		# rate limit per ip
 		recent_regs = self._root.recent_registrations.get(client.ip_address, 0)
@@ -935,7 +931,7 @@ class Protocol:
 		@required.str password: Password BASE64(MD5(PWRD))
 		@optional.int cpu: deprecated
 		@optional.ip local_ip: LAN IP address, sent to clients when they have the same WAN IP as host
-		@optional.sentence.str lobby_id: Lobby name and version
+		@optional.sentence.str agent: Lobby name and version
 		@optional.sentence.int user_id: User ID provided by lobby
 		@optional.sentence.str compat_flags: Compatibility flags, sent in space-separated form, see lobby protocol docs for details
 		'''
@@ -968,19 +964,21 @@ class Protocol:
 			self.out_DENIED(client, username, "Invalid sentence args")
 			return
 		if sentence_args.count('\t')==0: # fixme: backwards compat for Melbot / Statserv
-			lobby_id = sentence_args
-			last_id = "0"
+			agent = sentence_args
+			last_sys_id = "0"
+			last_mac_id = "0"
 		elif not self._validLoginSentence(sentence_args):
 			logging.warning("Invalid login sentence '%s' from <%s>" % (sentence_args, username))
 			self.out_DENIED(client, username, 'Invalid sentence format, please update your lobby client.')
 			return
 		else: 
-			lobby_id, last_id, compat_flags = sentence_args.split('\t',2)
+			agent, last_id, compat_flags = sentence_args.split('\t',2)
+			last_mac_id, last_sys_id = last_id.split(" ") 
 			for flag in compat_flags.split(' '):
 				client.compat.add(flag)
 		
 		# login checks complete
-		dbuser = self.userdb.login_user(username, password, client.ip_address, lobby_id, last_id, local_ip, client.country_code)			
+		dbuser = self.userdb.login_user(username, password, client.ip_address, agent, last_sys_id, last_mac_id, local_ip, client.country_code)			
 
 		# update local client fields from DB User values
 		client.access = dbuser.access
@@ -989,13 +987,15 @@ class Protocol:
 		client.password = dbuser.password
 		client.user_id = dbuser.id
 		client.bot = dbuser.bot
-		client.last_id = dbuser.last_id
 		client.last_ip = dbuser.last_ip
+		client.last_agent = dbuser.last_agent
+		client.last_sys_id = dbuser.last_sys_id
+		client.last_mac_id = dbuser.last_mac_id
 		client.register_date = dbuser.register_date
 		client.last_login = dbuser.last_login
 		client.ingame_time = dbuser.ingame_time
 		client.email = dbuser.email
-		client.lobby_id = lobby_id
+		client.agent = agent
 	
 		if (client.access == 'agreement'):
 			logging.info('[%s] Sent user <%s> the terms of service on session.' % (client.session_id, dbuser.username))
@@ -1096,7 +1096,7 @@ class Protocol:
 		ip_string = ""
 		if client.ip_address != client.last_ip:
 			ip_string = client.ip_address + " "
-		self.broadcast_Moderator('Agr: %s %s%s %s' %(client.username, ip_string, client.last_id, client.lobby_id))
+		self.broadcast_Moderator('Agr: %s %s %s %s %s' %(client.username, ip_string, client.last_sys_id, client.last_mac_id, client.agent))
 		client.access = 'user'
 		self.userdb.save_user(client)
 		self._calc_access_status(client)
@@ -1117,12 +1117,7 @@ class Protocol:
 		password = from_client.password
 		ip_address = from_client.ip_address
 		country_code = from_client.country_code
-		email = from_client.email
-
-		good, reason = self.verificationdb.valid_email_addr(email)
-		if not good:
-			self.out_FAILED(client, "CREATEBOTACCOUNT", "Client <%s> has invalid email address '%s'" % (from_client.username, email), True)
-			return
+		email = None # bots don't have email
 
 		good, reason = self.userdb.check_register_user(username)
 		if (not good):
@@ -1150,7 +1145,7 @@ class Protocol:
 
 		# declare success
 		self.broadcast_Moderator('New bot: <%s> created by <%s> from <%s>' %(username, client.username, from_client.username))
-		msg = "A new bot account <%s> has been created, with the same password and email address as <%s>" % (bot_client.username, from_client.username)
+		msg = "A new bot account <%s> has been created, with the same password as <%s>" % (bot_client.username, from_client.username)
 		if founder:
 			msg += ", and battle founder <%s>" % founder.username
 		self.out_SERVERMSG(client, msg)
@@ -1182,7 +1177,7 @@ class Protocol:
 			client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 			return
 		if channel.store_history:
-			self.userdb.add_channel_message(channel.id, client.user_id, msg)
+			self.userdb.add_channel_message(channel.id, client.user_id, None, msg, False)
 
 		self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client, 'u')
 		
@@ -1218,8 +1213,8 @@ class Protocol:
 		if channel.isMuted(client):
 			client.Send('CHANNELMESSAGE %s You are %s.' % (chan, channel.getMuteMessage(client)))
 			return
-		if channel.store_history: # fixme, stored as non-ex msg
-			self.userdb.add_channel_message(channel.id, client.user_id, msg)
+		if channel.store_history: 
+			self.userdb.add_channel_message(channel.id, client.user_id, None, msg, True)
 
 		self._root.broadcast('SAIDEX %s %s %s' % (chan, client.username, msg), chan, set([]), client, 'u')
 
@@ -1425,14 +1420,17 @@ class Protocol:
 		if not bridgedClient.bridged_id in channel.bridged_users:
 			self.out_FAILED(client, "SAYFROM", "Bridged user <%s> not present in channel" % bridgedClient.username, False)
 			return
+		if channel.store_history: 
+			self.userdb.add_channel_message(channel.id, client.user_id, bridgedClient.bridged_id, msg, False)
+
 		self._root.broadcast('SAIDFROM %s %s %s' % (chan, bridgedClient.username, msg), chan, set([]), client, 'u')
 		
 		# backwards compat
 		msg = '<' + bridgedClient.username + '> ' + msg
 		if channel.identity=="battle":
-			self._root.broadcast('SAIDBATTLE %s %s' % (client.username, msg), chan, set([]), client, None, 'u') 		
+			self._root.broadcast('SAIDBATTLE %s %s' % (client.username, msg), chan, set([]), client, None, 'u')
 		else:
-			self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client, None, 'u') 
+			self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client, None, 'u')
 		if channel.store_history: #fixme for bridged clients
 			self.userdb.add_channel_message(channel.id, client.user_id, msg)
 
@@ -1629,7 +1627,7 @@ class Protocol:
 
 		user = client.username
 		# FIXME: unhardcode this
-		if (client.bot or client.lobby_id.startswith("SPADS")) and chan in ("newbies") and client.username != "ChanServ":
+		if (client.bot or client.agent.startswith("SPADS")) and chan in ("newbies") and client.username != "ChanServ":
 			#client.Send('JOINFAILED %s No bots allowed in #%s!' %(chan, chan))
 			return
 		if chan == 'moderator' and not 'mod' in client.accesslevels:
@@ -2134,11 +2132,11 @@ class Protocol:
 			if channel.isOp(client):
 				channel.setTopic(client, topic)
 
-	def in_GETCHANNELMESSAGES(self, client, chan, lastid):
+	def in_GETCHANNELMESSAGES(self, client, chan, last_msg_id):
 		'''
 		Get historical messages from the chan since the specified time
 		@required.str chan: The target channel
-		@required.str lastid: messages to get since this id
+		@required.str last_msg_id: messages to get since this id
 		'''
 		if not chan in self._root.channels:
 			return
@@ -2149,14 +2147,14 @@ class Protocol:
 			self.out_FAILED(client, "GETCHANNELMESSAGES", "Can't get channel messages when not joined", True)
 			return
 		try:
-			timestamp = datetime.datetime.fromtimestamp(int(lastid))
+			timestamp = datetime.datetime.fromtimestamp(int(last_msg_id))
 		except:
 			self.out_FAILED(client, "GETCHANNELMESSAGES", "Invalid id", True)
 			return
-		msgs = self.userdb.get_channel_messages(client.user_id, channel.id, lastid)
+		msgs = self.userdb.get_channel_messages(client.user_id, channel.id, last_msg_id)
 		for msg in msgs:
 			timestamp = int(time.mktime(msg[0].timetuple()))
-			self.out_JSON(client,  'SAID', {"chanName": chan, "time": str(timestamp), "userName": msg[1], "msg": msg[2], "id": msg[3]})
+			self.out_JSON(client,  'SAID', {"chanName": chan, "time": str(timestamp), "userName": msg[1], "msg": msg[2], "ex_msg":msg[3], "id": msg[4]})
 
 	def in_RING(self, client, username):
 		'''
@@ -2447,7 +2445,7 @@ class Protocol:
 	def in_GETUSERID(self, client, username):
 		user = self.clientFromUsername(username, True)
 		if user:
-			self.out_SERVERMSG(client, 'The ID for <%s> is %s' % (username, user.last_id))
+			self.out_SERVERMSG(client, 'The ID for <%s> is %s %s' % (username, user.last_mac_id, user.last_sys_id))
 		else:
 			self.out_SERVERMSG(client, 'User not found.')
 
@@ -2490,16 +2488,18 @@ class Protocol:
 					self.out_SERVERMSG(client, "User <%s> is static" % username)
 					return
 				self.out_SERVERMSG(client, "<%s> is online,  user_id=%d, session_id=%d" % (user.username, user.user_id, user.session_id))
-				self.out_SERVERMSG(client, "Agent: %s" % (user.lobby_id))
+				self.out_SERVERMSG(client, "Agent: %s" % (user.agent))
 				self.out_SERVERMSG(client, "Registered %s" % (register_date))
 				ingame_time = int(self._root.usernames[user.username].ingame_time)	
 			else:
 				self.out_SERVERMSG(client, "<%s> is offline,  user_id=%s" % (user.username, user.user_id))
+				self.out_SERVERMSG(client, "Agent: %s" % (user.last_agent))
 				self.out_SERVERMSG(client, "Registered %s,  last login %s" % (register_date, user.last_login.strftime('%b %d, %Y')))
 				ingame_time = int(user.ingame_time)
 			self.out_SERVERMSG(client, "access=%s,  bot=%s,  ingame_time=%d hours" % (user.access, user.bot, ingame_time/60))
 			self.out_SERVERMSG(client, "email=%s" % (user.email))
-			self.out_SERVERMSG(client, "last_ip=%s,  last_id=%s" % (user.last_ip, user.last_id))
+			self.out_SERVERMSG(client, "last_ip=%s" % (user.last_ip))
+			self.out_SERVERMSG(client, "last_sys_id=%s, last_mac_id=%s" % (user.last_sys_id, user.last_mac_id))
 	
 	def in_FINDIP(self, client, address):
 		'''
@@ -2554,21 +2554,17 @@ class Protocol:
 		if not good:
 			self.out_SERVERMSG(client, '%s' %(reason))
 			return
-
 		if self.SayHooks.isNasty(newname):
 			self.out_FAILED(client, "RENAMEACCOUNT", "invalid nickname: %s" %(newname), True)
 			return
-
-		user = client.username
-		if user == newname:
-			self.out_SERVERMSG(client, 'You already have that username.')
-			return
-		good, reason = self.userdb.rename_user(user, newname)
-		if good:
-			self.out_SERVERMSG(client, 'Your account has been renamed to <%s>. Reconnect with the new username (you will now be automatically disconnected).' % newname)
-			client.Remove('renaming')
-		else:
+			
+		good, reason = self.userdb.rename_user(client.username, newname)
+		if not good:
 			self.out_SERVERMSG(client, 'Failed to rename to <%s>: %s' % (newname, reason))
+			return
+		
+		self.out_SERVERMSG(client, 'Your account has been renamed to <%s>. Reconnect with the new username (you will now be automatically disconnected).' % newname)
+		client.Remove('renaming')
 
 
 	def in_CHANGEPASSWORD(self, client, cur_password, new_password):
@@ -3256,9 +3252,9 @@ def check_protocol_commands():
 			print("unused function %s"%(func))
 			return False
 	return True
-assert(check_protocol_commands())
 
 def selftest():
+	assert(check_protocol_commands())
 	class DummyRoot():
 		def SayHooks(self):
 			pass

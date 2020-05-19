@@ -46,7 +46,7 @@ class Client():
 		self.compat = set() # holds compatibility flags
 
 		self.country_code = '??'
-		self.lobby_id = ""
+		self.agent = ""
 		self.setFlagByIP(self.ip_address)
 		self.status = 12
 		self.accesslevels = ['fresh','everyone']

@@ -13,13 +13,11 @@ class Channel():
 		self.key = None
 		self.owner_user_id = None # 'founder'
 		self.topic = ''
-		self.topic_time = None # deprecated
 		self.topic_user_id = None
-		self.antispam = False # deprecated
-		self.autokick = '' #deprecated
+		self.antispam = False
 		self.censor = False
-		self.antishock = False #deprecated
 		self.store_history = False
+		self.last_used = None
 
 		# non-db fields
 		self.operators = set() #user_ids
@@ -50,6 +48,11 @@ class Channel():
 	def register(self, client, target):
 		self.setFounder(client, target)
 		self.db().register(self, target)
+		self.recordUse()
+		
+	def recordUse(self):
+		self.last_used = datetime.now()
+		self.db().recordUse(self)
 
 	def unregister(self, client):
 		self.owner_user_id = None
@@ -66,6 +69,8 @@ class Channel():
 			return
 		self.users.add(client.session_id)
 		client.channels.add(self.name)
+		if not client.static:
+			self.recordUse()
 		
 		flag = 'u' if self.identity=="battle" else None # for legacy clients without 'u', who are not told that they and others are are in the __battle__ channel! 
 		if flag and not flag in client.compat:
@@ -112,6 +117,8 @@ class Channel():
 		else:
 			self.broadcast('LEFT %s %s' % (self.name, client.username), set(), flag)
 		self.users.remove(client.session_id)
+		if not client.static:
+			self.recordUse()
 
 	def addBridgedUser(self, client, bridgedClient):
 		bridged_id = bridgedClient.bridged_id

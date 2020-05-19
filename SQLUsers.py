@@ -30,14 +30,15 @@ users_table = Table('users', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('username', String(40), unique=True), # unicode
 	Column('password', String(64)), # unicode(BASE64(ASCII)) (unicode is added by DB on write)
-	Column('randsalt', String(64)), # unused
 	Column('register_date', DateTime),
 	Column('last_login', DateTime),
 	Column('last_ip', String(15)), # would need update for ipv6
-	Column('last_id', String(128)),
+	Column('last_agent', String(254)),
+	Column('last_sys_id', String(16)),
+	Column('last_mac_id', String(16)),
 	Column('ingame_time', Integer),
 	Column('access', String(32)),
-	Column('email', String(254)), # http://www.rfc-editor.org/errata_search.php?rfc=3696&eid=1690
+	Column('email', String(254), unique=True, nullable=True), # http://www.rfc-editor.org/errata_search.php?rfc=3696&eid=1690
 	Column('bot', Integer),
 	mysql_charset='utf8',
 )
@@ -46,15 +47,16 @@ class User():
 	def __init__(self, username, password, last_ip, email, access='agreement'):
 		self.username = username
 		self.password = password
-		self.randsalt = ""
 		self.last_login = datetime.now()
 		self.register_date = datetime.now()
 		self.last_ip = last_ip
+		self.last_agent = ""
 		self.email = email
 		self.ingame_time = 0
 		self.bot = 0
-		self.access = access # user, moderator, admin, bot, agreement
-		self.last_id = 0
+		self.access = access # user, moderator, admin, bot, agreement, fresh
+		self.last_sys_id = ""
+		self.last_mac_id = ""
 
 	def __repr__(self):
 		return "<User('%s', '%s')>" % (self.username, self.password)
@@ -89,28 +91,31 @@ mapper(Verification, verifications_table)
 ##########################################
 logins_table = Table('logins', metadata,
 	Column('id', Integer, primary_key=True),
-	Column('user_dbid', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), # todo: rename to user_id
+	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')), 
 	Column('ip_address', String(15), nullable=False),
 	Column('time', DateTime),
-	Column('lobby_id', String(64)),
+	Column('agent', String(64)),
+	Column('last_sys_id', String(16)),
+	Column('last_mac_id', String(16)),
 	Column('local_ip', String(15)), # needs update for ipv6
 	Column('country', String(4)),
 	Column('end', DateTime),
-	Column('user_id', String(128)), # todo: rename to last_id
 	mysql_charset='utf8',
 	)
 
 class Login(object):
-	def __init__(self, now, ip_address, lobby_id, user_id, local_ip, country):
-		self.time = now
-		self.ip_address = ip_address
-		self.lobby_id = lobby_id
+	def __init__(self, now, user_id, ip_address, agent, last_sys_id, last_mac_id, local_ip, country):
 		self.user_id = user_id
+		self.ip_address = ip_address
+		self.time = now
+		self.agent = agent
+		self.last_sys_id = last_sys_id
+		self.last_mac_id = last_mac_id
 		self.local_ip = local_ip
 		self.country = country
 
 	def __repr__(self):
-		return "<Login('%s', '%s')>" % (self.ip_address, self.time)
+		return "<Login('%s', '%s')>" % (self.user_id, self.time)
 mapper(Login, logins_table)
 ##########################################
 bridged_users_table = Table('bridged_users', metadata,
@@ -138,18 +143,16 @@ renames_table = Table('renames', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('original', String(40)),
-	Column('new', String(40)), # FIXME: not needed
 	Column('time', DateTime),
 	mysql_charset='utf8',
 	)
 class Rename(object):
-	def __init__(self, original, new):
+	def __init__(self, original):
 		self.original = original
-		self.new = new
 		self.time = datetime.now()
 
 	def __repr__(self):
-		return "<Rename('%s' -> '%s')>" % (self.original, self.new)
+		return "<Rename of '%s'>" % (self.original)
 mapper(Rename, renames_table)
 
 ##########################################
@@ -227,13 +230,11 @@ channels_table = Table('channels', metadata,
 	Column('key', String(32)),
 	Column('owner_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True),
 	Column('topic', Text),
-	Column('topic_time', DateTime), #deprecated; todo: remove this
 	Column('topic_user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='SET NULL'), nullable=True),
 	Column('antispam', Boolean),
-	Column('autokick', String(5)), #deprecated; todo: remove this
 	Column('censor', Boolean),
-	Column('antishock', Boolean), #deprecated; todo: remove this
 	Column('store_history', Boolean),
+	Column('last_used', DateTime),
 	mysql_charset='utf8',
 	)
 class Channel(object):
@@ -242,13 +243,11 @@ class Channel(object):
 		self.key = None
 		self.owner_user_id = None
 		self.topic = None
-		self.topic_time = None
 		self.topic_user_id = None
 		self.antispam = False
-		self.autokick = None
 		self.censor = False
-		self.antishock = None
 		self.store_history = False
+		self.last_used = None
 
 	def __repr__(self):
 		return "<Channel('%s')>" % self.name
@@ -258,16 +257,20 @@ channelshistory_table = Table('channel_history', metadata,
 	Column('id', Integer, primary_key=True),
 	Column('channel_id', Integer, ForeignKey('channels.id', onupdate='CASCADE', ondelete='CASCADE')),
 	Column('user_id', Integer, ForeignKey('users.id', onupdate='CASCADE', ondelete='CASCADE')),
+	Column('bridged_id', Integer, ForeignKey('bridged_users.id', onupdate='CASCADE', ondelete='CASCADE'), nullable=True),
 	Column('time', DateTime),
 	Column('msg', Text),
+	Column('ex_msg', Boolean),
 	mysql_charset='utf8',
 	)
 class ChannelHistory(object):
-	def __init__(self, channel_id, user_id, msg, time):
+	def __init__(self, channel_id, user_id, bridged_id, time, msg, ex_msg):
 		self.channel_id = channel_id
 		self.user_id = user_id
+		self.bridged_id = bridged_id
 		self.time = time
 		self.msg = msg
+		self.ex_msg = ex_msg
 
 	def __repr__(self):
 		return "<ChannelHistory('%s')>" % self.channel_id
@@ -456,15 +459,16 @@ class OfflineClient():
 	def __init__(self, sqluser):
 		self.username = sqluser.username
 		self.password = sqluser.password
-		self.randsalt = ""
 		self.id = sqluser.id
 		self.user_id = sqluser.id
 		self.ingame_time = sqluser.ingame_time
 		self.bot = sqluser.bot
 		self.last_login = sqluser.last_login
 		self.register_date = sqluser.register_date
-		self.last_id = sqluser.last_id
 		self.last_ip = sqluser.last_ip
+		self.last_agent = sqluser.last_agent
+		self.last_sys_id = sqluser.last_sys_id
+		self.last_mac_id = sqluser.last_mac_id
 		self.access = sqluser.access
 		self.email = sqluser.email
 
@@ -520,12 +524,14 @@ class UsersHandler:
 			return False, 'Invalid username or password'
 		return True, ""
 		
-	def login_user(self, username, password, ip, lobby_id, last_id, local_ip, country):
+	def login_user(self, username, password, ip, agent, last_sys_id, last_mac_id, local_ip, country):
 		now = datetime.now()
 		dbuser = self.sess().query(User).filter(User.username == username).first()
-		dbuser.logins.append(Login(now, ip, lobby_id, last_id, local_ip, country))
+		dbuser.logins.append(Login(now, dbuser.id, ip, agent, last_sys_id, last_mac_id, local_ip, country))
 		dbuser.last_ip = ip
-		dbuser.last_id = last_id
+		dbuser.last_agent = agent
+		dbuser.last_sys_id = last_sys_id
+		dbuser.last_mac_id = last_mac_id
 		dbuser.last_login = now 
 		
 		self.sess().commit()
@@ -578,22 +584,18 @@ class UsersHandler:
 		self.sess().commit()
 		return True, 'Account registered successfully.'
 
-	def rename_user(self, user, newname):
-		if len(newname)>20: return False, 'Username too long'
-		if self._root.censor:
-			if not self._root.SayHooks._nasty_word_censor(user):
-				return False, 'New username failed to pass profanity filter.'
-		if not newname == user:
-			results = self.sess().query(User).filter(User.username==newname).first()
-			if results:
-				return False, 'Username already exists.'
-		entry = self.sess().query(User).filter(User.username==user).first()
-		if not entry: return False, 'You don\'t seem to exist anymore. Contact an admin or moderator.'
-		entry.renames.append(Rename(user, newname))
+	def rename_user(self, username, newname):
+		if newname == username:
+			return False, 'You already have that username.'
+		results = self.sess().query(User).filter(User.username==newname).first()
+		if results:
+			return False, 'Username already exists.'
+		entry = self.sess().query(User).filter(User.username==username).first()
+		if not entry: 
+			return False, 'You don\'t seem to exist anymore. Contact an admin or moderator.'
+		entry.renames.append(Rename(username))
 		entry.username = newname
 		self.sess().commit()
-		# need to iterate through channels and rename junk there...
-		# it might actually be a lot easier to use userids in the server... # later.
 		return True, 'Account renamed successfully.'
 
 	def save_user(self, obj):
@@ -605,7 +607,8 @@ class UsersHandler:
 			entry.ingame_time = obj.ingame_time
 			entry.access = obj.access
 			entry.bot = obj.bot
-			entry.last_id = obj.last_id
+			entry.last_sys_id = obj.last_sys_id
+			entry.last_mac_id = obj.last_mac_id
 			entry.email = obj.email
 
 		self.sess().commit()
@@ -787,21 +790,27 @@ class UsersHandler:
 		users = [(req.user_id, req.msg) for req in reqs]
 		return users
 
-	def add_channel_message(self, channel_id, user_id, msg, date = None):
+	def add_channel_message(self, channel_id, user_id, bridged_id, msg, ex_msg, date=None):
 		if date is None:
 			date = datetime.now()
-		entry = ChannelHistory(channel_id, user_id, msg, date)
+		entry = ChannelHistory(channel_id, user_id, bridged_id, date, msg, ex_msg)
 		self.sess().add(entry)
 		self.sess().commit()
 		return entry.id
 
-	#returns a list of channel messages since starttime for the specific userid when he is subscribed to the channel
-	# [[date, user, msg], [date, user, msg], ...]
-	def get_channel_messages(self, user_id, channel_id, lastid):
-		reqs = self.sess().query(ChannelHistory.time, ChannelHistory.msg, User.username, ChannelHistory.id).filter(ChannelHistory.channel_id == channel_id).filter(ChannelHistory.id > lastid).join(User, isouter=True).order_by(ChannelHistory.id).all()
-		msgs = [(htime, username, msg, id) if username else (htime, 'ChanServ', msg, id) for htime, msg, username, id in reqs ]
-		if len(msgs)>0:
-			assert(type(msgs[0][2]) == str)
+	def get_channel_messages(self, user_id, channel_id, last_msg_id):
+		# returns a list of channel messages since last_msg_id for the specific userid when he is subscribed to the channel
+		# [[date, username, msg, id], ...]
+		res = self.sess().query(ChannelHistory.time, ChannelHistory.msg, ChannelHistory.ex_msg, User.username, BridgedUser.external_username, BridgedUser.location, ChannelHistory.id).filter(ChannelHistory.channel_id == channel_id).filter(ChannelHistory.id > last_msg_id).join(User, isouter=True).join(BridgedUser, isouter=True).order_by(ChannelHistory.id).all()
+		msgs = []
+		for (time, msg, ex_msg, username, external_username, location, id) in res:
+			if not username:
+				msgs.append((time, "?", msg, ex_msg, id))
+			elif external_username:
+				bridged_username = external_username + ":" + location
+				msgs.append((time, bridged_username, msg, ex_msg, id))
+			else:
+				msgs.append((time, username, msg, ex_msg, id))				
 		return msgs
 
 class OfflineBridgedClient():
@@ -1071,7 +1080,6 @@ class VerificationsHandler:
 
 	def check_and_send(self, user_id, email, digits, reason):
 		# check that we don't already have an active verification, send a new one if not
-		print(1)
 		if not self.active():
 			return True, ''
 		good, validity_reason = self.valid_email_addr(email)
@@ -1262,6 +1270,7 @@ class ChannelsHandler:
 					'operator':[],
 					'chanserv': True,
 					'store_history': chan.store_history,
+					'last_used' : chan.last_used,
 				}
 		return channels
 
@@ -1324,6 +1333,14 @@ class ChannelsHandler:
 			'channel_to_id': forward.channel_to_id,
 			})
 		return forwards
+		
+	def recordUse(self, channel):
+		now = datetime.now()
+		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
+		if entry:
+			now = datetime.now()
+			entry.last_used = now
+			self.sess().commit()
 
 	def setTopic(self, channel, topic, target):
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
@@ -1414,6 +1431,7 @@ class ChannelsHandler:
 			entry.topic = channel.topic
 			entry.topic_user_id = target.user_id
 		entry.owner_user_id = target.user_id
+		entry.last_used = datetime.now()
 		self.sess().add(entry)
 		self.sess().commit()
 		entry = self.sess().query(Channel).filter(Channel.name == channel.name).first()
@@ -1443,6 +1461,10 @@ class ChannelsHandler:
 		logging.info("deleting %i expired channel bridged bans", response.count())
 		response.delete(synchronize_session=False)
 
+		response = self.sess().query(Channel).filter(Channel.last_used < now - timedelta(days=180))
+		logging.info("deleting %i inactive channels", response.count())
+		response.delete(synchronize_session=False)
+		
 		self.sess().commit()
 
 
@@ -1503,13 +1525,13 @@ if __name__ == '__main__':
 
 	# test verification
 	entry = verificationdb.create(client.id, client.email, 4, "test")
-	verificationdb._send_email("test@test.test", "blackhole@blackhole.io", "test", "test") #use main thread, or Python will exit without waiting for the test!
+	verificationdb._send_email("test@test.test", "blackhole2@blackhole.io", "test", "test") #use main thread, or Python will exit without waiting for the test!
 	verificationdb.verify(client.id, client.email, entry.code)
 	verificationdb.clean()
 
 	# test ban/unban
 	client.user_id = client.id # ban issuer is an *online* client; impersonate one
-	userdb.register_user("delinquent", u"pass", "192.168.1.2", "blackhole@blackhole.io")
+	userdb.register_user("delinquent", u"pass", "192.168.1.2", "blackhole3@blackhole.io")
 	client2 = userdb.clientFromUsername("delinquent")
 	bandb.ban(client, 1, "test", "delinquent")
 	ban = bandb.check_ban(client2.id, None, None)
@@ -1535,17 +1557,17 @@ if __name__ == '__main__':
 	# test channel message history
 	now = datetime.now()
 	msg = u'test message %d äöüÄÖÜß ?(?_°)?'
-	lastid = -1
+	last_msg_id = -1
 	for i in range(0, 20):
 		if i == 0:
-			lastid = userdb.add_channel_message(channel.id, client.id, msg % i, now + timedelta(0, i))
+			last_msg_id = userdb.add_channel_message(channel.id, client.id, None, msg % i, False, now + timedelta(0, i))
 		else:
-			userdb.add_channel_message(channel.id, client.id, msg % i, now + timedelta(0, i))
+			userdb.add_channel_message(channel.id, client.id, None, msg % i, False, now + timedelta(0, i))
 
-	assert(lastid > -1)
+	assert(last_msg_id > -1)
 
 	for i in range(0,21):
-		msgs = userdb.get_channel_messages(channel.id, client.id, lastid + i -1)
+		msgs = userdb.get_channel_messages(channel.id, client.id, last_msg_id + i -1)
 		assert(len(msgs) == 20 - i)
 		if (len(msgs) > 0):
 			assert(msgs[0][0] == now + timedelta(0, i))
@@ -1553,8 +1575,9 @@ if __name__ == '__main__':
 			assert(msgs[0][2] == msg % i)
 			assert(type(msgs[0][2]) == str)
 
-	userdb.add_channel_message(channel.id, None, "test")
-	userdb.add_channel_message(channel.id, 99, "test")
+	userdb.add_channel_message(channel.id, None, None, "test", False)
+	userdb.add_channel_message(channel.id, 99, None, "test", False)
+	userdb.add_channel_message(channel.id, 99, 99, "test", False)
 
 	userdb.clean()
 	verificationdb.clean()

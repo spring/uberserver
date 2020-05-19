@@ -6,6 +6,6 @@ import xmlrpc.client
 
 proxy = xmlrpc.client.ServerProxy("http://localhost:8300/")
 
-print(proxy.get_account_info("ubertest01", "KeepItSecretKeepItSafe01"))
+print(proxy.get_account_info("ubertest01", "t"))
 print(proxy.get_account_info("doesn'texist", "nope"))
 print(proxy.get_account_id("ubertest01"))
