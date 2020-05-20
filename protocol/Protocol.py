@@ -973,7 +973,11 @@ class Protocol:
 			return
 		else: 
 			agent, last_id, compat_flags = sentence_args.split('\t',2)
-			last_mac_id, last_sys_id = last_id.split(" ") 
+			if " " in last_id:
+				last_mac_id, last_sys_id = last_id.split(" ") 
+			else:
+				last_mac_id = last_id # backwards compat for SL<0.269
+				last_sys_id = None
 			for flag in compat_flags.split(' '):
 				client.compat.add(flag)
 		
