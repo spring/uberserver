@@ -976,8 +976,8 @@ class Protocol:
 			if " " in last_id:
 				last_mac_id, last_sys_id = last_id.split(" ") 
 			else:
-				last_mac_id = last_id # backwards compat for SL<0.269
-				last_sys_id = "0"
+				last_mac_id = last_id 
+				last_sys_id = "0" # backwards compat for SL<0.269
 			for flag in compat_flags.split(' '):
 				client.compat.add(flag)
 		

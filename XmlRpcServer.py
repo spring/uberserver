@@ -79,7 +79,7 @@ def validateLogin(username, raw_password):
 	db_user = session.query(User).filter(User.username == username).first()
 	renames = session.query(Rename.original).distinct(Rename.original).filter(Rename.user_id == db_user.id).all()
 	renames = [r[0] for r in renames]
-	country = session.query(Login.country).filter(Login.user_dbid == db_user.id).filter(sqlalchemy.and_(Login.country != '??', Login.country is not None, Login.country != '')).first()
+	country = session.query(Login.country).filter(Login.user_id == db_user.id).filter(sqlalchemy.and_(Login.country != '??', Login.country is not None, Login.country != '')).first()
 	result = {"status": 0, "accountid": int(db_user.id), "username": str(db_user.username),
 			"ingame_time": int(db_user.ingame_time), "email": str(db_user.email),
 			"aliases": renames,
