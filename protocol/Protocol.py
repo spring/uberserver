@@ -1801,7 +1801,6 @@ class Protocol:
 
 		client.Send('OPENBATTLE %s' % battle.battle_id)
 		battle.joinBattle(client)
-		client.Send('REQUESTBATTLESTATUS')
 
 	def in_JOINBATTLE(self, client, battle_id, key=None, scriptPassword=None):
 		'''
