@@ -257,15 +257,15 @@ class Protocol:
 			logging.info('[%s] <%s> client "%s" logged in without TLS' % (client.session_id, client.username, client.agent))
 
 		if compat_error:
-			#client.RealSend("MOTD Your client has compatibility errors")
-			#if len(missing_flags)>0: client.RealSend("MOTD   missing flags:%s" % missing_flags)
-			#if len(deprec_flags)>0: client.RealSend("MOTD   deprecated flags:%s" % deprec_flags)
-			#if len(unknown_flags)>0: client.RealSend("MOTD   unknown flags:%s" % unknown_flags)
-			#client.RealSend("MOTD  -- -- - -- --")
+			client.RealSend("MOTD Your client has compatibility errors")
+			if len(missing_flags)>0: client.RealSend("MOTD   missing flags:%s" % missing_flags)
+			if len(deprec_flags)>0: client.RealSend("MOTD   deprecated flags:%s" % deprec_flags)
+			if len(unknown_flags)>0: client.RealSend("MOTD   unknown flags:%s" % unknown_flags)
+			client.RealSend("MOTD  -- -- - -- --")
 			logging.info('[%s] <%s> client "%s" sent incorrect compat flags %s -- missing:%s, deprecated:%s, unknown:%s'%(client.session_id, client.username, client.agent, client.compat, missing_flags, deprec_flags, unknown_flags))
 
-		#client.RealSend("MOTD Please update your client / report these issues.")
-		#client.RealSend("MOTD  -- -- - -- --")
+		client.RealSend("MOTD Please update your client / report these issues.")
+		client.RealSend("MOTD  -- -- - -- --")
 
 	def _new(self, client):
 		login_string = ' '.join((self._root.server, str(self._root.server_version), '*', str(self._root.natport), '0'))
