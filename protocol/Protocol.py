@@ -249,7 +249,7 @@ class Protocol:
 		if not error:
 			return
 
-		#client.RealSend("MOTD  -- WARNING --")
+		client.RealSend("MOTD  -- WARNING --")
 
 		if missing_TLS:
 			client.RealSend("MOTD Your client did not use TLS. Your connection is not secure.")
