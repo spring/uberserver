@@ -22,7 +22,7 @@ import BridgedClient
 # see https://springrts.com/dl/LobbyProtocol/ProtocolDescription.html#MYSTATUS:client
 # max. 8 ranks are possible (rank 0 isn't listed)
 # rank, ingame time in hours
-ranks = (5, 15, 30, 100, 300, 1000, 3000)
+ranks = (5, 15, 30, 100, 300, 1000, 3000, 10000)
 
 restricted = {
 'disabled':set(),
@@ -1703,7 +1703,7 @@ class Protocol:
 		@required.int port:
 		@required.int maxplayers:
 		@required.sint modhash: Mod hash, as returned by unitsync.dll.
-		@required.int rank: Recommended minimum rank to join the battle. Current ranks range from 0-7.
+		@required.int rank: Recommended minimum rank to join the battle. Current ranks range from 0-8.
 		@required.sint maphash: Map hash, as returned by unitsync.dll.
 		@required.sentence.str engine: The engine name, lowercase, with no spaces.
 		@required.sentence.str version: The engine version.
