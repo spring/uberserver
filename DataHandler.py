@@ -313,7 +313,7 @@ class DataHandler:
 		print('     { uses a database in the file specified }')
 		print('  "sqlite:///relative/path/to/database.txt"')
 		print('     { note sqlite is slower than a real SQL server }')
-		print('  "mysql://user:password@server:port/database?charset=utf8&use_unicode=0"')
+		print('  "mysql://user:password@server:port/database?charset=utf8"')
 		print('     { requires the MySQLdb module }')
 		print('  "oracle://user:password@server:port/database"')
 		print('     { requires the cx_Oracle module }')
@@ -776,6 +776,4 @@ class DataHandler:
 		ret = 'Reload successful'
 		logging.info(ret)
 		return ret
-		
 
-		
