@@ -160,6 +160,7 @@ restricted = {
 	# users
 	'SETACCESS',
 	'DELETEACCOUNT',
+	'LISTMODS',
 	#########
 	# dev
 	'STATS',
@@ -2758,6 +2759,13 @@ class Protocol:
 			return		
 		self._root.stats()
 		self.out_SERVERMSG(client, 'Stats were printed in the server logfile')
+		
+	def in_LISTMODS(self, client):
+		if not 'mod' in client.accesslevels:
+			return		
+		admins, mods = self.userdb.list_mods()
+		self.out_SERVERMSG(client, "Admins: %s" % admins)
+		self.out_SERVERMSG(client, "Mods: %s" % mods)
 	
 	def in_RELOAD(self, client):
 		self.broadcast_Moderator('Reload initiated by <%s>' % client.username)
@@ -3257,11 +3265,12 @@ def check_protocol_commands():
 	for func in dir(Protocol):
 		if func[:3] == 'in_' and func[3:] not in restricted_list:
 			print("unused function %s"%(func))
-			return False
+			return False		
 	return True
 
 def selftest():
 	assert(check_protocol_commands())
+	assert('SETACCESS' not in restricted['everyone'])
 	class DummyRoot():
 		def SayHooks(self):
 			pass

@@ -661,6 +661,17 @@ class UsersHandler:
 			return None
 		return entry.last_ip
 
+	def list_mods(self):
+		response_mods = self.sess().query(User).filter('mod' == User.access)
+		mods = ""
+		for user in response_mods:
+			mods += user.username + " "
+		admins = ""
+		response_admins = self.sess().query(User).filter('admin' == User.access)
+		for user in response_admins:
+			admins += user.username + " "
+		return admins, mods
+
 	def remove_user(self, user):
 		entry = self.sess().query(User).filter(User.username==user).first()
 		if not entry:
