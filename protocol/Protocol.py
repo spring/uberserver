@@ -1743,7 +1743,7 @@ class Protocol:
 		if client.bot and not self._validEngineVersion(engine, version):
 			self.out_OPENBATTLEFAILED(client, "Engine version specified (%s,%s) is invalid: Spring %s or later is required!" % (engine, version, self._root.min_spring_version))
 			return
-
+			
 		battle_id = self._getNextBattleId()
 
 		try:
@@ -1767,6 +1767,11 @@ class Protocol:
 		if hashcode == 0:
 			self.out_OPENBATTLEFAILED(client, 'Invalid game hash 0')
 			return
+			
+		if not client.TLS:
+			self.out_SERVERMSG(client, "You are hosting a battle without a TLS connection. This is deprecated, in future TLS will be required for hosting.")
+			logging.info("Battlehost not using TLS: %s" % client.username)
+
 		noflag_limit = 8
 		if not client.bot and maxplayers > noflag_limit:
 			maxplayers = noflag_limit
