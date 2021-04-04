@@ -27,7 +27,6 @@ ranks = (5, 15, 30, 100, 300, 1000, 3000)
 restricted = {
 'disabled':set(),
 'everyone':set([
-	'SETACCESS',
 	'EXIT',
 	'PING',
 	'LISTCOMPFLAGS',
@@ -2604,8 +2603,8 @@ class Protocol:
 		user.bot = bot
 		self.userdb.save_user(user)
 		if online:
-			self._calc_status(client, client.status)
-			self._root.broadcast('CLIENTSTATUS %s %d'%(client.username, client.status))
+			self._calc_status(user, user.status)
+			self._root.broadcast('CLIENTSTATUS %s %d'%(user.username, user.status))
 
 		self.out_SERVERMSG(client, 'Botmode for <%s> successfully changed to %s' % (username, bot))
 		if bot:
