@@ -1107,7 +1107,7 @@ class Protocol:
 		self._SendLoginInfo(client)
 
 	def in_CREATEBOTACCOUNT(self, client, username, from_username, founder_username=None):
-		# Create a new botflagged account with the same email & password as from_username
+		# Create a new botflagged account with a blank email & the same password as from_username
 		# register its battle to founder_username
 		good, reason = self._validUsernameSyntax(username)
 		if not good:
