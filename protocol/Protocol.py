@@ -1770,8 +1770,8 @@ class Protocol:
 			return
 			
 		if not client.TLS:
-			self.out_SERVERMSG(client, "You are hosting a battle without a TLS connection. This is deprecated, in future TLS will be required for hosting.")
-			logging.info("Battlehost not using TLS: %s" % client.username)
+			self.out_SERVERMSG(client, "A TLS connection is required to host battles. Please upgrade your client.")
+			return
 
 		noflag_limit = 8
 		if not client.bot and maxplayers > noflag_limit:
