@@ -707,8 +707,8 @@ class UsersHandler:
 
 	def audit_access(self):
 		now = datetime.now()
-		# remove botflags from clients that didn't log in for 3 months:
-		response = self.sess().query(User).filter(User.last_login < now - timedelta(days=90)).filter(User.bot == 1)
+		# remove botflags from clients that didn't log in for 1 year
+		response = self.sess().query(User).filter(User.last_login < now - timedelta(days=365)).filter(User.bot == 1)
 		logging.info("removing %i botflags from inactive hosts", response.count())
 		for user in response:
 			user.bot = 0
