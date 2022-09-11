@@ -10,8 +10,6 @@ Group=lobby
 WorkingDirectory=/home/lobby/uberserver
 ExecStart=/home/lobby/uberserver/server.py -g args.txt
 SyslogIdentifier=uberserver
-StandardOutput=syslog
-StandardError=syslog
 Restart=always
 RestartSec=3
 
