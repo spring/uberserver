@@ -1435,9 +1435,6 @@ class Protocol:
 			self._root.broadcast('SAIDBATTLE %s %s' % (client.username, msg), chan, set([]), client, None, 'u')
 		else:
 			self._root.broadcast('SAID %s %s %s' % (chan, client.username, msg), chan, set([]), client, None, 'u')
-		if channel.store_history: #fixme for bridged clients
-			self.userdb.add_channel_message(channel.id, client.user_id, msg)
-
 		
 	def in_IGNORE(self, client, tags):
 		'''
