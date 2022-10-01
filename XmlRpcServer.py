@@ -125,6 +125,19 @@ class _RpcFuncs(object):
 			root.session_manager.close_guard()
 		return ret
 
+	def get_username(self, account_id):
+		ret = None
+		try:
+			session = root.userdb.sess()
+			db_user = session.query(User.username).filter(User.id == account_id).first()
+			ret = db_user.username
+			root.session_manager.commit_guard()
+		except Exception as e:
+			logger.error('Exception: {}: {}'.format(e, traceback.format_exc()))
+			root.session_manager.rollback_guard()
+		finally:
+			root.session_manager.close_guard()
+		return ret
 
 try:
 	xmlrpcserver = XmlRpcServer(xmlhost, xmlport)
