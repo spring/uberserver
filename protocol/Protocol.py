@@ -836,6 +836,10 @@ class Protocol:
 
 		# well formed-ness tests
 		good, reason = self._validUsernameSyntax(username)
+		if not good:
+			client.Send("REGISTRATIONDENIED %s" % (reason))
+			return
+
 		good, reason = self._validPasswordSyntax(password)
 		if not good:
 			client.Send("REGISTRATIONDENIED %s" % (reason))
@@ -935,6 +939,17 @@ class Protocol:
 		@optional.sentence.int user_id: User ID provided by lobby
 		@optional.sentence.str compat_flags: Compatibility flags, sent in space-separated form, see lobby protocol docs for details
 		'''
+
+		# well formed-ness tests
+		good, reason = self._validUsernameSyntax(username)
+		if not good:
+			self.out_DENIED(client, username, reaseon)
+			return
+
+		good, reason = self._validPasswordSyntax(password)
+		if not good:
+			client.out_DENIED(client, username, reason)
+			return
 
 		if username in self._root.usernames:
 			self.out_DENIED(client, username, 'Already logged in.')
