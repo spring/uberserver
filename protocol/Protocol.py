@@ -943,12 +943,12 @@ class Protocol:
 		# well formed-ness tests
 		good, reason = self._validUsernameSyntax(username)
 		if not good:
-			self.out_DENIED(client, username, reaseon)
+			self.out_DENIED(client, username, reason)
 			return
 
 		good, reason = self._validPasswordSyntax(password)
 		if not good:
-			client.out_DENIED(client, username, reason)
+			self.out_DENIED(client, username, reason)
 			return
 
 		if username in self._root.usernames:
