@@ -683,8 +683,8 @@ class UsersHandler:
 	def clean(self):
 		now = datetime.now()
 		#delete users:
-		# which didn't accept agreement after one week
-		response = self.sess().query(User).filter(User.register_date < now - timedelta(days=7)).filter(User.access == "agreement")
+		# which didn't accept agreement after three days
+		response = self.sess().query(User).filter(User.register_date < now - timedelta(days=3)).filter(User.access == "agreement")
 		logging.info("deleting %i users who failed to verify registration", response.count())
 		response.delete(synchronize_session=False)
 
