@@ -1,18 +1,18 @@
-# Requirements
-- python 3
-- sqlalchemy
-- GeoIP
-- twisted
+# Project Overview
+Uberserver is a lobbyserver written in python for spring lobby clients. It is currently used as the main lobby server running at lobby.springrts.com port 8200.
 
-# Installation
+## Prerequisites
+This project is built using Python 3. Make sure you have the following installed before proceeding:
+- `Python 3`
+- `SQLAlchemy`
+- `GeoIP`
+- `Twisted`
 
-Install OpenSSL, Geoip headers. Optional MariaDB | Mysql client headers
-
-Debian / Ubuntu:
-
-- libssl-1.0-dev
-- libgeoip-dev
-- libmariadbclient-dev | libmysqlclient-dev
+### System Packages Required
+For Debian/Ubuntu:
+- `libssl-1.0-dev`
+- `libgeoip-dev`
+- `libmariadbclient-dev` or `libmysqlclient-dev`
 
 ```
 # apt update
@@ -20,62 +20,63 @@ Debian / Ubuntu:
 ```
 
 
-Clone uberserver sources
+## Installation Steps
+### Option 1: Manual Installation
+1. Clone the uberserver source code:
+    ```bash
+    git clone git@github.com:spring/uberserver.git
+    ```
+2. Create a Python virtual environment:
+    ```bash
+    virtualenv ~/virtenvs/uberserver
+    source ~/virtenvs/uberserver/bin/activate
+    ```
+3. Install Python dependencies:
+    ```bash
+    pip install -r requirements.txt
+    ```
+4. SQLite is used by default. For production, consider setting up MySQL or PostgreSQL.
+
+### Option 2: Using Docker for Local Server
+1. Build and run the local server:
+    ```bash
+    cd docker
+    docker-compose build
+    docker-compose up
+    ```
+2. To find the container ID:
+    ```bash
+    docker ps
+    ```
+3. Access the database and add users:
+    ```bash
+    docker exec -it your_container_id bash
+    sqlite3 local_server.db
+    ```
+
+4. Use the following command to log in:
+    ```bash
+    docker logs your_container_id
+    ```
+
+The address will look like "private: 192.168.100.17:8200". Use it to log in with `user1/123`.
+
+## Usage
+Activate the virtual environment and start the server:
+```bash
+source ~/virtenvs/uberserver/bin/activate
+./server.py
+```
+
+## Logs
+- Log file: `$PWD/server.log`
+
+## External Documents
+Refer to https://springrts.com/wiki/Uberserver for more details.
+
+## Help and Support
+For any issues or questions, refer to the server logs or Docker logs. You can also raise issues on the [GitHub Repository](https://github.com/spring/uberserver).
 
 
-```
-$ git clone git@github.com:spring/uberserver.git
-```
 
-Create a Python virtualenv
 
-```
-$ virtualenv ~/virtenvs/uberserver
-$ source ~/virtenvs/uberserver/bin/activate
-```
-
-Install Python requirements
-
-```
-$ pip install -r requirements.txt
-```
-
-Without further configuration this will create a SQLite database (server.db).
-Performance will be OK for testing and small setups. For production use,
-setup MySQL/PostgreSQL/etc.
-
-# Usage
-```
-$ source ~/virtenvs/uberserver/bin/activate
-$ ./server.py
-```
-
-# Logs
-- `$PWD/server.log`
-
-# Run local server via Docker
-Build and run local server
-```
-$ cd docker
-$ docker-compose build
-$ docker-compose up
-```
-To obtain container id execute and search for uberserver
-```
-$ docker ps
-```
-Adding users. Directory will be /root/uberserver.
-```
-$ docker exec -it your_container_id bash
-$ sqlite3 local_server.db
-```
-Add user to the database. Choose name you prefer to login. Role can be changed, see predefined values in the server code. Password will be 123. E-mail can be arbitrary, but uniq.
-```
-insert into users(username, password, register_date, ingame_time, access, email, bot) values ('user1', 'ICy5YqxZB1uWSwcVLSNLcA==', DATE('NOW'), 0, 'user', 'user1@mail.com', 0);
-```
-Use your local machine address or find private uberserver address via Docker logs command
-```
-$ docker logs your_container_id
-```
-The address looks like "private: 192.168.100.17:8200"
-For now you can login to local uberserver 192.168.100.17:8200 user/password user1/123
